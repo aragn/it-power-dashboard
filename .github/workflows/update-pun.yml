@@ -1,0 +1,54 @@
+name: Update PUN data
+
+on:
+  schedule:
+    # Run every day at 06:00 UTC
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-pun:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch PUN data
+        env:
+          GME_API_LOGIN: ${{ secrets.GME_API_LOGIN }}
+          GME_API_PASSWORD: ${{ secrets.GME_API_PASSWORD }}
+        run: |
+          START=$(date -d "60 days ago" +%Y%m%d)
+          END=$(date +%Y%m%d)
+
+          echo "Fetching PUN data from $START to $END"
+
+          python etl/fetch_pun.py \
+            --start "$START" \
+            --end "$END"
+
+      - name: Commit updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add app/data/pun.json
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update PUN data"
+            git push
+          fi
