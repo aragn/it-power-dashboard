@@ -1,28 +1,3 @@
-"""
-etl/fetch_pun.py
-
-Pulls the PUN Index GME from the GME API and writes
-app/data/pun.json in the schema the frontend expects:
-
-{
-    "source": "GME - PUN Index GME (MGP)",
-    "series": [
-        {"date": "YYYY-MM-DD", "pun": float},
-        ...
-    ]
-}
-
-The GME API is queried in monthly chunks to avoid request-size limits.
-The script also handles GME rate limiting (HTTP 429) with automatic retries.
-
-Credentials:
-    GME_API_LOGIN
-    GME_API_PASSWORD
-
-Example:
-    py etl/fetch_pun.py --start 20250101 --end 20260924
-"""
-
 import argparse
 import base64
 import io
@@ -31,376 +6,1316 @@ import os
 import time
 import zipfile
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 import requests
 
 
-API_BASE = "https://api.mercatoelettrico.org/request"
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
 
-OUT_PATH = os.path.join(
-    os.path.dirname(__file__),
-    "..",
+API_BASE = "https://api.mercatoelettrico.org/request"
+AUTH_URL = f"{API_BASE}/api/v1/Auth"
+DATA_URL = f"{API_BASE}/api/v1/RequestData"
+
+OUTPUT_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
     "app",
     "data",
     "pun.json",
 )
 
+# GME introduced 15-minute MTU products for delivery from 1 October 2025.
+PT15_START = date(2025, 10, 1)
 
-def get_token(login: str, password: str) -> str:
+# Pause between successful API requests.
+REQUEST_PAUSE_SECONDS = 20
+
+# Retry settings for HTTP 429.
+MAX_RETRIES = 6
+INITIAL_RETRY_SECONDS = 30
+
+
+# ============================================================================
+# AUTHENTICATION
+# ============================================================================
+
+def get_token(login, password):
     """Authenticate with GME and return the JWT token."""
 
-    resp = requests.post(
-        f"{API_BASE}/api/v1/Auth",
+    response = requests.post(
+        AUTH_URL,
         json={
             "Login": login,
             "Password": password,
         },
+        timeout=60,
     )
 
-    resp.raise_for_status()
+    response.raise_for_status()
 
-    payload = resp.json()
+    payload = response.json()
 
-    # GME currently returns lowercase response fields.
     if not payload.get("success"):
+        reason = payload.get(
+            "reason",
+            "Unknown authentication error",
+        )
         raise RuntimeError(
-            f"GME auth failed. Response from GME: {payload}"
+            f"GME authentication failed: {reason}"
         )
 
-    return payload["token"]
+    token = payload.get("token")
+
+    if not token:
+        raise RuntimeError(
+            "GME authentication succeeded but no token was returned."
+        )
+
+    return token
 
 
-def request_data(token: str, interval_start: str, interval_end: str) -> list:
+# ============================================================================
+# DATE HELPERS
+# ============================================================================
+
+def month_ranges(start_date, end_date):
     """
-    Request GME data in monthly chunks.
-
-    This avoids the HTTP 412 error encountered when requesting
-    a very large date range in a single API call.
-
-    If GME returns HTTP 429 (Too Many Requests), the request is
-    retried with exponential backoff.
+    Split an inclusive date range into calendar-month chunks.
     """
 
-    start_date = datetime.strptime(
-        interval_start,
-        "%Y%m%d",
-    ).date()
+    current = start_date
 
-    end_date = datetime.strptime(
-        interval_end,
-        "%Y%m%d",
-    ).date()
+    while current <= end_date:
 
-    all_rows = []
+        next_month = (
+            current.replace(day=28) + timedelta(days=4)
+        ).replace(day=1)
 
-    current_date = start_date
+        month_end = next_month - timedelta(days=1)
 
-    while current_date <= end_date:
-
-        # Calculate the first day of the next month.
-        if current_date.month == 12:
-            next_month = current_date.replace(
-                year=current_date.year + 1,
-                month=1,
-                day=1,
-            )
-        else:
-            next_month = current_date.replace(
-                month=current_date.month + 1,
-                day=1,
-            )
-
-        # Last day of the current month,
-        # or the requested end date if earlier.
         chunk_end = min(
+            month_end,
             end_date,
-            next_month - timedelta(days=1),
         )
 
-        chunk_start_str = current_date.strftime("%Y%m%d")
-        chunk_end_str = chunk_end.strftime("%Y%m%d")
+        yield current, chunk_end
 
-        print(
-            f"Requesting GME data: "
-            f"{chunk_start_str} -> {chunk_end_str}"
+        current = chunk_end + timedelta(days=1)
+
+
+def parse_date(value):
+    """Convert YYYYMMDD or YYYY-MM-DD into a date."""
+
+    value = str(value)
+
+    if "-" in value:
+        return datetime.strptime(
+            value,
+            "%Y-%m-%d",
+        ).date()
+
+    return datetime.strptime(
+        value,
+        "%Y%m%d",
+    ).date()
+
+
+# ============================================================================
+# GME API REQUEST
+# ============================================================================
+
+def request_chunk(
+    token,
+    start_date,
+    end_date,
+    granularity=None,
+):
+    """
+    Request one date chunk from GME.
+
+    granularity:
+        None  -> GME historical/default granularity
+        PT60  -> hourly
+        PT15  -> quarter-hourly
+
+    GME returns the data as a Base64-encoded ZIP in
+    the top-level contentResponse field.
+    """
+
+    body = {
+        "Platform": "PublicMarketResults",
+        "Segment": "MGP",
+        "DataName": "ME_ZonalPrices",
+        "IntervalStart": start_date.strftime("%Y%m%d"),
+        "IntervalEnd": end_date.strftime("%Y%m%d"),
+        "Attributes": {},
+    }
+
+    # IMPORTANT:
+    # For pre-October-2025 historical data we deliberately leave
+    # GranularityType out of the request.
+    if granularity is not None:
+        body["Attributes"]["GranularityType"] = granularity
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+    }
+
+    retry_seconds = INITIAL_RETRY_SECONDS
+
+    for attempt in range(MAX_RETRIES + 1):
+
+        response = requests.post(
+            DATA_URL,
+            headers=headers,
+            json=body,
+            timeout=180,
         )
 
-        body = {
-            "Platform": "PublicMarketResults",
-            "Segment": "MGP",
-            "DataName": "ME_ZonalPrices",
-            "IntervalStart": chunk_start_str,
-            "IntervalEnd": chunk_end_str,
-            "Attributes": {},
-        }
+        # ----------------------------------------------------------------
+        # Rate limit
+        # ----------------------------------------------------------------
 
-        max_retries = 6
+        if response.status_code == 429:
 
-        for attempt in range(max_retries):
+            if attempt >= MAX_RETRIES:
+                response.raise_for_status()
 
-            resp = requests.post(
-                f"{API_BASE}/api/v1/RequestData",
-                headers={
-                    "Authorization": f"Bearer {token}"
-                },
-                json=body,
-            )
-
-            # Successful request or an error other than 429.
-            if resp.status_code != 429:
-                break
-
-            # GME may tell us how long to wait.
-            retry_after = resp.headers.get("Retry-After")
+            retry_after = response.headers.get("Retry-After")
 
             if retry_after:
+
                 try:
                     wait_seconds = int(retry_after)
                 except ValueError:
-                    wait_seconds = 5 * (2 ** attempt)
+                    wait_seconds = retry_seconds
+
             else:
-                # Exponential backoff:
-                # 5, 10, 20, 40, 80, 160 seconds
-                wait_seconds = 5 * (2 ** attempt)
+                wait_seconds = retry_seconds
 
             print(
-                f"  GME rate limit reached. "
-                f"Waiting {wait_seconds} seconds "
-                f"before retry "
-                f"({attempt + 1}/{max_retries})..."
+                f"    HTTP 429 rate limit. "
+                f"Waiting {wait_seconds}s before retry..."
             )
 
             time.sleep(wait_seconds)
 
-        # Raise an error if the request still failed.
-        resp.raise_for_status()
+            retry_seconds *= 2
 
-        payload = resp.json()
-
-        # GME currently returns lowercase response fields,
-        # but support both versions.
-        result_request = payload.get(
-            "resultRequest",
-            payload.get("ResultRequest"),
-        )
-
-        content_response = payload.get(
-            "contentResponse",
-            payload.get("ContentResponse"),
-        )
-
-        if result_request and result_request != "OK":
-            raise RuntimeError(
-                f"GME data request failed for "
-                f"{chunk_start_str}-{chunk_end_str}: "
-                f"{payload}"
-            )
-
-        if not content_response:
-            # Avoid printing credentials or tokens.
-            safe_payload = {
-                key: value
-                for key, value in payload.items()
-                if key.lower() != "token"
-            }
-
-            raise RuntimeError(
-                f"GME returned no data content for "
-                f"{chunk_start_str}-{chunk_end_str}: "
-                f"{safe_payload}"
-            )
-
-        # GME returns the data as a base64-encoded ZIP file.
-        raw_zip = base64.b64decode(content_response)
-
-        with zipfile.ZipFile(
-            io.BytesIO(raw_zip)
-        ) as zf:
-
-            json_name = next(
-                name
-                for name in zf.namelist()
-                if name.endswith(".json")
-            )
-
-            with zf.open(json_name) as f:
-                rows = json.load(f)
-
-        all_rows.extend(rows)
-
-        print(
-            f"  Received {len(rows)} rows"
-        )
-
-        # Give GME some breathing room before the next request.
-        time.sleep(5)
-
-        # Move to the next month.
-        current_date = chunk_end + timedelta(days=1)
-
-    print(
-        f"Total rows received: {len(all_rows)}"
-    )
-
-    return all_rows
-
-
-def to_daily_pun(rows: list) -> list:
-    """
-    Filter to Zone == 'PUN' and calculate one daily PUN value.
-
-    All PUN price observations belonging to the same FlowDate
-    are averaged.
-    """
-
-    by_day = defaultdict(list)
-
-    for row in rows:
-
-        if row.get("Zone") != "PUN":
             continue
 
-        flow_date = str(row["FlowDate"])
+        # ----------------------------------------------------------------
+        # Authentication expiry
+        # ----------------------------------------------------------------
 
-        by_day[flow_date].append(
-            float(row["Price"])
+        if response.status_code == 401:
+
+            raise PermissionError(
+                "GME token expired or unauthorized."
+            )
+
+        response.raise_for_status()
+
+        payload = response.json()
+
+        # ----------------------------------------------------------------
+        # GME response
+        # ----------------------------------------------------------------
+
+        result_request = payload.get("resultRequest")
+
+        if result_request not in (
+            None,
+            "",
+            "OK",
+            "Ok",
+            "Success",
+        ):
+            raise RuntimeError(
+                f"GME API request failed: {result_request}"
+            )
+
+        content_response = (
+            payload.get("contentResponse")
+            or payload.get("ContentResponse")
         )
 
-    out = []
+        if not content_response:
+            raise RuntimeError(
+                "GME API returned no contentResponse. "
+                f"Response: {payload}"
+            )
 
-    for flow_date, prices in sorted(
-        by_day.items()
-    ):
+        # ----------------------------------------------------------------
+        # Base64 -> ZIP
+        # ----------------------------------------------------------------
 
-        dt = datetime.strptime(
-            flow_date,
-            "%Y%m%d",
-        ).date().isoformat()
+        try:
 
-        out.append(
-            {
-                "date": dt,
-                "pun": round(
-                    sum(prices) / len(prices),
-                    2,
-                ),
-            }
+            zip_bytes = base64.b64decode(
+                content_response
+            )
+
+        except Exception as exc:
+
+            raise RuntimeError(
+                "Could not decode GME contentResponse from Base64."
+            ) from exc
+
+        # ----------------------------------------------------------------
+        # ZIP -> JSON
+        # ----------------------------------------------------------------
+
+        try:
+
+            with zipfile.ZipFile(
+                io.BytesIO(zip_bytes)
+            ) as archive:
+
+                names = archive.namelist()
+
+                json_files = [
+                    name
+                    for name in names
+                    if name.lower().endswith(".json")
+                ]
+
+                if not json_files:
+                    raise RuntimeError(
+                        "GME ZIP contains no JSON file. "
+                        f"Files: {names}"
+                    )
+
+                json_name = json_files[0]
+
+                with archive.open(json_name) as json_file:
+
+                    data = json.load(json_file)
+
+        except zipfile.BadZipFile as exc:
+
+            raise RuntimeError(
+                "GME contentResponse is not a valid ZIP file."
+            ) from exc
+
+        # ----------------------------------------------------------------
+        # JSON -> rows
+        # ----------------------------------------------------------------
+
+        if isinstance(data, list):
+            return data
+
+        if isinstance(data, dict):
+
+            # Most likely structures first.
+            for key in (
+                "contentResponse",
+                "data",
+                "rows",
+                "result",
+                "items",
+            ):
+
+                value = data.get(key)
+
+                if isinstance(value, list):
+                    return value
+
+            # Generic one-level search.
+            for value in data.values():
+
+                if isinstance(value, list):
+                    return value
+
+                if isinstance(value, dict):
+
+                    for nested_value in value.values():
+
+                        if isinstance(
+                            nested_value,
+                            list,
+                        ):
+                            return nested_value
+
+        raise RuntimeError(
+            "Could not identify market-data rows "
+            "inside the GME JSON response."
         )
 
-    return out
-
-
-def main():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--start",
-        required=True,
-        help="yyyyMMdd",
+    raise RuntimeError(
+        "Unexpected error while requesting GME data."
     )
 
-    parser.add_argument(
-        "--end",
-        required=True,
-        help="yyyyMMdd",
-    )
 
-    args = parser.parse_args()
+# ============================================================================
+# MONTHLY DOWNLOAD
+# ============================================================================
 
-    # Read GME credentials from environment variables.
-    login = os.environ["GME_API_LOGIN"]
-    password = os.environ["GME_API_PASSWORD"]
+def request_data(
+    login,
+    password,
+    start_date,
+    end_date,
+    granularity=None,
+):
+    """
+    Download a date range in monthly chunks.
 
-    # Authenticate.
+    A new JWT is obtained for each complete download section.
+    If the token expires during the download, it is refreshed.
+    """
+
     token = get_token(
         login,
         password,
     )
 
-    # Download GME data.
-    rows = request_data(
-        token,
-        args.start,
-        args.end,
+    all_rows = []
+
+    chunks = list(
+        month_ranges(
+            start_date,
+            end_date,
+        )
     )
 
-    # Convert hourly/period data into daily PUN.
-    daily = to_daily_pun(rows)
+    print(
+        f"  {granularity or 'DEFAULT'}: "
+        f"{len(chunks)} monthly API request(s)"
+    )
 
-    # Make sure the output directory exists.
+    for index, (
+        chunk_start,
+        chunk_end,
+    ) in enumerate(
+        chunks,
+        start=1,
+    ):
+
+        print(
+            f"  [{index}/{len(chunks)}] "
+            f"{chunk_start:%Y-%m-%d} -> "
+            f"{chunk_end:%Y-%m-%d}"
+        )
+
+        try:
+
+            rows = request_chunk(
+                token=token,
+                start_date=chunk_start,
+                end_date=chunk_end,
+                granularity=granularity,
+            )
+
+        except PermissionError:
+
+            print(
+                "    Token expired. "
+                "Re-authenticating..."
+            )
+
+            token = get_token(
+                login,
+                password,
+            )
+
+            rows = request_chunk(
+                token=token,
+                start_date=chunk_start,
+                end_date=chunk_end,
+                granularity=granularity,
+            )
+
+        print(
+            f"    Received {len(rows):,} rows"
+        )
+
+        # Diagnostic information for the first successful chunk.
+        if rows and index == 1:
+
+            print(
+                "    Sample fields:",
+                list(rows[0].keys()),
+            )
+
+            print(
+                "    Sample row:",
+                rows[0],
+            )
+
+        all_rows.extend(rows)
+
+        if index < len(chunks):
+
+            time.sleep(
+                REQUEST_PAUSE_SECONDS
+            )
+
+    return all_rows
+
+
+# ============================================================================
+# PUN FILTER
+# ============================================================================
+
+def filter_pun(rows):
+    """
+    Keep only PUN Index GME rows.
+
+    Normally this is identified by Zone == PUN.
+
+    If no PUN rows are found, print the available Zone values and
+    sample row so that historical schema differences are visible
+    rather than silently producing an incomplete dataset.
+    """
+
+    result = []
+
+    zones = set()
+
+    for row in rows:
+
+        zone_value = row.get("Zone")
+
+        if zone_value is not None:
+            zones.add(
+                str(zone_value)
+            )
+
+        zone = str(
+            zone_value or ""
+        ).strip().upper()
+
+        if zone != "PUN":
+            continue
+
+        if row.get("Price") is None:
+            continue
+
+        if row.get("FlowDate") is None:
+            continue
+
+        if row.get("Period") is None:
+            continue
+
+        result.append(row)
+
+    if rows and not result:
+
+        print()
+        print(
+            "    WARNING: No rows with Zone == 'PUN' "
+            "were found in this dataset."
+        )
+
+        print(
+            "    Available Zone values:",
+            sorted(zones)[:50],
+        )
+
+        print(
+            "    First row:",
+            rows[0],
+        )
+
+        print()
+
+    return result
+
+
+# ============================================================================
+# TIME CONVERSION
+# ============================================================================
+
+def market_time_from_period(
+    period,
+    minutes_per_period,
+):
+    """
+    Convert GME Period into an HH:MM market-time label.
+
+    Hourly:
+        Period 1  -> 00:00
+        Period 24 -> 23:00
+        Period 25 -> 24:00
+
+    Quarter-hourly:
+        Period 1   -> 00:00
+        Period 2   -> 00:15
+        ...
+        Period 96  -> 23:45
+        Period 97  -> 24:00
+        ...
+        Period 100 -> 24:45
+    """
+
+    period = int(period)
+
+    total_minutes = (
+        period - 1
+    ) * minutes_per_period
+
+    hour = total_minutes // 60
+    minute = total_minutes % 60
+
+    return (
+        f"{hour:02d}:"
+        f"{minute:02d}"
+    )
+
+
+# ============================================================================
+# BUILD HOURLY SERIES
+# ============================================================================
+
+def build_hourly(rows):
+
+    output = {}
+
+    for row in filter_pun(rows):
+
+        flow_date = datetime.strptime(
+            str(row["FlowDate"]),
+            "%Y%m%d",
+        ).date()
+
+        hour = int(
+            row["Hour"]
+        )
+
+        price = float(
+            row["Price"]
+        )
+
+        # GME hourly data uses Hour 1-25.
+        # Hour 1 = 00:00, Hour 24 = 23:00,
+        # Hour 25 = 24:00 on 25-hour DST days.
+        time_string = (
+            f"{hour - 1:02d}:00"
+        )
+
+        key = (
+            flow_date.isoformat(),
+            hour,
+        )
+
+        output[key] = {
+            "date": flow_date.isoformat(),
+            "time": time_string,
+            "hour": hour,
+            "pun": round(
+                price,
+                2,
+            ),
+        }
+
+    return sorted(
+        output.values(),
+        key=lambda x: (
+            x["date"],
+            x["hour"],
+        ),
+    )
+
+
+# ============================================================================
+# BUILD QUARTER-HOURLY SERIES
+# ============================================================================
+
+def build_quarter_hourly(rows):
+
+    output = {}
+
+    pun_rows = filter_pun(rows)
+
+    for row in pun_rows:
+
+        flow_date = datetime.strptime(
+            str(row["FlowDate"]),
+            "%Y%m%d",
+        ).date()
+
+        period = int(
+            row["Period"]
+        )
+
+        price = float(
+            row["Price"]
+        )
+
+        key = (
+            flow_date.isoformat(),
+            period,
+        )
+
+        output[key] = {
+            "date": flow_date.isoformat(),
+            "time": market_time_from_period(
+                period,
+                15,
+            ),
+            "period": period,
+            "pun": round(
+                price,
+                2,
+            ),
+        }
+
+    return sorted(
+        output.values(),
+        key=lambda x: (
+            x["date"],
+            x["period"],
+        ),
+    )
+
+
+# ============================================================================
+# SYNTHETIC QUARTER-HOURLY DATA BEFORE 1 OCTOBER 2025
+# ============================================================================
+
+def expand_hourly_to_quarter_hourly(hourly):
+    """
+    Before 1 October 2025, GME does not provide PT15 MGP results.
+
+    We therefore expand each hourly PUN price into four quarter-hour
+    observations with the same price.
+
+    Example:
+
+        Hour 10 = 120
+
+    becomes:
+
+        10:00 = 120
+        10:15 = 120
+        10:30 = 120
+        10:45 = 120
+    """
+
+    output = []
+
+    for row in hourly:
+
+        date_string = row["date"]
+        hour = int(row["hour"])
+        price = float(row["pun"])
+
+        # GME hourly "Hour" is 1-based:
+        # Hour 1 = 00:00–00:59
+        # Hour 2 = 01:00–01:59
+        # etc.
+        first_quarter_period = ((hour - 1) * 4) + 1
+
+        for quarter_offset in range(4):
+
+            quarter_period = (
+                first_quarter_period
+                + quarter_offset
+            )
+
+            output.append(
+                {
+                    "date": date_string,
+                    "time": market_time_from_period(
+                        quarter_period,
+                        15,
+                    ),
+                    "period": quarter_period,
+                    "pun": round(price, 2),
+                }
+            )
+
+    return output
+
+
+# ============================================================================
+# MERGE SERIES
+# ============================================================================
+
+def merge_series(
+    existing,
+    new,
+    key_field="period",
+):
+    """
+    Merge records using date + key_field.
+
+    For hourly data:
+        key_field = "hour"
+
+    For quarter-hourly data:
+        key_field = "period"
+    """
+
+    merged = {}
+
+    for row in existing:
+
+        key = (
+            row.get("date"),
+            row.get(key_field),
+        )
+
+        if (
+            key[0] is not None
+            and key[1] is not None
+        ):
+            merged[key] = row
+
+    for row in new:
+
+        key = (
+            row.get("date"),
+            row.get(key_field),
+        )
+
+        if (
+            key[0] is not None
+            and key[1] is not None
+        ):
+            merged[key] = row
+
+    return sorted(
+        merged.values(),
+        key=lambda x: (
+            x["date"],
+            x[key_field],
+        ),
+    )
+
+
+# ============================================================================
+# DAILY AVERAGES
+# ============================================================================
+
+def build_daily_from_quarter_hourly(
+    quarter_hourly,
+):
+    """
+    Calculate daily average PUN from the quarter-hourly series.
+
+    Before 1 October 2025, each hourly price is repeated four times,
+    so this produces the same arithmetic average as the hourly series.
+    """
+
+    grouped = defaultdict(list)
+
+    for row in quarter_hourly:
+
+        grouped[row["date"]].append(
+            float(row["pun"])
+        )
+
+    output = []
+
+    for date_string in sorted(
+        grouped
+    ):
+
+        values = grouped[
+            date_string
+        ]
+
+        if not values:
+            continue
+
+        average = (
+            sum(values)
+            / len(values)
+        )
+
+        output.append(
+            {
+                "date": date_string,
+                "pun": round(
+                    average,
+                    2,
+                ),
+            }
+        )
+
+    return output
+
+
+# ============================================================================
+# LOAD EXISTING DATA
+# ============================================================================
+
+def load_existing():
+
+    if not os.path.exists(
+        OUTPUT_PATH
+    ):
+
+        return {
+            "source": (
+                "GME - PUN Index GME (MGP)"
+            ),
+            "daily": [],
+            "hourly": [],
+            "quarter_hourly": [],
+        }
+
+    with open(
+        OUTPUT_PATH,
+        "r",
+        encoding="utf-8",
+    ) as f:
+
+        payload = json.load(f)
+
+    # ------------------------------------------------------------------------
+    # New format
+    # ------------------------------------------------------------------------
+
+    if "daily" in payload:
+
+        return {
+            "source": payload.get(
+                "source",
+                "GME - PUN Index GME (MGP)",
+            ),
+            "daily": payload.get(
+                "daily",
+                [],
+            ),
+            "hourly": payload.get(
+                "hourly",
+                [],
+            ),
+            "quarter_hourly": payload.get(
+                "quarter_hourly",
+                [],
+            ),
+        }
+
+    # ------------------------------------------------------------------------
+    # Old format
+    # ------------------------------------------------------------------------
+
+    old_series = payload.get(
+        "series",
+        [],
+    )
+
+    return {
+        "source": payload.get(
+            "source",
+            "GME - PUN Index GME (MGP)",
+        ),
+        "daily": old_series,
+        "hourly": [],
+        "quarter_hourly": [],
+    }
+
+
+# ============================================================================
+# MAIN
+# ============================================================================
+
+def main():
+
+    parser = argparse.ArgumentParser(
+        description=(
+            "Fetch GME PUN Index GME data."
+        )
+    )
+
+    parser.add_argument(
+        "--start",
+        required=True,
+        help="Start date, e.g. 20250101",
+    )
+
+    parser.add_argument(
+        "--end",
+        required=True,
+        help="End date, e.g. 20260924",
+    )
+
+    args = parser.parse_args()
+
+    start_date = parse_date(
+        args.start
+    )
+
+    end_date = parse_date(
+        args.end
+    )
+
+    if end_date < start_date:
+
+        raise ValueError(
+            "End date must not be before start date."
+        )
+
+    login = os.environ.get(
+        "GME_API_LOGIN"
+    )
+
+    password = os.environ.get(
+        "GME_API_PASSWORD"
+    )
+
+    if not login or not password:
+
+        raise RuntimeError(
+            "GME_API_LOGIN and GME_API_PASSWORD "
+            "environment variables must be set."
+        )
+
+    print()
+    print("=" * 70)
+    print("GME PUN DATA FETCH")
+    print("=" * 70)
+
+    print(
+        f"Date range: "
+        f"{start_date:%Y-%m-%d} -> "
+        f"{end_date:%Y-%m-%d}"
+    )
+
+    print()
+
+    # ------------------------------------------------------------------------
+    # Existing data
+    # ------------------------------------------------------------------------
+
+    existing = load_existing()
+
+    print(
+        f"Existing daily points: "
+        f"{len(existing['daily']):,}"
+    )
+
+    print(
+        f"Existing hourly points: "
+        f"{len(existing['hourly']):,}"
+    )
+
+    print(
+        f"Existing quarter-hour points: "
+        f"{len(existing['quarter_hourly']):,}"
+    )
+
+    print()
+
+    # ========================================================================
+    # 1. HOURLY DATA
+    # ========================================================================
+
+    print(
+        "Downloading hourly PUN data..."
+    )
+
+    historical_hourly_rows = []
+    modern_hourly_rows = []
+
+    # ------------------------------------------------------------------------
+    # PRE-1 OCTOBER 2025
+    #
+    # Do NOT send GranularityType.
+    # This is the important correction.
+    # ------------------------------------------------------------------------
+
+    historical_end = min(
+        end_date,
+        PT15_START - timedelta(days=1),
+    )
+
+    if start_date <= historical_end:
+
+        print(
+            "  Historical hourly data: "
+            f"{start_date:%Y-%m-%d} -> "
+            f"{historical_end:%Y-%m-%d}"
+        )
+
+        historical_hourly_rows = request_data(
+            login=login,
+            password=password,
+            start_date=start_date,
+            end_date=historical_end,
+            granularity=None,
+        )
+
+        print(
+            "  Historical raw rows received: "
+            f"{len(historical_hourly_rows):,}"
+        )
+
+    # ------------------------------------------------------------------------
+    # 1 OCTOBER 2025 ONWARD
+    #
+    # Explicitly request PT60.
+    # ------------------------------------------------------------------------
+
+    modern_start = max(
+        start_date,
+        PT15_START,
+    )
+
+    if modern_start <= end_date:
+
+        print(
+            "  Modern hourly data (PT60): "
+            f"{modern_start:%Y-%m-%d} -> "
+            f"{end_date:%Y-%m-%d}"
+        )
+
+        modern_hourly_rows = request_data(
+            login=login,
+            password=password,
+            start_date=modern_start,
+            end_date=end_date,
+            granularity="PT60",
+        )
+
+        print(
+            "  Modern hourly raw rows received: "
+            f"{len(modern_hourly_rows):,}"
+        )
+
+    hourly_rows = (
+        historical_hourly_rows
+        + modern_hourly_rows
+    )
+
+    print(
+        "Hourly raw rows received in total: "
+        f"{len(hourly_rows):,}"
+    )
+
+    new_hourly = build_hourly(
+        hourly_rows
+    )
+
+    print(
+        "New hourly PUN points: "
+        f"{len(new_hourly):,}"
+    )
+
+    hourly = merge_series(
+        existing["hourly"],
+        new_hourly,
+        key_field="hour",
+    )
+
+    print(
+        "Total historical hourly points: "
+        f"{len(hourly):,}"
+    )
+
+    print()
+
+    # ========================================================================
+    # 2. NATIVE 15-MINUTE DATA
+    # ========================================================================
+
+    print(
+        "Downloading native 15-minute PUN data..."
+    )
+
+    native_quarter_hourly = []
+
+    quarter_start = max(
+        start_date,
+        PT15_START,
+    )
+
+    if quarter_start <= end_date:
+
+        quarter_rows = request_data(
+            login=login,
+            password=password,
+            start_date=quarter_start,
+            end_date=end_date,
+            granularity="PT15",
+        )
+
+        print(
+            "15-minute raw rows received: "
+            f"{len(quarter_rows):,}"
+        )
+
+        native_quarter_hourly = (
+            build_quarter_hourly(
+                quarter_rows
+            )
+        )
+
+        print(
+            "New native 15-minute PUN points: "
+            f"{len(native_quarter_hourly):,}"
+        )
+
+    else:
+
+        print(
+            "No native 15-minute data requested."
+        )
+
+    # ========================================================================
+    # 3. SYNTHETIC 15-MINUTE DATA BEFORE OCTOBER 2025
+    # ========================================================================
+
+    historical_hourly = [
+        row
+        for row in hourly
+        if row["date"]
+        < PT15_START.isoformat()
+    ]
+
+    synthetic_quarter_hourly = (
+        expand_hourly_to_quarter_hourly(
+            historical_hourly
+        )
+    )
+
+    # ------------------------------------------------------------------------
+    # Keep existing native PT15 data outside the current update range.
+    # ------------------------------------------------------------------------
+
+    existing_native_quarter = [
+        row
+        for row in existing["quarter_hourly"]
+        if row["date"]
+        >= PT15_START.isoformat()
+    ]
+
+    quarter_hourly = merge_series(
+        existing_native_quarter,
+        native_quarter_hourly,
+    )
+
+    # ------------------------------------------------------------------------
+    # Remove any pre-October quarter-hour data and regenerate it entirely
+    # from the complete historical hourly series.
+    # ------------------------------------------------------------------------
+
+    quarter_hourly = [
+        row
+        for row in quarter_hourly
+        if row["date"]
+        >= PT15_START.isoformat()
+    ]
+
+    quarter_hourly.extend(
+        synthetic_quarter_hourly
+    )
+
+    quarter_hourly = sorted(
+        quarter_hourly,
+        key=lambda x: (
+            x["date"],
+            x["period"],
+        ),
+    )
+
+    print(
+        "Total historical quarter-hour points: "
+        f"{len(quarter_hourly):,}"
+    )
+
+    print()
+
+    # ========================================================================
+    # 4. DAILY DATA
+    # ========================================================================
+
+    daily = build_daily_from_quarter_hourly(
+        quarter_hourly
+    )
+
+    print(
+        "Total historical daily points: "
+        f"{len(daily):,}"
+    )
+
+    print()
+
+    # ========================================================================
+    # 5. WRITE JSON
+    # ========================================================================
+
+    output = {
+        "source": (
+            "GME - PUN Index GME (MGP)"
+        ),
+
+        "description": (
+            "PUN Index GME day-ahead electricity price. "
+            "Hourly data uses GME historical/default "
+            "granularity before 1 October 2025 and PT60 "
+            "from 1 October 2025 onward. "
+            "Quarter-hourly data uses native GME PT15 "
+            "results from 1 October 2025 onward. "
+            "Before 1 October 2025, hourly prices are "
+            "repeated across four quarter-hour intervals."
+        ),
+
+        "quarter_hourly_native_from": (
+            "2025-10-01"
+        ),
+
+        "daily": daily,
+
+        "hourly": hourly,
+
+        "quarter_hourly": quarter_hourly,
+    }
+
     os.makedirs(
-        os.path.dirname(OUT_PATH),
+        os.path.dirname(
+            OUTPUT_PATH
+        ),
         exist_ok=True,
     )
 
-    # Load existing historical data, if available.
-    existing = []
-
-    if os.path.exists(OUT_PATH):
-
-        with open(
-            OUT_PATH,
-            "r",
-            encoding="utf-8",
-        ) as f:
-
-            existing_payload = json.load(f)
-
-            existing = existing_payload.get(
-                "series",
-                [],
-            )
-
-    # Merge existing and new data.
-    #
-    # If the same date already exists,
-    # the newly downloaded GME value replaces it.
-    merged = {
-        row["date"]: row["pun"]
-        for row in existing
-    }
-
-    for row in daily:
-        merged[row["date"]] = row["pun"]
-
-    # Sort the complete dataset chronologically.
-    series = [
-        {
-            "date": date,
-            "pun": merged[date],
-        }
-        for date in sorted(merged)
-    ]
-
-    # Write the complete historical dataset.
     with open(
-        OUT_PATH,
+        OUTPUT_PATH,
         "w",
         encoding="utf-8",
     ) as f:
 
         json.dump(
-            {
-                "source": "GME - PUN Index GME (MGP)",
-                "series": series,
-            },
+            output,
             f,
             ensure_ascii=False,
+            separators=(
+                ",",
+                ":",
+            ),
         )
 
+    print("=" * 70)
     print(
-        f"Wrote {len(daily)} new PUN points."
+        f"Wrote: {OUTPUT_PATH}"
+    )
+    print("=" * 70)
+
+    print()
+
+    print(
+        f"Daily points:          "
+        f"{len(daily):,}"
     )
 
     print(
-        f"Total historical PUN points: "
-        f"{len(series)}"
+        f"Hourly points:         "
+        f"{len(hourly):,}"
     )
 
     print(
-        f"Output: {OUT_PATH}"
+        f"Quarter-hour points:   "
+        f"{len(quarter_hourly):,}"
     )
+
+    print()
 
 
 if __name__ == "__main__":

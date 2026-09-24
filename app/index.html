@@ -1,140 +1,3179 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>IT Power Market Intelligence — PUN</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
-<style>
-  :root{
-    --bg:#0b0e11; --panel:#12161b; --grid:#1e242b; --text:#e6e8ea; --muted:#8a949e; --accent:#4fd1c5;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0; background:var(--bg); color:var(--text);
-    font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  }
-  header{
-    padding:18px 24px 8px; border-bottom:1px solid var(--grid);
-  }
-  header h1{ margin:0; font-size:18px; letter-spacing:.02em; }
-  header p{ margin:4px 0 0; color:var(--muted); font-size:13px; }
-  .panel{
-    margin:20px; background:var(--panel); border:1px solid var(--grid); border-radius:8px; padding:16px;
-  }
-  .panel h2{ margin:0 0 4px; font-size:14px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
-  .panel .sub{ font-size:12px; color:var(--muted); margin-bottom:12px; }
-  #chart{ width:100%; height:460px; }
-  .presets{ display:flex; gap:8px; margin-bottom:10px; }
-  .presets button{
-    background:var(--grid); border:1px solid #2a323b; color:var(--text); border-radius:6px;
-    padding:5px 10px; font-size:12px; cursor:pointer;
-  }
-  .presets button:hover{ border-color:var(--accent); color:var(--accent); }
-  footer{ padding:16px 24px; color:var(--muted); font-size:11px; }
-  footer a{ color:var(--accent); text-decoration:none; }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IT Power Market Intelligence</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #0b0d10;
+      --panel: #111418;
+      --panel-2: #15191e;
+      --border: #272c33;
+      --text: #f1f3f5;
+      --muted: #8c949e;
+      --muted-2: #666e78;
+      --accent: #f2f4f6;
+      --blue: #5b9cff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        Inter,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        Roboto,
+        Helvetica,
+        Arial,
+        sans-serif;
+    }
+
+    body {
+      padding: 32px;
+    }
+
+    .page {
+      max-width: 1500px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 28px;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: 25px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .title-block p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #5ecb8a;
+    }
+
+    .dashboard {
+      display: grid;
+      grid-template-columns: 410px minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    /* =========================
+       CALENDAR
+       ========================= */
+
+    .calendar-panel {
+      padding: 18px;
+      align-self: start;
+    }
+
+    .calendar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .calendar-nav {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .calendar-nav button {
+      width: 30px;
+      height: 30px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+    }
+
+    .calendar-nav button:hover {
+      background: #1b2026;
+    }
+
+    .calendar-title {
+      border: 0;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 5px 8px;
+      border-radius: 6px;
+    }
+
+    .calendar-title:hover {
+      background: #1a1e23;
+    }
+
+    .calendar-weekdays,
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 3px;
+    }
+
+    .calendar-weekdays {
+      margin-bottom: 5px;
+    }
+
+    .weekday {
+      text-align: center;
+      color: var(--muted-2);
+      font-size: 10px;
+      padding: 4px 0;
+      text-transform: uppercase;
+    }
+
+    .day {
+      position: relative;
+      height: 35px;
+      border: 0;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .day:hover:not(.disabled) {
+      background: #1a1f25;
+      color: var(--text);
+    }
+
+    .day.disabled {
+      opacity: 0.18;
+      cursor: default;
+    }
+
+    .day.selected {
+      background: #e8eaed;
+      color: #0b0d10;
+      font-weight: 600;
+    }
+
+    .day.range {
+      background: #252b32;
+      color: var(--text);
+      border-radius: 0;
+    }
+
+    .day.range-start {
+      border-radius: 5px 0 0 5px;
+    }
+
+    .day.range-end {
+      border-radius: 0 5px 5px 0;
+    }
+
+    .day.range-start.range-end {
+      border-radius: 5px;
+    }
+
+    .day.today::after {
+      content: "";
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .calendar-mode {
+      margin-top: 14px;
+      border-top: 1px solid var(--border);
+      padding-top: 13px;
+    }
+
+    .quick-title {
+      color: var(--muted-2);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+    }
+
+    .quick-btn {
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--muted);
+      border-radius: 5px;
+      height: 30px;
+      cursor: pointer;
+      font-size: 10px;
+    }
+
+    .quick-btn:hover {
+      color: var(--text);
+      background: #1a1f25;
+    }
+
+    .selection-info {
+      margin-top: 13px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .selection-info strong {
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .calendar-month-picker,
+    .calendar-year-picker {
+      display: none;
+    }
+
+    .picker-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 7px;
+    }
+
+    .picker-btn {
+      height: 40px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--muted);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .picker-btn:hover:not(.disabled) {
+      background: #1a1f25;
+      color: var(--text);
+    }
+
+    .picker-btn.disabled {
+      opacity: 0.2;
+      cursor: default;
+    }
+
+    /* =========================
+       CHART
+       ========================= */
+
+    .chart-panel {
+      padding: 18px 18px 12px;
+      min-width: 0;
+    }
+
+    .chart-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 5px;
+    }
+
+    .chart-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .granularity {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      background: var(--panel-2);
+      flex-shrink: 0;
+    }
+
+    .granularity button {
+      border: 0;
+      border-right: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      padding: 7px 11px;
+      cursor: pointer;
+      font-size: 10px;
+      letter-spacing: 0.03em;
+    }
+
+    .granularity button:last-child {
+      border-right: 0;
+    }
+
+    .granularity button:hover {
+      color: var(--text);
+      background: #1a1f25;
+    }
+
+    .granularity button.active {
+      background: #e8eaed;
+      color: #0b0d10;
+      font-weight: 600;
+    }
+
+    .chart-subtitle {
+      color: var(--muted);
+      font-size: 11px;
+      margin-bottom: 4px;
+    }
+
+    #chart-wrap {
+      position: relative;
+      width: 100%;
+      height: 520px;
+      touch-action: none;
+    }
+
+    #chart {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #chart-drag-selection {
+      position: absolute;
+      display: none;
+      top: 20px;
+      height: calc(100% - 90px);
+      border: 1px solid rgba(91, 156, 255, 0.9);
+      background: rgba(91, 156, 255, 0.10);
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    #chart-drag-hint {
+      position: absolute;
+      left: 50%;
+      top: 24px;
+      transform: translateX(-50%);
+      color: rgba(180, 187, 196, 0.45);
+      font-size: 10px;
+      pointer-events: none;
+      z-index: 5;
+      transition: opacity 0.2s;
+    }
+
+    #chart-wrap.dragging #chart-drag-hint {
+      opacity: 0;
+    }
+
+    .chart-help {
+      color: var(--muted-2);
+      font-size: 10px;
+      margin: -4px 0 0 72px;
+    }
+
+    @media (max-width: 1000px) {
+      body {
+        padding: 18px;
+      }
+
+      .dashboard {
+        grid-template-columns: 1fr;
+      }
+
+      .calendar-panel {
+        max-width: none;
+      }
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 10px;
+      }
+
+      .header {
+        margin-bottom: 18px;
+      }
+
+      .header .status {
+        display: none;
+      }
+
+      .chart-panel {
+        padding: 12px 8px 8px;
+      }
+
+      .chart-header {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .granularity {
+        align-self: stretch;
+      }
+
+      .granularity button {
+        flex: 1;
+      }
+
+      #chart-wrap {
+        height: 470px;
+      }
+
+      .chart-help {
+        margin-left: 52px;
+      }
+    }
+  </style>
 </head>
+
 <body>
 
-<header>
-  <h1>IT Power Market Intelligence</h1>
-  <p>PUN — Prezzo Unico Nazionale, day-ahead market (MGP) wholesale price</p>
-</header>
+<div class="page">
 
-<div class="panel">
-  <h2>Wholesale price — PUN</h2>
-  <div class="sub">Daily average, €/MWh. Drag the slider under the chart or use the zoom handles to change the date range.</div>
-  <div class="presets">
-    <button data-days="30">30D</button>
-    <button data-days="90">90D</button>
-    <button data-days="180">6M</button>
-    <button data-days="365">1Y</button>
-    <button data-days="0">All</button>
-  </div>
-  <div id="chart"></div>
+  <header class="header">
+    <div class="title-block">
+      <h1>IT Power Market Intelligence</h1>
+      <p>PUN Index · GME MGP</p>
+    </div>
+
+    <div class="status">
+      <span class="status-dot"></span>
+      <span id="status-text">Loading data</span>
+    </div>
+  </header>
+
+  <main class="dashboard">
+
+    <!-- =========================
+         CALENDAR
+         ========================= -->
+
+    <section class="panel calendar-panel">
+
+      <div id="calendar-main">
+
+        <div class="calendar-header">
+
+          <div class="calendar-nav">
+            <button id="prev-month" type="button">‹</button>
+            <button id="next-month" type="button">›</button>
+          </div>
+
+          <button
+            id="calendar-title"
+            class="calendar-title"
+            type="button"
+          ></button>
+
+          <div style="width:65px;"></div>
+
+        </div>
+
+        <div class="calendar-weekdays">
+          <div class="weekday">Mon</div>
+          <div class="weekday">Tue</div>
+          <div class="weekday">Wed</div>
+          <div class="weekday">Thu</div>
+          <div class="weekday">Fri</div>
+          <div class="weekday">Sat</div>
+          <div class="weekday">Sun</div>
+        </div>
+
+        <div id="calendar-grid" class="calendar-grid"></div>
+
+      </div>
+
+      <!-- MONTH PICKER -->
+
+      <div id="calendar-month-picker" class="calendar-month-picker">
+
+        <div class="calendar-header">
+
+          <div class="calendar-nav">
+            <button
+              id="month-picker-prev-year"
+              type="button"
+            >‹</button>
+          </div>
+
+          <button
+            id="month-picker-title"
+            class="calendar-title"
+            type="button"
+          ></button>
+
+          <div class="calendar-nav">
+            <button
+              id="month-picker-next-year"
+              type="button"
+            >›</button>
+          </div>
+
+        </div>
+
+        <div
+          id="month-picker-grid"
+          class="picker-grid"
+        ></div>
+
+      </div>
+
+      <!-- YEAR PICKER -->
+
+      <div id="calendar-year-picker" class="calendar-year-picker">
+
+        <div class="calendar-header">
+
+          <div class="calendar-nav">
+            <button
+              id="year-picker-prev"
+              type="button"
+            >‹</button>
+          </div>
+
+          <button
+            id="year-picker-title"
+            class="calendar-title"
+            type="button"
+          >Years</button>
+
+          <div class="calendar-nav">
+            <button
+              id="year-picker-next"
+              type="button"
+            >›</button>
+          </div>
+
+        </div>
+
+        <div
+          id="year-picker-grid"
+          class="picker-grid"
+        ></div>
+
+      </div>
+
+      <!-- QUICK SELECT -->
+
+      <div class="calendar-mode">
+
+        <div class="quick-title">
+          Quick select
+        </div>
+
+        <div class="quick-grid">
+
+          <button
+            class="quick-btn"
+            data-range="today"
+            type="button"
+          >
+            Today
+          </button>
+
+          <button
+            class="quick-btn"
+            data-range="yesterday"
+            type="button"
+          >
+            Yesterday
+          </button>
+
+          <button
+            class="quick-btn"
+            data-range="3d"
+            type="button"
+          >
+            Last 3 Days
+          </button>
+
+          <button
+            class="quick-btn"
+            data-range="7d"
+            type="button"
+          >
+            Last 7 Days
+          </button>
+
+          <button
+            class="quick-btn"
+            data-range="30d"
+            type="button"
+          >
+            Last 30 Days
+          </button>
+
+          <button
+            class="quick-btn"
+            data-range="60d"
+            type="button"
+          >
+            Last 60 Days
+          </button>
+
+        </div>
+
+        <div
+          id="selection-info"
+          class="selection-info"
+        ></div>
+
+      </div>
+
+    </section>
+
+    <!-- =========================
+         CHART
+         ========================= -->
+
+    <section class="panel chart-panel">
+
+      <div class="chart-header">
+
+        <div>
+
+          <div class="chart-title">
+            PUN Index
+          </div>
+
+          <div
+            id="chart-subtitle"
+            class="chart-subtitle"
+          >
+            Daily average
+          </div>
+
+        </div>
+
+        <div class="granularity">
+
+          <button
+            data-granularity="quarter"
+            type="button"
+          >
+            15 MIN
+          </button>
+
+          <button
+            data-granularity="hourly"
+            type="button"
+          >
+            HOURLY
+          </button>
+
+          <button
+            data-granularity="daily"
+            class="active"
+            type="button"
+          >
+            DAILY
+          </button>
+
+        </div>
+
+      </div>
+
+      <div id="chart-wrap">
+
+        <div id="chart"></div>
+
+        <div id="chart-drag-selection"></div>
+
+        <div id="chart-drag-hint">
+          Click and drag on chart to zoom
+        </div>
+
+      </div>
+
+      <div class="chart-help">
+        Drag horizontally across the chart to select a narrower range.
+      </div>
+
+    </section>
+
+  </main>
+
 </div>
 
-<footer>
-  Source: Gestore dei Mercati Energetici S.p.A. (GME), PUN Index GME — MGP results.
-  Demo build is running on synthetic placeholder data; swap <code>app/data/pun.json</code> with the output of <code>etl/fetch_pun.py</code> for real figures.
-</footer>
-
 <script>
-async function main() {
-  const res = await fetch('data/pun.json');
-  const payload = await res.json();
-  const series = payload.series;
 
-  const dates = series.map(d => d.date);
-  const values = series.map(d => d.pun);
+  const DATA_URL = "./data/pun.json";
 
-  const chart = echarts.init(document.getElementById('chart'), null, { renderer: 'canvas' });
-
-  const option = {
-    backgroundColor: 'transparent',
-    grid: { left: 50, right: 24, top: 20, bottom: 70 },
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: '#1a1f25',
-      borderColor: '#2a323b',
-      textStyle: { color: '#e6e8ea' },
-      valueFormatter: v => `${v.toFixed(2)} €/MWh`
-    },
-    xAxis: {
-      type: 'category',
-      data: dates,
-      axisLine: { lineStyle: { color: '#2a323b' } },
-      axisLabel: { color: '#8a949e' }
-    },
-    yAxis: {
-      type: 'value',
-      name: '€/MWh',
-      nameTextStyle: { color: '#8a949e' },
-      splitLine: { lineStyle: { color: '#1e242b' } },
-      axisLabel: { color: '#8a949e' }
-    },
-    dataZoom: [
-      { type: 'inside', start: 80, end: 100 },
-      {
-        type: 'slider',
-        start: 80,
-        end: 100,
-        height: 26,
-        bottom: 24,
-        borderColor: '#2a323b',
-        backgroundColor: '#12161b',
-        fillerColor: 'rgba(79,209,197,0.15)',
-        handleStyle: { color: '#4fd1c5' },
-        textStyle: { color: '#8a949e' }
-      }
-    ],
-    series: [{
-      name: 'PUN',
-      type: 'line',
-      data: values,
-      showSymbol: false,
-      smooth: false,
-      lineStyle: { color: '#4fd1c5', width: 1.5 },
-      areaStyle: { color: 'rgba(79,209,197,0.08)' }
-    }]
+  const CHART_GRID = {
+    left: 72,
+    right: 24,
+    top: 20,
+    bottom: 70
   };
 
-  chart.setOption(option);
-  window.addEventListener('resize', () => chart.resize());
+  const chartContainer =
+    document.getElementById("chart-wrap");
 
-  document.querySelectorAll('.presets button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const days = parseInt(btn.dataset.days, 10);
-      const total = dates.length;
-      const startIdx = days === 0 ? 0 : Math.max(0, total - days);
-      const startPct = (startIdx / (total - 1)) * 100;
-      chart.dispatchAction({ type: 'dataZoom', start: startPct, end: 100 });
+  const chartElement =
+    document.getElementById("chart");
+
+  const dragSelection =
+    document.getElementById("chart-drag-selection");
+
+  const chart =
+    echarts.init(chartElement);
+
+  let rawData = null;
+
+  let currentGranularity = "daily";
+
+  let currentStart = null;
+  let currentEnd = null;
+
+  /*
+   * IMPORTANT:
+   *
+   * This flag determines whether the user is currently
+   * choosing the second date of a calendar range.
+   *
+   * false = no range currently being constructed
+   * true  = first date has been clicked, waiting for second
+   */
+  let selectingRange = false;
+
+  let calendarDate = new Date();
+  calendarDate.setHours(0, 0, 0, 0);
+
+  let calendarView = "days";
+
+  let pickerYear =
+    calendarDate.getFullYear();
+
+  let pickerYearStart =
+    pickerYear;
+
+  let isDragging = false;
+  let dragStartX = null;
+  let dragCurrentX = null;
+  let pointerId = null;
+
+
+  /* ============================================================
+     DATE HELPERS
+     ============================================================ */
+
+  function parseDate(str) {
+
+    const parts =
+      str.split("-").map(Number);
+
+    return new Date(
+      parts[0],
+      parts[1] - 1,
+      parts[2]
+    );
+  }
+
+
+  function dateKey(date) {
+
+    const y =
+      date.getFullYear();
+
+    const m =
+      String(date.getMonth() + 1)
+        .padStart(2, "0");
+
+    const d =
+      String(date.getDate())
+        .padStart(2, "0");
+
+    return `${y}-${m}-${d}`;
+  }
+
+
+  function formatDate(date) {
+
+    return date.toLocaleDateString(
+      "en-GB",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      }
+    );
+  }
+
+
+  function addDays(date, amount) {
+
+    const result =
+      new Date(date);
+
+    result.setDate(
+      result.getDate() + amount
+    );
+
+    return result;
+  }
+
+
+  function startOfDay(date) {
+
+    const result =
+      new Date(date);
+
+    result.setHours(
+      0, 0, 0, 0
+    );
+
+    return result;
+  }
+
+
+  function endOfDay(date) {
+
+    const result =
+      new Date(date);
+
+    result.setHours(
+      23, 59, 59, 999
+    );
+
+    return result;
+  }
+
+
+  function compareDates(a, b) {
+
+    return (
+      startOfDay(a).getTime() -
+      startOfDay(b).getTime()
+    );
+  }
+
+
+  /* ============================================================
+     DATA
+     ============================================================ */
+
+  async function loadData() {
+
+    try {
+
+      const response =
+        await fetch(
+          DATA_URL,
+          { cache: "no-store" }
+        );
+
+      if (!response.ok) {
+        throw new Error(
+          `HTTP ${response.status}`
+        );
+      }
+
+      rawData =
+        await response.json();
+
+      initialiseDateSelection();
+
+      renderCalendar();
+
+      renderChart();
+
+      document.getElementById(
+        "status-text"
+      ).textContent =
+        "Data updated automatically";
+
+    } catch (error) {
+
+      console.error(error);
+
+      document.getElementById(
+        "status-text"
+      ).textContent =
+        "Unable to load data";
+    }
+  }
+
+
+  function getSeriesData() {
+
+    if (!rawData) {
+      return [];
+    }
+
+    if (
+      currentGranularity === "quarter"
+    ) {
+      return rawData.quarter_hourly || [];
+    }
+
+    if (
+      currentGranularity === "hourly"
+    ) {
+      return rawData.hourly || [];
+    }
+
+    return rawData.daily || [];
+  }
+
+
+  function getDataValue(row) {
+
+    return Number(row.pun);
+  }
+
+
+  function filteredSeries() {
+
+    const series =
+      getSeriesData();
+
+    if (
+      !currentStart ||
+      !currentEnd
+    ) {
+      return series;
+    }
+
+    const start =
+      startOfDay(
+        currentStart
+      ).getTime();
+
+    const end =
+      endOfDay(
+        currentEnd
+      ).getTime();
+
+    return series.filter(row => {
+
+      const timestamp =
+        parseDate(row.date)
+          .getTime();
+
+      return (
+        timestamp >= start &&
+        timestamp <= end
+      );
     });
-  });
-}
+  }
 
-main();
+
+  function getAvailableDates() {
+
+    const dates =
+      new Set();
+
+    getSeriesData()
+      .forEach(row => {
+        dates.add(row.date);
+      });
+
+    return dates;
+  }
+
+
+  function getAvailableYears() {
+
+    const years =
+      new Set();
+
+    getSeriesData()
+      .forEach(row => {
+
+        years.add(
+          Number(
+            row.date.slice(0, 4)
+          )
+        );
+
+      });
+
+    return [...years].sort(
+      (a, b) => a - b
+    );
+  }
+
+
+  /* ============================================================
+     INITIAL DATE SELECTION
+     ============================================================ */
+
+  function initialiseDateSelection() {
+
+    const series =
+      getSeriesData();
+
+    if (!series.length) {
+      return;
+    }
+
+    const dates =
+      series.map(
+        row => parseDate(row.date)
+      );
+
+    const earliest =
+      new Date(
+        Math.min(
+          ...dates.map(
+            d => d.getTime()
+          )
+        )
+      );
+
+    const latest =
+      new Date(
+        Math.max(
+          ...dates.map(
+            d => d.getTime()
+          )
+        )
+      );
+
+    const proposedStart =
+      addDays(
+        latest,
+        -29
+      );
+
+    currentStart =
+      compareDates(
+        proposedStart,
+        earliest
+      ) < 0
+        ? earliest
+        : proposedStart;
+
+    currentEnd =
+      latest;
+
+    calendarDate =
+      new Date(latest);
+
+    calendarDate.setDate(1);
+
+    /*
+     * A programmatically selected range is already complete.
+     */
+    selectingRange = false;
+  }
+
+
+  /* ============================================================
+     CALENDAR
+     ============================================================ */
+
+  function renderCalendar() {
+
+    if (!rawData) {
+      return;
+    }
+
+    if (
+      calendarView === "months"
+    ) {
+      renderMonthPicker();
+      return;
+    }
+
+    if (
+      calendarView === "years"
+    ) {
+      renderYearPicker();
+      return;
+    }
+
+    renderDayCalendar();
+  }
+
+
+  function renderDayCalendar() {
+
+    document.getElementById(
+      "calendar-main"
+    ).style.display = "block";
+
+    document.getElementById(
+      "calendar-month-picker"
+    ).style.display = "none";
+
+    document.getElementById(
+      "calendar-year-picker"
+    ).style.display = "none";
+
+    const year =
+      calendarDate.getFullYear();
+
+    const month =
+      calendarDate.getMonth();
+
+    const title =
+      document.getElementById(
+        "calendar-title"
+      );
+
+    title.textContent =
+      calendarDate.toLocaleDateString(
+        "en-US",
+        {
+          month: "long",
+          year: "numeric"
+        }
+      );
+
+    const grid =
+      document.getElementById(
+        "calendar-grid"
+      );
+
+    grid.innerHTML = "";
+
+    const available =
+      getAvailableDates();
+
+    const first =
+      new Date(
+        year,
+        month,
+        1
+      );
+
+    const last =
+      new Date(
+        year,
+        month + 1,
+        0
+      );
+
+    let firstDay =
+      first.getDay();
+
+    /*
+     * Convert Sunday = 0
+     * into Monday = 0.
+     */
+    firstDay =
+      (firstDay + 6) % 7;
+
+    const daysInMonth =
+      last.getDate();
+
+    /*
+     * Empty cells before day 1.
+     */
+    for (
+      let i = 0;
+      i < firstDay;
+      i++
+    ) {
+
+      const blank =
+        document.createElement(
+          "div"
+        );
+
+      grid.appendChild(blank);
+    }
+
+
+    for (
+      let day = 1;
+      day <= daysInMonth;
+      day++
+    ) {
+
+      const date =
+        new Date(
+          year,
+          month,
+          day
+        );
+
+      const key =
+        dateKey(date);
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+      button.type = "button";
+
+      button.className =
+        "day";
+
+      button.textContent =
+        day;
+
+
+      /*
+       * Dates without actual data
+       * cannot be selected.
+       */
+      if (!available.has(key)) {
+
+        button.classList.add(
+          "disabled"
+        );
+
+      }
+
+
+      /*
+       * Today marker.
+       */
+      const today =
+        startOfDay(
+          new Date()
+        );
+
+      if (
+        dateKey(today) === key
+      ) {
+
+        button.classList.add(
+          "today"
+        );
+      }
+
+
+      /*
+       * If the user has clicked the first
+       * date and is currently choosing
+       * the second date, only show the
+       * first date as selected.
+       */
+      if (
+        selectingRange &&
+        currentStart &&
+        compareDates(
+          date,
+          currentStart
+        ) === 0
+      ) {
+
+        button.classList.add(
+          "selected"
+        );
+
+      } else {
+
+        /*
+         * Completed range.
+         */
+        const inRange =
+          currentStart &&
+          currentEnd &&
+          compareDates(
+            date,
+            currentStart
+          ) >= 0 &&
+          compareDates(
+            date,
+            currentEnd
+          ) <= 0;
+
+        if (inRange) {
+
+          button.classList.add(
+            "range"
+          );
+        }
+
+        if (
+          currentStart &&
+          compareDates(
+            date,
+            currentStart
+          ) === 0
+        ) {
+
+          button.classList.add(
+            "range-start"
+          );
+        }
+
+        if (
+          currentEnd &&
+          compareDates(
+            date,
+            currentEnd
+          ) === 0
+        ) {
+
+          button.classList.add(
+            "range-end"
+          );
+        }
+
+        if (
+          currentStart &&
+          currentEnd &&
+          compareDates(
+            currentStart,
+            currentEnd
+          ) === 0 &&
+          compareDates(
+            date,
+            currentStart
+          ) === 0
+        ) {
+
+          button.classList.add(
+            "selected"
+          );
+        }
+      }
+
+
+      /*
+       * THIS IS THE IMPORTANT FIX.
+       *
+       * A click on a valid date always calls
+       * selectCalendarDate().
+       *
+       * The function itself decides whether
+       * this is the first or second click.
+       */
+      if (available.has(key)) {
+
+        button.addEventListener(
+          "click",
+          () => {
+            selectCalendarDate(date);
+          }
+        );
+
+      }
+
+      grid.appendChild(button);
+    }
+
+    updateSelectionInfo();
+  }
+
+
+  /*
+   * ============================================================
+   * FIXED RANGE SELECTION LOGIC
+   * ============================================================
+   *
+   * First click:
+   *     start = clicked date
+   *     end   = null
+   *
+   * Second click:
+   *     creates complete range
+   *
+   * Third click after completion:
+   *     starts a completely new range
+   */
+
+  function selectCalendarDate(date) {
+
+    /*
+     * FIRST CLICK
+     *
+     * There is currently no active range selection.
+     */
+    if (!selectingRange) {
+
+      currentStart =
+        new Date(date);
+
+      /*
+       * Do not leave the old end date
+       * active while choosing the second date.
+       */
+      currentEnd =
+        null;
+
+      selectingRange = true;
+
+      calendarDate =
+        new Date(date);
+
+      calendarDate.setDate(1);
+
+      renderCalendar();
+
+      /*
+       * Do NOT render the chart yet.
+       * The user has only selected the
+       * starting point.
+       */
+      return;
+    }
+
+
+    /*
+     * SECOND CLICK
+     *
+     * The user has now selected the
+     * other endpoint of the range.
+     */
+    if (selectingRange) {
+
+      const firstDate =
+        new Date(currentStart);
+
+      const secondDate =
+        new Date(date);
+
+
+      /*
+       * If the second click is before
+       * the first click, automatically
+       * reverse the range.
+       */
+      if (
+        compareDates(
+          secondDate,
+          firstDate
+        ) < 0
+      ) {
+
+        currentStart =
+          secondDate;
+
+        currentEnd =
+          firstDate;
+
+      } else {
+
+        currentStart =
+          firstDate;
+
+        currentEnd =
+          secondDate;
+      }
+
+
+      /*
+       * Range is now complete.
+       */
+      selectingRange = false;
+
+      calendarDate =
+        new Date(date);
+
+      calendarDate.setDate(1);
+
+      renderCalendar();
+
+      renderChart();
+    }
+  }
+
+
+  function renderMonthPicker() {
+
+    document.getElementById(
+      "calendar-main"
+    ).style.display = "none";
+
+    document.getElementById(
+      "calendar-month-picker"
+    ).style.display = "block";
+
+    document.getElementById(
+      "calendar-year-picker"
+    ).style.display = "none";
+
+
+    document.getElementById(
+      "month-picker-title"
+    ).textContent =
+      pickerYear;
+
+
+    const grid =
+      document.getElementById(
+        "month-picker-grid"
+      );
+
+    grid.innerHTML = "";
+
+
+    const availableDates =
+      getAvailableDates();
+
+
+    for (
+      let month = 0;
+      month < 12;
+      month++
+    ) {
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+      button.type = "button";
+
+      button.className =
+        "picker-btn";
+
+
+      const monthName =
+        new Date(
+          pickerYear,
+          month,
+          1
+        ).toLocaleDateString(
+          "en-US",
+          {
+            month: "short"
+          }
+        );
+
+      button.textContent =
+        monthName;
+
+
+      let available = false;
+
+
+      for (
+        const key of availableDates
+      ) {
+
+        const date =
+          parseDate(key);
+
+        if (
+          date.getFullYear() === pickerYear &&
+          date.getMonth() === month
+        ) {
+
+          available = true;
+          break;
+        }
+      }
+
+
+      if (!available) {
+
+        button.classList.add(
+          "disabled"
+        );
+
+      } else {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            calendarDate =
+              new Date(
+                pickerYear,
+                month,
+                1
+              );
+
+            calendarView =
+              "days";
+
+            renderCalendar();
+          }
+        );
+      }
+
+
+      grid.appendChild(button);
+    }
+  }
+
+
+  function renderYearPicker() {
+
+    document.getElementById(
+      "calendar-main"
+    ).style.display = "none";
+
+    document.getElementById(
+      "calendar-month-picker"
+    ).style.display = "none";
+
+    document.getElementById(
+      "calendar-year-picker"
+    ).style.display = "block";
+
+
+    const years =
+      getAvailableYears();
+
+
+    const grid =
+      document.getElementById(
+        "year-picker-grid"
+      );
+
+    grid.innerHTML = "";
+
+
+    const startYear =
+      Math.floor(
+        pickerYearStart / 12
+      ) * 12;
+
+
+    for (
+      let year = startYear;
+      year < startYear + 12;
+      year++
+    ) {
+
+      const button =
+        document.createElement(
+          "button"
+        );
+
+      button.type = "button";
+
+      button.className =
+        "picker-btn";
+
+      button.textContent =
+        year;
+
+
+      if (!years.includes(year)) {
+
+        button.classList.add(
+          "disabled"
+        );
+
+      } else {
+
+        button.addEventListener(
+          "click",
+          () => {
+
+            pickerYear =
+              year;
+
+            calendarDate =
+              new Date(
+                year,
+                0,
+                1
+              );
+
+            calendarView =
+              "months";
+
+            renderCalendar();
+          }
+        );
+      }
+
+
+      grid.appendChild(button);
+    }
+  }
+
+
+  function updateSelectionInfo() {
+
+    const info =
+      document.getElementById(
+        "selection-info"
+      );
+
+
+    /*
+     * First date selected,
+     * waiting for second.
+     */
+    if (
+      selectingRange &&
+      currentStart
+    ) {
+
+      info.innerHTML =
+        `<strong>${formatDate(currentStart)}</strong> → select end date`;
+
+      return;
+    }
+
+
+    /*
+     * No complete selection.
+     */
+    if (
+      !currentStart ||
+      !currentEnd
+    ) {
+
+      info.textContent = "";
+
+      return;
+    }
+
+
+    info.innerHTML =
+      `<strong>${formatDate(currentStart)}</strong> → ` +
+      `<strong>${formatDate(currentEnd)}</strong>`;
+  }
+
+
+  /* ============================================================
+     CALENDAR NAVIGATION
+     ============================================================ */
+
+  document
+    .getElementById("prev-month")
+    .addEventListener(
+      "click",
+      () => {
+
+        calendarDate =
+          new Date(
+            calendarDate.getFullYear(),
+            calendarDate.getMonth() - 1,
+            1
+          );
+
+        renderCalendar();
+      }
+    );
+
+
+  document
+    .getElementById("next-month")
+    .addEventListener(
+      "click",
+      () => {
+
+        calendarDate =
+          new Date(
+            calendarDate.getFullYear(),
+            calendarDate.getMonth() + 1,
+            1
+          );
+
+        renderCalendar();
+      }
+    );
+
+
+  document
+    .getElementById("calendar-title")
+    .addEventListener(
+      "click",
+      () => {
+
+        pickerYear =
+          calendarDate.getFullYear();
+
+        calendarView =
+          "months";
+
+        renderCalendar();
+      }
+    );
+
+
+  document
+    .getElementById("month-picker-title")
+    .addEventListener(
+      "click",
+      () => {
+
+        pickerYearStart =
+          pickerYear;
+
+        calendarView =
+          "years";
+
+        renderCalendar();
+      }
+    );
+
+
+  document
+    .getElementById("month-picker-prev-year")
+    .addEventListener(
+      "click",
+      () => {
+
+        pickerYear -= 1;
+
+        renderCalendar();
+      }
+    );
+
+
+  document
+    .getElementById("month-picker-next-year")
+    .addEventListener(
+      "click",
+      () => {
+
+        pickerYear += 1;
+
+        renderCalendar();
+      }
+    );
+
+
+  document
+    .getElementById("year-picker-prev")
+    .addEventListener(
+      "click",
+      () => {
+
+        pickerYearStart -= 12;
+
+        renderCalendar();
+      }
+    );
+
+
+  document
+    .getElementById("year-picker-next")
+    .addEventListener(
+      "click",
+      () => {
+
+        pickerYearStart += 12;
+
+        renderCalendar();
+      }
+    );
+
+
+  /* ============================================================
+     QUICK SELECT
+     ============================================================ */
+
+  document
+    .querySelectorAll(".quick-btn")
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          if (!rawData) {
+            return;
+          }
+
+          const series =
+            getSeriesData();
+
+          if (!series.length) {
+            return;
+          }
+
+          const dates =
+            series.map(
+              row => parseDate(row.date)
+            );
+
+          const latest =
+            new Date(
+              Math.max(
+                ...dates.map(
+                  d => d.getTime()
+                )
+              )
+            );
+
+          let start;
+
+
+          switch (
+            button.dataset.range
+          ) {
+
+            case "today":
+              start =
+                new Date(latest);
+              break;
+
+            case "yesterday":
+              start =
+                addDays(
+                  latest,
+                  -1
+                );
+              break;
+
+            case "3d":
+              start =
+                addDays(
+                  latest,
+                  -2
+                );
+              break;
+
+            case "7d":
+              start =
+                addDays(
+                  latest,
+                  -6
+                );
+              break;
+
+            case "30d":
+              start =
+                addDays(
+                  latest,
+                  -29
+                );
+              break;
+
+            case "60d":
+              start =
+                addDays(
+                  latest,
+                  -59
+                );
+              break;
+
+            default:
+              start =
+                addDays(
+                  latest,
+                  -29
+                );
+          }
+
+
+          const earliest =
+            new Date(
+              Math.min(
+                ...dates.map(
+                  d => d.getTime()
+                )
+              )
+            );
+
+
+          if (
+            compareDates(
+              start,
+              earliest
+            ) < 0
+          ) {
+
+            start =
+              earliest;
+          }
+
+
+          currentStart =
+            start;
+
+          currentEnd =
+            latest;
+
+
+          /*
+           * Quick-select creates a
+           * complete range.
+           */
+          selectingRange = false;
+
+
+          calendarDate =
+            new Date(latest);
+
+          calendarDate.setDate(1);
+
+          calendarView =
+            "days";
+
+
+          renderCalendar();
+
+          renderChart();
+        }
+      );
+    });
+
+
+  /* ============================================================
+     GRANULARITY
+     ============================================================ */
+
+  document
+    .querySelectorAll(
+      ".granularity button"
+    )
+    .forEach(button => {
+
+      button.addEventListener(
+        "click",
+        () => {
+
+          const next =
+            button.dataset.granularity;
+
+          if (
+            next === currentGranularity
+          ) {
+            return;
+          }
+
+          currentGranularity =
+            next;
+
+
+          document
+            .querySelectorAll(
+              ".granularity button"
+            )
+            .forEach(item => {
+
+              item.classList.toggle(
+                "active",
+                item.dataset.granularity ===
+                  currentGranularity
+              );
+            });
+
+
+          /*
+           * Changing granularity does not
+           * start a new calendar selection.
+           */
+          selectingRange = false;
+
+          renderCalendar();
+
+          renderChart();
+        }
+      );
+    });
+
+
+  /* ============================================================
+     CHART
+     ============================================================ */
+
+  function formatTooltipDate(row) {
+
+    const date =
+      parseDate(row.date);
+
+    const dateText =
+      date.toLocaleDateString(
+        "en-GB",
+        {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        }
+      );
+
+
+    if (
+      currentGranularity === "daily"
+    ) {
+
+      return dateText;
+    }
+
+
+    return `${dateText} ${row.time || ""}`;
+  }
+
+
+  function getXAxisLabel(
+    row,
+    index,
+    series
+  ) {
+
+    if (index === 0) {
+
+      const date =
+        parseDate(row.date);
+
+      return date.toLocaleDateString(
+        "en-GB",
+        {
+          day: "2-digit",
+          month: "2-digit"
+        }
+      );
+    }
+
+
+    if (
+      row.date !==
+      series[index - 1].date
+    ) {
+
+      const date =
+        parseDate(row.date);
+
+      return date.toLocaleDateString(
+        "en-GB",
+        {
+          day: "2-digit",
+          month: "2-digit"
+        }
+      );
+    }
+
+
+    return "";
+  }
+
+
+  function renderChart() {
+
+    if (!rawData) {
+      return;
+    }
+
+    const series =
+      filteredSeries();
+
+
+    let subtitle =
+      "Daily average";
+
+
+    if (
+      currentGranularity === "hourly"
+    ) {
+
+      subtitle =
+        "Hourly PUN Index";
+    }
+
+
+    if (
+      currentGranularity === "quarter"
+    ) {
+
+      subtitle =
+        "15-minute PUN Index";
+    }
+
+
+    const subtitleElement =
+      document.getElementById(
+        "chart-subtitle"
+      );
+
+
+    if (
+      currentStart &&
+      currentEnd
+    ) {
+
+      subtitleElement.textContent =
+        `${subtitle} · ` +
+        `${formatDate(currentStart)} – ` +
+        `${formatDate(currentEnd)}`;
+
+    } else {
+
+      subtitleElement.textContent =
+        subtitle;
+    }
+
+
+    if (!series.length) {
+
+      chart.clear();
+
+      return;
+    }
+
+
+    const values =
+      series.map(
+        getDataValue
+      );
+
+
+    const minValue =
+      Math.min(...values);
+
+    const maxValue =
+      Math.max(...values);
+
+
+    const padding =
+      Math.max(
+        10,
+        (maxValue - minValue) * 0.08
+      );
+
+
+    const yMin =
+      Math.floor(
+        (minValue - padding) / 10
+      ) * 10;
+
+
+    const yMax =
+      Math.ceil(
+        (maxValue + padding) / 10
+      ) * 10;
+
+
+    const option = {
+
+      animation: false,
+
+      backgroundColor:
+        "transparent",
+
+
+      grid: {
+
+        left:
+          CHART_GRID.left,
+
+        right:
+          CHART_GRID.right,
+
+        top:
+          CHART_GRID.top,
+
+        bottom:
+          CHART_GRID.bottom,
+
+        containLabel:
+          false
+      },
+
+
+      tooltip: {
+
+        trigger:
+          "axis",
+
+        backgroundColor:
+          "#171b20",
+
+        borderColor:
+          "#30363e",
+
+        borderWidth:
+          1,
+
+        textStyle: {
+
+          color:
+            "#f1f3f5",
+
+          fontSize:
+            11
+        },
+
+
+        axisPointer: {
+
+          type:
+            "line",
+
+          lineStyle: {
+
+            color:
+              "#5d6670",
+
+            width:
+              1
+          }
+        },
+
+
+        formatter:
+          params => {
+
+            if (
+              !params ||
+              !params.length
+            ) {
+              return "";
+            }
+
+
+            const item =
+              params[0];
+
+            const row =
+              series[
+                item.dataIndex
+              ];
+
+
+            return `
+              <div style="
+                margin-bottom:4px;
+                color:#9aa2ac;
+              ">
+                ${formatTooltipDate(row)}
+              </div>
+
+              <div style="
+                font-size:14px;
+                font-weight:600;
+              ">
+                ${Number(row.pun).toFixed(2)} €/MWh
+              </div>
+            `;
+          }
+      },
+
+
+      xAxis: {
+
+        type:
+          "category",
+
+        boundaryGap:
+          false,
+
+        data:
+          series.map(
+            (row, index) =>
+              getXAxisLabel(
+                row,
+                index,
+                series
+              )
+          ),
+
+
+        axisLine: {
+
+          lineStyle: {
+
+            color:
+              "#30353c"
+          }
+        },
+
+
+        axisTick: {
+
+          show:
+            false
+        },
+
+
+        axisLabel: {
+
+          color:
+            "#727a84",
+
+          fontSize:
+            10,
+
+          margin:
+            10,
+
+          interval:
+            0
+        },
+
+
+        splitLine: {
+
+          show:
+            false
+        }
+      },
+
+
+      yAxis: {
+
+        type:
+          "value",
+
+        min:
+          yMin,
+
+        max:
+          yMax,
+
+
+        name:
+          "€/MWh",
+
+        nameLocation:
+          "middle",
+
+        nameRotate:
+          90,
+
+        nameGap:
+          45,
+
+
+        nameTextStyle: {
+
+          color:
+            "#727a84",
+
+          fontSize:
+            10
+        },
+
+
+        axisLine: {
+
+          show:
+            false
+        },
+
+
+        axisTick: {
+
+          show:
+            false
+        },
+
+
+        axisLabel: {
+
+          color:
+            "#727a84",
+
+          fontSize:
+            10
+        },
+
+
+        splitLine: {
+
+          show:
+            true,
+
+          lineStyle: {
+
+            color:
+              "#20252b",
+
+            width:
+              1
+          }
+        }
+      },
+
+
+      series: [
+
+        {
+
+          type:
+            "line",
+
+          data:
+            values,
+
+          smooth:
+            false,
+
+          showSymbol:
+            false,
+
+
+          sampling:
+            currentGranularity ===
+            "quarter"
+              ? "lttb"
+              : undefined,
+
+
+          lineStyle: {
+
+            color:
+              "#d9dde2",
+
+            width:
+              1.2
+          },
+
+
+          itemStyle: {
+
+            color:
+              "#d9dde2"
+          },
+
+
+          emphasis: {
+
+            focus:
+              "series"
+          }
+        }
+
+      ],
+
+
+      /*
+       * The two dataZoom controls remain
+       * synchronized.
+       *
+       * The custom drag interaction below
+       * operates separately on the main chart.
+       */
+      dataZoom: [
+
+        {
+
+          type:
+            "inside",
+
+          xAxisIndex:
+            0,
+
+          filterMode:
+            "filter",
+
+          start:
+            0,
+
+          end:
+            100,
+
+          zoomOnMouseWheel:
+            true,
+
+          moveOnMouseMove:
+            true,
+
+          moveOnMouseWheel:
+            false
+        },
+
+
+        {
+
+          type:
+            "slider",
+
+          xAxisIndex:
+            0,
+
+          filterMode:
+            "filter",
+
+          bottom:
+            18,
+
+          height:
+            16,
+
+
+          borderColor:
+            "#252a30",
+
+          backgroundColor:
+            "#15191e",
+
+          fillerColor:
+            "rgba(150,157,166,0.16)",
+
+
+          handleStyle: {
+
+            color:
+              "#8b939d",
+
+            borderColor:
+              "#8b939d"
+          },
+
+
+          moveHandleStyle: {
+
+            color:
+              "#555d67"
+          },
+
+
+          textStyle: {
+
+            color:
+              "#6f7781",
+
+            fontSize:
+              9
+          }
+        }
+      ]
+    };
+
+
+    chart.setOption(
+      option,
+      true
+    );
+
+
+    /*
+     * Every time the calendar range or
+     * granularity changes, reset the
+     * chart zoom to the complete selected
+     * calendar range.
+     */
+    chart.dispatchAction({
+
+      type:
+        "dataZoom",
+
+      dataZoomIndex:
+        [0, 1],
+
+      startValue:
+        0,
+
+      endValue:
+        series.length - 1
+    });
+  }
+
+
+  /* ============================================================
+     MAIN CHART DRAG-TO-ZOOM
+     ============================================================ */
+
+  function isInsideMainPlot(
+    x,
+    y
+  ) {
+
+    const width =
+      chartContainer.clientWidth;
+
+    const height =
+      chartContainer.clientHeight;
+
+
+    const left =
+      CHART_GRID.left;
+
+    const right =
+      width -
+      CHART_GRID.right;
+
+    const top =
+      CHART_GRID.top;
+
+    const bottom =
+      height -
+      CHART_GRID.bottom;
+
+
+    return (
+      x >= left &&
+      x <= right &&
+      y >= top &&
+      y <= bottom
+    );
+  }
+
+
+  function clamp(
+    value,
+    min,
+    max
+  ) {
+
+    return Math.max(
+      min,
+      Math.min(max, value)
+    );
+  }
+
+
+  function getDataIndexFromX(
+    x,
+    count
+  ) {
+
+    const plotLeft =
+      CHART_GRID.left;
+
+    const plotRight =
+      chartContainer.clientWidth -
+      CHART_GRID.right;
+
+
+    const usableWidth =
+      plotRight -
+      plotLeft;
+
+
+    if (
+      count <= 1 ||
+      usableWidth <= 0
+    ) {
+
+      return 0;
+    }
+
+
+    const ratio =
+      (x - plotLeft) /
+      usableWidth;
+
+
+    const index =
+      Math.round(
+        ratio * (count - 1)
+      );
+
+
+    return clamp(
+      index,
+      0,
+      count - 1
+    );
+  }
+
+
+  function updateDragRectangle() {
+
+    if (
+      dragStartX === null ||
+      dragCurrentX === null
+    ) {
+
+      return;
+    }
+
+
+    const left =
+      Math.min(
+        dragStartX,
+        dragCurrentX
+      );
+
+
+    const right =
+      Math.max(
+        dragStartX,
+        dragCurrentX
+      );
+
+
+    dragSelection.style.left =
+      `${left}px`;
+
+
+    dragSelection.style.width =
+      `${Math.max(
+        1,
+        right - left
+      )}px`;
+  }
+
+
+  function startChartDrag(event) {
+
+    /*
+     * Only primary mouse button.
+     */
+    if (
+      event.pointerType === "mouse" &&
+      event.button !== 0
+    ) {
+
+      return;
+    }
+
+
+    const rect =
+      chartContainer.getBoundingClientRect();
+
+
+    const x =
+      event.clientX -
+      rect.left;
+
+    const y =
+      event.clientY -
+      rect.top;
+
+
+    /*
+     * IMPORTANT:
+     *
+     * Do not activate the custom drag
+     * below the main plotting area.
+     *
+     * This means the lower dataZoom slider
+     * remains an independent ECharts control.
+     */
+    if (
+      !isInsideMainPlot(
+        x,
+        y
+      )
+    ) {
+
+      return;
+    }
+
+
+    isDragging =
+      false;
+
+    dragStartX =
+      x;
+
+    dragCurrentX =
+      x;
+
+    pointerId =
+      event.pointerId;
+
+
+    chartContainer.setPointerCapture(
+      pointerId
+    );
+
+
+    event.preventDefault();
+  }
+
+
+  function moveChartDrag(event) {
+
+    if (
+      dragStartX === null ||
+      pointerId !== event.pointerId
+    ) {
+
+      return;
+    }
+
+
+    const rect =
+      chartContainer.getBoundingClientRect();
+
+
+    const x =
+      event.clientX -
+      rect.left;
+
+
+    const plotLeft =
+      CHART_GRID.left;
+
+    const plotRight =
+      chartContainer.clientWidth -
+      CHART_GRID.right;
+
+
+    const clampedX =
+      clamp(
+        x,
+        plotLeft,
+        plotRight
+      );
+
+
+    dragCurrentX =
+      clampedX;
+
+
+    if (
+      !isDragging &&
+      Math.abs(
+        dragCurrentX -
+        dragStartX
+      ) < 5
+    ) {
+
+      return;
+    }
+
+
+    isDragging =
+      true;
+
+
+    chartContainer.classList.add(
+      "dragging"
+    );
+
+
+    dragSelection.style.display =
+      "block";
+
+
+    updateDragRectangle();
+
+
+    event.preventDefault();
+  }
+
+
+  function finishChartDrag(event) {
+
+    if (
+      dragStartX === null ||
+      pointerId !== event.pointerId
+    ) {
+
+      return;
+    }
+
+
+    const rect =
+      chartContainer.getBoundingClientRect();
+
+
+    const x =
+      event.clientX -
+      rect.left;
+
+
+    const plotLeft =
+      CHART_GRID.left;
+
+    const plotRight =
+      chartContainer.clientWidth -
+      CHART_GRID.right;
+
+
+    dragCurrentX =
+      clamp(
+        x,
+        plotLeft,
+        plotRight
+      );
+
+
+    const startX =
+      Math.min(
+        dragStartX,
+        dragCurrentX
+      );
+
+
+    const endX =
+      Math.max(
+        dragStartX,
+        dragCurrentX
+      );
+
+
+    const series =
+      filteredSeries();
+
+
+    if (
+      isDragging &&
+      series.length > 1 &&
+      endX - startX >= 8
+    ) {
+
+      const startIndex =
+        getDataIndexFromX(
+          startX,
+          series.length
+        );
+
+
+      const endIndex =
+        getDataIndexFromX(
+          endX,
+          series.length
+        );
+
+
+      if (
+        endIndex > startIndex
+      ) {
+
+        chart.dispatchAction({
+
+          type:
+            "dataZoom",
+
+          dataZoomIndex:
+            [0, 1],
+
+          startValue:
+            startIndex,
+
+          endValue:
+            endIndex
+        });
+      }
+    }
+
+
+    dragSelection.style.display =
+      "none";
+
+
+    chartContainer.classList.remove(
+      "dragging"
+    );
+
+
+    isDragging =
+      false;
+
+    dragStartX =
+      null;
+
+    dragCurrentX =
+      null;
+
+
+    if (
+      pointerId !== null &&
+      chartContainer.hasPointerCapture(
+        pointerId
+      )
+    ) {
+
+      chartContainer.releasePointerCapture(
+        pointerId
+      );
+    }
+
+
+    pointerId =
+      null;
+
+
+    event.preventDefault();
+  }
+
+
+  function cancelChartDrag(event) {
+
+    if (
+      pointerId !== null &&
+      event.pointerId !== pointerId
+    ) {
+
+      return;
+    }
+
+
+    dragSelection.style.display =
+      "none";
+
+
+    chartContainer.classList.remove(
+      "dragging"
+    );
+
+
+    isDragging =
+      false;
+
+    dragStartX =
+      null;
+
+    dragCurrentX =
+      null;
+
+    pointerId =
+      null;
+  }
+
+
+  chartContainer.addEventListener(
+    "pointerdown",
+    startChartDrag,
+    { passive: false }
+  );
+
+
+  chartContainer.addEventListener(
+    "pointermove",
+    moveChartDrag,
+    { passive: false }
+  );
+
+
+  chartContainer.addEventListener(
+    "pointerup",
+    finishChartDrag,
+    { passive: false }
+  );
+
+
+  chartContainer.addEventListener(
+    "pointercancel",
+    cancelChartDrag
+  );
+
+
+  /* ============================================================
+     RESIZE
+     ============================================================ */
+
+  window.addEventListener(
+    "resize",
+    () => {
+      chart.resize();
+    }
+  );
+
+
+  /* ============================================================
+     START
+     ============================================================ */
+
+  loadData();
+
 </script>
 
 </body>
