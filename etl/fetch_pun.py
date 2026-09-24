@@ -39,8 +39,8 @@ def get_token(login: str, password: str) -> str:
     resp = requests.post(f"{API_BASE}/api/v1/Auth", json={"Login": login, "Password": password})
     resp.raise_for_status()
     payload = resp.json()
-    if not payload.get("Success"):
-        raise RuntimeError(f"GME auth failed: {payload.get('Reason')}")
+    if not payload.get("success"):
+        raise RuntimeError(f"GME auth failed. Response from GME: {payload}")
     return payload["token"]
 
 
@@ -62,10 +62,19 @@ def request_data(token: str, interval_start: str, interval_end: str) -> list:
     resp.raise_for_status()
     payload = resp.json()
 
-    if payload.get("ResultRequest") and payload["ResultRequest"] != "OK":
-        raise RuntimeError(f"GME request failed: {payload['ResultRequest']}")
+# GME currently returns these fields in lowercase
+    result_request = payload.get("resultRequest", payload.get("ResultRequest"))
+    content_response = payload.get("contentResponse", payload.get("ContentResponse"))
 
-    raw_zip = base64.b64decode(payload["ContentResponse"])
+    if result_request and result_request != "OK":
+        raise RuntimeError(f"GME data request failed. Response: {payload}")
+
+    if not content_response:
+    # Do not print the token or other sensitive data
+        safe_payload = {k: v for k, v in payload.items() if k.lower() != "token"}
+        raise RuntimeError(f"GME returned no data content. Response: {safe_payload}")
+
+    raw_zip = base64.b64decode(content_response)
     with zipfile.ZipFile(io.BytesIO(raw_zip)) as zf:
         json_name = next(n for n in zf.namelist() if n.endswith(".json"))
         with zf.open(json_name) as f:
