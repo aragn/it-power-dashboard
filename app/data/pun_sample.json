@@ -1,1 +1,0 @@
-{"note": "Demo dataset only, synthetic (not real PUN values). Replace by running etl/fetch_pun.py with real GME credentials, which writes app/data/pun.json in the same {date, pun} schema.", "series": PLACEHOLDER}
