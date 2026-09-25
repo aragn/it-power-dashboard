@@ -3,7 +3,7 @@ name: Update PUN data
 on:
   schedule:
     # Run every day at 06:00 UTC
-    - cron: "0 6 * * *"
+    - cron: "0 0 * * *"
   workflow_dispatch:
 
 permissions:
