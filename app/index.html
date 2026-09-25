@@ -900,20 +900,10 @@
        */
       selectingRange = false;
 
-      const isSingleDay =
-        compareDates(currentStart, currentEnd) === 0;
-
-      currentGranularity =
-        isSingleDay ? "hourly" : "daily";
-
-      document
-        .querySelectorAll(".granularity button")
-        .forEach(item => {
-          item.classList.toggle(
-            "active",
-            item.dataset.granularity === currentGranularity
-          );
-        });
+      /*
+       * Calendar selection does not change the selected chart granularity.
+       * The 15 MIN / HOURLY / DAILY buttons control the data resolution.
+       */
 
       calendarDate =
         new Date(date);
@@ -1455,20 +1445,9 @@
            */
           selectingRange = false;
 
-          const isSingleDay =
-            compareDates(currentStart, currentEnd) === 0;
-
-          currentGranularity =
-            isSingleDay ? "hourly" : "daily";
-
-          document
-            .querySelectorAll(".granularity button")
-            .forEach(item => {
-              item.classList.toggle(
-                "active",
-                item.dataset.granularity === currentGranularity
-              );
-            });
+          /*
+           * Quick selections do not change chart granularity.
+           */
 
 
           calendarDate =
@@ -1696,13 +1675,21 @@
   }
 
   function shouldShowDateLabel(row, index, series) {
-    // Only one observation per calendar date can receive a date label.
-    if (index > 0 && row.date === series[index - 1].date) {
-      return false;
-    }
-
     const visibleRows = getVisibleRows(series);
     if (!visibleRows.length) return false;
+
+    const visibleFirstIndex = Math.max(
+      0,
+      Math.min(visibleStartIndex, series.length - 1)
+    );
+
+    /* Only the first visible observation of a date can create the label. */
+    if (
+      index > visibleFirstIndex &&
+      row.date === series[index - 1].date
+    ) {
+      return false;
+    }
 
     const daySpan = getVisibleDaySpan(series);
     const date = parseDate(row.date);
@@ -1717,7 +1704,7 @@
       (date.getTime() - firstDate.getTime()) / 86400000
     );
 
-    return offset % step === 0;
+    return offset >= 0 && offset % step === 0;
   }
 
   function isSingleCalendarDaySelection() {
@@ -1744,20 +1731,23 @@
       currentGranularity === "quarter";
 
     if (isIntraday) {
+      const visibleRows = getVisibleRows(series);
+      if (!visibleRows.length) return "";
+
       const visibleHours = getVisibleHours(series);
       const time = getMarketTime(row);
-
       if (!time) return "";
 
       /*
-       * IMPORTANT:
-       * Hourly and 15-minute views deliberately share the exact same
-       * x-axis labelling rules. The underlying data density can differ,
-       * but the axis is always expressed using real clock hours.
+       * 15 MIN and HOURLY intentionally use the same clock-based axis.
+       * The difference is only the number of underlying observations.
        */
 
-      // A full single-day selection: keep every 15-minute data point,
-      // but label only every second hour.
+      /*
+       * One complete calendar day:
+       * keep every 15-minute observation in the line, but label only
+       * the exact full hours every two hours: 00:00, 02:00, ...
+       */
       if (
         isSingleCalendarDaySelection() &&
         isFullVisibleRange(series)
@@ -1768,20 +1758,29 @@
           : "";
       }
 
-      // Once the user zooms inside a day, show every actual hour.
-      // For 15-minute data only the exact :00 observation gets a label;
-      // :15/:30/:45 remain visible and their exact minute is shown in the
-      // tooltip when hovered.
+      /*
+       * Less than one day visible after zoom:
+       * show every actual full hour from the underlying data.
+       * For 15-minute data, :15/:30/:45 remain as points and are shown
+       * in the tooltip, but only :00 receives an axis label.
+       */
       if (visibleHours < 24) {
         if (time.minute !== 0) return "";
         return formatActualHour(row);
       }
 
-      // For multi-day intraday views, switch to date labels using the
-      // currently visible zoom window.
+      /*
+       * One day or more visible:
+       * use the currently visible date span, not the original calendar
+       * selection. This means zooming into a year automatically applies
+       * the same date-density rules to the zoomed window.
+       */
       if (shouldShowDateLabel(row, index, series)) {
-        return dateKey(parseDate(row)).slice(8) + "/" +
-          dateKey(parseDate(row)).slice(5, 7);
+        const date = parseDate(row.date);
+        return date.toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "2-digit"
+        });
       }
 
       return "";
@@ -1796,16 +1795,6 @@
     }
 
     return "";
-  }
-
-  function getXAxisLabelFromValue(value, series) {
-    const index = Number(value);
-    if (!Number.isFinite(index)) return "";
-
-    return getXAxisLabelByIndex(
-      Math.max(0, Math.min(Math.round(index), series.length - 1)),
-      series
-    );
   }
 
   function renderChart() {
@@ -2058,11 +2047,14 @@
             0,
 
           hideOverlap:
-            true,
+            false,
 
-          formatter: function (value) {
-            return getXAxisLabelFromValue(
-              value,
+          rotate:
+            0,
+
+          formatter: function (value, index) {
+            return getXAxisLabelByIndex(
+              index,
               series
             );
           }
@@ -2325,6 +2317,16 @@
       endValue:
         series.length - 1
     });
+
+    chart.setOption({
+      xAxis: {
+        axisLabel: {
+          formatter: function (value, index) {
+            return getXAxisLabelByIndex(index, series);
+          }
+        }
+      }
+    }, false);
   }
 
 
@@ -2348,11 +2350,18 @@
       Math.max(0, series.length - 1)
     );
 
+    const visibleHours = getVisibleHours(series);
+    const rotateLabels =
+      (currentGranularity === "hourly" || currentGranularity === "quarter") &&
+      visibleHours < 24;
+
     chart.setOption({
       xAxis: {
         axisLabel: {
-          formatter: function (value) {
-            return getXAxisLabelFromValue(value, series);
+          rotate: rotateLabels ? 35 : 0,
+          fontSize: rotateLabels ? 9 : 10,
+          formatter: function (value, index) {
+            return getXAxisLabelByIndex(index, series);
           }
         }
       }
