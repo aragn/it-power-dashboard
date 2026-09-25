@@ -80,7 +80,7 @@
     .picker-btn { height:40px; border:1px solid var(--border); background:var(--panel-2); color:var(--muted); border-radius:6px; cursor:pointer; font-size:11px; }
     .picker-btn:hover:not(.disabled) { background:#1a1f25; color:var(--text); }
     .picker-btn.disabled { opacity:.2; cursor:default; }
-    .chart-panel { width:100%; padding:18px 18px 12px; min-width:0; }
+    .chart-panel { width:50%; padding:18px 18px 12px; min-width:0; }
     .chart-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:5px; }
     .chart-title { font-size:14px; font-weight:600; }
     .chart-subtitle { margin-bottom:4px; color:var(--muted); font-size:11px; }
@@ -94,7 +94,7 @@
     #chart-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:rgba(180,187,196,.45); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
     #chart-wrap.dragging #chart-drag-hint { opacity:0; }
     .chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
-    @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:92vw;right:-60px} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} }
+    @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:92vw;right:-60px} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} .chart-panel{width:100%;} }
     @media (max-width:600px) { .topbar{padding:0 12px;gap:12px}.status{display:none}.main-content{padding:20px 12px 40px}.brand-sub{display:none}#chart-wrap{height:470px}.chart-header{align-items:flex-start;flex-direction:column}.granularity{align-self:stretch}.granularity button{flex:1}.chart-help{margin-left:52px} }
   </style>
 </head>
@@ -1442,6 +1442,12 @@
           renderCalendar();
 
           renderChart();
+
+          // Quick-select actions apply the range immediately and close the menu.
+          const dropdown = document.getElementById("calendar-dropdown");
+          if (dropdown) {
+            dropdown.classList.remove("open");
+          }
         }
       );
     });
@@ -2677,10 +2683,8 @@
 
     const showChart =
       hasData &&
-      (
-        currentSubTab === "overview" ||
-        currentSubTab === "prices"
-      );
+      currentZone === "italy" &&
+      currentSubTab === "overview";
 
     const zonePlaceholder =
       document.getElementById("zone-placeholder");
@@ -2689,19 +2693,19 @@
       showChart ? "none" : "flex";
 
     if (showChart) {
-      const mountId =
-        currentSubTab === "overview"
-          ? "chart-mount-overview"
-          : "chart-mount-prices";
+      const mount =
+        document.getElementById("chart-mount-overview");
 
-      document
-        .getElementById(mountId)
-        .appendChild(punChartSection);
+      // Move the chart into the Italy > Overview page only.
+      mount.appendChild(punChartSection);
 
       setTimeout(() => {
         chart.resize();
       }, 0);
     } else {
+      // Remove it completely when leaving Italy > Overview.
+      punChartSection.remove();
+
       document.getElementById(
         "zone-placeholder-text"
       ).textContent =
@@ -2750,6 +2754,15 @@
 
   const calendarApply =
     document.getElementById("calendar-apply");
+
+  // Calendar interactions can re-render the grid. Stop those clicks from
+  // reaching the document-level outside-click handler, which would otherwise
+  // close the dropdown after the clicked DOM node is replaced.
+  calendarDropdown.addEventListener("click", event => {
+    if (event.target !== calendarApply) {
+      event.stopPropagation();
+    }
+  });
 
   calendarTrigger.addEventListener(
     "click",
