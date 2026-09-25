@@ -28,15 +28,15 @@
     #calendar-trigger:hover { background:#1a1f25; }
     .calendar-icon { width:15px; height:15px; flex:0 0 15px; color:var(--muted); }
     #calendar-trigger:hover .calendar-icon { color:var(--text); }
-    .calendar-dropdown { display:none; position:absolute; top:calc(100% + 10px); right:0; z-index:200; width:660px; padding:18px; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:0 16px 40px rgba(0,0,0,.55); }
+    .calendar-dropdown { display:none; position:absolute; top:calc(100% + 10px); right:0; z-index:200; width:560px; padding:14px; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:0 16px 40px rgba(0,0,0,.55); }
     .calendar-dropdown.open { display:block; }
-    .calendar-dropdown-body { display:flex; gap:22px; }
-    .calendar-dropdown-quick { width:160px; flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
+    .calendar-dropdown-body { display:flex; gap:18px; }
+    .calendar-dropdown-quick { width:145px; flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
     .quick-title { margin-bottom:8px; color:var(--muted-2); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
     .quick-btn { border:1px solid var(--border); background:var(--panel-2); color:var(--muted); border-radius:6px; padding:9px 10px; text-align:left; cursor:pointer; font-size:11.5px; }
     .quick-btn:hover { color:var(--text); background:#1a1f25; }
     .calendar-dropdown-calendar { flex:1; min-width:0; }
-    .calendar-dropdown-footer { display:flex; align-items:center; justify-content:space-between; margin-top:16px; padding-top:14px; border-top:1px solid var(--border); }
+    .calendar-dropdown-footer { display:flex; align-items:center; justify-content:flex-end; margin-top:12px; padding-top:10px; border-top:1px solid var(--border); }
     .timezone-label { color:var(--muted-2); font-size:11px; }
     .apply-btn { border:1px solid var(--border); background:var(--accent); color:#0b0d10; font-weight:600; border-radius:6px; padding:8px 18px; font-size:12px; cursor:pointer; }
     .app-body { display:flex; align-items:flex-start; }
@@ -95,7 +95,7 @@
     #chart-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:rgba(180,187,196,.45); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
     #chart-wrap.dragging #chart-drag-hint { opacity:0; }
     .chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
-    @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:92vw;right:-60px} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} .chart-panel{width:100%;max-width:100%;} }
+    @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:min(92vw,560px);right:-60px} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} .chart-panel{width:100%;max-width:100%;} }
     @media (max-width:600px) { .topbar{padding:0 12px;gap:12px}.status{display:none}.main-content{padding:20px 12px 40px}.brand-sub{display:none}#chart-wrap{height:470px}.chart-header{align-items:flex-start;flex-direction:column}.granularity{align-self:stretch}.granularity button{flex:1}.chart-help{margin-left:52px} }
   </style>
 </head>
@@ -122,7 +122,7 @@
                 <div id="calendar-year-picker" class="calendar-year-picker"><div class="calendar-header"><div class="calendar-nav"><button id="year-picker-prev" type="button">‹</button></div><button id="year-picker-title" class="calendar-title" type="button">Years</button><div class="calendar-nav"><button id="year-picker-next" type="button">›</button></div></div><div id="year-picker-grid" class="picker-grid"></div></div>
               </div>
             </div>
-            <div class="calendar-dropdown-footer"><div class="timezone-label">Timezone: Europe/Rome</div><button id="calendar-apply" class="apply-btn" type="button">Apply</button></div>
+            <div class="calendar-dropdown-footer"><div class="timezone-label">Timezone: Europe/Rome</div></div>
           </div>
         </div>
       </div>
@@ -130,7 +130,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard · day-ahead market (MGP)</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"></div></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
       </main>
@@ -894,8 +894,26 @@
 
       /*
        * Range is now complete.
+       * A single selected day uses hourly data so the intraday profile
+       * is visible. Longer ranges use daily data unless the user
+       * explicitly switches granularity afterwards.
        */
       selectingRange = false;
+
+      const isSingleDay =
+        compareDates(currentStart, currentEnd) === 0;
+
+      currentGranularity =
+        isSingleDay ? "hourly" : "daily";
+
+      document
+        .querySelectorAll(".granularity button")
+        .forEach(item => {
+          item.classList.toggle(
+            "active",
+            item.dataset.granularity === currentGranularity
+          );
+        });
 
       calendarDate =
         new Date(date);
@@ -906,11 +924,12 @@
 
       renderChart();
 
-      // A completed two-date range closes the calendar.
+      // A completed two-date selection closes the calendar.
       const dropdown = document.getElementById("calendar-dropdown");
       if (dropdown) {
         dropdown.classList.remove("open");
       }
+
     }
   }
 
@@ -1431,10 +1450,25 @@
 
 
           /*
-           * Quick-select creates a
-           * complete range.
+           * Quick-select creates a complete range.
+           * One-day selections use hourly data.
            */
           selectingRange = false;
+
+          const isSingleDay =
+            compareDates(currentStart, currentEnd) === 0;
+
+          currentGranularity =
+            isSingleDay ? "hourly" : "daily";
+
+          document
+            .querySelectorAll(".granularity button")
+            .forEach(item => {
+              item.classList.toggle(
+                "active",
+                item.dataset.granularity === currentGranularity
+              );
+            });
 
 
           calendarDate =
@@ -1547,46 +1581,113 @@
   }
 
 
-  function getXAxisLabel(
-    row,
-    index,
-    series
-  ) {
+  /* ============================================================
+     X-AXIS LABEL DENSITY
+     ============================================================ */
 
-    if (index === 0) {
+  let visibleStartIndex = 0;
+  let visibleEndIndex = 0;
 
-      const date =
-        parseDate(row.date);
-
-      return date.toLocaleDateString(
-        "en-GB",
-        {
-          day: "2-digit",
-          month: "2-digit"
-        }
-      );
+  function getVisibleSeriesSpan(series) {
+    if (!series.length) {
+      return 0;
     }
 
+    const start = Math.max(0, Math.min(visibleStartIndex, series.length - 1));
+    const end = Math.max(start, Math.min(visibleEndIndex, series.length - 1));
+    return Math.max(1, end - start + 1);
+  }
 
-    if (
-      row.date !==
-      series[index - 1].date
-    ) {
-
-      const date =
-        parseDate(row.date);
-
-      return date.toLocaleDateString(
-        "en-GB",
-        {
-          day: "2-digit",
-          month: "2-digit"
-        }
-      );
+  function getCalendarDaySpan(series) {
+    if (!series.length) {
+      return 0;
     }
 
+    const start = series[0].date;
+    const end = series[series.length - 1].date;
+    return Math.round(
+      (parseDate(end).getTime() - parseDate(start).getTime()) / 86400000
+    ) + 1;
+  }
 
-    return "";
+  function shouldShowDailyLabel(row, index, series) {
+    const daySpan = getCalendarDaySpan(series);
+    const date = parseDate(row.date);
+    const day = date.getDate();
+
+    // A full-year view: label only the 15th of each month.
+    if (daySpan >= 330) {
+      return day === 15;
+    }
+
+    // More than two weeks: every third day.
+    if (daySpan > 31) {
+      const first = parseDate(series[0].date);
+      const offset = Math.round(
+        (date.getTime() - first.getTime()) / 86400000
+      );
+      return offset % 3 === 0;
+    }
+
+    // More than two weeks: every second day.
+    if (daySpan > 14) {
+      const first = parseDate(series[0].date);
+      const offset = Math.round(
+        (date.getTime() - first.getTime()) / 86400000
+      );
+      return offset % 2 === 0;
+    }
+
+    // Short views: every day.
+    return index === 0 || row.date !== series[index - 1].date;
+  }
+
+  function getXAxisLabel(row, index, series) {
+    if (currentGranularity === "hourly" &&
+        currentStart && currentEnd &&
+        compareDates(currentStart, currentEnd) === 0) {
+      const visibleSpan = getVisibleSeriesSpan(series);
+      const hour = row.time || String(Math.floor(index % 24)).padStart(2, "0") + ":00";
+
+      // Single-day view: show hourly labels while sufficiently zoomed in.
+      if (visibleSpan <= 48) {
+        return hour;
+      }
+
+      // Once zoomed out, fall back to one date label.
+      return index === 0 ? formatDate(parseDate(row.date)) : "";
+    }
+
+    if (currentGranularity === "hourly") {
+      if (row.date !== series[index - 1]?.date) {
+        return shouldShowDailyLabel(row, index, series)
+          ? parseDate(row.date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })
+          : "";
+      }
+      return "";
+    }
+
+    return shouldShowDailyLabel(row, index, series)
+      ? parseDate(row.date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })
+      : "";
+  }
+
+  function updateXAxisLabelDensity(series) {
+    const visibleSpan = getVisibleSeriesSpan(series);
+
+    chart.setOption({
+      xAxis: {
+        axisLabel: {
+          formatter: function (_, index) {
+            const row = series[index];
+            if (!row) return "";
+            return getXAxisLabel(row, index, series);
+          }
+        }
+      }
+    });
+
+    return visibleSpan;
   }
 
 
@@ -1598,6 +1699,9 @@
 
     const series =
       filteredSeries();
+
+    visibleStartIndex = 0;
+    visibleEndIndex = Math.max(0, series.length - 1);
 
 
     let subtitle =
@@ -1839,7 +1943,13 @@
             10,
 
           interval:
-            0
+            0,
+
+          formatter: function (_, index) {
+            const row = series[index];
+            if (!row) return "";
+            return getXAxisLabel(row, index, series);
+          }
         },
 
 
@@ -2100,6 +2210,40 @@
         series.length - 1
     });
   }
+
+
+  chart.on("datazoom", () => {
+    const options = chart.getOption();
+    const zoom = options.dataZoom && options.dataZoom[0];
+    const series = filteredSeries();
+
+    if (!series.length || !zoom) {
+      return;
+    }
+
+    const startValue = Number.isFinite(zoom.startValue) ? zoom.startValue : 0;
+    const endValue = Number.isFinite(zoom.endValue)
+      ? zoom.endValue
+      : Math.max(0, series.length - 1);
+
+    visibleStartIndex = Math.max(0, Math.round(startValue));
+    visibleEndIndex = Math.min(
+      Math.max(visibleStartIndex, Math.round(endValue)),
+      Math.max(0, series.length - 1)
+    );
+
+    chart.setOption({
+      xAxis: {
+        axisLabel: {
+          formatter: function (_, index) {
+            const row = series[index];
+            if (!row) return "";
+            return getXAxisLabel(row, index, series);
+          }
+        }
+      }
+    }, false);
+  });
 
 
   /* ============================================================
@@ -2759,16 +2903,12 @@
   const calendarTrigger =
     document.getElementById("calendar-trigger");
 
-  const calendarApply =
-    document.getElementById("calendar-apply");
 
   // Calendar interactions can re-render the grid. Stop those clicks from
   // reaching the document-level outside-click handler, which would otherwise
   // close the dropdown after the clicked DOM node is replaced.
   calendarDropdown.addEventListener("click", event => {
-    if (event.target !== calendarApply) {
-      event.stopPropagation();
-    }
+    event.stopPropagation();
   });
 
   calendarTrigger.addEventListener(
@@ -2779,12 +2919,6 @@
     }
   );
 
-  calendarApply.addEventListener(
-    "click",
-    () => {
-      calendarDropdown.classList.remove("open");
-    }
-  );
 
   document.addEventListener(
     "click",
