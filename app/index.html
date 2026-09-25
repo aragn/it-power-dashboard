@@ -1586,14 +1586,18 @@
     return null;
   }
 
-  function extractHourLabel(row) {
+  function formatActualHour(row) {
     const marketTime = getMarketTime(row);
 
     if (!marketTime) {
       return "";
     }
 
-    return String(marketTime.hour).padStart(2, "0");
+    return (
+      String(marketTime.hour).padStart(2, "0") +
+      ":" +
+      String(marketTime.minute).padStart(2, "0")
+    );
   }
 
   function formatTooltipDate(row) {
@@ -1608,7 +1612,7 @@
       return dateText;
     }
 
-    const hour = extractHourLabel(row);
+    const hour = formatActualHour(row);
     return hour ? `${dateText} ${hour}` : dateText;
   }
 
@@ -1754,13 +1758,12 @@
   }
 
   function formatHourLabel(row) {
-    const hour = extractHourLabel(row);
+    const hour = formatActualHour(row);
 
     if (!hour) {
       return "";
     }
 
-    // Deliberately remove :00. The horizontal axis only needs the hour.
     return hour;
   }
 
@@ -1776,6 +1779,14 @@
     return marketTime.minute === 0;
   }
 
+  function isSingleCalendarDaySelection() {
+    return (
+      currentStart &&
+      currentEnd &&
+      compareDates(currentStart, currentEnd) === 0
+    );
+  }
+
   function getXAxisLabelByIndex(index, series) {
     const row = series[index];
 
@@ -1787,53 +1798,48 @@
       currentGranularity === "hourly" ||
       currentGranularity === "quarter";
 
-    /*
-     * EXACTLY ONE SELECTED DAY, FULL RANGE:
-     * show every two hours. The test is based on the actual selected series
-     * bounds rather than the timestamp difference because a normal 24-point
-     * hourly day runs from 00:00 through 23:00 (23 elapsed hours).
-     */
-    if (
-      isIntraday &&
-      currentStart &&
-      currentEnd &&
-      compareDates(currentStart, currentEnd) === 0 &&
-      visibleStartIndex === 0 &&
-      visibleEndIndex === series.length - 1
-    ) {
-      if (!isHourLabelPoint(row)) {
-        return "";
+    if (isIntraday) {
+      const visibleHours = getVisibleHours(series);
+
+      /*
+       * One calendar day, not zoomed: keep the full 15-minute series,
+       * but label only every second clock hour so the axis remains readable.
+       */
+      if (
+        isSingleCalendarDaySelection() &&
+        visibleStartIndex === 0 &&
+        visibleEndIndex === series.length - 1
+      ) {
+        const marketTime = getMarketTime(row);
+
+        if (!marketTime || marketTime.minute !== 0) {
+          return "";
+        }
+
+        return marketTime.hour % 2 === 0
+          ? formatActualHour(row)
+          : "";
       }
 
-      const hourText = extractHourLabel(row);
-      if (!hourText) {
-        return "";
+      /*
+       * Zoomed to less than one day: show every actual hour from the data.
+       * With 15-minute data, only the :00 point of each hour receives the
+       * label, while the underlying :15/:30/:45 points remain on the chart.
+       */
+      if (visibleHours < 24) {
+        const marketTime = getMarketTime(row);
+
+        if (!marketTime || marketTime.minute !== 0) {
+          return "";
+        }
+
+        return formatActualHour(row);
       }
-
-      const hour = Number(hourText);
-      return hour % 2 === 0 ? hourText : "";
-    }
-
-    const visibleHours = getVisibleHours(series);
-
-    /*
-     * LESS THAN ONE DAY VISIBLE:
-     * use the actual hour stored on the point. For PT15 data only the :00
-     * observation of each hour is labelled, which keeps the axis readable.
-     */
-    if (isIntraday && visibleHours < 24) {
-      if (!isHourLabelPoint(row)) {
-        return "";
-      }
-
-      return extractHourLabel(row);
     }
 
     /*
-     * ONE DAY OR MORE:
-     * apply the date-density rule to the VISIBLE range. This means that a
-     * one-year chart zoomed into 20 days uses the 15-31 day rule, while a
-     * zoomed 50-day window uses the 32-89 day rule, etc.
+     * Once one day or more is visible, use the date-density rule based on
+     * the CURRENT visible zoomed range, not the original calendar range.
      */
     if (shouldShowDateLabel(row, index, series)) {
       return parseDate(row.date).toLocaleDateString(
