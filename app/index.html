@@ -1614,8 +1614,8 @@
     const daySpan = getCalendarDaySpan(series);
     const date = parseDate(row.date);
 
-    // 90+ days: show only the 15th of each month.
-    if (daySpan >= 90) {
+    // 60+ days: show only the 15th of each month.
+    if (daySpan >= 60) {
       return date.getDate() === 15;
     }
 
