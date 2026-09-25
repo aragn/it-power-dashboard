@@ -1553,52 +1553,47 @@
      CHART
      ============================================================ */
 
-  function extractHourLabel(row) {
-    // The hour must come from the data point itself, not from the array index.
-    // This keeps the label tied to the correct observation after zooming.
-    const candidates = [
-      row.time,
-      row.hour,
-      row.datetime,
-      row.timestamp,
-      row.dateTime,
-      row.start_time,
-      row.startTime
-    ];
+  function getMarketTime(row) {
+    const date = parseDate(row.date);
+    const timeText = String(row.time || "").trim();
+    const match = timeText.match(/^(\d{1,2}):(\d{2})/);
 
-    for (const value of candidates) {
-      if (value === null || value === undefined || value === "") {
-        continue;
-      }
+    if (match) {
+      const hour = Number(match[1]);
+      const minute = Number(match[2]);
 
-      if (typeof value === "number" && Number.isFinite(value)) {
-        const hour = Math.trunc(value);
-        if (hour >= 0 && hour <= 23) {
-          return String(hour).padStart(2, "0");
-        }
-      }
-
-      const text = String(value).trim();
-
-      // HH:MM, HH:MM:SS, or a full ISO/datetime string containing HH:MM.
-      const match = text.match(/(?:^|[T\s])(\d{1,2}):(\d{2})(?::\d{2})?/);
-      if (match) {
-        const hour = Number(match[1]);
-        if (hour >= 0 && hour <= 23) {
-          return String(hour).padStart(2, "0");
-        }
-      }
-
-      // Plain hour such as "8" or "08".
-      if (/^\d{1,2}$/.test(text)) {
-        const hour = Number(text);
-        if (hour >= 0 && hour <= 23) {
-          return String(hour).padStart(2, "0");
-        }
+      if (
+        Number.isInteger(hour) &&
+        hour >= 0 &&
+        hour <= 24 &&
+        Number.isInteger(minute) &&
+        minute >= 0 &&
+        minute <= 59
+      ) {
+        return { hour, minute };
       }
     }
 
-    return "";
+    // GME hourly data uses Hour 1-25:
+    // Hour 1 = 00:00 ... Hour 24 = 23:00, Hour 25 = 24:00.
+    if (Number.isFinite(Number(row.hour))) {
+      const hour = Number(row.hour) - 1;
+      if (hour >= 0 && hour <= 24) {
+        return { hour, minute: 0 };
+      }
+    }
+
+    return null;
+  }
+
+  function extractHourLabel(row) {
+    const marketTime = getMarketTime(row);
+
+    if (!marketTime) {
+      return "";
+    }
+
+    return String(marketTime.hour).padStart(2, "0");
   }
 
   function formatTooltipDate(row) {
@@ -1624,111 +1619,247 @@
 
   let visibleStartIndex = 0;
   let visibleEndIndex = 0;
-  let singleDayWasZoomed = false;
 
   function getVisibleSeriesSpan(series) {
     if (!series.length) {
       return 0;
     }
 
-    const start = Math.max(0, Math.min(visibleStartIndex, series.length - 1));
-    const end = Math.max(start, Math.min(visibleEndIndex, series.length - 1));
-    return Math.max(1, end - start + 1);
+    const start = Math.max(
+      0,
+      Math.min(visibleStartIndex, series.length - 1)
+    );
+
+    const end = Math.max(
+      start,
+      Math.min(visibleEndIndex, series.length - 1)
+    );
+
+    return end - start + 1;
   }
 
-  function getCalendarDaySpan(series) {
+  function getRowTimestamp(row) {
+    const date = parseDate(row.date);
+    const marketTime = getMarketTime(row);
+
+    if (marketTime) {
+      const result = new Date(date);
+      result.setHours(
+        marketTime.hour,
+        marketTime.minute,
+        0,
+        0
+      );
+      return result.getTime();
+    }
+
+    return date.getTime();
+  }
+
+  function getVisibleRows(series) {
     if (!series.length) {
+      return [];
+    }
+
+    const start = Math.max(
+      0,
+      Math.min(visibleStartIndex, series.length - 1)
+    );
+
+    const end = Math.max(
+      start,
+      Math.min(visibleEndIndex, series.length - 1)
+    );
+
+    return series.slice(start, end + 1);
+  }
+
+  function getVisibleHours(series) {
+    const rows = getVisibleRows(series);
+
+    if (rows.length <= 1) {
       return 0;
     }
 
-    const start = parseDate(series[0].date);
-    const end = parseDate(series[series.length - 1].date);
+    const first = getRowTimestamp(rows[0]);
+    const last = getRowTimestamp(rows[rows.length - 1]);
+
+    return Math.max(
+      0,
+      (last - first) / 3600000
+    );
+  }
+
+  function getVisibleDaySpan(series) {
+    const rows = getVisibleRows(series);
+
+    if (!rows.length) {
+      return 0;
+    }
+
+    const first = parseDate(rows[0].date);
+    const last = parseDate(rows[rows.length - 1].date);
+
     return Math.round(
-      (end.getTime() - start.getTime()) / 86400000
+      (last.getTime() - first.getTime()) / 86400000
     ) + 1;
   }
 
-  function shouldShowDailyLabel(row, index, series) {
-    const daySpan = getCalendarDaySpan(series);
+  function getDayLabelStep(daySpan) {
+    if (daySpan >= 90) {
+      return null; // special rule: only the 15th of each month
+    }
+
+    if (daySpan >= 32) {
+      return 7;
+    }
+
+    if (daySpan >= 15) {
+      return 3;
+    }
+
+    return 1;
+  }
+
+  function shouldShowDateLabel(row, index, series) {
+    // Only the first observation of a calendar day can receive a date label.
+    if (
+      index > 0 &&
+      row.date === series[index - 1].date
+    ) {
+      return false;
+    }
+
+    const visibleRows = getVisibleRows(series);
+    const visibleDaySpan = getVisibleDaySpan(series);
+
+    if (!visibleRows.length) {
+      return false;
+    }
+
     const date = parseDate(row.date);
 
-    // 90+ days: show only the 15th of each month.
-    if (daySpan >= 90) {
+    // 90+ visible days: only the 15th of each month.
+    if (visibleDaySpan >= 90) {
       return date.getDate() === 15;
     }
 
-    const first = parseDate(series[0].date);
+    const step = getDayLabelStep(visibleDaySpan);
+    const firstVisibleDate = parseDate(visibleRows[0].date);
     const offset = Math.round(
-      (date.getTime() - first.getTime()) / 86400000
+      (date.getTime() - firstVisibleDate.getTime()) / 86400000
     );
 
-    // 32–89 days: every 7th day.
-    if (daySpan >= 32) {
-      return offset % 7 === 0;
+    return offset % step === 0;
+  }
+
+  function formatHourLabel(row) {
+    const hour = extractHourLabel(row);
+
+    if (!hour) {
+      return "";
     }
 
-    // 15–31 days: every 3rd day.
-    if (daySpan >= 15) {
-      return offset % 3 === 0;
+    // Deliberately remove :00. The horizontal axis only needs the hour.
+    return hour;
+  }
+
+  function isHourLabelPoint(row) {
+    const marketTime = getMarketTime(row);
+
+    if (!marketTime) {
+      return false;
     }
 
-    // 1–14 days: every day.
-    return index === 0 || row.date !== series[index - 1].date;
+    // For hourly data every point is on the hour. For PT15 data, only the
+    // exact :00 point of an hour gets an axis label.
+    return marketTime.minute === 0;
   }
 
   function getXAxisLabelByIndex(index, series) {
     const row = series[index];
+
     if (!row) {
       return "";
     }
 
-    if (currentGranularity === "hourly" &&
-        currentStart && currentEnd &&
-        compareDates(currentStart, currentEnd) === 0) {
-      const visibleSpan = getVisibleSeriesSpan(series);
-      const hour = extractHourLabel(row);
+    const isIntraday =
+      currentGranularity === "hourly" ||
+      currentGranularity === "quarter";
 
-      // For a selected single day, use the real hour attached to each point.
-      // Show those hour labels in the normal full-day view and while the user
-      // is zoomed into a smaller part of the day. When zoomed back out, show
-      // only the date.
-      if (!singleDayWasZoomed || visibleSpan <= 18) {
-        return hour;
+    /*
+     * EXACTLY ONE SELECTED DAY, FULL RANGE:
+     * show every two hours. The test is based on the actual selected series
+     * bounds rather than the timestamp difference because a normal 24-point
+     * hourly day runs from 00:00 through 23:00 (23 elapsed hours).
+     */
+    if (
+      isIntraday &&
+      currentStart &&
+      currentEnd &&
+      compareDates(currentStart, currentEnd) === 0 &&
+      visibleStartIndex === 0 &&
+      visibleEndIndex === series.length - 1
+    ) {
+      if (!isHourLabelPoint(row)) {
+        return "";
       }
 
-      return index === visibleStartIndex
-        ? formatDate(parseDate(row.date))
-        : "";
-    }
-
-    if (currentGranularity === "hourly") {
-      if (index === 0 || row.date !== series[index - 1].date) {
-        return shouldShowDailyLabel(row, index, series)
-          ? parseDate(row.date).toLocaleDateString("en-GB", {
-              day: "2-digit",
-              month: "2-digit"
-            })
-          : "";
+      const hourText = extractHourLabel(row);
+      if (!hourText) {
+        return "";
       }
-      return "";
+
+      const hour = Number(hourText);
+      return hour % 2 === 0 ? hourText : "";
     }
 
-    return shouldShowDailyLabel(row, index, series)
-      ? parseDate(row.date).toLocaleDateString("en-GB", {
+    const visibleHours = getVisibleHours(series);
+
+    /*
+     * LESS THAN ONE DAY VISIBLE:
+     * use the actual hour stored on the point. For PT15 data only the :00
+     * observation of each hour is labelled, which keeps the axis readable.
+     */
+    if (isIntraday && visibleHours < 24) {
+      if (!isHourLabelPoint(row)) {
+        return "";
+      }
+
+      return extractHourLabel(row);
+    }
+
+    /*
+     * ONE DAY OR MORE:
+     * apply the date-density rule to the VISIBLE range. This means that a
+     * one-year chart zoomed into 20 days uses the 15-31 day rule, while a
+     * zoomed 50-day window uses the 32-89 day rule, etc.
+     */
+    if (shouldShowDateLabel(row, index, series)) {
+      return parseDate(row.date).toLocaleDateString(
+        "en-GB",
+        {
           day: "2-digit",
           month: "2-digit"
-        })
-      : "";
+        }
+      );
+    }
+
+    return "";
   }
 
   function getXAxisLabelFromValue(value, series) {
     const index = Number(value);
+
     if (!Number.isFinite(index)) {
       return "";
     }
-    return getXAxisLabelByIndex(index, series);
-  }
 
+    return getXAxisLabelByIndex(
+      Math.max(0, Math.min(Math.round(index), series.length - 1)),
+      series
+    );
+  }
 
   function renderChart() {
 
@@ -1741,7 +1872,6 @@
 
     visibleStartIndex = 0;
     visibleEndIndex = Math.max(0, series.length - 1);
-    singleDayWasZoomed = false;
 
 
     let subtitle =
@@ -1981,7 +2111,10 @@
             0,
 
           formatter: function (value) {
-            return getXAxisLabelFromValue(value, series);
+            return getXAxisLabelFromValue(
+              value,
+              series
+            );
           }
         },
 
@@ -2265,23 +2398,14 @@
       Math.max(0, series.length - 1)
     );
 
-    if (currentGranularity === "hourly" &&
-        currentStart && currentEnd &&
-        compareDates(currentStart, currentEnd) === 0) {
-      const isFullRange =
-        visibleStartIndex === 0 &&
-        visibleEndIndex === series.length - 1;
-
-      // A fresh one-day view starts with hourly labels. Only a user-driven
-      // zoom changes this state; returning to a broad view hides the hours.
-      singleDayWasZoomed = !isFullRange;
-    }
-
     chart.setOption({
       xAxis: {
         axisLabel: {
           formatter: function (value) {
-            return getXAxisLabelFromValue(value, series);
+            return getXAxisLabelFromValue(
+              value,
+              series
+            );
           }
         }
       }
