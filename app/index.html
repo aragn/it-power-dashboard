@@ -52,7 +52,8 @@
     .subnav-tab:hover { color:var(--text); }
     .subnav-tab.active { color:var(--text); border-bottom-color:var(--blue); font-weight:600; }
     .panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; }
-    #chart-mount-overview { width:100%; }
+    #chart-mount-overview { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
+    @media (max-width: 1050px) { #chart-mount-overview { grid-template-columns:1fr; } }
     #chart-mount-prices { width:100%; }
     .zonal-chart-panel { width:100%; max-width:100%; padding:18px 18px 12px; min-width:0; margin:0; }
     #zonal-chart-wrap { position:relative; width:100%; height:520px; touch-action:none; }
@@ -87,7 +88,7 @@
     .picker-btn { height:40px; border:1px solid var(--border); background:var(--panel-2); color:var(--muted); border-radius:6px; cursor:pointer; font-size:11px; }
     .picker-btn:hover:not(.disabled) { background:#1a1f25; color:var(--text); }
     .picker-btn.disabled { opacity:.2; cursor:default; }
-    .chart-panel { width:50%; max-width:50%; padding:18px 18px 12px; min-width:0; margin:0; }
+    .chart-panel { width:100%; max-width:100%; padding:18px 18px 12px; min-width:0; margin:0; }
     .chart-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:5px; }
     .chart-title { font-size:14px; font-weight:600; }
     .chart-subtitle { margin-bottom:4px; color:var(--muted); font-size:11px; }
@@ -97,6 +98,11 @@
     .granularity button.active { background:#e8eaed; color:#0b0d10; font-weight:600; }
     #chart-wrap { position:relative; width:100%; height:520px; touch-action:none; }
     #chart { position:absolute; inset:0; width:100%; height:100%; }
+    #generation-load-chart-wrap { position:relative; width:100%; height:520px; touch-action:none; }
+    #generation-load-chart { position:absolute; inset:0; width:100%; height:100%; }
+    #generation-load-drag-selection { position:absolute; z-index:20; display:none; top:20px; height:calc(100% - 90px); border:1px solid rgba(91,156,255,.9); background:rgba(91,156,255,.1); pointer-events:none; }
+    #generation-load-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:rgba(180,187,196,.45); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
+    #generation-load-chart-wrap.dragging #generation-load-drag-hint { opacity:0; }
     #chart-drag-selection { position:absolute; z-index:20; display:none; top:20px; height:calc(100% - 90px); border:1px solid rgba(91,156,255,.9); background:rgba(91,156,255,.1); pointer-events:none; }
     #chart-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:rgba(180,187,196,.45); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
     #chart-wrap.dragging #chart-drag-hint { opacity:0; }
@@ -137,7 +143,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices">
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices">
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -167,6 +173,7 @@
 
 
   const DATA_URL = "./data/pun.json";
+  const GENERATION_LOAD_DATA_URL = "./data/generation_load.json";
 
   const CHART_GRID = {
     left: 72,
@@ -187,6 +194,12 @@
   const chart =
     echarts.init(chartElement);
 
+  const generationLoadChartElement =
+    document.getElementById("generation-load-chart");
+
+  const generationLoadChart =
+    echarts.init(generationLoadChartElement);
+
   const zonalChartElement =
     document.getElementById("zonal-chart");
 
@@ -195,6 +208,11 @@
 
   let rawData = null;
   let rawZonalData = null;
+  let rawGenerationLoadData = null;
+  let generationLoadVisibleStartIndex = 0;
+  let generationLoadVisibleEndIndex = 0;
+  let generationLoadCategoryToIndex = new Map();
+  let generationLoadCategoryToRow = new Map();
   let zonalGranularity = "daily";
   let zonalCategoryToRows = new Map();
   let zonalCategoryToIndex = new Map();
@@ -378,11 +396,27 @@
       rawZonalData =
         await zonalResponse.json();
 
+      const generationLoadResponse =
+        await fetch(
+          GENERATION_LOAD_DATA_URL,
+          { cache: "no-store" }
+        );
+
+      if (!generationLoadResponse.ok) {
+        throw new Error(
+          `Generation/load data HTTP ${generationLoadResponse.status}`
+        );
+      }
+
+      rawGenerationLoadData =
+        await generationLoadResponse.json();
+
       initialiseDateSelection();
 
       renderCalendar();
 
       renderChart();
+      renderGenerationLoadChart();
 
       document.getElementById(
         "status-text"
@@ -1593,6 +1627,7 @@
           renderCalendar();
 
           renderChart();
+          renderGenerationLoadChart();
           renderZonalChart();
         }
       );
@@ -1886,6 +1921,447 @@
     return null;
   }
 
+
+  generationLoadChart.on("datazoom", event => {
+    const rows = filterGenerationLoadRows(getGenerationLoadRows());
+    if (!rows.length) return;
+
+    const batch = event.batch && event.batch[0] ? event.batch[0] : event;
+    let start = Number(batch.startValue);
+    let end = Number(batch.endValue);
+
+    if (!Number.isFinite(start) || !Number.isFinite(end)) {
+      start = Math.round((Number(batch.start || 0) / 100) * (rows.length - 1));
+      end = Math.round((Number(batch.end || 100) / 100) * (rows.length - 1));
+    }
+
+    applyGenerationLoadXAxisViewport(rows, start, end);
+  });
+
+  /* ============================================================
+     ENTSO-E GENERATION & DEMAND CHART
+     ============================================================ */
+
+  function getGenerationLoadBucketKey(row) {
+    return currentGranularity === "daily"
+      ? row.date
+      : `${row.date}|${row.time || ""}`;
+  }
+
+  function getGenerationLoadRows() {
+    if (!rawGenerationLoadData) return [];
+
+    const generation =
+      rawGenerationLoadData.generation || {};
+    const load =
+      rawGenerationLoadData.total_load ||
+      rawGenerationLoadData.actual_total_load ||
+      rawGenerationLoadData.load || {};
+
+    const generationKey =
+      currentGranularity === "quarter"
+        ? "quarter_hourly"
+        : currentGranularity === "hourly"
+          ? "hourly"
+          : "daily";
+
+    const generationGroups = generation[generationKey] || {};
+    const loadSource = Array.isArray(load)
+      ? load
+      : (load[generationKey] || {});
+
+    const generationMap = new Map();
+
+    Object.values(generationGroups).forEach(group => {
+      const groupRows = Array.isArray(group)
+        ? group
+        : (group && Array.isArray(group.points) ? group.points : []);
+
+      groupRows.forEach(row => {
+        if (!row || !row.date) return;
+        const key = getGenerationLoadBucketKey(row);
+        const existing = generationMap.get(key);
+        generationMap.set(key, {
+          date: row.date,
+          time: row.time || "",
+          generation: (existing?.generation || 0) + Number(row.value || 0)
+        });
+      });
+    });
+
+    const loadRows = Array.isArray(loadSource)
+      ? loadSource
+      : (Array.isArray(loadSource.TOTAL) ? loadSource.TOTAL : []);
+
+    const loadMap = new Map();
+    loadRows.forEach(row => {
+      if (!row || !row.date) return;
+      loadMap.set(getGenerationLoadBucketKey(row), Number(row.value || 0));
+    });
+
+    const keys = new Set([
+      ...generationMap.keys(),
+      ...loadMap.keys()
+    ]);
+
+    return [...keys]
+      .map(key => {
+        const g = generationMap.get(key);
+        const loadValue = loadMap.get(key);
+        const date = g?.date || key.split("|")[0];
+        const time = g?.time || (key.includes("|") ? key.split("|")[1] : "");
+
+        return {
+          date,
+          time,
+          generation: g ? g.generation : null,
+          load: Number.isFinite(loadValue) ? loadValue : null
+        };
+      })
+      .sort((a, b) => {
+        const ta = new Date(`${a.date}T${a.time || "00:00"}:00`).getTime();
+        const tb = new Date(`${b.date}T${b.time || "00:00"}:00`).getTime();
+        return ta - tb;
+      });
+  }
+
+  function filterGenerationLoadRows(rows) {
+    if (!currentStart || !currentEnd) return rows;
+
+    const start = startOfDay(currentStart).getTime();
+    const end = endOfDay(currentEnd).getTime();
+
+    return rows.filter(row => {
+      const timestamp = new Date(
+        `${row.date}T${row.time || "00:00"}:00`
+      ).getTime();
+      return timestamp >= start && timestamp <= end;
+    });
+  }
+
+  function generationLoadCategoryKey(row) {
+    return currentGranularity === "daily"
+      ? row.date
+      : `${row.date}|${row.time || ""}`;
+  }
+
+  function generationLoadVisibleRows(rows) {
+    if (!rows.length) return [];
+    const start = Math.max(0, Math.min(generationLoadVisibleStartIndex, rows.length - 1));
+    const end = Math.max(start, Math.min(generationLoadVisibleEndIndex, rows.length - 1));
+    return rows.slice(start, end + 1);
+  }
+
+  function generationLoadVisibleDaySpan(rows) {
+    const visible = generationLoadVisibleRows(rows);
+    if (!visible.length) return 0;
+    const first = parseDate(visible[0].date);
+    const last = parseDate(visible[visible.length - 1].date);
+    return Math.round((last.getTime() - first.getTime()) / 86400000) + 1;
+  }
+
+  function generationLoadVisibleHours(rows) {
+    const visible = generationLoadVisibleRows(rows);
+    if (visible.length <= 1) return 0;
+    const first = new Date(`${visible[0].date}T${visible[0].time || "00:00"}:00`).getTime();
+    const last = new Date(`${visible[visible.length - 1].date}T${visible[visible.length - 1].time || "00:00"}:00`).getTime();
+    return Math.max(0, (last - first) / 3600000);
+  }
+
+  /*
+   * Use the same x-axis rules as the PUN chart.  In particular, dates are
+   * always rendered as DD/MM in the daily view; the generation/load chart
+   * must never invent a different month format.
+   */
+  function generationLoadXAxisLabel(row, index, rows) {
+    if (!row) return '';
+
+    const intraday =
+      currentGranularity === 'hourly' || currentGranularity === 'quarter';
+
+    const visible = generationLoadVisibleRows(rows);
+    if (!visible.length) return '';
+
+    const start = generationLoadVisibleStartIndex;
+    const previous = rows[index - 1];
+    if (index > start && previous && previous.date === row.date && currentGranularity === 'daily') {
+      return '';
+    }
+
+    const daySpan = generationLoadVisibleDaySpan(rows);
+    const date = parseDate(row.date);
+
+    if (!intraday) {
+      if (daySpan >= 90) {
+        return date.getDate() === 15
+          ? date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
+          : '';
+      }
+
+      if (daySpan >= 32) {
+        const firstDate = parseDate(visible[0].date);
+        const offset = Math.round((date.getTime() - firstDate.getTime()) / 86400000);
+        return offset >= 0 && offset % 7 === 0
+          ? date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
+          : '';
+      }
+
+      if (daySpan >= 15) {
+        const firstDate = parseDate(visible[0].date);
+        const offset = Math.round((date.getTime() - firstDate.getTime()) / 86400000);
+        return offset >= 0 && offset % 3 === 0
+          ? date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
+          : '';
+      }
+
+      return date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+    }
+
+    const time = getMarketTime(row);
+    if (!time) return '';
+
+    const fullCalendarDay =
+      currentStart && currentEnd &&
+      compareDates(currentStart, currentEnd) === 0 &&
+      generationLoadVisibleStartIndex === 0 &&
+      generationLoadVisibleEndIndex === rows.length - 1;
+
+    if (fullCalendarDay) {
+      return time.minute === 0 && time.hour % 2 === 0
+        ? formatActualTime(row)
+        : '';
+    }
+
+    const visibleHours = generationLoadVisibleHours(rows);
+    if (visibleHours < 24) {
+      return time.minute === 0 ? formatActualTime(row) : '';
+    }
+
+    if (time.minute !== 0) return '';
+    return shouldShowDateLabelForRows(row, index, rows)
+      ? date.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
+      : '';
+  }
+
+  function shouldShowDateLabelForRows(row, index, rows) {
+    const visible = generationLoadVisibleRows(rows);
+    if (!visible.length) return false;
+
+    const start = generationLoadVisibleStartIndex;
+    const previous = rows[index - 1];
+    if (index > start && previous && previous.date === row.date) return false;
+
+    const daySpan = generationLoadVisibleDaySpan(rows);
+    const date = parseDate(row.date);
+
+    if (daySpan >= 90) return date.getDate() === 15;
+
+    if (daySpan >= 32) {
+      const firstDate = parseDate(visible[0].date);
+      const offset = Math.round((date.getTime() - firstDate.getTime()) / 86400000);
+      return offset >= 0 && offset % 7 === 0;
+    }
+
+    if (daySpan >= 15) {
+      const firstDate = parseDate(visible[0].date);
+      const offset = Math.round((date.getTime() - firstDate.getTime()) / 86400000);
+      return offset >= 0 && offset % 3 === 0;
+    }
+
+    return true;
+  }
+
+  function renderGenerationLoadChart() {
+    if (!rawGenerationLoadData) return;
+
+    /*
+     * The PUN series is the canonical time axis.  Generation/load may end
+     * earlier than PUN because ENTSO-E data can still be arriving.  Using
+     * the PUN timestamps as the category axis keeps both charts pixel-for-
+     * pixel aligned instead of giving them different tick positions.
+     */
+    const axisSeries = filteredSeries();
+    const dataRows = filterGenerationLoadRows(getGenerationLoadRows());
+
+    if (!axisSeries.length) {
+      generationLoadChart.clear();
+      return;
+    }
+
+    const dataMap = new Map(
+      dataRows.map(row => [generationLoadCategoryKey(row), row])
+    );
+
+    const rows = axisSeries.map(row => {
+      const key = currentGranularity === 'daily'
+        ? row.date
+        : `${row.date}|${row.time || ''}`;
+      const found = dataMap.get(key);
+      return found || {
+        date: row.date,
+        time: row.time || '',
+        generation: null,
+        load: null
+      };
+    });
+
+    generationLoadVisibleStartIndex = 0;
+    generationLoadVisibleEndIndex = rows.length - 1;
+    generationLoadCategoryToIndex = new Map();
+    generationLoadCategoryToRow = new Map();
+
+    const categories = axisSeries.map((row, index) => {
+      const key = makeCategoryKey(row, index);
+      generationLoadCategoryToIndex.set(key, index);
+      generationLoadCategoryToRow.set(key, rows[index]);
+      return key;
+    });
+
+    const values = rows
+      .flatMap(row => [row.generation, row.load])
+      .filter(v => Number.isFinite(v));
+
+    if (!values.length) {
+      generationLoadChart.clear();
+      return;
+    }
+
+    const low = Math.min(...values);
+    const high = Math.max(...values);
+    const pad = Math.max(500, (high - low) * 0.08);
+
+    const option = {
+      animation: false,
+      backgroundColor: 'transparent',
+      grid: { left: 72, right: 24, top: 20, bottom: 70, containLabel: false },
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: '#171b20',
+        borderColor: '#30363e',
+        borderWidth: 1,
+        textStyle: { color: '#f1f3f5', fontSize: 11 },
+        axisPointer: { type: 'line', lineStyle: { color: '#5d6670', width: 1 } },
+        formatter: params => {
+          if (!params || !params.length) return '';
+          const key = String(params[0].axisValue);
+          const row = generationLoadCategoryToRow.get(key);
+          if (!row) return '';
+          const dateText = parseDate(row.date).toLocaleDateString('en-GB', {
+            day: '2-digit', month: 'short', year: 'numeric'
+          });
+          const timeText = currentGranularity === 'daily' ? '' : ` ${row.time || ''}`;
+          const unit = currentGranularity === 'daily' ? 'MWh' : 'MW';
+          const genText = Number.isFinite(row.generation)
+            ? `${Number(row.generation).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${unit}`
+            : '—';
+          const loadText = Number.isFinite(row.load)
+            ? `${Number(row.load).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${unit}`
+            : '—';
+          return `<div style="margin-bottom:4px;color:#9aa2ac;">${dateText}${timeText}</div><div>Generation: <b>${genText}</b></div><div>Actual load: <b>${loadText}</b></div>`;
+        }
+      },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: categories,
+        axisLine: { lineStyle: { color: '#30353c' } },
+        axisTick: { show: false },
+        axisLabel: {
+          color: '#727a84', fontSize: 10, margin: 10, interval: 0,
+          hideOverlap: true, rotate: 0,
+          formatter: value => {
+            const index = generationLoadCategoryToIndex.get(String(value));
+            return generationLoadXAxisLabel(
+              index === undefined ? null : rows[index],
+              index ?? 0,
+              rows
+            );
+          }
+        },
+        splitLine: { show: false }
+      },
+      yAxis: {
+        type: 'value',
+        min: Math.floor((low - pad) / 1000) * 1000,
+        max: Math.ceil((high + pad) / 1000) * 1000,
+        name: currentGranularity === 'daily' ? 'MWh' : 'MW',
+        nameLocation: 'middle', nameRotate: 90, nameGap: 45,
+        nameTextStyle: { color: '#727a84', fontSize: 10 },
+        axisLine: { show: false }, axisTick: { show: false },
+        axisLabel: { color: '#727a84', fontSize: 10 },
+        splitLine: { show: true, lineStyle: { color: '#20252b', width: 1 } }
+      },
+      series: [
+        {
+          name: 'Generation', type: 'line',
+          data: rows.map(r => r.generation),
+          smooth: false, showSymbol: false, connectNulls: false,
+          lineStyle: { color: '#5ecb8a', width: 1.3 }, itemStyle: { color: '#5ecb8a' }
+        },
+        {
+          name: 'Actual total load', type: 'line',
+          data: rows.map(r => r.load),
+          smooth: false, showSymbol: false, connectNulls: false,
+          lineStyle: { color: '#5b9cff', width: 1.3 }, itemStyle: { color: '#5b9cff' }
+        }
+      ],
+      dataZoom: [
+        {
+          type: 'inside', xAxisIndex: 0, filterMode: 'filter', start: 0, end: 100,
+          zoomOnMouseWheel: true, moveOnMouseMove: true, moveOnMouseWheel: false
+        },
+        {
+          type: 'slider', xAxisIndex: 0, filterMode: 'filter', bottom: 18, height: 16,
+          borderColor: '#252a30', backgroundColor: '#15191e',
+          fillerColor: 'rgba(150,157,166,0.16)',
+          handleStyle: { color: '#8b939d', borderColor: '#8b939d' },
+          moveHandleStyle: { color: '#555d67' }, textStyle: { color: '#6f7781', fontSize: 9 }
+        }
+      ]
+    };
+
+    generationLoadChart.setOption(option, true);
+    generationLoadChart.dispatchAction({
+      type: 'dataZoom', dataZoomIndex: [0, 1],
+      startValue: categories[0], endValue: categories[categories.length - 1]
+    });
+    applyGenerationLoadXAxisViewport(rows, 0, rows.length - 1);
+  }
+
+  function applyGenerationLoadXAxisViewport(rows, startIndex, endIndex) {
+    if (!rows.length) return;
+
+    generationLoadVisibleStartIndex = Math.max(0, Math.min(startIndex, rows.length - 1));
+    generationLoadVisibleEndIndex = Math.max(
+      generationLoadVisibleStartIndex,
+      Math.min(endIndex, rows.length - 1)
+    );
+
+    const visibleHours = generationLoadVisibleHours(rows);
+    const visibleDays = generationLoadVisibleDaySpan(rows);
+    const intraday = currentGranularity === 'hourly' || currentGranularity === 'quarter';
+
+    generationLoadChart.setOption({
+      xAxis: {
+        axisLabel: {
+          rotate: 0,
+          fontSize: 10,
+          interval: intraday
+            ? Math.max(0, Math.floor(rows.length / 12) - 1)
+            : Math.max(0, Math.floor(visibleDays / 8) - 1),
+          hideOverlap: true,
+          formatter: value => {
+            const index = generationLoadCategoryToIndex.get(String(value));
+            return generationLoadXAxisLabel(
+              index === undefined ? null : rows[index],
+              index ?? 0,
+              rows
+            );
+          }
+        }
+      }
+    }, false);
+  }
 
   /* ============================================================
      MGP ZONAL PRICE CHART
@@ -3284,6 +3760,255 @@
 
 
   /* ============================================================
+     GENERATION & DEMAND DRAG-TO-ZOOM
+     ============================================================ */
+
+  const generationLoadChartContainer =
+    document.getElementById("generation-load-chart-wrap");
+
+  const generationLoadDragSelection =
+    document.getElementById("generation-load-drag-selection");
+
+  let generationLoadIsDragging = false;
+  let generationLoadDragStartX = null;
+  let generationLoadDragCurrentX = null;
+  let generationLoadPointerId = null;
+
+  function isInsideGenerationLoadPlot(x, y) {
+    const width = generationLoadChartContainer.clientWidth;
+    const height = generationLoadChartContainer.clientHeight;
+
+    return (
+      x >= CHART_GRID.left &&
+      x <= width - CHART_GRID.right &&
+      y >= CHART_GRID.top &&
+      y <= height - CHART_GRID.bottom
+    );
+  }
+
+  function getGenerationLoadDataIndexFromX(x, count) {
+    const plotLeft = CHART_GRID.left;
+    const plotRight =
+      generationLoadChartContainer.clientWidth - CHART_GRID.right;
+    const usableWidth = plotRight - plotLeft;
+
+    if (count <= 1 || usableWidth <= 0) return 0;
+
+    const ratio = (x - plotLeft) / usableWidth;
+    return clamp(
+      Math.round(ratio * (count - 1)),
+      0,
+      count - 1
+    );
+  }
+
+  function updateGenerationLoadDragRectangle() {
+    if (
+      generationLoadDragStartX === null ||
+      generationLoadDragCurrentX === null
+    ) {
+      return;
+    }
+
+    const left = Math.min(
+      generationLoadDragStartX,
+      generationLoadDragCurrentX
+    );
+    const right = Math.max(
+      generationLoadDragStartX,
+      generationLoadDragCurrentX
+    );
+
+    generationLoadDragSelection.style.left = `${left}px`;
+    generationLoadDragSelection.style.width = `${Math.max(1, right - left)}px`;
+  }
+
+  function startGenerationLoadChartDrag(event) {
+    if (
+      event.pointerType === "mouse" &&
+      event.button !== 0
+    ) {
+      return;
+    }
+
+    const rect =
+      generationLoadChartContainer.getBoundingClientRect();
+
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    if (!isInsideGenerationLoadPlot(x, y)) {
+      return;
+    }
+
+    generationLoadIsDragging = false;
+    generationLoadDragStartX = x;
+    generationLoadDragCurrentX = x;
+    generationLoadPointerId = event.pointerId;
+
+    generationLoadChartContainer.setPointerCapture(
+      generationLoadPointerId
+    );
+
+    event.preventDefault();
+  }
+
+  function moveGenerationLoadChartDrag(event) {
+    if (
+      generationLoadDragStartX === null ||
+      generationLoadPointerId !== event.pointerId
+    ) {
+      return;
+    }
+
+    const rect =
+      generationLoadChartContainer.getBoundingClientRect();
+
+    const x = event.clientX - rect.left;
+    const plotLeft = CHART_GRID.left;
+    const plotRight =
+      generationLoadChartContainer.clientWidth - CHART_GRID.right;
+
+    generationLoadDragCurrentX = clamp(
+      x,
+      plotLeft,
+      plotRight
+    );
+
+    if (
+      !generationLoadIsDragging &&
+      Math.abs(
+        generationLoadDragCurrentX - generationLoadDragStartX
+      ) < 5
+    ) {
+      return;
+    }
+
+    generationLoadIsDragging = true;
+    generationLoadChartContainer.classList.add("dragging");
+    generationLoadDragSelection.style.display = "block";
+    updateGenerationLoadDragRectangle();
+
+    event.preventDefault();
+  }
+
+  function finishGenerationLoadChartDrag(event) {
+    if (
+      generationLoadDragStartX === null ||
+      generationLoadPointerId !== event.pointerId
+    ) {
+      return;
+    }
+
+    const rect =
+      generationLoadChartContainer.getBoundingClientRect();
+
+    const x = event.clientX - rect.left;
+    const plotLeft = CHART_GRID.left;
+    const plotRight =
+      generationLoadChartContainer.clientWidth - CHART_GRID.right;
+
+    generationLoadDragCurrentX = clamp(
+      x,
+      plotLeft,
+      plotRight
+    );
+
+    const startX = Math.min(
+      generationLoadDragStartX,
+      generationLoadDragCurrentX
+    );
+    const endX = Math.max(
+      generationLoadDragStartX,
+      generationLoadDragCurrentX
+    );
+
+    const rows = filterGenerationLoadRows(getGenerationLoadRows());
+
+    if (
+      generationLoadIsDragging &&
+      rows.length > 1 &&
+      endX - startX >= 8
+    ) {
+      const startIndex =
+        getGenerationLoadDataIndexFromX(startX, rows.length);
+      const endIndex =
+        getGenerationLoadDataIndexFromX(endX, rows.length);
+
+      if (endIndex > startIndex) {
+        generationLoadChart.dispatchAction({
+          type: "dataZoom",
+          dataZoomIndex: [0, 1],
+          startValue: startIndex,
+          endValue: endIndex
+        });
+      }
+    }
+
+    generationLoadDragSelection.style.display = "none";
+    generationLoadChartContainer.classList.remove("dragging");
+
+    generationLoadIsDragging = false;
+    generationLoadDragStartX = null;
+    generationLoadDragCurrentX = null;
+
+    if (
+      generationLoadPointerId !== null &&
+      generationLoadChartContainer.hasPointerCapture(
+        generationLoadPointerId
+      )
+    ) {
+      generationLoadChartContainer.releasePointerCapture(
+        generationLoadPointerId
+      );
+    }
+
+    generationLoadPointerId = null;
+    event.preventDefault();
+  }
+
+  function cancelGenerationLoadChartDrag(event) {
+    if (
+      generationLoadPointerId !== null &&
+      event.pointerId !== generationLoadPointerId
+    ) {
+      return;
+    }
+
+    generationLoadDragSelection.style.display = "none";
+    generationLoadChartContainer.classList.remove("dragging");
+
+    generationLoadIsDragging = false;
+    generationLoadDragStartX = null;
+    generationLoadDragCurrentX = null;
+    generationLoadPointerId = null;
+  }
+
+  generationLoadChartContainer.addEventListener(
+    "pointerdown",
+    startGenerationLoadChartDrag,
+    { passive: false }
+  );
+
+  generationLoadChartContainer.addEventListener(
+    "pointermove",
+    moveGenerationLoadChartDrag,
+    { passive: false }
+  );
+
+  generationLoadChartContainer.addEventListener(
+    "pointerup",
+    finishGenerationLoadChartDrag,
+    { passive: false }
+  );
+
+  generationLoadChartContainer.addEventListener(
+    "pointercancel",
+    cancelGenerationLoadChartDrag
+  );
+
+
+  /* ============================================================
      RESIZE
      ============================================================ */
 
@@ -3333,6 +4058,9 @@
 
   const punChartSection =
     document.getElementById("pun-chart-section");
+
+  const generationLoadChartSection =
+    document.getElementById("generation-load-chart-section");
 
   const zonalChartSection =
     document.getElementById("zonal-chart-section");
@@ -3421,13 +4149,17 @@
         document.getElementById("chart-mount-overview");
 
       mount.appendChild(punChartSection);
+      mount.appendChild(generationLoadChartSection);
 
       setTimeout(() => {
         chart.resize();
+        generationLoadChart.resize();
         renderChart();
+        renderGenerationLoadChart();
       }, 0);
     } else {
       punChartSection.remove();
+      generationLoadChartSection.remove();
     }
 
     if (showZonalChart) {
@@ -3586,6 +4318,7 @@
 
   window.addEventListener("resize", () => {
     chart.resize();
+    generationLoadChart.resize();
     zonalChart.resize();
   });
 
