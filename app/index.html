@@ -28,17 +28,16 @@
     #calendar-trigger:hover { background:#1a1f25; }
     .calendar-icon { width:15px; height:15px; flex:0 0 15px; color:var(--muted); }
     #calendar-trigger:hover .calendar-icon { color:var(--text); }
-    .calendar-dropdown { display:none; position:absolute; top:calc(100% + 10px); right:0; z-index:200; width:560px; padding:14px; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:0 16px 40px rgba(0,0,0,.55); }
+    .calendar-dropdown { display:none; position:absolute; top:calc(100% + 10px); right:0; z-index:200; width:500px; padding:12px; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:0 16px 40px rgba(0,0,0,.55); }
     .calendar-dropdown.open { display:block; }
-    .calendar-dropdown-body { display:flex; gap:18px; }
-    .calendar-dropdown-quick { width:145px; flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
+    .calendar-dropdown-body { display:flex; gap:14px; }
+    .calendar-dropdown-quick { width:132px; flex-shrink:0; display:flex; flex-direction:column; gap:5px; }
     .quick-title { margin-bottom:8px; color:var(--muted-2); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
-    .quick-btn { border:1px solid var(--border); background:var(--panel-2); color:var(--muted); border-radius:6px; padding:9px 10px; text-align:left; cursor:pointer; font-size:11.5px; }
+    .quick-btn { border:1px solid var(--border); background:var(--panel-2); color:var(--muted); border-radius:6px; padding:8px 9px; text-align:left; cursor:pointer; font-size:11px; }
     .quick-btn:hover { color:var(--text); background:#1a1f25; }
     .calendar-dropdown-calendar { flex:1; min-width:0; }
-    .calendar-dropdown-footer { display:flex; align-items:center; justify-content:flex-end; margin-top:12px; padding-top:10px; border-top:1px solid var(--border); }
+    .calendar-dropdown-footer { display:flex; align-items:center; justify-content:flex-end; margin-top:10px; padding-top:8px; border-top:1px solid var(--border); }
     .timezone-label { color:var(--muted-2); font-size:11px; }
-    .apply-btn { border:1px solid var(--border); background:var(--accent); color:#0b0d10; font-weight:600; border-radius:6px; padding:8px 18px; font-size:12px; cursor:pointer; }
     .app-body { display:flex; align-items:flex-start; }
     .sidebar { width:190px; flex-shrink:0; padding:20px 12px; position:sticky; top:56px; align-self:flex-start; }
     .sidebar-item { display:block; width:100%; text-align:left; padding:10px 12px; border:0; border-radius:6px; background:transparent; color:var(--muted); font-size:13px; cursor:pointer; margin-bottom:3px; }
@@ -95,7 +94,7 @@
     #chart-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:rgba(180,187,196,.45); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
     #chart-wrap.dragging #chart-drag-hint { opacity:0; }
     .chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
-    @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:min(92vw,560px);right:-60px} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} .chart-panel{width:100%;max-width:100%;} }
+    @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:min(92vw,500px);right:-60px} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} .chart-panel{width:100%;max-width:100%;} }
     @media (max-width:600px) { .topbar{padding:0 12px;gap:12px}.status{display:none}.main-content{padding:20px 12px 40px}.brand-sub{display:none}#chart-wrap{height:470px}.chart-header{align-items:flex-start;flex-direction:column}.granularity{align-self:stretch}.granularity button{flex:1}.chart-help{margin-left:52px} }
   </style>
 </head>
@@ -1585,109 +1584,256 @@
      X-AXIS LABEL DENSITY
      ============================================================ */
 
+  /*
+   * Date-label rules:
+   *   <= 14 days  -> every day
+   *   15-31 days  -> every 2 days
+   *   > 31 days   -> every 3 days
+   *   >= 330 days -> only the 15th of each month
+   *
+   * For hourly/15-minute series, only the first point of each day
+   * can receive a date label, so one calendar date never produces
+   * dozens of identical labels.
+   */
   let visibleStartIndex = 0;
   let visibleEndIndex = 0;
+
+  /*
+   * For a one-day hourly view, show hour labels in the normal/full
+   * view. If the user zooms back out after zooming in, remove the
+   * hour labels and leave only the date label. Zooming back in
+   * restores the hour labels.
+   */
+  let singleDayZoomedOut = false;
+  let previousVisibleSpan = 0;
+  let suppressDataZoomState = false;
 
   function getVisibleSeriesSpan(series) {
     if (!series.length) {
       return 0;
     }
 
-    const start = Math.max(0, Math.min(visibleStartIndex, series.length - 1));
-    const end = Math.max(start, Math.min(visibleEndIndex, series.length - 1));
+    const start = Math.max(
+      0,
+      Math.min(visibleStartIndex, series.length - 1)
+    );
+
+    const end = Math.max(
+      start,
+      Math.min(visibleEndIndex, series.length - 1)
+    );
+
     return Math.max(1, end - start + 1);
   }
+
 
   function getCalendarDaySpan(series) {
     if (!series.length) {
       return 0;
     }
 
-    const start = series[0].date;
-    const end = series[series.length - 1].date;
+    const start = parseDate(series[0].date);
+    const end = parseDate(series[series.length - 1].date);
+
     return Math.round(
-      (parseDate(end).getTime() - parseDate(start).getTime()) / 86400000
+      (end.getTime() - start.getTime()) / 86400000
     ) + 1;
   }
 
-  function shouldShowDailyLabel(row, index, series) {
-    const daySpan = getCalendarDaySpan(series);
-    const date = parseDate(row.date);
-    const day = date.getDate();
 
-    // A full-year view: label only the 15th of each month.
-    if (daySpan >= 330) {
-      return day === 15;
+  function isFirstPointOfDay(row, index, series) {
+    return (
+      index === 0 ||
+      row.date !== series[index - 1].date
+    );
+  }
+
+
+  function shouldShowDailyDateLabel(row, index, series) {
+    if (!isFirstPointOfDay(row, index, series)) {
+      return false;
     }
 
-    // More than two weeks: every third day.
+    const daySpan =
+      getCalendarDaySpan(series);
+
+    const date =
+      parseDate(row.date);
+
+    /*
+     * Full-year view:
+     * only the 15th of each month.
+     */
+    if (daySpan >= 330) {
+      return date.getDate() === 15;
+    }
+
+    /*
+     * More than 31 days:
+     * every third day.
+     */
     if (daySpan > 31) {
-      const first = parseDate(series[0].date);
-      const offset = Math.round(
-        (date.getTime() - first.getTime()) / 86400000
-      );
+      const first =
+        parseDate(series[0].date);
+
+      const offset =
+        Math.round(
+          (date.getTime() - first.getTime()) /
+          86400000
+        );
+
       return offset % 3 === 0;
     }
 
-    // More than two weeks: every second day.
+    /*
+     * 15-31 days:
+     * every second day, anchored to the first
+     * available date in the selected range.
+     */
     if (daySpan > 14) {
-      const first = parseDate(series[0].date);
-      const offset = Math.round(
-        (date.getTime() - first.getTime()) / 86400000
-      );
+      const first =
+        parseDate(series[0].date);
+
+      const offset =
+        Math.round(
+          (date.getTime() - first.getTime()) /
+          86400000
+        );
+
       return offset % 2 === 0;
     }
 
-    // Short views: every day.
-    return index === 0 || row.date !== series[index - 1].date;
+    /*
+     * Up to two weeks:
+     * every available day.
+     */
+    return true;
   }
 
-  function getXAxisLabel(row, index, series) {
-    if (currentGranularity === "hourly" &&
-        currentStart && currentEnd &&
-        compareDates(currentStart, currentEnd) === 0) {
-      const visibleSpan = getVisibleSeriesSpan(series);
-      const hour = row.time || String(Math.floor(index % 24)).padStart(2, "0") + ":00";
 
-      // Single-day view: show hourly labels while sufficiently zoomed in.
-      if (visibleSpan <= 48) {
-        return hour;
-      }
+  function getXAxisLabel(
+    row,
+    index,
+    series
+  ) {
 
-      // Once zoomed out, fall back to one date label.
-      return index === 0 ? formatDate(parseDate(row.date)) : "";
-    }
-
-    if (currentGranularity === "hourly") {
-      if (row.date !== series[index - 1]?.date) {
-        return shouldShowDailyLabel(row, index, series)
-          ? parseDate(row.date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })
+    /*
+     * SINGLE-DAY VIEW:
+     *
+     * The calendar switches the chart to hourly data.
+     * Show the hourly labels for the selected day.
+     * If the user zooms into a smaller part of that day,
+     * keep the hourly labels at that resolution.
+     */
+    if (
+      currentGranularity === "hourly" &&
+      currentStart &&
+      currentEnd &&
+      compareDates(
+        currentStart,
+        currentEnd
+      ) === 0
+    ) {
+      /*
+       * One selected calendar day = hourly profile.
+       * At the normal/full view, show only the hour labels.
+       * After the user zooms back out, hide the hour labels
+       * and keep one date label instead.
+       */
+      if (singleDayZoomedOut) {
+        return index === 0
+          ? formatDate(parseDate(row.date))
           : "";
       }
-      return "";
+
+      if (row.time) {
+        return row.time;
+      }
+
+      return `${String(index % 24).padStart(2, "0")}:00`;
     }
 
-    return shouldShowDailyLabel(row, index, series)
-      ? parseDate(row.date).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" })
+
+    /*
+     * HOURLY / 15-MINUTE MULTI-DAY VIEWS:
+     *
+     * Only the first observation of each day may
+     * receive the date label, subject to the density
+     * rule above.
+     */
+    if (
+      currentGranularity === "hourly" ||
+      currentGranularity === "quarter"
+    ) {
+      if (
+        !shouldShowDailyDateLabel(
+          row,
+          index,
+          series
+        )
+      ) {
+        return "";
+      }
+
+      return parseDate(
+        row.date
+      ).toLocaleDateString(
+        "en-GB",
+        {
+          day: "2-digit",
+          month: "2-digit"
+        }
+      );
+    }
+
+
+    /*
+     * DAILY VIEW:
+     * one label per selected date, subject to
+     * the same density rules.
+     */
+    return shouldShowDailyDateLabel(
+      row,
+      index,
+      series
+    )
+      ? parseDate(
+          row.date
+        ).toLocaleDateString(
+          "en-GB",
+          {
+            day: "2-digit",
+            month: "2-digit"
+          }
+        )
       : "";
   }
 
-  function updateXAxisLabelDensity(series) {
-    const visibleSpan = getVisibleSeriesSpan(series);
 
-    chart.setOption({
-      xAxis: {
-        axisLabel: {
-          formatter: function (_, index) {
-            const row = series[index];
-            if (!row) return "";
-            return getXAxisLabel(row, index, series);
+  function updateXAxisLabelDensity(series) {
+    chart.setOption(
+      {
+        xAxis: {
+          axisLabel: {
+            hideOverlap: true,
+            formatter: function (_, index) {
+              const row = series[index];
+
+              if (!row) {
+                return "";
+              }
+
+              return getXAxisLabel(
+                row,
+                index,
+                series
+              );
+            }
           }
         }
-      }
-    });
-
-    return visibleSpan;
+      },
+      false
+    );
   }
 
 
@@ -1702,6 +1848,14 @@
 
     visibleStartIndex = 0;
     visibleEndIndex = Math.max(0, series.length - 1);
+
+    /*
+     * Every newly selected calendar range starts at the normal/full
+     * chart view. For a one-day selection this means hour labels
+     * are visible immediately.
+     */
+    singleDayZoomedOut = false;
+    previousVisibleSpan = series.length;
 
 
     let subtitle =
@@ -2195,6 +2349,8 @@
      * chart zoom to the complete selected
      * calendar range.
      */
+    suppressDataZoomState = true;
+
     chart.dispatchAction({
 
       type:
@@ -2209,40 +2365,147 @@
       endValue:
         series.length - 1
     });
+
+    suppressDataZoomState = false;
+
+    /*
+     * Initial chart state: the complete selected range is visible.
+     * Explicitly apply the date/hour label-density rule immediately.
+     */
+    updateXAxisLabelDensity(series);
   }
 
 
   chart.on("datazoom", () => {
-    const options = chart.getOption();
-    const zoom = options.dataZoom && options.dataZoom[0];
-    const series = filteredSeries();
+    const options =
+      chart.getOption();
 
-    if (!series.length || !zoom) {
+    const zoom =
+      options.dataZoom &&
+      options.dataZoom[0];
+
+    const series =
+      filteredSeries();
+
+    if (
+      !series.length ||
+      !zoom
+    ) {
       return;
     }
 
-    const startValue = Number.isFinite(zoom.startValue) ? zoom.startValue : 0;
-    const endValue = Number.isFinite(zoom.endValue)
-      ? zoom.endValue
-      : Math.max(0, series.length - 1);
+    let startValue =
+      Number(zoom.startValue);
 
-    visibleStartIndex = Math.max(0, Math.round(startValue));
-    visibleEndIndex = Math.min(
-      Math.max(visibleStartIndex, Math.round(endValue)),
-      Math.max(0, series.length - 1)
-    );
+    let endValue =
+      Number(zoom.endValue);
 
-    chart.setOption({
-      xAxis: {
-        axisLabel: {
-          formatter: function (_, index) {
-            const row = series[index];
-            if (!row) return "";
-            return getXAxisLabel(row, index, series);
-          }
-        }
+    /*
+     * ECharts can report percentages instead of explicit
+     * category indexes depending on which dataZoom control
+     * generated the event. Convert percentages to indexes.
+     */
+    if (
+      !Number.isFinite(startValue)
+    ) {
+      const startPercent =
+        Number(zoom.start);
+
+      startValue =
+        Number.isFinite(startPercent)
+          ? (startPercent / 100) *
+            Math.max(
+              0,
+              series.length - 1
+            )
+          : 0;
+    }
+
+    if (
+      !Number.isFinite(endValue)
+    ) {
+      const endPercent =
+        Number(zoom.end);
+
+      endValue =
+        Number.isFinite(endPercent)
+          ? (endPercent / 100) *
+            Math.max(
+              0,
+              series.length - 1
+            )
+          : Math.max(
+              0,
+              series.length - 1
+            );
+    }
+
+    visibleStartIndex =
+      Math.max(
+        0,
+        Math.floor(startValue)
+      );
+
+    visibleEndIndex =
+      Math.min(
+        Math.max(
+          visibleStartIndex,
+          Math.ceil(endValue)
+        ),
+        Math.max(
+          0,
+          series.length - 1
+        )
+      );
+
+    const visibleSpan =
+      getVisibleSeriesSpan(
+        series
+      );
+
+    const isSingleDay =
+      currentGranularity === "hourly" &&
+      currentStart &&
+      currentEnd &&
+      compareDates(
+        currentStart,
+        currentEnd
+      ) === 0;
+
+    if (
+      isSingleDay &&
+      !suppressDataZoomState
+    ) {
+      /*
+       * User zoomed IN:
+       * visible span becomes smaller -> show hours.
+       *
+       * User zoomed OUT:
+       * visible span becomes larger again -> hide hours
+       * and leave the date label.
+       */
+      if (
+        visibleSpan < previousVisibleSpan
+      ) {
+        singleDayZoomedOut = false;
+      } else if (
+        visibleSpan > previousVisibleSpan
+      ) {
+        singleDayZoomedOut = true;
       }
-    }, false);
+    }
+
+    previousVisibleSpan =
+      visibleSpan;
+
+    /*
+     * For multi-day ranges, the date-density rules below
+     * control the labels. For a one-day range, the rule above
+     * controls whether hours are shown.
+     */
+    updateXAxisLabelDensity(
+      series
+    );
   });
 
 
