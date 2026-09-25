@@ -1994,10 +1994,12 @@
             const item =
               params[0];
 
-            const row =
-              series[
-                Number(item.dataIndex)
-              ];
+            const axisIndex = Number(item.axisValue);
+            const dataIndex = Number.isInteger(axisIndex)
+              ? axisIndex
+              : Number(item.dataIndex);
+
+            const row = series[dataIndex];
 
             if (!row) {
               return "";
@@ -2180,11 +2182,8 @@
             false,
 
 
-          sampling:
-            currentGranularity ===
-            "quarter"
-              ? "lttb"
-              : undefined,
+          // Keep every source observation. Sampling would decouple ECharts
+          // tooltip indices from the original 15-minute data points.
 
 
           lineStyle: {
