@@ -53,6 +53,7 @@
     .subnav-tab:hover { color:var(--text); }
     .subnav-tab.active { color:var(--text); border-bottom-color:var(--blue); font-weight:600; }
     .panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; }
+    #chart-mount-overview { width:100%; }
     .zone-placeholder { display:none; align-items:center; justify-content:center; min-height:320px; padding:40px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--muted); font-size:13.5px; text-align:center; }
     .section-placeholder { display:none; align-items:center; justify-content:center; flex-direction:column; gap:8px; min-height:420px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--muted); text-align:center; }
     .section-placeholder h2 { margin:0; color:var(--text); font-size:20px; }
@@ -80,7 +81,7 @@
     .picker-btn { height:40px; border:1px solid var(--border); background:var(--panel-2); color:var(--muted); border-radius:6px; cursor:pointer; font-size:11px; }
     .picker-btn:hover:not(.disabled) { background:#1a1f25; color:var(--text); }
     .picker-btn.disabled { opacity:.2; cursor:default; }
-    .chart-panel { width:50%; padding:18px 18px 12px; min-width:0; }
+    .chart-panel { width:50%; max-width:50%; padding:18px 18px 12px; min-width:0; margin:0; }
     .chart-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:5px; }
     .chart-title { font-size:14px; font-weight:600; }
     .chart-subtitle { margin-bottom:4px; color:var(--muted); font-size:11px; }
@@ -94,7 +95,7 @@
     #chart-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:rgba(180,187,196,.45); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
     #chart-wrap.dragging #chart-drag-hint { opacity:0; }
     .chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
-    @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:92vw;right:-60px} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} .chart-panel{width:100%;} }
+    @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:92vw;right:-60px} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} .chart-panel{width:100%;max-width:100%;} }
     @media (max-width:600px) { .topbar{padding:0 12px;gap:12px}.status{display:none}.main-content{padding:20px 12px 40px}.brand-sub{display:none}#chart-wrap{height:470px}.chart-header{align-items:flex-start;flex-direction:column}.granularity{align-self:stretch}.granularity button{flex:1}.chart-help{margin-left:52px} }
   </style>
 </head>
@@ -129,13 +130,13 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard · day-ahead market (MGP)</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"></div><div id="chart-mount-prices"></div></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard · day-ahead market (MGP)</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
       </main>
     </div>
   </div>
-  <section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section>
+  
   <script>
 
 
@@ -904,6 +905,12 @@
       renderCalendar();
 
       renderChart();
+
+      // A completed two-date range closes the calendar.
+      const dropdown = document.getElementById("calendar-dropdown");
+      if (dropdown) {
+        dropdown.classList.remove("open");
+      }
     }
   }
 
@@ -2782,11 +2789,25 @@
   document.addEventListener(
     "click",
     event => {
-      if (
-        calendarDropdown.classList.contains("open") &&
-        !calendarDropdown.contains(event.target) &&
-        event.target !== calendarTrigger
-      ) {
+      if (!calendarDropdown.classList.contains("open")) {
+        return;
+      }
+
+      // Date clicks re-render the calendar and replace the clicked button.
+      // Use the original event path so those clicks still count as inside.
+      const path = typeof event.composedPath === "function"
+        ? event.composedPath()
+        : [];
+
+      const clickedInsideDropdown =
+        path.includes(calendarDropdown) ||
+        calendarDropdown.contains(event.target);
+
+      const clickedTrigger =
+        event.target === calendarTrigger ||
+        path.includes(calendarTrigger);
+
+      if (!clickedInsideDropdown && !clickedTrigger) {
         calendarDropdown.classList.remove("open");
       }
     }
