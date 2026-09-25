@@ -1537,6 +1537,7 @@
      ============================================================ */
 
   function getMarketTime(row) {
+    // Use the actual time stored in the data first.
     const timeText = String(row.time || "").trim();
     const match = timeText.match(/^(\d{1,2}):(\d{2})/);
 
@@ -1556,21 +1557,12 @@
       }
     }
 
-    // Backwards-compatible fallback for records that contain GME's
-    // one-based hourly period but no explicit time string.
-    if (Number.isFinite(Number(row.hour))) {
-      const hour = Number(row.hour) - 1;
-      if (hour >= 0 && hour <= 24) {
-        return { hour, minute: 0 };
-      }
-    }
-
+    // Some older hourly records may expose GME's one-based period.
     if (Number.isFinite(Number(row.period))) {
-      // PT60 / PT15 fallback. For quarter-hour data the caller's
-      // granularity determines the bucket size.
-      const bucketMinutes = currentGranularity === "quarter" ? 15 : 60;
       const period = Number(row.period);
       if (Number.isInteger(period) && period >= 1) {
+        const bucketMinutes =
+          currentGranularity === "quarter" ? 15 : 60;
         const totalMinutes = (period - 1) * bucketMinutes;
         return {
           hour: Math.floor(totalMinutes / 60),
@@ -1579,10 +1571,18 @@
       }
     }
 
+    // Backward-compatible hourly fallback.
+    if (Number.isFinite(Number(row.hour))) {
+      const hour = Number(row.hour) - 1;
+      if (hour >= 0 && hour <= 24) {
+        return { hour, minute: 0 };
+      }
+    }
+
     return null;
   }
 
-  function formatActualHour(row) {
+  function formatActualTime(row) {
     const time = getMarketTime(row);
     if (!time) return "";
 
@@ -1596,17 +1596,19 @@
   function getRowTimestamp(row) {
     const date = parseDate(row.date);
     const time = getMarketTime(row);
-
-    if (!time) return date.getTime();
-
     const result = new Date(date);
-    result.setHours(time.hour, time.minute, 0, 0);
+
+    if (time) {
+      result.setHours(time.hour, time.minute, 0, 0);
+    } else {
+      result.setHours(0, 0, 0, 0);
+    }
+
     return result.getTime();
   }
 
   function formatTooltipDate(row) {
-    const date = parseDate(row.date);
-    const dateText = date.toLocaleDateString("en-GB", {
+    const dateText = parseDate(row.date).toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "short",
       year: "numeric"
@@ -1616,8 +1618,10 @@
       return dateText;
     }
 
-    const timeText = formatActualHour(row);
-    return timeText ? `${dateText} ${timeText}` : dateText;
+    const timeText = formatActualTime(row);
+    return timeText
+      ? `${dateText} ${timeText}`
+      : dateText;
   }
 
 
@@ -1628,20 +1632,31 @@
   let visibleStartIndex = 0;
   let visibleEndIndex = 0;
 
+  function getVisibleIndexBounds(series) {
+    if (!series.length) {
+      return { start: 0, end: 0 };
+    }
+
+    return {
+      start: Math.max(
+        0,
+        Math.min(visibleStartIndex, series.length - 1)
+      ),
+      end: Math.max(
+        0,
+        Math.min(
+          Math.max(visibleStartIndex, visibleEndIndex),
+          series.length - 1
+        )
+      )
+    };
+  }
+
   function getVisibleRows(series) {
     if (!series.length) return [];
 
-    const start = Math.max(
-      0,
-      Math.min(visibleStartIndex, series.length - 1)
-    );
-
-    const end = Math.max(
-      start,
-      Math.min(visibleEndIndex, series.length - 1)
-    );
-
-    return series.slice(start, end + 1);
+    const bounds = getVisibleIndexBounds(series);
+    return series.slice(bounds.start, bounds.end + 1);
   }
 
   function getVisibleHours(series) {
@@ -1650,8 +1665,10 @@
 
     return Math.max(
       0,
-      (getRowTimestamp(rows[rows.length - 1]) -
-        getRowTimestamp(rows[0])) / 3600000
+      (
+        getRowTimestamp(rows[rows.length - 1]) -
+        getRowTimestamp(rows[0])
+      ) / 3600000
     );
   }
 
@@ -1667,26 +1684,15 @@
     ) + 1;
   }
 
-  function getDayLabelStep(daySpan) {
-    if (daySpan >= 90) return null; // 15th of each month
-    if (daySpan >= 32) return 7;    // every 7th day
-    if (daySpan >= 15) return 3;    // every 3rd day
-    return 1;                       // every day
-  }
-
   function shouldShowDateLabel(row, index, series) {
-    const visibleRows = getVisibleRows(series);
-    if (!visibleRows.length) return false;
+    const bounds = getVisibleIndexBounds(series);
+    const previous = series[index - 1];
 
-    const visibleFirstIndex = Math.max(
-      0,
-      Math.min(visibleStartIndex, series.length - 1)
-    );
-
-    /* Only the first visible observation of a date can create the label. */
+    // Only the first visible observation of each civil date can label it.
     if (
-      index > visibleFirstIndex &&
-      row.date === series[index - 1].date
+      index > bounds.start &&
+      previous &&
+      previous.date === row.date
     ) {
       return false;
     }
@@ -1698,13 +1704,27 @@
       return date.getDate() === 15;
     }
 
-    const step = getDayLabelStep(daySpan);
-    const firstDate = parseDate(visibleRows[0].date);
-    const offset = Math.round(
-      (date.getTime() - firstDate.getTime()) / 86400000
-    );
+    if (daySpan >= 32) {
+      const firstDate = parseDate(
+        getVisibleRows(series)[0].date
+      );
+      const offset = Math.round(
+        (date.getTime() - firstDate.getTime()) / 86400000
+      );
+      return offset >= 0 && offset % 7 === 0;
+    }
 
-    return offset >= 0 && offset % step === 0;
+    if (daySpan >= 15) {
+      const firstDate = parseDate(
+        getVisibleRows(series)[0].date
+      );
+      const offset = Math.round(
+        (date.getTime() - firstDate.getTime()) / 86400000
+      );
+      return offset >= 0 && offset % 3 === 0;
+    }
+
+    return true;
   }
 
   function isSingleCalendarDaySelection() {
@@ -1716,9 +1736,10 @@
   }
 
   function isFullVisibleRange(series) {
+    const bounds = getVisibleIndexBounds(series);
     return (
-      visibleStartIndex === 0 &&
-      visibleEndIndex === Math.max(0, series.length - 1)
+      bounds.start === 0 &&
+      bounds.end === Math.max(0, series.length - 1)
     );
   }
 
@@ -1726,75 +1747,56 @@
     const row = series[index];
     if (!row) return "";
 
-    const isIntraday =
+    const intraday =
       currentGranularity === "hourly" ||
       currentGranularity === "quarter";
 
-    if (isIntraday) {
-      const visibleRows = getVisibleRows(series);
-      if (!visibleRows.length) return "";
-
-      const visibleHours = getVisibleHours(series);
-      const time = getMarketTime(row);
-      if (!time) return "";
-
-      /*
-       * 15 MIN and HOURLY intentionally use the same clock-based axis.
-       * The difference is only the number of underlying observations.
-       */
-
-      /*
-       * One complete calendar day:
-       * keep every 15-minute observation in the line, but label only
-       * the exact full hours every two hours: 00:00, 02:00, ...
-       */
-      if (
-        isSingleCalendarDaySelection() &&
-        isFullVisibleRange(series)
-      ) {
-        if (time.minute !== 0) return "";
-        return time.hour % 2 === 0
-          ? formatActualHour(row)
-          : "";
-      }
-
-      /*
-       * Less than one day visible after zoom:
-       * show every actual full hour from the underlying data.
-       * For 15-minute data, :15/:30/:45 remain as points and are shown
-       * in the tooltip, but only :00 receives an axis label.
-       */
-      if (visibleHours < 24) {
-        if (time.minute !== 0) return "";
-        return formatActualHour(row);
-      }
-
-      /*
-       * One day or more visible:
-       * use the currently visible date span, not the original calendar
-       * selection. This means zooming into a year automatically applies
-       * the same date-density rules to the zoomed window.
-       */
-      if (shouldShowDateLabel(row, index, series)) {
-        const date = parseDate(row.date);
-        return date.toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "2-digit"
-        });
-      }
-
+    if (!intraday) {
       return "";
     }
 
-    if (shouldShowDateLabel(row, index, series)) {
-      const date = parseDate(row.date);
-      return date.toLocaleDateString("en-GB", {
-        day: "2-digit",
-        month: "2-digit"
-      });
+    const time = getMarketTime(row);
+    if (!time) return "";
+
+    const visibleHours = getVisibleHours(series);
+
+    /*
+     * A one-day calendar selection starts with the complete day visible.
+     * Keep all 15-minute/hourly observations, but label every 2 hours.
+     */
+    if (
+      isSingleCalendarDaySelection() &&
+      isFullVisibleRange(series)
+    ) {
+      if (time.minute !== 0) return "";
+      return time.hour % 2 === 0
+        ? formatActualTime(row)
+        : "";
     }
 
-    return "";
+    /*
+     * Once the user zooms below one day, switch to a genuine intraday
+     * clock axis. The label is taken from the data point itself, not from
+     * its array position. For the 15-minute series, the :15/:30/:45 points
+     * remain on the line, while only full hours receive labels.
+     */
+    if (visibleHours < 24) {
+      if (time.minute !== 0) return "";
+      return formatActualTime(row);
+    }
+
+    /*
+     * At >= 1 day visible, use the currently visible date span. This means
+     * a one-year chart zoomed to 20 days automatically uses the 15-31 day
+     * rule, etc.
+     */
+    if (time.minute !== 0) return "";
+    if (!shouldShowDateLabel(row, index, series)) return "";
+
+    return parseDate(row.date).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit"
+    });
   }
 
   function renderChart() {
@@ -1978,9 +1980,12 @@
 
             const row =
               series[
-                item.dataIndex
+                Number(item.dataIndex)
               ];
 
+            if (!row) {
+              return "";
+            }
 
             return `
               <div style="
@@ -2339,12 +2344,22 @@
       return;
     }
 
-    const startValue = Number.isFinite(zoom.startValue) ? zoom.startValue : 0;
-    const endValue = Number.isFinite(zoom.endValue)
-      ? zoom.endValue
+    const parsedStart = Number(zoom.startValue);
+    const parsedEnd = Number(zoom.endValue);
+
+    const startValue = Number.isFinite(parsedStart)
+      ? parsedStart
+      : 0;
+
+    const endValue = Number.isFinite(parsedEnd)
+      ? parsedEnd
       : Math.max(0, series.length - 1);
 
-    visibleStartIndex = Math.max(0, Math.round(startValue));
+    visibleStartIndex = Math.max(
+      0,
+      Math.min(Math.round(startValue), Math.max(0, series.length - 1))
+    );
+
     visibleEndIndex = Math.min(
       Math.max(visibleStartIndex, Math.round(endValue)),
       Math.max(0, series.length - 1)
