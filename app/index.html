@@ -1532,37 +1532,30 @@
      CHART
      ============================================================ */
 
-  /* ============================================================
-     CHART TIME / X-AXIS LABELS
-     ============================================================ */
-
+  /*
+   * GME intraday records contain the authoritative market time in
+   * row.time, derived from the GME market period.  The chart therefore
+   * never infers an hour from the array position.
+   */
   function getMarketTime(row) {
-    // Use the actual time stored in the data first.
-    const timeText = String(row.time || "").trim();
-    const match = timeText.match(/^(\d{1,2}):(\d{2})/);
+    const text = String(row.time || '').trim();
+    const match = text.match(/^(\d{1,2}):(\d{2})/);
 
     if (match) {
       const hour = Number(match[1]);
       const minute = Number(match[2]);
-
       if (
-        Number.isInteger(hour) &&
-        hour >= 0 &&
-        hour <= 24 &&
-        Number.isInteger(minute) &&
-        minute >= 0 &&
-        minute <= 59
+        Number.isInteger(hour) && hour >= 0 && hour <= 24 &&
+        Number.isInteger(minute) && minute >= 0 && minute <= 59
       ) {
         return { hour, minute };
       }
     }
 
-    // Some older hourly records may expose GME's one-based period.
     if (Number.isFinite(Number(row.period))) {
       const period = Number(row.period);
       if (Number.isInteger(period) && period >= 1) {
-        const bucketMinutes =
-          currentGranularity === "quarter" ? 15 : 60;
+        const bucketMinutes = currentGranularity === 'quarter' ? 15 : 60;
         const totalMinutes = (period - 1) * bucketMinutes;
         return {
           hour: Math.floor(totalMinutes / 60),
@@ -1571,10 +1564,9 @@
       }
     }
 
-    // Backward-compatible hourly fallback.
     if (Number.isFinite(Number(row.hour))) {
       const hour = Number(row.hour) - 1;
-      if (hour >= 0 && hour <= 24) {
+      if (Number.isInteger(hour) && hour >= 0 && hour <= 24) {
         return { hour, minute: 0 };
       }
     }
@@ -1584,64 +1576,70 @@
 
   function formatActualTime(row) {
     const time = getMarketTime(row);
-    if (!time) return "";
-
-    return (
-      String(time.hour).padStart(2, "0") +
-      ":" +
-      String(time.minute).padStart(2, "0")
-    );
+    if (!time) return '';
+    return `${String(time.hour).padStart(2, '0')}:${String(time.minute).padStart(2, '0')}`;
   }
 
   function getRowTimestamp(row) {
     const date = parseDate(row.date);
     const time = getMarketTime(row);
     const result = new Date(date);
-
     if (time) {
       result.setHours(time.hour, time.minute, 0, 0);
-    } else {
-      result.setHours(0, 0, 0, 0);
     }
-
     return result.getTime();
   }
 
   function formatTooltipDate(row) {
-    const dateText = parseDate(row.date).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric"
+    const dateText = parseDate(row.date).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
     });
 
-    if (currentGranularity === "daily") {
+    if (currentGranularity === 'daily') {
       return dateText;
     }
 
     const timeText = formatActualTime(row);
-    return timeText
-      ? `${dateText} ${timeText}`
-      : dateText;
+    return timeText ? `${dateText} ${timeText}` : dateText;
   }
 
-
   /* ============================================================
-     VISIBLE-RANGE / X-AXIS DENSITY
+     VISIBLE RANGE / LABEL DENSITY
      ============================================================ */
 
   let visibleStartIndex = 0;
   let visibleEndIndex = 0;
 
+  /* Maps make tooltip/axis lookup independent of ECharts dataIndex after
+     dataZoom filtering. */
+  let currentCategoryToIndex = new Map();
+  let currentCategoryToRow = new Map();
+
+  function makeCategoryKey(row, index) {
+    const time = currentGranularity === 'daily'
+      ? ''
+      : `|${row.time || ''}|${row.period ?? index}`;
+    return `${row.date}${time}`;
+  }
+
+  function rebuildCategoryMaps(series) {
+    currentCategoryToIndex = new Map();
+    currentCategoryToRow = new Map();
+
+    series.forEach((row, index) => {
+      const key = makeCategoryKey(row, index);
+      currentCategoryToIndex.set(key, index);
+      currentCategoryToRow.set(key, row);
+    });
+  }
+
   function getVisibleIndexBounds(series) {
-    if (!series.length) {
-      return { start: 0, end: 0 };
-    }
+    if (!series.length) return { start: 0, end: 0 };
 
     return {
-      start: Math.max(
-        0,
-        Math.min(visibleStartIndex, series.length - 1)
-      ),
+      start: Math.max(0, Math.min(visibleStartIndex, series.length - 1)),
       end: Math.max(
         0,
         Math.min(
@@ -1654,7 +1652,6 @@
 
   function getVisibleRows(series) {
     if (!series.length) return [];
-
     const bounds = getVisibleIndexBounds(series);
     return series.slice(bounds.start, bounds.end + 1);
   }
@@ -1665,10 +1662,7 @@
 
     return Math.max(
       0,
-      (
-        getRowTimestamp(rows[rows.length - 1]) -
-        getRowTimestamp(rows[0])
-      ) / 3600000
+      (getRowTimestamp(rows[rows.length - 1]) - getRowTimestamp(rows[0])) / 3600000
     );
   }
 
@@ -1688,7 +1682,7 @@
     const bounds = getVisibleIndexBounds(series);
     const previous = series[index - 1];
 
-    // Only the first visible observation of each civil date can label it.
+    /* A date can only be labelled on its first visible observation. */
     if (
       index > bounds.start &&
       previous &&
@@ -1705,9 +1699,7 @@
     }
 
     if (daySpan >= 32) {
-      const firstDate = parseDate(
-        getVisibleRows(series)[0].date
-      );
+      const firstDate = parseDate(getVisibleRows(series)[0].date);
       const offset = Math.round(
         (date.getTime() - firstDate.getTime()) / 86400000
       );
@@ -1715,9 +1707,7 @@
     }
 
     if (daySpan >= 15) {
-      const firstDate = parseDate(
-        getVisibleRows(series)[0].date
-      );
+      const firstDate = parseDate(getVisibleRows(series)[0].date);
       const offset = Math.round(
         (date.getTime() - firstDate.getTime()) / 86400000
       );
@@ -1736,665 +1726,291 @@
   }
 
   function isFullVisibleRange(series) {
-    const bounds = getVisibleIndexBounds(series);
     return (
-      bounds.start === 0 &&
-      bounds.end === Math.max(0, series.length - 1)
+      visibleStartIndex === 0 &&
+      visibleEndIndex === Math.max(0, series.length - 1)
     );
   }
 
-  function getXAxisLabelByIndex(index, series) {
-    const row = series[index];
-    if (!row) return "";
+  function getXAxisLabel(row, index, series) {
+    if (!row) return '';
 
     const intraday =
-      currentGranularity === "hourly" ||
-      currentGranularity === "quarter";
+      currentGranularity === 'hourly' ||
+      currentGranularity === 'quarter';
 
     if (!intraday) {
-      return "";
+      const date = parseDate(row.date);
+      if (!shouldShowDateLabel(row, index, series)) return '';
+      return date.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: '2-digit'
+      });
     }
 
     const time = getMarketTime(row);
-    if (!time) return "";
-
-    const visibleHours = getVisibleHours(series);
+    if (!time) return '';
 
     /*
-     * A one-day calendar selection starts with the complete day visible.
-     * Keep all 15-minute/hourly observations, but label every 2 hours.
+     * Full one-day view: keep all 15-minute points but label every 2 hours.
      */
-    if (
-      isSingleCalendarDaySelection() &&
-      isFullVisibleRange(series)
-    ) {
-      if (time.minute !== 0) return "";
-      return time.hour % 2 === 0
+    if (isSingleCalendarDaySelection() && isFullVisibleRange(series)) {
+      return time.minute === 0 && time.hour % 2 === 0
         ? formatActualTime(row)
-        : "";
+        : '';
     }
 
     /*
-     * Once the user zooms below one day, switch to a genuine intraday
-     * clock axis. The label is taken from the data point itself, not from
-     * its array position. For the 15-minute series, the :15/:30/:45 points
-     * remain on the line, while only full hours receive labels.
+     * Less than one day visible: show every actual hour.  The 15-minute
+     * points remain on the line, but :15/:30/:45 are not separately labelled.
      */
+    const visibleHours = getVisibleHours(series);
     if (visibleHours < 24) {
-      if (time.minute !== 0) return "";
-      return formatActualTime(row);
+      return time.minute === 0 ? formatActualTime(row) : '';
     }
 
-    /*
-     * At >= 1 day visible, use the currently visible date span. This means
-     * a one-year chart zoomed to 20 days automatically uses the 15-31 day
-     * rule, etc.
-     */
-    if (time.minute !== 0) return "";
-    if (!shouldShowDateLabel(row, index, series)) return "";
-
-    return parseDate(row.date).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "2-digit"
-    });
+    /* Multi-day intraday view: show date labels according to visible span. */
+    if (time.minute !== 0) return '';
+    return shouldShowDateLabel(row, index, series)
+      ? parseDate(row.date).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: '2-digit'
+        })
+      : '';
   }
 
-  /*
-   * ECharts category-axis formatter receives the category value as its
-   * first argument. Because our categories are the ORIGINAL series index
-   * ("0", "1", ...), using the formatter's second `index` argument
-   * can point to the wrong data row after dataZoom. Always resolve the row
-   * from the category value instead.
-   */
+  function categoryValueToIndex(value, series) {
+    const key = String(value);
+
+    if (currentCategoryToIndex.has(key)) {
+      return currentCategoryToIndex.get(key);
+    }
+
+    const numeric = Number(value);
+    if (Number.isInteger(numeric) && numeric >= 0 && numeric < series.length) {
+      return numeric;
+    }
+
+    return 0;
+  }
+
   function getXAxisLabelByValue(value, series) {
-    const index = Number(value);
-    if (!Number.isInteger(index) || index < 0 || index >= series.length) {
-      return "";
-    }
-    return getXAxisLabelByIndex(index, series);
+    const index = categoryValueToIndex(value, series);
+    return getXAxisLabel(series[index], index, series);
   }
 
+  function getZoomIndex(value, series) {
+    if (typeof value === 'string' && currentCategoryToIndex.has(value)) {
+      return currentCategoryToIndex.get(value);
+    }
+
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      if (Number.isInteger(numeric) && numeric >= 0 && numeric < series.length) {
+        return numeric;
+      }
+      return Math.round(numeric);
+    }
+
+    return null;
+  }
 
   function renderChart() {
+    if (!rawData) return;
 
-    if (!rawData) {
+    const series = filteredSeries();
+    if (!series.length) {
+      chart.clear();
       return;
     }
-
-    const series =
-      filteredSeries();
 
     visibleStartIndex = 0;
-    visibleEndIndex = Math.max(0, series.length - 1);
+    visibleEndIndex = series.length - 1;
+    rebuildCategoryMaps(series);
 
+    let subtitle = 'Daily average';
+    if (currentGranularity === 'hourly') subtitle = 'Hourly PUN Index';
+    if (currentGranularity === 'quarter') subtitle = '15-minute PUN Index';
 
-    let subtitle =
-      "Daily average";
+    document.getElementById('chart-subtitle').textContent =
+      currentStart && currentEnd
+        ? `${subtitle} · ${formatDate(currentStart)} – ${formatDate(currentEnd)}`
+        : subtitle;
 
+    const values = series.map(row => Number(row.pun));
+    const low = Math.min(...values);
+    const high = Math.max(...values);
+    const pad = Math.max(10, (high - low) * 0.08);
 
-    if (
-      currentGranularity === "hourly"
-    ) {
-
-      subtitle =
-        "Hourly PUN Index";
-    }
-
-
-    if (
-      currentGranularity === "quarter"
-    ) {
-
-      subtitle =
-        "15-minute PUN Index";
-    }
-
-
-    const subtitleElement =
-      document.getElementById(
-        "chart-subtitle"
-      );
-
-
-    if (
-      currentStart &&
-      currentEnd
-    ) {
-
-      subtitleElement.textContent =
-        `${subtitle} · ` +
-        `${formatDate(currentStart)} – ` +
-        `${formatDate(currentEnd)}`;
-
-    } else {
-
-      subtitleElement.textContent =
-        subtitle;
-    }
-
-
-    if (!series.length) {
-
-      chart.clear();
-
-      return;
-    }
-
-
-    const values =
-      series.map(
-        getDataValue
-      );
-
-
-    const minValue =
-      Math.min(...values);
-
-    const maxValue =
-      Math.max(...values);
-
-
-    const padding =
-      Math.max(
-        10,
-        (maxValue - minValue) * 0.08
-      );
-
-
-    const yMin =
-      Math.floor(
-        (minValue - padding) / 10
-      ) * 10;
-
-
-    const yMax =
-      Math.ceil(
-        (maxValue + padding) / 10
-      ) * 10;
-
+    const categories = series.map((row, index) => makeCategoryKey(row, index));
 
     const option = {
-
       animation: false,
-
-      backgroundColor:
-        "transparent",
-
-
+      backgroundColor: 'transparent',
       grid: {
-
-        left:
-          CHART_GRID.left,
-
-        right:
-          CHART_GRID.right,
-
-        top:
-          CHART_GRID.top,
-
-        bottom:
-          CHART_GRID.bottom,
-
-        containLabel:
-          false
+        left: CHART_GRID.left,
+        right: CHART_GRID.right,
+        top: CHART_GRID.top,
+        bottom: CHART_GRID.bottom,
+        containLabel: false
       },
-
-
       tooltip: {
-
-        trigger:
-          "axis",
-
-        backgroundColor:
-          "#171b20",
-
-        borderColor:
-          "#30363e",
-
-        borderWidth:
-          1,
-
-        textStyle: {
-
-          color:
-            "#f1f3f5",
-
-          fontSize:
-            11
-        },
-
-
+        trigger: 'axis',
+        backgroundColor: '#171b20',
+        borderColor: '#30363e',
+        borderWidth: 1,
+        textStyle: { color: '#f1f3f5', fontSize: 11 },
         axisPointer: {
-
-          type:
-            "line",
-
-          lineStyle: {
-
-            color:
-              "#5d6670",
-
-            width:
-              1
-          }
+          type: 'line',
+          lineStyle: { color: '#5d6670', width: 1 }
         },
+        formatter: params => {
+          if (!params || !params.length) return '';
 
+          const item = params[0];
+          const key = String(item.axisValue);
+          const row = currentCategoryToRow.get(key) || item.data?.__row;
 
-        formatter:
-          params => {
+          if (!row) return '';
 
-            if (
-              !params ||
-              !params.length
-            ) {
-              return "";
-            }
-
-
-            const item =
-              params[0];
-
-            const axisIndex = Number(item.axisValue);
-            const dataIndex = Number.isInteger(axisIndex)
-              ? axisIndex
-              : Number(item.dataIndex);
-
-            const row = series[dataIndex];
-
-            if (!row) {
-              return "";
-            }
-
-            return `
-              <div style="
-                margin-bottom:4px;
-                color:#9aa2ac;
-              ">
-                ${formatTooltipDate(row)}
-              </div>
-
-              <div style="
-                font-size:14px;
-                font-weight:600;
-              ">
-                ${Number(row.pun).toFixed(2)} €/MWh
-              </div>
-            `;
-          }
+          return `
+            <div style="margin-bottom:4px;color:#9aa2ac;">
+              ${formatTooltipDate(row)}
+            </div>
+            <div style="font-size:14px;font-weight:600;">
+              ${Number(row.pun).toFixed(2)} €/MWh
+            </div>
+          `;
+        }
       },
-
-
       xAxis: {
-
-        type:
-          "category",
-
-        boundaryGap:
-          false,
-
-        // Stable category keys let the formatter recover the original row
-        // even after ECharts zooms the visible range.
-        data:
-          series.map((_, index) => String(index)),
-
-
-        axisLine: {
-
-          lineStyle: {
-
-            color:
-              "#30353c"
-          }
-        },
-
-
-        axisTick: {
-
-          show:
-            false
-        },
-
-
+        type: 'category',
+        boundaryGap: false,
+        data: categories,
+        axisLine: { lineStyle: { color: '#30353c' } },
+        axisTick: { show: false },
         axisLabel: {
-
-          color:
-            "#727a84",
-
-          fontSize:
-            10,
-
-          margin:
-            10,
-
-          interval:
-            0,
-
-          hideOverlap:
-            false,
-
-          rotate:
-            0,
-
-          formatter: function (value) {
-            return getXAxisLabelByValue(value, series);
-          }
+          color: '#727a84',
+          fontSize: 10,
+          margin: 10,
+          interval: 0,
+          hideOverlap: false,
+          rotate: 0,
+          formatter: value => getXAxisLabelByValue(value, series)
         },
-
-
-        splitLine: {
-
-          show:
-            false
-        }
+        splitLine: { show: false }
       },
-
-
       yAxis: {
-
-        type:
-          "value",
-
-        min:
-          yMin,
-
-        max:
-          yMax,
-
-
-        name:
-          "€/MWh",
-
-        nameLocation:
-          "middle",
-
-        nameRotate:
-          90,
-
-        nameGap:
-          45,
-
-
-        nameTextStyle: {
-
-          color:
-            "#727a84",
-
-          fontSize:
-            10
-        },
-
-
-        axisLine: {
-
-          show:
-            false
-        },
-
-
-        axisTick: {
-
-          show:
-            false
-        },
-
-
-        axisLabel: {
-
-          color:
-            "#727a84",
-
-          fontSize:
-            10
-        },
-
-
-        splitLine: {
-
-          show:
-            true,
-
-          lineStyle: {
-
-            color:
-              "#20252b",
-
-            width:
-              1
-          }
-        }
+        type: 'value',
+        min: Math.floor((low - pad) / 10) * 10,
+        max: Math.ceil((high + pad) / 10) * 10,
+        name: '€/MWh',
+        nameLocation: 'middle',
+        nameRotate: 90,
+        nameGap: 45,
+        nameTextStyle: { color: '#727a84', fontSize: 10 },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: '#727a84', fontSize: 10 },
+        splitLine: { show: true, lineStyle: { color: '#20252b', width: 1 } }
       },
-
-
-      series: [
-
-        {
-
-          type:
-            "line",
-
-          data:
-            values,
-
-          smooth:
-            false,
-
-          showSymbol:
-            false,
-
-
-          // Keep every source observation. Sampling would decouple ECharts
-          // tooltip indices from the original 15-minute data points.
-
-
-          lineStyle: {
-
-            color:
-              "#d9dde2",
-
-            width:
-              1.2
-          },
-
-
-          itemStyle: {
-
-            color:
-              "#d9dde2"
-          },
-
-
-          emphasis: {
-
-            focus:
-              "series"
-          }
-        }
-
-      ],
-
-
-      /*
-       * The two dataZoom controls remain
-       * synchronized.
-       *
-       * The custom drag interaction below
-       * operates separately on the main chart.
-       */
+      series: [{
+        type: 'line',
+        data: series.map(row => ({
+          value: Number(row.pun),
+          __row: row
+        })),
+        smooth: false,
+        showSymbol: false,
+        lineStyle: { color: '#d9dde2', width: 1.2 },
+        itemStyle: { color: '#d9dde2' }
+      }],
       dataZoom: [
-
         {
-
-          type:
-            "inside",
-
-          xAxisIndex:
-            0,
-
-          filterMode:
-            "filter",
-
-          start:
-            0,
-
-          end:
-            100,
-
-          zoomOnMouseWheel:
-            true,
-
-          moveOnMouseMove:
-            true,
-
-          moveOnMouseWheel:
-            false
+          type: 'inside',
+          xAxisIndex: 0,
+          filterMode: 'filter',
+          start: 0,
+          end: 100,
+          zoomOnMouseWheel: true,
+          moveOnMouseMove: true,
+          moveOnMouseWheel: false
         },
-
-
         {
-
-          type:
-            "slider",
-
-          xAxisIndex:
-            0,
-
-          filterMode:
-            "filter",
-
-          bottom:
-            18,
-
-          height:
-            16,
-
-
-          borderColor:
-            "#252a30",
-
-          backgroundColor:
-            "#15191e",
-
-          fillerColor:
-            "rgba(150,157,166,0.16)",
-
-
-          handleStyle: {
-
-            color:
-              "#8b939d",
-
-            borderColor:
-              "#8b939d"
-          },
-
-
-          moveHandleStyle: {
-
-            color:
-              "#555d67"
-          },
-
-
-          textStyle: {
-
-            color:
-              "#6f7781",
-
-            fontSize:
-              9
-          }
+          type: 'slider',
+          xAxisIndex: 0,
+          filterMode: 'filter',
+          bottom: 18,
+          height: 16,
+          borderColor: '#252a30',
+          backgroundColor: '#15191e',
+          fillerColor: 'rgba(150,157,166,0.16)',
+          handleStyle: { color: '#8b939d', borderColor: '#8b939d' },
+          moveHandleStyle: { color: '#555d67' },
+          textStyle: { color: '#6f7781', fontSize: 9 }
         }
       ]
     };
 
+    chart.setOption(option, true);
 
-    chart.setOption(
-      option,
-      true
+    chart.dispatchAction({
+      type: 'dataZoom',
+      dataZoomIndex: [0, 1],
+      startValue: categories[0],
+      endValue: categories[categories.length - 1]
+    });
+
+    applyXAxisViewport(series, 0, series.length - 1);
+  }
+
+  function applyXAxisViewport(series, startIndex, endIndex) {
+    visibleStartIndex = Math.max(0, Math.min(startIndex, series.length - 1));
+    visibleEndIndex = Math.max(
+      visibleStartIndex,
+      Math.min(endIndex, series.length - 1)
     );
 
-
-    /*
-     * Every time the calendar range or
-     * granularity changes, reset the
-     * chart zoom to the complete selected
-     * calendar range.
-     */
-    chart.dispatchAction({
-
-      type:
-        "dataZoom",
-
-      dataZoomIndex:
-        [0, 1],
-
-      startValue:
-        0,
-
-      endValue:
-        series.length - 1
-    });
+    const visibleHours = getVisibleHours(series);
+    const intraday = currentGranularity === 'hourly' || currentGranularity === 'quarter';
 
     chart.setOption({
       xAxis: {
         axisLabel: {
-          formatter: function (value, index) {
-            return getXAxisLabelByValue(value, series);
-          }
+          rotate: intraday && visibleHours < 24 ? 0 : 0,
+          fontSize: 10,
+          formatter: value => getXAxisLabelByValue(value, series)
         }
       }
     }, false);
   }
 
-
-  chart.on("datazoom", () => {
+  chart.on('datazoom', () => {
     const options = chart.getOption();
     const zoom = options.dataZoom && options.dataZoom[0];
     const series = filteredSeries();
 
-    if (!series.length || !zoom) {
-      return;
+    if (!series.length || !zoom) return;
+
+    let startIndex = getZoomIndex(zoom.startValue, series);
+    let endIndex = getZoomIndex(zoom.endValue, series);
+
+    if (startIndex === null || endIndex === null) {
+      const startPct = Number(zoom.start);
+      const endPct = Number(zoom.end);
+      startIndex = Number.isFinite(startPct)
+        ? Math.round((startPct / 100) * Math.max(0, series.length - 1))
+        : 0;
+      endIndex = Number.isFinite(endPct)
+        ? Math.round((endPct / 100) * Math.max(0, series.length - 1))
+        : series.length - 1;
     }
 
-    const parsedStart = Number(zoom.startValue);
-    const parsedEnd = Number(zoom.endValue);
+    if (endIndex < startIndex) {
+      [startIndex, endIndex] = [endIndex, startIndex];
+    }
 
-    const startValue = Number.isFinite(parsedStart)
-      ? parsedStart
-      : 0;
-
-    const endValue = Number.isFinite(parsedEnd)
-      ? parsedEnd
-      : Math.max(0, series.length - 1);
-
-    visibleStartIndex = Math.max(
-      0,
-      Math.min(Math.round(startValue), Math.max(0, series.length - 1))
-    );
-
-    visibleEndIndex = Math.min(
-      Math.max(visibleStartIndex, Math.round(endValue)),
-      Math.max(0, series.length - 1)
-    );
-
-    const visibleHours = getVisibleHours(series);
-    const rotateLabels =
-      (currentGranularity === "hourly" || currentGranularity === "quarter") &&
-      visibleHours < 24;
-
-    chart.setOption({
-      xAxis: {
-        axisLabel: {
-          rotate: rotateLabels ? 35 : 0,
-          fontSize: rotateLabels ? 9 : 10,
-          formatter: function (value, index) {
-            return getXAxisLabelByValue(value, series);
-          }
-        }
-      }
-    }, false);
-
-    chart.resize();
+    applyXAxisViewport(series, startIndex, endIndex);
   });
 
 
