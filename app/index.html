@@ -1799,6 +1799,22 @@
     });
   }
 
+  /*
+   * ECharts category-axis formatter receives the category value as its
+   * first argument. Because our categories are the ORIGINAL series index
+   * ("0", "1", ...), using the formatter's second `index` argument
+   * can point to the wrong data row after dataZoom. Always resolve the row
+   * from the category value instead.
+   */
+  function getXAxisLabelByValue(value, series) {
+    const index = Number(value);
+    if (!Number.isInteger(index) || index < 0 || index >= series.length) {
+      return "";
+    }
+    return getXAxisLabelByIndex(index, series);
+  }
+
+
   function renderChart() {
 
     if (!rawData) {
@@ -2057,11 +2073,8 @@
           rotate:
             0,
 
-          formatter: function (value, index) {
-            return getXAxisLabelByIndex(
-              index,
-              series
-            );
+          formatter: function (value) {
+            return getXAxisLabelByValue(value, series);
           }
         },
 
@@ -2327,7 +2340,7 @@
       xAxis: {
         axisLabel: {
           formatter: function (value, index) {
-            return getXAxisLabelByIndex(index, series);
+            return getXAxisLabelByValue(value, series);
           }
         }
       }
@@ -2376,7 +2389,7 @@
           rotate: rotateLabels ? 35 : 0,
           fontSize: rotateLabels ? 9 : 10,
           formatter: function (value, index) {
-            return getXAxisLabelByIndex(index, series);
+            return getXAxisLabelByValue(value, series);
           }
         }
       }
