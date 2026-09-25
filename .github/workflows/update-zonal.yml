@@ -1,0 +1,69 @@
+name: Update Zonal Prices
+
+on:
+  schedule:
+    # Runs daily at 9:15 AM Japan Standard Time (00:15 UTC).
+    # Offset by 15 minutes from the PUN update workflow to avoid
+    # hitting the GME API at the same time.
+    - cron: "15 0 * * *"
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Start date (YYYY-MM-DD). Leave empty for incremental update."
+        required: false
+      end:
+        description: "End date (YYYY-MM-DD). Leave empty for today."
+        required: false
+      full_history:
+        description: "Backfill full history from 2025-01-01"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  update-zonal-prices:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Fetch zonal prices
+        env:
+          GME_API_LOGIN: ${{ secrets.GME_API_LOGIN }}
+          GME_API_PASSWORD: ${{ secrets.GME_API_PASSWORD }}
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.start }}" ]; then
+            ARGS="$ARGS --start ${{ github.event.inputs.start }}"
+          fi
+          if [ -n "${{ github.event.inputs.end }}" ]; then
+            ARGS="$ARGS --end ${{ github.event.inputs.end }}"
+          fi
+          if [ "${{ github.event.inputs.full_history }}" = "true" ]; then
+            ARGS="$ARGS --full-history"
+          fi
+          python etl/fetch_zonal.py $ARGS
+
+      - name: Commit and push updated data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/data/zonal_prices.json
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update zonal prices [automated]"
+            git push
+          fi

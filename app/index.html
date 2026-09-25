@@ -53,6 +53,13 @@
     .subnav-tab.active { color:var(--text); border-bottom-color:var(--blue); font-weight:600; }
     .panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; }
     #chart-mount-overview { width:100%; }
+    #chart-mount-prices { width:100%; }
+    .zonal-chart-panel { width:100%; max-width:100%; padding:18px 18px 12px; min-width:0; margin:0; }
+    #zonal-chart-wrap { position:relative; width:100%; height:520px; touch-action:none; }
+    #zonal-chart { position:absolute; inset:0; width:100%; height:100%; }
+    #zonal-chart-drag-selection { position:absolute; z-index:20; display:none; top:55px; height:calc(100% - 125px); border:1px solid rgba(91,156,255,.9); background:rgba(91,156,255,.1); pointer-events:none; }
+    #zonal-chart-wrap.dragging #zonal-chart-drag-hint { opacity:0; }
+    .zonal-chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
     .zone-placeholder { display:none; align-items:center; justify-content:center; min-height:320px; padding:40px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--muted); font-size:13.5px; text-align:center; }
     .section-placeholder { display:none; align-items:center; justify-content:center; flex-direction:column; gap:8px; min-height:420px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--muted); text-align:center; }
     .section-placeholder h2 { margin:0; color:var(--text); font-size:20px; }
@@ -130,7 +137,26 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"></div></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices">
+          <section id="zonal-chart-section" class="panel zonal-chart-panel">
+            <div class="chart-header">
+              <div>
+                <div class="chart-title">MGP Zonal Prices</div>
+                <div id="zonal-chart-subtitle" class="chart-subtitle">Daily average</div>
+              </div>
+              <div class="granularity">
+                <button data-zonal-granularity="quarter" type="button">15 MIN</button>
+                <button data-zonal-granularity="hourly" type="button">HOURLY</button>
+                <button data-zonal-granularity="daily" class="active" type="button">DAILY</button>
+              </div>
+            </div>
+            <div id="zonal-chart-wrap">
+              <div id="zonal-chart"></div>
+              <div id="zonal-chart-drag-selection"></div>
+            </div>
+            <div class="zonal-chart-help">Click a zone in the legend to hide or show its price line. Drag horizontally across the chart to select a narrower range.</div>
+          </section>
+        </div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
       </main>
@@ -161,7 +187,30 @@
   const chart =
     echarts.init(chartElement);
 
+  const zonalChartElement =
+    document.getElementById("zonal-chart");
+
+  const zonalChart =
+    echarts.init(zonalChartElement);
+
   let rawData = null;
+  let rawZonalData = null;
+  let zonalGranularity = "daily";
+  let zonalCategoryToRows = new Map();
+  let zonalCategoryToIndex = new Map();
+  let zonalVisibleStartIndex = 0;
+  let zonalVisibleEndIndex = 0;
+
+  const zonalChartContainer =
+    document.getElementById("zonal-chart-wrap");
+
+  const zonalDragSelection =
+    document.getElementById("zonal-chart-drag-selection");
+
+  let zonalIsDragging = false;
+  let zonalDragStartX = null;
+  let zonalDragCurrentX = null;
+  let zonalPointerId = null;
 
   let currentGranularity = "daily";
 
@@ -313,6 +362,21 @@
 
       rawData =
         await response.json();
+
+      const zonalResponse =
+        await fetch(
+          "./data/zonal_prices.json",
+          { cache: "no-store" }
+        );
+
+      if (!zonalResponse.ok) {
+        throw new Error(
+          `Zonal data HTTP ${zonalResponse.status}`
+        );
+      }
+
+      rawZonalData =
+        await zonalResponse.json();
 
       initialiseDateSelection();
 
@@ -912,7 +976,11 @@
 
       renderCalendar();
 
-      renderChart();
+      // The calendar is global to the dashboard. Re-render the chart that is
+      // actually visible rather than relying on whichever chart happened to
+      // be active when the calendar was opened.
+      syncCalendarTriggerLabel();
+      updateView();
 
       // A completed two-date selection closes the calendar.
       const dropdown = document.getElementById("calendar-dropdown");
@@ -1461,7 +1529,9 @@
 
           renderCalendar();
 
-          renderChart();
+          // Apply the global date range to whichever chart is currently visible.
+          syncCalendarTriggerLabel();
+          updateView();
 
           // Quick-select actions apply the range immediately and close the menu.
           const dropdown = document.getElementById("calendar-dropdown");
@@ -1523,6 +1593,7 @@
           renderCalendar();
 
           renderChart();
+          renderZonalChart();
         }
       );
     });
@@ -1815,6 +1886,725 @@
     return null;
   }
 
+
+  /* ============================================================
+     MGP ZONAL PRICE CHART
+     ============================================================ */
+
+  const ZONAL_ORDER = [
+    "NORD",
+    "CNOR",
+    "CSUD",
+    "SUD",
+    "CALA",
+    "SICI",
+    "SARD"
+  ];
+
+  const ZONAL_LABELS = {
+    NORD: "NORD",
+    CNOR: "CNOR",
+    CSUD: "CSUD",
+    SUD: "SUD",
+    CALA: "CALA",
+    SICI: "SICI",
+    SARD: "SARD"
+  };
+
+  let zonalSelected = ZONAL_ORDER.reduce((acc, zone) => {
+    acc[ZONAL_LABELS[zone]] = true;
+    return acc;
+  }, {});
+
+  const ZONAL_LINE_COLORS = [
+    "#5b9cff",
+    "#d9dde2",
+    "#5ecb8a",
+    "#e7a84b",
+    "#c783ff",
+    "#ef6fae",
+    "#7fd1c5"
+  ];
+
+  function getZonalRows(zone = "NORD") {
+    if (!rawZonalData || !rawZonalData.zones || !rawZonalData.zones[zone]) {
+      return [];
+    }
+
+    const zoneData = rawZonalData.zones[zone];
+    const key =
+      zonalGranularity === "quarter"
+        ? "quarter_hourly"
+        : zonalGranularity === "hourly"
+          ? "hourly"
+          : "daily";
+
+    return zoneData[key] || [];
+  }
+
+  function getZonalRowKey(row) {
+    if (zonalGranularity === "daily") {
+      return row.date;
+    }
+    return `${row.date}T${row.time}`;
+  }
+
+  function filterZonalRows(rows) {
+    if (!currentStart || !currentEnd) {
+      return rows;
+    }
+
+    const start = startOfDay(currentStart).getTime();
+    const end = endOfDay(currentEnd).getTime();
+
+    return rows.filter(row => {
+      const timestamp = new Date(
+        `${row.date}T${row.time || "00:00"}:00`
+      ).getTime();
+      return timestamp >= start && timestamp <= end;
+    });
+  }
+
+  function getZonalVisibleRows(rows) {
+    if (!rows.length) return [];
+
+    const start = Math.max(
+      0,
+      Math.min(zonalVisibleStartIndex, rows.length - 1)
+    );
+    const end = Math.max(
+      start,
+      Math.min(zonalVisibleEndIndex, rows.length - 1)
+    );
+
+    return rows.slice(start, end + 1);
+  }
+
+  function getZonalVisibleDaySpan(rows) {
+    const visible = getZonalVisibleRows(rows);
+    if (!visible.length) return 0;
+
+    const first = parseDate(visible[0].date);
+    const last = parseDate(visible[visible.length - 1].date);
+
+    return Math.round(
+      (last.getTime() - first.getTime()) / 86400000
+    ) + 1;
+  }
+
+  function getZonalVisibleHours(rows) {
+    const visible = getZonalVisibleRows(rows);
+    if (visible.length <= 1) return 0;
+
+    const first = new Date(
+      `${visible[0].date}T${visible[0].time || "00:00"}:00`
+    ).getTime();
+    const last = new Date(
+      `${visible[visible.length - 1].date}T${visible[visible.length - 1].time || "00:00"}:00`
+    ).getTime();
+
+    return Math.max(0, (last - first) / 3600000);
+  }
+
+  function isSingleZonalCalendarDay() {
+    return Boolean(
+      currentStart &&
+      currentEnd &&
+      compareDates(currentStart, currentEnd) === 0
+    );
+  }
+
+  function getZonalXAxisLabel(row, index, rows) {
+    if (!row) return "";
+
+    const intraday =
+      zonalGranularity === "hourly" ||
+      zonalGranularity === "quarter";
+
+    const date = parseDate(row.date);
+    const shortDate = date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit"
+    });
+
+    if (!intraday) {
+      return shortDate;
+    }
+
+    const time = row.time || "";
+    const [hourText, minuteText] = time.split(":");
+    const hour = Number(hourText);
+    const minute = Number(minuteText);
+
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+      return "";
+    }
+
+    const visibleHours = getZonalVisibleHours(rows);
+
+    // For a single day, show the same compact time logic as the PUN chart.
+    if (isSingleZonalCalendarDay() && zonalVisibleStartIndex === 0 && zonalVisibleEndIndex === rows.length - 1) {
+      return minute === 0 && hour % 2 === 0 ? time : "";
+    }
+
+    // If zoomed into less than one day, show actual hourly ticks.
+    if (visibleHours < 24) {
+      return minute === 0 ? time : "";
+    }
+
+    // Multi-day intraday view: label the first observation of each selected day.
+    const previous = rows[index - 1];
+    if (previous && previous.date === row.date) {
+      return "";
+    }
+
+    return shortDate;
+  }
+
+  function formatZonalTooltipDate(row) {
+    const dateText = parseDate(row.date).toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+
+    if (zonalGranularity === "daily") {
+      return dateText;
+    }
+
+    return `${dateText} · ${row.time}`;
+  }
+
+  function getZonalZoomIndex(value, rows) {
+    const key = String(value);
+
+    if (zonalCategoryToIndex.has(key)) {
+      return zonalCategoryToIndex.get(key);
+    }
+
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) {
+      if (Number.isInteger(numeric) && numeric >= 0 && numeric < rows.length) {
+        return numeric;
+      }
+      return Math.round(numeric);
+    }
+
+    return null;
+  }
+
+  function applyZonalXAxisViewport(rows, startIndex, endIndex) {
+    if (!rows.length) return;
+
+    zonalVisibleStartIndex = Math.max(
+      0,
+      Math.min(startIndex, rows.length - 1)
+    );
+    zonalVisibleEndIndex = Math.max(
+      zonalVisibleStartIndex,
+      Math.min(endIndex, rows.length - 1)
+    );
+
+    const visibleCount =
+      zonalVisibleEndIndex - zonalVisibleStartIndex + 1;
+
+    const intraday =
+      zonalGranularity === "hourly" ||
+      zonalGranularity === "quarter";
+
+    zonalChart.setOption({
+      xAxis: {
+        axisLabel: {
+          interval: intraday
+            ? Math.max(0, Math.floor(visibleCount / 12) - 1)
+            : 0,
+          hideOverlap: true,
+          formatter: value => {
+            const index = getZonalZoomIndex(value, rows);
+            return index === null
+              ? ""
+              : getZonalXAxisLabel(rows[index], index, rows);
+          }
+        }
+      }
+    }, false);
+  }
+
+  function renderZonalChart() {
+    if (!rawZonalData || !rawZonalData.zones) {
+      return;
+    }
+
+    const baseRows = filterZonalRows(getZonalRows("NORD"));
+
+    if (!baseRows.length) {
+      zonalChart.clear();
+      return;
+    }
+
+    const categories = baseRows.map(row => getZonalRowKey(row));
+
+    zonalCategoryToRows = new Map();
+    zonalCategoryToIndex = new Map();
+
+    baseRows.forEach((row, index) => {
+      const key = getZonalRowKey(row);
+      zonalCategoryToRows.set(key, row);
+      zonalCategoryToIndex.set(key, index);
+    });
+
+    zonalVisibleStartIndex = 0;
+    zonalVisibleEndIndex = baseRows.length - 1;
+
+    const series = [];
+    const allValues = [];
+
+    ZONAL_ORDER.forEach((zone, zoneIndex) => {
+      const source = filterZonalRows(getZonalRows(zone));
+      const byKey = new Map(
+        source.map(row => [getZonalRowKey(row), row])
+      );
+
+      const data = categories.map(key => {
+        const row = byKey.get(key);
+        if (!row) return null;
+
+        const value = Number(row.price);
+        if (!Number.isFinite(value)) return null;
+
+        allValues.push(value);
+        return {
+          value,
+          __row: row
+        };
+      });
+
+      series.push({
+        name: ZONAL_LABELS[zone],
+        type: "line",
+        data,
+        smooth: false,
+        showSymbol: false,
+        connectNulls: false,
+        lineStyle: {
+          color: ZONAL_LINE_COLORS[zoneIndex],
+          width: 1.4
+        },
+        itemStyle: {
+          color: ZONAL_LINE_COLORS[zoneIndex]
+        },
+        emphasis: {
+          focus: "series"
+        }
+      });
+    });
+
+    if (!allValues.length) {
+      zonalChart.clear();
+      return;
+    }
+
+    const low = Math.min(...allValues);
+    const high = Math.max(...allValues);
+    const pad = Math.max(10, (high - low) * 0.08);
+
+    const subtitle =
+      zonalGranularity === "quarter"
+        ? "15-minute MGP zonal prices"
+        : zonalGranularity === "hourly"
+          ? "Hourly MGP zonal prices"
+          : "Daily average MGP zonal prices";
+
+    document.getElementById("zonal-chart-subtitle").textContent =
+      currentStart && currentEnd
+        ? `${subtitle} · ${formatDate(currentStart)} – ${formatDate(currentEnd)}`
+        : subtitle;
+
+    zonalChart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      grid: {
+        left: CHART_GRID.left,
+        right: CHART_GRID.right,
+        top: 55,
+        bottom: CHART_GRID.bottom,
+        containLabel: false
+      },
+      legend: {
+        type: "scroll",
+        top: 5,
+        left: CHART_GRID.left,
+        right: CHART_GRID.right,
+        itemWidth: 18,
+        itemHeight: 8,
+        itemGap: 14,
+        textStyle: {
+          color: "#b4bbc4",
+          fontSize: 10
+        },
+        selected: { ...zonalSelected }
+      },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "#171b20",
+        borderColor: "#30363e",
+        borderWidth: 1,
+        textStyle: {
+          color: "#f1f3f5",
+          fontSize: 11
+        },
+        axisPointer: {
+          type: "line",
+          lineStyle: {
+            color: "#5d6670",
+            width: 1
+          }
+        },
+        formatter: params => {
+          if (!params || !params.length) return "";
+
+          const first = params.find(item => item.data && item.data.__row);
+          if (!first) return "";
+
+          const row = first.data.__row;
+          let html =
+            `<div style="margin-bottom:6px;color:#9aa2ac;">${formatZonalTooltipDate(row)}</div>`;
+
+          params.forEach(item => {
+            if (!item.data || !item.data.__row) return;
+
+            const value = Number(item.data.__row.price);
+            if (!Number.isFinite(value)) return;
+
+            html +=
+              `<div style="display:flex;justify-content:space-between;gap:20px;">` +
+              `<span>${item.marker}${item.seriesName}</span>` +
+              `<strong>${value.toFixed(2)} €/MWh</strong>` +
+              `</div>`;
+          });
+
+          return html;
+        }
+      },
+      xAxis: {
+        type: "category",
+        boundaryGap: false,
+        data: categories,
+        axisLine: {
+          lineStyle: { color: "#30353c" }
+        },
+        axisTick: { show: false },
+        axisLabel: {
+          color: "#727a84",
+          fontSize: 10,
+          margin: 10,
+          interval: 0,
+          hideOverlap: true,
+          rotate: 0,
+          formatter: value => {
+            const index = getZonalZoomIndex(value, baseRows);
+            return index === null
+              ? ""
+              : getZonalXAxisLabel(baseRows[index], index, baseRows);
+          }
+        },
+        splitLine: { show: false }
+      },
+      yAxis: {
+        type: "value",
+        min: Math.floor((low - pad) / 10) * 10,
+        max: Math.ceil((high + pad) / 10) * 10,
+        name: "€/MWh",
+        nameLocation: "middle",
+        nameRotate: 90,
+        nameGap: 45,
+        nameTextStyle: {
+          color: "#727a84",
+          fontSize: 10
+        },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: {
+          color: "#727a84",
+          fontSize: 10
+        },
+        splitLine: {
+          show: true,
+          lineStyle: {
+            color: "#20252b",
+            width: 1
+          }
+        }
+      },
+      series,
+      dataZoom: [
+        {
+          type: "inside",
+          xAxisIndex: 0,
+          filterMode: "filter",
+          start: 0,
+          end: 100,
+          zoomOnMouseWheel: true,
+          moveOnMouseMove: true,
+          moveOnMouseWheel: false
+        },
+        {
+          type: "slider",
+          xAxisIndex: 0,
+          filterMode: "filter",
+          bottom: 18,
+          height: 16,
+          borderColor: "#252a30",
+          backgroundColor: "#15191e",
+          fillerColor: "rgba(150,157,166,0.16)",
+          handleStyle: {
+            color: "#8b939d",
+            borderColor: "#8b939d"
+          },
+          moveHandleStyle: {
+            color: "#555d67"
+          },
+          textStyle: {
+            color: "#6f7781",
+            fontSize: 9
+          }
+        }
+      ]
+    }, true);
+
+    // The filtered rows already represent the calendar-selected range.
+    // Reset both dataZoom components to that complete filtered range whenever
+    // the calendar changes; this prevents a previous single-day/hourly zoom
+    // from surviving a new calendar selection.
+    zonalChart.dispatchAction({
+      type: "dataZoom",
+      dataZoomIndex: [0, 1],
+      startValue: 0,
+      endValue: Math.max(0, categories.length - 1)
+    });
+
+    applyZonalXAxisViewport(
+      baseRows,
+      0,
+      baseRows.length - 1
+    );
+
+    zonalChart.resize();
+  }
+
+  zonalChart.on("datazoom", () => {
+    const options = zonalChart.getOption();
+    const zoom = options.dataZoom && options.dataZoom[0];
+    if (!zoom) return;
+
+    const rows = filterZonalRows(getZonalRows("NORD"));
+    if (!rows.length) return;
+
+    let startIndex = getZonalZoomIndex(zoom.startValue, rows);
+    let endIndex = getZonalZoomIndex(zoom.endValue, rows);
+
+    if (startIndex === null) {
+      const pct = Number(zoom.start);
+      startIndex = Number.isFinite(pct)
+        ? Math.round((pct / 100) * Math.max(0, rows.length - 1))
+        : 0;
+    }
+
+    if (endIndex === null) {
+      const pct = Number(zoom.end);
+      endIndex = Number.isFinite(pct)
+        ? Math.round((pct / 100) * Math.max(0, rows.length - 1))
+        : rows.length - 1;
+    }
+
+    if (endIndex < startIndex) {
+      [startIndex, endIndex] = [endIndex, startIndex];
+    }
+
+    applyZonalXAxisViewport(rows, startIndex, endIndex);
+  });
+
+  zonalChart.on("legendselectchanged", event => {
+    zonalSelected = { ...event.selected };
+  });
+
+  /* ============================================================
+     ZONAL CHART DRAG-TO-ZOOM
+     ============================================================ */
+
+  function isInsideZonalPlot(x, y) {
+    const width = zonalChartContainer.clientWidth;
+    const height = zonalChartContainer.clientHeight;
+
+    const left = CHART_GRID.left;
+    const right = width - CHART_GRID.right;
+    const top = 55;
+    const bottom = height - CHART_GRID.bottom;
+
+    return x >= left && x <= right && y >= top && y <= bottom;
+  }
+
+  function getZonalDataIndexFromX(x, count) {
+    const plotLeft = CHART_GRID.left;
+    const plotRight = zonalChartContainer.clientWidth - CHART_GRID.right;
+    const usableWidth = plotRight - plotLeft;
+
+    if (count <= 1 || usableWidth <= 0) return 0;
+
+    const ratio = (x - plotLeft) / usableWidth;
+    return Math.max(
+      0,
+      Math.min(
+        count - 1,
+        Math.round(ratio * (count - 1))
+      )
+    );
+  }
+
+  function updateZonalDragRectangle() {
+    if (zonalDragStartX === null || zonalDragCurrentX === null) return;
+
+    const left = Math.min(zonalDragStartX, zonalDragCurrentX);
+    const right = Math.max(zonalDragStartX, zonalDragCurrentX);
+
+    zonalDragSelection.style.left = `${left}px`;
+    zonalDragSelection.style.width = `${Math.max(1, right - left)}px`;
+  }
+
+  function startZonalChartDrag(event) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+
+    const rect = zonalChartContainer.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    if (!isInsideZonalPlot(x, y)) return;
+
+    zonalIsDragging = false;
+    zonalDragStartX = x;
+    zonalDragCurrentX = x;
+    zonalPointerId = event.pointerId;
+
+    zonalChartContainer.setPointerCapture(zonalPointerId);
+    event.preventDefault();
+  }
+
+  function moveZonalChartDrag(event) {
+    if (
+      zonalDragStartX === null ||
+      zonalPointerId !== event.pointerId
+    ) return;
+
+    const rect = zonalChartContainer.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const plotLeft = CHART_GRID.left;
+    const plotRight = zonalChartContainer.clientWidth - CHART_GRID.right;
+
+    zonalDragCurrentX = Math.max(plotLeft, Math.min(plotRight, x));
+
+    if (
+      !zonalIsDragging &&
+      Math.abs(zonalDragCurrentX - zonalDragStartX) < 5
+    ) {
+      return;
+    }
+
+    zonalIsDragging = true;
+    zonalChartContainer.classList.add("dragging");
+    zonalDragSelection.style.display = "block";
+    updateZonalDragRectangle();
+    event.preventDefault();
+  }
+
+  function finishZonalChartDrag(event) {
+    if (
+      zonalDragStartX === null ||
+      zonalPointerId !== event.pointerId
+    ) return;
+
+    const rect = zonalChartContainer.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const plotLeft = CHART_GRID.left;
+    const plotRight = zonalChartContainer.clientWidth - CHART_GRID.right;
+
+    zonalDragCurrentX = Math.max(plotLeft, Math.min(plotRight, x));
+
+    const startX = Math.min(zonalDragStartX, zonalDragCurrentX);
+    const endX = Math.max(zonalDragStartX, zonalDragCurrentX);
+    const rows = filterZonalRows(getZonalRows("NORD"));
+
+    if (
+      zonalIsDragging &&
+      rows.length > 1 &&
+      endX - startX >= 8
+    ) {
+      const startIndex = getZonalDataIndexFromX(startX, rows.length);
+      const endIndex = getZonalDataIndexFromX(endX, rows.length);
+
+      if (endIndex > startIndex) {
+        zonalChart.dispatchAction({
+          type: "dataZoom",
+          dataZoomIndex: [0, 1],
+          startValue: startIndex,
+          endValue: endIndex
+        });
+      }
+    }
+
+    zonalDragSelection.style.display = "none";
+    zonalChartContainer.classList.remove("dragging");
+    zonalIsDragging = false;
+    zonalDragStartX = null;
+    zonalDragCurrentX = null;
+
+    if (
+      zonalPointerId !== null &&
+      zonalChartContainer.hasPointerCapture(zonalPointerId)
+    ) {
+      zonalChartContainer.releasePointerCapture(zonalPointerId);
+    }
+
+    zonalPointerId = null;
+    event.preventDefault();
+  }
+
+  function cancelZonalChartDrag(event) {
+    if (
+      zonalPointerId !== null &&
+      event.pointerId !== zonalPointerId
+    ) return;
+
+    zonalDragSelection.style.display = "none";
+    zonalChartContainer.classList.remove("dragging");
+    zonalIsDragging = false;
+    zonalDragStartX = null;
+    zonalDragCurrentX = null;
+    zonalPointerId = null;
+  }
+
+  zonalChartContainer.addEventListener(
+    "pointerdown",
+    startZonalChartDrag,
+    { passive: false }
+  );
+
+  zonalChartContainer.addEventListener(
+    "pointermove",
+    moveZonalChartDrag,
+    { passive: false }
+  );
+
+  zonalChartContainer.addEventListener(
+    "pointerup",
+    finishZonalChartDrag,
+    { passive: false }
+  );
+
+  zonalChartContainer.addEventListener(
+    "pointercancel",
+    cancelZonalChartDrag
+  );
+
   function renderChart() {
     if (!rawData) return;
 
@@ -1894,7 +2684,7 @@
           fontSize: 10,
           margin: 10,
           interval: 0,
-          hideOverlap: false,
+          hideOverlap: true,
           rotate: 0,
           formatter: value => getXAxisLabelByValue(value, series)
         },
@@ -1972,13 +2762,18 @@
     );
 
     const visibleHours = getVisibleHours(series);
+    const visibleDays = getVisibleDaySpan(series);
     const intraday = currentGranularity === 'hourly' || currentGranularity === 'quarter';
 
     chart.setOption({
       xAxis: {
         axisLabel: {
-          rotate: intraday && visibleHours < 24 ? 0 : 0,
+          rotate: 0,
           fontSize: 10,
+          interval: intraday
+            ? Math.max(0, Math.floor(series.length / 12) - 1)
+            : Math.max(0, Math.floor(visibleDays / 8) - 1),
+          hideOverlap: true,
           formatter: value => getXAxisLabelByValue(value, series)
         }
       }
@@ -2539,6 +3334,9 @@
   const punChartSection =
     document.getElementById("pun-chart-section");
 
+  const zonalChartSection =
+    document.getElementById("zonal-chart-section");
+
   function updateView() {
     document
       .querySelectorAll(".sidebar-item")
@@ -2600,31 +3398,55 @@
     const hasData =
       ZONES_WITH_DATA.includes(currentZone);
 
-    const showChart =
+    const showPunChart =
       hasData &&
       currentZone === "italy" &&
       currentSubTab === "overview";
+
+    const showZonalChart =
+      hasData &&
+      currentZone === "italy" &&
+      currentSubTab === "prices";
 
     const zonePlaceholder =
       document.getElementById("zone-placeholder");
 
     zonePlaceholder.style.display =
-      showChart ? "none" : "flex";
+      showPunChart || showZonalChart
+        ? "none"
+        : "flex";
 
-    if (showChart) {
+    if (showPunChart) {
       const mount =
         document.getElementById("chart-mount-overview");
 
-      // Move the chart into the Italy > Overview page only.
       mount.appendChild(punChartSection);
 
       setTimeout(() => {
         chart.resize();
+        renderChart();
       }, 0);
     } else {
-      // Remove it completely when leaving Italy > Overview.
       punChartSection.remove();
+    }
 
+    if (showZonalChart) {
+      const mount =
+        document.getElementById("chart-mount-prices");
+
+      mount.appendChild(zonalChartSection);
+
+      renderZonalChart();
+
+      setTimeout(() => {
+        zonalChart.resize();
+        renderZonalChart();
+      }, 0);
+    } else {
+      zonalChartSection.remove();
+    }
+
+    if (!showPunChart && !showZonalChart) {
       document.getElementById(
         "zone-placeholder-text"
       ).textContent =
@@ -2662,6 +3484,27 @@
           button.dataset.tab;
 
         updateView();
+      });
+    });
+
+  document
+    .querySelectorAll("[data-zonal-granularity]")
+    .forEach(button => {
+      button.addEventListener("click", () => {
+        zonalGranularity =
+          button.dataset.zonalGranularity;
+
+        document
+          .querySelectorAll("[data-zonal-granularity]")
+          .forEach(other => {
+            other.classList.toggle(
+              "active",
+              other.dataset.zonalGranularity ===
+                zonalGranularity
+            );
+          });
+
+        renderZonalChart();
       });
     });
 
@@ -2740,6 +3583,11 @@
     syncCalendarTriggerLabel();
     updateView();
   };
+
+  window.addEventListener("resize", () => {
+    chart.resize();
+    zonalChart.resize();
+  });
 
   updateView();
   loadData();
