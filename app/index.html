@@ -15,12 +15,12 @@
     .brand { display:flex; flex-direction:column; flex-shrink:0; line-height:1.1; }
     .brand-name { font-size:14px; font-weight:700; letter-spacing:-0.01em; }
     .brand-sub { font-size:10px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.06em; }
-    .zone-tabs { display:flex; gap:4px; overflow-x:auto; flex:1; scrollbar-width:none; }
+    .zone-tabs { display:flex; gap:4px; overflow-x:auto; flex:0 1 auto; min-width:0; scrollbar-width:none; }
     .zone-tabs::-webkit-scrollbar { display:none; }
     .zone-tab { border:1px solid transparent; background:transparent; color:var(--muted); font-size:12.5px; padding:7px 13px; border-radius:6px; cursor:pointer; white-space:nowrap; }
     .zone-tab:hover { color:var(--text); background:#1a1f25; }
     .zone-tab.active { background:var(--panel-2); color:var(--text); border-color:var(--border); font-weight:600; }
-    .topbar-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    .topbar-right { display:flex; align-items:center; gap:10px; flex-shrink:0; margin-left:auto; }
     .status { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:11.5px; }
     .status-dot { width:7px; height:7px; border-radius:50%; background:#5ecb8a; flex-shrink:0; }
     .calendar-trigger-wrap { position:relative; }
@@ -108,7 +108,7 @@
     #chart-wrap.dragging #chart-drag-hint { opacity:0; }
     .chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
     @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:min(92vw,520px);right:-60px} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} .chart-panel{width:100%;max-width:100%;} }
-    @media (max-width:600px) { .topbar{padding:0 12px;gap:12px}.status{display:none}.main-content{padding:20px 12px 40px}.brand-sub{display:none}#chart-wrap{height:470px}.chart-header{align-items:flex-start;flex-direction:column}.granularity{align-self:stretch}.granularity button{flex:1}.chart-help{margin-left:52px} }
+    @media (max-width:600px) { .topbar{padding:0 12px;gap:12px}.status{display:none}.main-content{padding:20px 12px 40px}.brand-sub{display:none}#chart-wrap{height:470px}.chart-header{align-items:flex-start;flex-direction:column}.granularity button{padding:7px 8px}.chart-help{margin-left:52px} }
   </style>
 </head>
 <body>
@@ -118,6 +118,7 @@
       <div id="zone-tabs-wrap" class="zone-tabs">
         <button class="zone-tab active" data-zone="italy" type="button">Italy</button><button class="zone-tab" data-zone="north" type="button">North</button><button class="zone-tab" data-zone="center-north" type="button">Center North</button><button class="zone-tab" data-zone="center-south" type="button">Center South</button><button class="zone-tab" data-zone="south" type="button">South</button><button class="zone-tab" data-zone="calabria" type="button">Calabria</button><button class="zone-tab" data-zone="sicily" type="button">Sicily</button><button class="zone-tab" data-zone="sardinia" type="button">Sardinia</button>
       </div>
+      <div id="granularity-control" class="granularity" role="group" aria-label="Data resolution for all charts"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div>
       <div class="topbar-right">
         <div class="status"><span class="status-dot"></span><span id="status-text">Loading data</span></div>
         <div class="calendar-trigger-wrap">
@@ -143,17 +144,12 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices">
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices">
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
                 <div class="chart-title">MGP Zonal Prices</div>
                 <div id="zonal-chart-subtitle" class="chart-subtitle">Daily average</div>
-              </div>
-              <div class="granularity">
-                <button data-zonal-granularity="quarter" type="button">15 MIN</button>
-                <button data-zonal-granularity="hourly" type="button">HOURLY</button>
-                <button data-zonal-granularity="daily" class="active" type="button">DAILY</button>
               </div>
             </div>
             <div id="zonal-chart-wrap">
@@ -1700,9 +1696,13 @@
      GRANULARITY
      ============================================================ */
 
+  /*
+   * One 15 MIN / HOURLY / DAILY control in the top bar sets the
+   * resolution for every chart on the dashboard.
+   */
   document
     .querySelectorAll(
-      ".granularity button"
+      "#granularity-control button"
     )
     .forEach(button => {
 
@@ -1722,10 +1722,13 @@
           currentGranularity =
             next;
 
+          zonalGranularity =
+            next;
+
 
           document
             .querySelectorAll(
-              ".granularity button"
+              "#granularity-control button"
             )
             .forEach(item => {
 
@@ -1745,9 +1748,10 @@
 
           renderCalendar();
 
-          renderChart();
-          renderGenerationLoadChart();
-          renderZonalChart();
+          // Re-renders only the charts on the visible tab; hidden charts
+          // are detached from the page and pick up the new resolution
+          // when their tab is opened.
+          updateView();
         }
       );
     });
@@ -4200,6 +4204,9 @@
     document.getElementById("zone-tabs-wrap").style.display =
       isDataSection ? "flex" : "none";
 
+    document.getElementById("granularity-control").style.display =
+      isDataSection ? "flex" : "none";
+
     document.getElementById("zone-page").style.display =
       isDataSection ? "block" : "none";
 
@@ -4335,27 +4342,6 @@
           button.dataset.tab;
 
         updateView();
-      });
-    });
-
-  document
-    .querySelectorAll("[data-zonal-granularity]")
-    .forEach(button => {
-      button.addEventListener("click", () => {
-        zonalGranularity =
-          button.dataset.zonalGranularity;
-
-        document
-          .querySelectorAll("[data-zonal-granularity]")
-          .forEach(other => {
-            other.classList.toggle(
-              "active",
-              other.dataset.zonalGranularity ===
-                zonalGranularity
-            );
-          });
-
-        renderZonalChart();
       });
     });
 
