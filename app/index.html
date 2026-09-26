@@ -26,6 +26,8 @@
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
       --chart-pun:#d9dde2; --chart-generation:#5ecb8a; --chart-load:#5b9cff;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
+      --mix-coal:#e66767; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
+      --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d;
     }
     :root[data-theme="light"] {
       color-scheme:light;
@@ -37,6 +39,8 @@
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
       --chart-pun:#1f2429; --chart-generation:#1f9d57; --chart-load:#2f6fdb;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
+      --mix-coal:#e34948; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
+      --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097;
     }
     #theme-toggle { position:fixed; left:16px; bottom:16px; z-index:150; display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 14px 8px 11px; font-size:12px; cursor:pointer; box-shadow:0 6px 18px var(--shadow); }
     #theme-toggle:hover { background:var(--hover); }
@@ -144,6 +148,10 @@
     #chart { position:absolute; inset:0; width:100%; height:100%; }
     #generation-load-chart-wrap { position:relative; width:100%; height:520px; touch-action:none; }
     #generation-load-chart { position:absolute; inset:0; width:100%; height:100%; }
+    .chart-panel-wide { grid-column:1 / -1; }
+    #generation-mix-chart-wrap { position:relative; width:100%; height:660px; touch-action:none; }
+    #generation-mix-chart { position:absolute; inset:0; width:100%; height:100%; }
+    #generation-mix-drag-selection { position:absolute; z-index:20; display:none; top:8px; bottom:70px; border:1px solid var(--selection-border); background:var(--selection-fill); pointer-events:none; }
     #generation-load-drag-selection { position:absolute; z-index:20; display:none; top:20px; height:calc(100% - 90px); border:1px solid var(--selection-border); background:var(--selection-fill); pointer-events:none; }
     #generation-load-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:var(--drag-hint); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
     #generation-load-chart-wrap.dragging #generation-load-drag-hint { opacity:0; }
@@ -195,7 +203,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices">
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Storage charging and pumping are shown below zero. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices">
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -223,6 +231,15 @@
   
   <script>
 
+
+  /* Chart subtitle: "<text> · <calendar range>". */
+  function setChartSubtitle(id, text) {
+    const element = document.getElementById(id);
+    if (!element) return;
+    element.textContent = currentStart && currentEnd
+      ? `${text} · ${formatDate(currentStart)} – ${formatDate(currentEnd)}`
+      : text;
+  }
 
   /* Current value of a colour token from the :root theme blocks. */
   function cssVar(name) {
@@ -2412,9 +2429,11 @@
       return;
     }
 
-    const low = Math.min(...values);
-    const high = Math.max(...values);
-    const pad = Math.max(500, (high - low) * 0.08);
+    setChartSubtitle('generation-load-chart-subtitle', {
+      daily: 'Daily energy',
+      hourly: 'Hourly average power',
+      quarter: '15-minute average power'
+    }[currentGranularity]);
 
     const option = {
       animation: false,
@@ -2468,8 +2487,6 @@
       },
       yAxis: {
         type: 'value',
-        min: Math.floor((low - pad) / 1000) * 1000,
-        max: Math.ceil((high + pad) / 1000) * 1000,
         name: currentGranularity === 'daily' ? 'MWh' : 'MW',
         nameLocation: 'middle', nameRotate: 90, nameGap: 45,
         nameTextStyle: { color: cssVar('--chart-axis-label'), fontSize: 10 },
@@ -2866,10 +2883,6 @@
       return;
     }
 
-    const low = Math.min(...allValues);
-    const high = Math.max(...allValues);
-    const pad = Math.max(10, (high - low) * 0.08);
-
     const subtitle =
       zonalGranularity === "quarter"
         ? "15-minute MGP zonal prices"
@@ -2974,8 +2987,6 @@
       },
       yAxis: {
         type: "value",
-        min: Math.floor((low - pad) / 10) * 10,
-        max: Math.ceil((high + pad) / 10) * 10,
         name: "€/MWh",
         nameLocation: "middle",
         nameRotate: 90,
@@ -3289,11 +3300,6 @@
         ? `${subtitle} · ${formatDate(currentStart)} – ${formatDate(currentEnd)}`
         : subtitle;
 
-    const values = series.map(row => Number(row.pun));
-    const low = Math.min(...values);
-    const high = Math.max(...values);
-    const pad = Math.max(10, (high - low) * 0.08);
-
     const categories = series.map((row, index) => makeCategoryKey(row, index));
 
     const option = {
@@ -3354,8 +3360,6 @@
       },
       yAxis: {
         type: 'value',
-        min: Math.floor((low - pad) / 10) * 10,
-        max: Math.ceil((high + pad) / 10) * 10,
         name: '€/MWh',
         nameLocation: 'middle',
         nameRotate: 90,
@@ -4222,6 +4226,509 @@
 
 
   /* ============================================================
+     GENERATION MIX, LOAD & PUN CHART
+     ============================================================ */
+
+  /*
+   * ENTSO-E production types grouped into nine sources, stacked bottom to
+   * top in this order.  The colours were checked for this order so that
+   * neighbouring areas stay distinguishable, including for colour-blind
+   * readers, in both themes; "Other & oil" is the neutral fold-in bucket.
+   */
+  const MIX_SOURCES = [
+    { name: "Coal", codes: ["B05", "B03"], color: "--mix-coal" },
+    { name: "Other & oil", codes: ["B20", "B06"], color: "--mix-other" },
+    { name: "Fossil gas", codes: ["B04"], color: "--mix-gas" },
+    { name: "Other renewables", codes: ["B01", "B17", "B15", "B09"], color: "--mix-renewables" },
+    { name: "Hydro", codes: ["B11", "B12"], color: "--mix-hydro" },
+    { name: "Pumped hydro", codes: ["B10"], color: "--mix-pumped" },
+    { name: "Battery storage", codes: ["B25"], color: "--mix-battery" },
+    { name: "Wind", codes: ["B19", "B18"], color: "--mix-wind" },
+    { name: "Solar", codes: ["B16"], color: "--mix-solar" }
+  ];
+
+  /* Storage consumption, drawn below zero in its source's colour. */
+  const MIX_CONSUMPTION = [
+    { name: "Pumped hydro (pumping)", codes: ["B10"], color: "--mix-pumped" },
+    { name: "Battery storage (charging)", codes: ["B25"], color: "--mix-battery" }
+  ];
+
+  const MIX_LOAD_NAME = "Actual load";
+  const MIX_PUN_NAME = "PUN Index";
+
+  const generationMixChartElement =
+    document.getElementById("generation-mix-chart");
+
+  const generationMixChart =
+    echarts.init(generationMixChartElement);
+
+  const generationMixChartSection =
+    document.getElementById("generation-mix-chart-section");
+
+  let generationMixSelected = {};
+  let generationMixRows = [];
+  let generationMixVisibleStart = 0;
+  let generationMixVisibleEnd = 0;
+
+  /* Per-granularity lookup tables (bucket key -> value), built once. */
+  const generationMixCache = {};
+
+  function generationMixBucketKey(row) {
+    return currentGranularity === "daily"
+      ? row.date
+      : `${row.date}|${row.time || ""}`;
+  }
+
+  function generationMixResolutionKey() {
+    return currentGranularity === "quarter"
+      ? "quarter_hourly"
+      : currentGranularity === "hourly" ? "hourly" : "daily";
+  }
+
+  function sumGroupsByBucket(groups, codes) {
+    const totals = new Map();
+    codes.forEach(code => {
+      const group = groups[code];
+      const points = Array.isArray(group) ? group : (group && group.points) || [];
+      points.forEach(row => {
+        const key = generationMixBucketKey(row);
+        totals.set(key, (totals.get(key) || 0) + Number(row.value || 0));
+      });
+    });
+    return totals;
+  }
+
+  function getGenerationMixLookups() {
+    const resolution = generationMixResolutionKey();
+    if (generationMixCache[resolution]) return generationMixCache[resolution];
+
+    const data = rawGenerationLoadData || {};
+    const generation = (data.generation || {})[resolution] || {};
+    const consumption = (data.consumption || {})[resolution] || {};
+    const load = ((data.total_load || {})[resolution] || {}).TOTAL || [];
+
+    const lookups = {
+      sources: MIX_SOURCES.map(source => sumGroupsByBucket(generation, source.codes)),
+      consumption: MIX_CONSUMPTION.map(item => sumGroupsByBucket(consumption, item.codes)),
+      load: new Map(load.map(row => [generationMixBucketKey(row), Number(row.value)]))
+    };
+    generationMixCache[resolution] = lookups;
+    return lookups;
+  }
+
+  /*
+   * One row per PUN timestamp, so this chart shares the calendar range and
+   * time axis of the charts above.  ENTSO-E omits some zero readings, so a
+   * source missing at a timestamp that has other generation counts as 0;
+   * a timestamp with no generation at all stays empty (a gap).
+   */
+  function buildGenerationMixRows() {
+    const lookups = getGenerationMixLookups();
+
+    return filteredSeries().map(punRow => {
+      const key = generationMixBucketKey(punRow);
+      const hasGeneration = lookups.sources.some(map => map.has(key));
+      const load = lookups.load.get(key);
+
+      return {
+        date: punRow.date,
+        time: punRow.time || "",
+        sources: lookups.sources.map(map =>
+          hasGeneration ? (map.get(key) || 0) : null
+        ),
+        consumption: lookups.consumption.map(map =>
+          hasGeneration ? -(map.get(key) || 0) : null
+        ),
+        load: Number.isFinite(load) ? load : null,
+        pun: Number(punRow.pun)
+      };
+    });
+  }
+
+  function formatMixNumber(value) {
+    return Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+
+  function generationMixTooltip(params) {
+    if (!params || !params.length) return "";
+    const row = generationMixRows[params[0].dataIndex];
+    if (!row) return "";
+
+    const unit = currentGranularity === "daily" ? "MWh" : "MW";
+    const muted = cssVar("--chart-tooltip-muted");
+    const shown = name => generationMixSelected[name] !== false;
+    // Areas get a square swatch, lines a short line, so the blue load line
+    // reads differently from the blue hydro area.
+    const line = (color, name, value, shape = "area") => {
+      const swatch = shape === "line"
+        ? `width:12px;height:2px;margin:0 6px 3px 0;`
+        : `width:8px;height:8px;border-radius:2px;margin-right:6px;`;
+      return `<div style="display:flex;justify-content:space-between;gap:18px;">` +
+        `<span><span style="display:inline-block;${swatch}background:${color};"></span>${name}</span>` +
+        `<b>${value}</b></div>`;
+    };
+
+    const dateText = parseDate(row.date).toLocaleDateString("en-GB", {
+      day: "2-digit", month: "short", year: "numeric"
+    });
+    const timeText = currentGranularity === "daily" ? "" : ` ${row.time}`;
+
+    let html = `<div style="margin-bottom:6px;color:${muted};">${dateText}${timeText}</div>`;
+
+    if (shown(MIX_LOAD_NAME) && row.load !== null) {
+      html += line(cssVar("--chart-load"), MIX_LOAD_NAME, `${formatMixNumber(row.load)} ${unit}`, "line");
+    }
+
+    if (row.sources[0] !== null) {
+      const total = row.sources.reduce((sum, value) => sum + value, 0);
+      html += `<div style="margin:6px 0 2px;color:${muted};">Generation · ${formatMixNumber(total)} ${unit}</div>`;
+
+      // Top of the stack first, matching the picture.
+      for (let i = MIX_SOURCES.length - 1; i >= 0; i--) {
+        const source = MIX_SOURCES[i];
+        if (!shown(source.name) || !row.sources[i]) continue;
+        html += line(cssVar(source.color), source.name, `${formatMixNumber(row.sources[i])} ${unit}`);
+      }
+
+      MIX_CONSUMPTION.forEach((item, i) => {
+        if (!shown(item.name) || !row.consumption[i]) return;
+        html += line(cssVar(item.color), item.name, `${formatMixNumber(row.consumption[i])} ${unit}`);
+      });
+    }
+
+    if (shown(MIX_PUN_NAME) && Number.isFinite(row.pun)) {
+      html += `<div style="margin-top:6px;">` +
+        line(cssVar("--chart-pun"), MIX_PUN_NAME, `${row.pun.toFixed(2)} €/MWh`, "line") + `</div>`;
+    }
+
+    return html;
+  }
+
+  /* x-axis labels thin out with the visible span, like the charts above. */
+  function generationMixAxisLabel(index) {
+    const row = generationMixRows[index];
+    const first = generationMixRows[generationMixVisibleStart];
+    const last = generationMixRows[generationMixVisibleEnd];
+    if (!row || !first || !last) return "";
+
+    const dayLabel = parseDate(row.date).toLocaleDateString("en-GB", {
+      day: "2-digit", month: "2-digit"
+    });
+    const daySpan = Math.round(
+      (parseDate(last.date) - parseDate(first.date)) / 86400000
+    ) + 1;
+    const dayOffset = Math.round(
+      (parseDate(row.date) - parseDate(first.date)) / 86400000
+    );
+    const dayStep = Math.max(1, Math.ceil(daySpan / 10));
+
+    if (currentGranularity === "daily") {
+      return dayOffset % dayStep === 0 ? dayLabel : "";
+    }
+
+    const time = getMarketTime(row);
+    if (!time || time.minute !== 0) return "";
+
+    if (daySpan <= 2) {
+      // Across two days, midnight is labelled with the new day's date.
+      if (daySpan === 2 && time.hour === 0) return dayLabel;
+      const hourStep = daySpan === 1 ? 2 : 4;
+      return time.hour % hourStep === 0 ? formatActualTime(row) : "";
+    }
+
+    return time.hour === 0 && dayOffset % dayStep === 0 ? dayLabel : "";
+  }
+
+  /* Number of legend rows at the current chart width (legend wraps). */
+  function generationMixLegendRows(names) {
+    const width = generationMixChartElement.clientWidth - CHART_GRID.left - 24;
+    let rows = 1;
+    let used = 0;
+    names.forEach(name => {
+      const itemWidth = 18 + 5 + name.length * 6.2 + 14;
+      if (used + itemWidth > width && used > 0) {
+        rows += 1;
+        used = 0;
+      }
+      used += itemWidth;
+    });
+    return rows;
+  }
+
+  function renderGenerationMixChart() {
+    if (!rawGenerationLoadData || !rawData) return;
+
+    generationMixRows = buildGenerationMixRows();
+    const rows = generationMixRows;
+
+    if (!rows.length) {
+      generationMixChart.clear();
+      return;
+    }
+
+    setChartSubtitle("generation-mix-chart-subtitle", {
+      daily: "Daily energy by source",
+      hourly: "Hourly average power by source",
+      quarter: "15-minute average power by source"
+    }[currentGranularity]);
+
+    generationMixVisibleStart = 0;
+    generationMixVisibleEnd = rows.length - 1;
+
+    const unit = currentGranularity === "daily" ? "MWh" : "MW";
+    const categories = rows.map(row => generationMixBucketKey(row));
+    const surface = cssVar("--panel");
+
+    const areaSeries = (item, values, stack, opacity) => ({
+      name: item.name,
+      type: "line",
+      stack,
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      data: values,
+      showSymbol: false,
+      connectNulls: false,
+      // A thin surface-coloured edge separates neighbouring areas.
+      lineStyle: { width: 1, color: surface },
+      areaStyle: { color: cssVar(item.color), opacity },
+      itemStyle: { color: cssVar(item.color), opacity },
+      emphasis: { focus: "series" }
+    });
+
+    const series = [
+      ...MIX_SOURCES.map((source, i) =>
+        areaSeries(source, rows.map(row => row.sources[i]), "generation", 0.9)
+      ),
+      ...MIX_CONSUMPTION.map((item, i) =>
+        areaSeries(item, rows.map(row => row.consumption[i]), "consumption", 0.5)
+      ),
+      {
+        name: MIX_LOAD_NAME,
+        type: "line",
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        data: rows.map(row => row.load),
+        showSymbol: false,
+        connectNulls: false,
+        lineStyle: { color: cssVar("--chart-load"), width: 2 },
+        itemStyle: { color: cssVar("--chart-load") },
+        z: 5
+      },
+      {
+        name: MIX_PUN_NAME,
+        type: "line",
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        data: rows.map(row => row.pun),
+        showSymbol: false,
+        lineStyle: { color: cssVar("--chart-pun"), width: 1.5 },
+        itemStyle: { color: cssVar("--chart-pun") }
+      }
+    ];
+
+    const legendNames = series.map(item => item.name);
+    const legendRows = generationMixLegendRows(legendNames);
+
+    // Layout (px): legend, generation panel, gap, PUN panel, zoom bar.
+    const legendTop = 8;
+    const mixTop = legendTop + legendRows * 22 + 16;
+    const punHeight = 120;
+    const punBottom = CHART_GRID.bottom;
+    const mixBottom = punBottom + punHeight + 36;
+
+    const axisLabelStyle = { color: cssVar("--chart-axis-label"), fontSize: 10 };
+    const splitLine = { show: true, lineStyle: { color: cssVar("--chart-grid"), width: 1 } };
+
+    const xAxis = gridIndex => ({
+      type: "category",
+      gridIndex,
+      boundaryGap: false,
+      data: categories,
+      axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+      axisTick: { show: false },
+      axisLabel: gridIndex === 1
+        ? {
+            ...axisLabelStyle,
+            margin: 10,
+            interval: 0,
+            hideOverlap: true,
+            formatter: (value, index) => generationMixAxisLabel(index)
+          }
+        : { show: false },
+      splitLine: { show: false }
+    });
+
+    const yAxis = (gridIndex, name, extra) => ({
+      type: "value",
+      gridIndex,
+      name,
+      nameLocation: "middle",
+      nameRotate: 90,
+      nameGap: 52,
+      nameTextStyle: axisLabelStyle,
+      axisLine: { show: false },
+      axisTick: { show: false },
+      axisLabel: axisLabelStyle,
+      splitLine,
+      ...extra
+    });
+
+    generationMixChart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      legend: {
+        type: "plain",
+        top: legendTop,
+        left: CHART_GRID.left,
+        right: 24,
+        itemWidth: 18,
+        itemHeight: 8,
+        itemGap: 14,
+        textStyle: { color: cssVar("--chart-legend"), fontSize: 10 },
+        data: legendNames,
+        selected: { ...generationMixSelected }
+      },
+      axisPointer: { link: [{ xAxisIndex: "all" }] },
+      tooltip: {
+        trigger: "axis",
+        confine: true,
+        backgroundColor: cssVar("--chart-tooltip-bg"),
+        borderColor: cssVar("--chart-tooltip-border"),
+        borderWidth: 1,
+        textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
+        axisPointer: { type: "line", lineStyle: { color: cssVar("--chart-pointer"), width: 1 } },
+        formatter: generationMixTooltip
+      },
+      grid: [
+        { left: CHART_GRID.left, right: 24, top: mixTop, bottom: mixBottom, containLabel: false },
+        { left: CHART_GRID.left, right: 24, height: punHeight, bottom: punBottom, containLabel: false }
+      ],
+      xAxis: [xAxis(0), xAxis(1)],
+      yAxis: [
+        yAxis(0, unit, {}),
+        yAxis(1, "€/MWh", { splitNumber: 2 })
+      ],
+      series,
+      dataZoom: [
+        {
+          type: "inside",
+          xAxisIndex: [0, 1],
+          filterMode: "filter",
+          zoomOnMouseWheel: true,
+          moveOnMouseMove: false,
+          moveOnMouseWheel: false
+        },
+        {
+          type: "slider",
+          xAxisIndex: [0, 1],
+          filterMode: "filter",
+          bottom: 18,
+          height: 16,
+          left: CHART_GRID.left,
+          right: 24,
+          borderColor: cssVar("--chart-zoom-border"),
+          backgroundColor: cssVar("--chart-zoom-bg"),
+          fillerColor: cssVar("--chart-zoom-filler"),
+          handleStyle: { color: cssVar("--chart-zoom-handle"), borderColor: cssVar("--chart-zoom-handle") },
+          moveHandleStyle: { color: cssVar("--chart-zoom-move") },
+          textStyle: { color: cssVar("--chart-zoom-text"), fontSize: 9 },
+          showDetail: false
+        }
+      ]
+    }, true);
+
+    generationMixChart.resize();
+  }
+
+  generationMixChart.on("legendselectchanged", event => {
+    generationMixSelected = { ...event.selected };
+  });
+
+  generationMixChart.on("datazoom", () => {
+    const zoom = generationMixChart.getOption().dataZoom[0];
+    const last = Math.max(0, generationMixRows.length - 1);
+    const start = Number.isFinite(zoom.startValue)
+      ? zoom.startValue
+      : Math.round((zoom.start / 100) * last);
+    const end = Number.isFinite(zoom.endValue)
+      ? zoom.endValue
+      : Math.round((zoom.end / 100) * last);
+
+    generationMixVisibleStart = clamp(Math.min(start, end), 0, last);
+    generationMixVisibleEnd = clamp(Math.max(start, end), 0, last);
+  });
+
+  /* Drag horizontally across either panel to zoom to that range. */
+  (function attachGenerationMixDragZoom() {
+    const container = document.getElementById("generation-mix-chart-wrap");
+    const selection = document.getElementById("generation-mix-drag-selection");
+    let startX = null;
+    let currentX = null;
+    let dragging = false;
+    let activePointer = null;
+
+    const localPoint = event => {
+      const rect = container.getBoundingClientRect();
+      return [event.clientX - rect.left, event.clientY - rect.top];
+    };
+
+    const inPlot = point =>
+      generationMixChart.containPixel({ gridIndex: 0 }, point) ||
+      generationMixChart.containPixel({ gridIndex: 1 }, point);
+
+    const indexAt = x =>
+      Math.round(generationMixChart.convertFromPixel({ xAxisIndex: 1 }, x));
+
+    const reset = () => {
+      selection.style.display = "none";
+      container.classList.remove("dragging");
+      startX = currentX = activePointer = null;
+      dragging = false;
+    };
+
+    container.addEventListener("pointerdown", event => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      const point = localPoint(event);
+      if (!inPlot(point)) return;
+      startX = currentX = point[0];
+      activePointer = event.pointerId;
+      container.setPointerCapture(activePointer);
+    });
+
+    container.addEventListener("pointermove", event => {
+      if (startX === null || event.pointerId !== activePointer) return;
+      currentX = localPoint(event)[0];
+      if (!dragging && Math.abs(currentX - startX) < 5) return;
+      dragging = true;
+      container.classList.add("dragging");
+      selection.style.display = "block";
+      selection.style.left = `${Math.min(startX, currentX)}px`;
+      selection.style.width = `${Math.max(1, Math.abs(currentX - startX))}px`;
+      event.preventDefault();
+    });
+
+    container.addEventListener("pointerup", event => {
+      if (startX === null || event.pointerId !== activePointer) return;
+      if (dragging && Math.abs(currentX - startX) >= 8) {
+        const startIndex = indexAt(Math.min(startX, currentX));
+        const endIndex = indexAt(Math.max(startX, currentX));
+        if (endIndex > startIndex) {
+          generationMixChart.dispatchAction({
+            type: "dataZoom",
+            dataZoomIndex: [0, 1],
+            startValue: startIndex,
+            endValue: endIndex
+          });
+        }
+      }
+      reset();
+    });
+
+    container.addEventListener("pointercancel", reset);
+  })();
+
+
+  /* ============================================================
      REDESIGN NAVIGATION / TOP-BAR CALENDAR
      ============================================================ */
 
@@ -4342,16 +4849,20 @@
 
       mount.appendChild(punChartSection);
       mount.appendChild(generationLoadChartSection);
+      mount.appendChild(generationMixChartSection);
 
       setTimeout(() => {
         chart.resize();
         generationLoadChart.resize();
+        generationMixChart.resize();
         renderChart();
         renderGenerationLoadChart();
+        renderGenerationMixChart();
       }, 0);
     } else {
       punChartSection.remove();
       generationLoadChartSection.remove();
+      generationMixChartSection.remove();
     }
 
     if (showZonalChart) {
@@ -4529,6 +5040,7 @@
     chart.resize();
     generationLoadChart.resize();
     zonalChart.resize();
+    generationMixChart.resize();
   });
 
   /* ============================================================
