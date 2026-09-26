@@ -362,6 +362,125 @@
      DATA
      ============================================================ */
 
+  /*
+   * The data files use a compact layout (see etl/compact.py): each series
+   * stores one array of values per day, and a value's position in the day
+   * gives its time.  These helpers expand it back into the row objects
+   * ({date, time, hour|period, value}) that the charts below work with.
+   */
+  function compactDayKey(start, offset) {
+    const [y, m, d] = start.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d + offset))
+      .toISOString()
+      .slice(0, 10);
+  }
+
+  function compactTimeLabel(slot, step) {
+    const minutes = slot * step;
+    return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:` +
+      `${String(minutes % 60).padStart(2, "0")}`;
+  }
+
+  function isCompactSeries(value) {
+    return Boolean(
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      "step" in value &&
+      "field" in value
+    );
+  }
+
+  function decodeCompactSeries(series) {
+    const rows = [];
+    if (!series.start) return rows;
+
+    const { step, field } = series;
+    const indexField = series.index;
+
+    if (step === 1440) {
+      series.values.forEach((value, offset) => {
+        if (value === null) return;
+        rows.push({ date: compactDayKey(series.start, offset), [field]: value });
+      });
+      return rows;
+    }
+
+    series.days.forEach((day, offset) => {
+      if (!day) return;
+      const date = compactDayKey(series.start, offset);
+      day.forEach((value, slot) => {
+        if (value === null) return;
+        const row = { date, time: compactTimeLabel(slot, step) };
+        if (indexField) row[indexField] = slot + 1;
+        row[field] = value;
+        rows.push(row);
+      });
+    });
+    return rows;
+  }
+
+  /*
+   * Before GME's native 15-minute prices, each quarter-hour price is simply
+   * the hourly price repeated four times.  Those points are not stored in
+   * the file; rebuild them from the hourly series.
+   */
+  function prependQuarterHoursFromHourly(hourlySeries, quarterRows, nativeFrom) {
+    const field = hourlySeries.field;
+    const synthetic = [];
+
+    decodeCompactSeries(hourlySeries).forEach(row => {
+      if (row.date >= nativeFrom) return;
+      const firstPeriod = (row.hour - 1) * 4 + 1;
+      for (let offset = 0; offset < 4; offset++) {
+        const period = firstPeriod + offset;
+        synthetic.push({
+          date: row.date,
+          time: compactTimeLabel(period - 1, 15),
+          period,
+          [field]: row[field]
+        });
+      }
+    });
+
+    return synthetic.concat(quarterRows);
+  }
+
+  function decodeCompactPayload(payload) {
+    if (!payload || payload.format !== "compact-v1") {
+      return payload;
+    }
+    return decodeCompactNode(payload, payload.quarter_hourly_native_from);
+  }
+
+  function decodeCompactNode(node, nativeFrom) {
+    if (isCompactSeries(node)) {
+      return decodeCompactSeries(node);
+    }
+    if (!node || typeof node !== "object" || Array.isArray(node)) {
+      return node;
+    }
+
+    const result = {};
+    Object.entries(node).forEach(([key, value]) => {
+      result[key] = decodeCompactNode(value, nativeFrom);
+    });
+
+    if (
+      nativeFrom &&
+      isCompactSeries(node.hourly) && node.hourly.index === "hour" &&
+      isCompactSeries(node.quarter_hourly) && node.quarter_hourly.index === "period"
+    ) {
+      result.quarter_hourly = prependQuarterHoursFromHourly(
+        node.hourly,
+        result.quarter_hourly,
+        nativeFrom
+      );
+    }
+
+    return result;
+  }
+
   async function loadData() {
 
     try {
@@ -379,7 +498,7 @@
       }
 
       rawData =
-        await response.json();
+        decodeCompactPayload(await response.json());
 
       const zonalResponse =
         await fetch(
@@ -394,7 +513,7 @@
       }
 
       rawZonalData =
-        await zonalResponse.json();
+        decodeCompactPayload(await zonalResponse.json());
 
       const generationLoadResponse =
         await fetch(
@@ -409,7 +528,7 @@
       }
 
       rawGenerationLoadData =
-        await generationLoadResponse.json();
+        decodeCompactPayload(await generationLoadResponse.json());
 
       initialiseDateSelection();
 
