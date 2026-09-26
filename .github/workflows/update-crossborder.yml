@@ -16,11 +16,6 @@ on:
         description: "Rebuild from 2025-01-01"
         type: boolean
         default: false
-  # TEMPORARY: one full-history build on the feature branch when the
-  # script changes. Remove before merging to main.
-  push:
-    branches: [interconnection]
-    paths: [etl/fetch_crossborder.py]
 
 permissions:
   contents: write
@@ -54,7 +49,7 @@ jobs:
           ARGS=()
           if [ -n "${{ inputs.start }}" ]; then ARGS+=(--start "${{ inputs.start }}"); fi
           if [ -n "${{ inputs.end }}" ]; then ARGS+=(--end "${{ inputs.end }}"); fi
-          if [ "${{ inputs.full_history }}" = "true" ] || [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ inputs.full_history }}" = "true" ]; then
             ARGS+=(--full-history)
           fi
           echo "Running: python etl/fetch_crossborder.py ${ARGS[*]}"
