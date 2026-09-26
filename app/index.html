@@ -5098,6 +5098,29 @@
     crossBorderNetChart.resize();
   }
 
+  /*
+   * Imports and exports share one y-axis scale, so equal heights mean equal
+   * MW: each chart first picks its own round maximum, then both use the
+   * larger one.  Re-run after zooming or toggling countries.
+   */
+  function syncCrossBorderDirectionAxes() {
+    const charts = [crossBorderImportsChart, crossBorderExportsChart];
+    if (!getCrossBorderLookups()) return;
+
+    charts.forEach(chart => chart.setOption({ yAxis: { max: null } }));
+    const max = Math.max(...charts.map(chart => {
+      const axis = chart.getModel().getComponent("yAxis", 0);
+      return axis ? axis.axis.scale.getExtent()[1] : 0;
+    }));
+    if (Number.isFinite(max) && max > 0) {
+      charts.forEach(chart => chart.setOption({ yAxis: { max } }));
+    }
+  }
+
+  [crossBorderImportsChart, crossBorderExportsChart].forEach(chart => {
+    chart.on("datazoom", syncCrossBorderDirectionAxes);
+  });
+
   function renderInterconnectionCharts() {
     renderCrossBorderDirectionChart(
       crossBorderImportsChart, crossBorderImportsTimeline, "imports", "crossborder-imports-subtitle"
@@ -5105,6 +5128,7 @@
     renderCrossBorderDirectionChart(
       crossBorderExportsChart, crossBorderExportsTimeline, "exports", "crossborder-exports-subtitle"
     );
+    syncCrossBorderDirectionAxes();
     renderCrossBorderNetChart();
   }
 
@@ -5132,6 +5156,7 @@
             name: country.name
           });
         });
+        syncCrossBorderDirectionAxes();
       });
 
       legend.appendChild(button);
