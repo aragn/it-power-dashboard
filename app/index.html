@@ -26,8 +26,10 @@
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
       --chart-pun:#d9dde2; --chart-generation:#5ecb8a; --chart-load:#5b9cff;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
-      --mix-coal:#e66767; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
-      --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d;
+      --mix-coal:#b8c2d0; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
+      --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
+      --border-1:#3987e5; --border-2:#d95926; --border-3:#199e70; --border-4:#c98500; --border-5:#d55181; --border-6:#008300; --border-7:#9085e9;
+      --flow-physical:#3987e5; --flow-scheduled:#d95926;
     }
     :root[data-theme="light"] {
       color-scheme:light;
@@ -39,8 +41,10 @@
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
       --chart-pun:#1f2429; --chart-generation:#1f9d57; --chart-load:#2f6fdb;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
-      --mix-coal:#e34948; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
-      --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097;
+      --mix-coal:#4b5563; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
+      --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
+      --border-1:#2a78d6; --border-2:#eb6834; --border-3:#1baf7a; --border-4:#eda100; --border-5:#e87ba4; --border-6:#008300; --border-7:#4a3aa7;
+      --flow-physical:#2a78d6; --flow-scheduled:#eb6834;
     }
     #theme-toggle { position:fixed; left:16px; bottom:16px; z-index:150; display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 14px 8px 11px; font-size:12px; cursor:pointer; box-shadow:0 6px 18px var(--shadow); }
     #theme-toggle:hover { background:var(--hover); }
@@ -103,6 +107,18 @@
     #chart-mount-overview { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { #chart-mount-overview { grid-template-columns:1fr; } }
     #chart-mount-prices { width:100%; }
+    #chart-mount-interconnection { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
+    @media (max-width: 1050px) { #chart-mount-interconnection { grid-template-columns:1fr; } }
+    .crossborder-legend { grid-column:1 / -1; display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; padding:10px 14px; }
+    .legend-title { margin-right:6px; color:var(--muted-2); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+    .legend-chip { display:flex; align-items:center; gap:7px; border:0; border-radius:6px; background:transparent; color:var(--text); font-size:12px; padding:5px 8px; cursor:pointer; }
+    .legend-chip:hover { background:var(--hover); }
+    .legend-swatch { width:16px; height:3px; border-radius:2px; }
+    .legend-chip.off { color:var(--muted-2); }
+    .legend-chip.off .legend-swatch { opacity:.25; }
+    .timeline-chart-wrap { position:relative; width:100%; height:460px; touch-action:none; }
+    .timeline-chart { position:absolute; inset:0; width:100%; height:100%; }
+    .timeline-drag-selection { position:absolute; z-index:20; display:none; top:8px; bottom:70px; border:1px solid var(--selection-border); background:var(--selection-fill); pointer-events:none; }
     .zonal-chart-panel { width:100%; max-width:100%; padding:18px 18px 12px; min-width:0; margin:0; }
     #zonal-chart-wrap { position:relative; width:100%; height:520px; touch-action:none; }
     #zonal-chart { position:absolute; inset:0; width:100%; height:100%; }
@@ -217,7 +233,7 @@
             </div>
             <div class="zonal-chart-help">Click a zone in the legend to hide or show its price line. Drag horizontally across the chart to select a narrower range.</div>
           </section>
-        </div></div>
+        </div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the import and export charts"><span class="legend-title">Countries</span></div><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Drag horizontally across the chart to select a narrower range.</div></section></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
       </main>
@@ -4226,189 +4242,107 @@
 
 
   /* ============================================================
-     GENERATION MIX, LOAD & PUN CHART
+     SHARED TIMELINE CHART HELPERS
      ============================================================ */
 
   /*
-   * ENTSO-E production types grouped into nine sources, stacked bottom to
-   * top in this order.  The colours were checked for this order so that
-   * neighbouring areas stay distinguishable, including for colour-blind
-   * readers, in both themes; "Other & oil" is the neutral fold-in bucket.
+   * The charts below use the PUN series as their time axis (one category
+   * per PUN timestamp in the calendar range), so they line up with the
+   * charts above and follow the calendar and the 15 MIN / HOURLY / DAILY
+   * control.  All ENTSO-E data is on the same Italian market-time basis.
    */
-  const MIX_SOURCES = [
-    { name: "Coal", codes: ["B05", "B03"], color: "--mix-coal" },
-    { name: "Other & oil", codes: ["B20", "B06"], color: "--mix-other" },
-    { name: "Fossil gas", codes: ["B04"], color: "--mix-gas" },
-    { name: "Other renewables", codes: ["B01", "B17", "B15", "B09"], color: "--mix-renewables" },
-    { name: "Hydro", codes: ["B11", "B12"], color: "--mix-hydro" },
-    { name: "Pumped hydro", codes: ["B10"], color: "--mix-pumped" },
-    { name: "Battery storage", codes: ["B25"], color: "--mix-battery" },
-    { name: "Wind", codes: ["B19", "B18"], color: "--mix-wind" },
-    { name: "Solar", codes: ["B16"], color: "--mix-solar" }
-  ];
-
-  /* Storage consumption, drawn below zero in its source's colour. */
-  const MIX_CONSUMPTION = [
-    { name: "Pumped hydro (pumping)", codes: ["B10"], color: "--mix-pumped" },
-    { name: "Battery storage (charging)", codes: ["B25"], color: "--mix-battery" }
-  ];
-
-  const MIX_LOAD_NAME = "Actual load";
-  const MIX_PUN_NAME = "PUN Index";
-
-  const generationMixChartElement =
-    document.getElementById("generation-mix-chart");
-
-  const generationMixChart =
-    echarts.init(generationMixChartElement);
-
-  const generationMixChartSection =
-    document.getElementById("generation-mix-chart-section");
-
-  let generationMixSelected = {};
-  let generationMixRows = [];
-  let generationMixVisibleStart = 0;
-  let generationMixVisibleEnd = 0;
-
-  /* Per-granularity lookup tables (bucket key -> value), built once. */
-  const generationMixCache = {};
-
-  function generationMixBucketKey(row) {
+  function timelineBucketKey(row) {
     return currentGranularity === "daily"
       ? row.date
       : `${row.date}|${row.time || ""}`;
   }
 
-  function generationMixResolutionKey() {
+  function timelineResolutionKey() {
     return currentGranularity === "quarter"
       ? "quarter_hourly"
       : currentGranularity === "hourly" ? "hourly" : "daily";
   }
 
-  function sumGroupsByBucket(groups, codes) {
-    const totals = new Map();
-    codes.forEach(code => {
-      const group = groups[code];
-      const points = Array.isArray(group) ? group : (group && group.points) || [];
-      points.forEach(row => {
-        const key = generationMixBucketKey(row);
-        totals.set(key, (totals.get(key) || 0) + Number(row.value || 0));
-      });
-    });
-    return totals;
+  function timelineUnit() {
+    return currentGranularity === "daily" ? "MWh" : "MW";
   }
 
-  function getGenerationMixLookups() {
-    const resolution = generationMixResolutionKey();
-    if (generationMixCache[resolution]) return generationMixCache[resolution];
-
-    const data = rawGenerationLoadData || {};
-    const generation = (data.generation || {})[resolution] || {};
-    const consumption = (data.consumption || {})[resolution] || {};
-    const load = ((data.total_load || {})[resolution] || {}).TOTAL || [];
-
-    const lookups = {
-      sources: MIX_SOURCES.map(source => sumGroupsByBucket(generation, source.codes)),
-      consumption: MIX_CONSUMPTION.map(item => sumGroupsByBucket(consumption, item.codes)),
-      load: new Map(load.map(row => [generationMixBucketKey(row), Number(row.value)]))
-    };
-    generationMixCache[resolution] = lookups;
-    return lookups;
+  function timelineMeasure() {
+    return {
+      daily: "Daily energy",
+      hourly: "Hourly average power",
+      quarter: "15-minute average power"
+    }[currentGranularity];
   }
 
-  /*
-   * One row per PUN timestamp, so this chart shares the calendar range and
-   * time axis of the charts above.  ENTSO-E omits some zero readings, so a
-   * source missing at a timestamp that has other generation counts as 0;
-   * a timestamp with no generation at all stays empty (a gap).
-   */
-  function buildGenerationMixRows() {
-    const lookups = getGenerationMixLookups();
-
-    return filteredSeries().map(punRow => {
-      const key = generationMixBucketKey(punRow);
-      const hasGeneration = lookups.sources.some(map => map.has(key));
-      const load = lookups.load.get(key);
-
-      return {
-        date: punRow.date,
-        time: punRow.time || "",
-        sources: lookups.sources.map(map =>
-          hasGeneration ? (map.get(key) || 0) : null
-        ),
-        consumption: lookups.consumption.map(map =>
-          hasGeneration ? -(map.get(key) || 0) : null
-        ),
-        load: Number.isFinite(load) ? load : null,
-        pun: Number(punRow.pun)
-      };
-    });
-  }
-
-  function formatMixNumber(value) {
+  function formatChartNumber(value) {
     return Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 });
   }
 
-  function generationMixTooltip(params) {
-    if (!params || !params.length) return "";
-    const row = generationMixRows[params[0].dataIndex];
-    if (!row) return "";
+  function labelMinutes(label) {
+    const [hours, minutes] = String(label).split(":").map(Number);
+    return hours * 60 + minutes;
+  }
 
-    const unit = currentGranularity === "daily" ? "MWh" : "MW";
-    const muted = cssVar("--chart-tooltip-muted");
-    const shown = name => generationMixSelected[name] !== false;
-    // Areas get a square swatch, lines a short line, so the blue load line
-    // reads differently from the blue hydro area.
-    const line = (color, name, value, shape = "area") => {
-      const swatch = shape === "line"
-        ? `width:12px;height:2px;margin:0 6px 3px 0;`
-        : `width:8px;height:8px;border-radius:2px;margin-right:6px;`;
-      return `<div style="display:flex;justify-content:space-between;gap:18px;">` +
-        `<span><span style="display:inline-block;${swatch}background:${color};"></span>${name}</span>` +
-        `<b>${value}</b></div>`;
-    };
+  /* Tooltip line: square swatch for areas, a short (dashed) line for lines. */
+  function tooltipRow(color, name, value, shape = "area") {
+    const swatch = {
+      area: `width:8px;height:8px;border-radius:2px;margin-right:6px;background:${color};`,
+      line: `width:12px;height:2px;margin:0 6px 3px 0;background:${color};`,
+      dashed: `width:12px;height:0;margin:0 6px 3px 0;border-top:2px dashed ${color};`
+    }[shape];
+    return `<div style="display:flex;justify-content:space-between;gap:18px;">` +
+      `<span><span style="display:inline-block;${swatch}"></span>${name}</span>` +
+      `<b>${value}</b></div>`;
+  }
 
+  function tooltipHeader(row) {
     const dateText = parseDate(row.date).toLocaleDateString("en-GB", {
       day: "2-digit", month: "short", year: "numeric"
     });
     const timeText = currentGranularity === "daily" ? "" : ` ${row.time}`;
+    return `<div style="margin-bottom:6px;color:${cssVar("--chart-tooltip-muted")};">${dateText}${timeText}</div>`;
+  }
 
-    let html = `<div style="margin-bottom:6px;color:${muted};">${dateText}${timeText}</div>`;
+  /* Rows on the chart and the visible (zoomed) index range. */
+  function createTimeline(chart) {
+    const timeline = { chart, rows: [], start: 0, end: 0 };
 
-    if (shown(MIX_LOAD_NAME) && row.load !== null) {
-      html += line(cssVar("--chart-load"), MIX_LOAD_NAME, `${formatMixNumber(row.load)} ${unit}`, "line");
-    }
+    chart.on("datazoom", () => {
+      const zoom = chart.getOption().dataZoom[0];
+      const last = Math.max(0, timeline.rows.length - 1);
+      const start = Number.isFinite(zoom.startValue)
+        ? zoom.startValue
+        : Math.round((zoom.start / 100) * last);
+      const end = Number.isFinite(zoom.endValue)
+        ? zoom.endValue
+        : Math.round((zoom.end / 100) * last);
 
-    if (row.sources[0] !== null) {
-      const total = row.sources.reduce((sum, value) => sum + value, 0);
-      html += `<div style="margin:6px 0 2px;color:${muted};">Generation · ${formatMixNumber(total)} ${unit}</div>`;
+      timeline.start = clamp(Math.min(start, end), 0, last);
+      timeline.end = clamp(Math.max(start, end), 0, last);
+    });
 
-      // Top of the stack first, matching the picture.
-      for (let i = MIX_SOURCES.length - 1; i >= 0; i--) {
-        const source = MIX_SOURCES[i];
-        if (!shown(source.name) || !row.sources[i]) continue;
-        html += line(cssVar(source.color), source.name, `${formatMixNumber(row.sources[i])} ${unit}`);
-      }
+    return timeline;
+  }
 
-      MIX_CONSUMPTION.forEach((item, i) => {
-        if (!shown(item.name) || !row.consumption[i]) return;
-        html += line(cssVar(item.color), item.name, `${formatMixNumber(row.consumption[i])} ${unit}`);
-      });
-    }
-
-    if (shown(MIX_PUN_NAME) && Number.isFinite(row.pun)) {
-      html += `<div style="margin-top:6px;">` +
-        line(cssVar("--chart-pun"), MIX_PUN_NAME, `${row.pun.toFixed(2)} €/MWh`, "line") + `</div>`;
-    }
-
-    return html;
+  /* PUN timestamps in the calendar range, as timeline rows. */
+  function resetTimeline(timeline) {
+    timeline.rows = filteredSeries().map(punRow => ({
+      date: punRow.date,
+      time: punRow.time || "",
+      key: timelineBucketKey(punRow),
+      pun: Number(punRow.pun)
+    }));
+    timeline.start = 0;
+    timeline.end = Math.max(0, timeline.rows.length - 1);
+    return timeline.rows;
   }
 
   /* x-axis labels thin out with the visible span, like the charts above. */
-  function generationMixAxisLabel(index) {
-    const row = generationMixRows[index];
-    const first = generationMixRows[generationMixVisibleStart];
-    const last = generationMixRows[generationMixVisibleEnd];
+  function timelineAxisLabel(timeline, index) {
+    const row = timeline.rows[index];
+    const first = timeline.rows[timeline.start];
+    const last = timeline.rows[timeline.end];
     if (!row || !first || !last) return "";
 
     const dayLabel = parseDate(row.date).toLocaleDateString("en-GB", {
@@ -4439,229 +4373,94 @@
     return time.hour === 0 && dayOffset % dayStep === 0 ? dayLabel : "";
   }
 
-  /* Number of legend rows at the current chart width (legend wraps). */
-  function generationMixLegendRows(names) {
-    const width = generationMixChartElement.clientWidth - CHART_GRID.left - 24;
-    let rows = 1;
-    let used = 0;
-    names.forEach(name => {
-      const itemWidth = 18 + 5 + name.length * 6.2 + 14;
-      if (used + itemWidth > width && used > 0) {
-        rows += 1;
-        used = 0;
-      }
-      used += itemWidth;
-    });
-    return rows;
+  function timelineAxisTextStyle() {
+    return { color: cssVar("--chart-axis-label"), fontSize: 10 };
   }
 
-  function renderGenerationMixChart() {
-    if (!rawGenerationLoadData || !rawData) return;
+  function timelineTooltip(formatter) {
+    return {
+      trigger: "axis",
+      confine: true,
+      backgroundColor: cssVar("--chart-tooltip-bg"),
+      borderColor: cssVar("--chart-tooltip-border"),
+      borderWidth: 1,
+      textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
+      axisPointer: { type: "line", lineStyle: { color: cssVar("--chart-pointer"), width: 1 } },
+      formatter
+    };
+  }
 
-    generationMixRows = buildGenerationMixRows();
-    const rows = generationMixRows;
-
-    if (!rows.length) {
-      generationMixChart.clear();
-      return;
-    }
-
-    setChartSubtitle("generation-mix-chart-subtitle", {
-      daily: "Daily energy by source",
-      hourly: "Hourly average power by source",
-      quarter: "15-minute average power by source"
-    }[currentGranularity]);
-
-    generationMixVisibleStart = 0;
-    generationMixVisibleEnd = rows.length - 1;
-
-    const unit = currentGranularity === "daily" ? "MWh" : "MW";
-    const categories = rows.map(row => generationMixBucketKey(row));
-    const surface = cssVar("--panel");
-
-    const areaSeries = (item, values, stack, opacity) => ({
-      name: item.name,
-      type: "line",
-      stack,
-      xAxisIndex: 0,
-      yAxisIndex: 0,
-      data: values,
-      showSymbol: false,
-      connectNulls: false,
-      // A thin surface-coloured edge separates neighbouring areas.
-      lineStyle: { width: 1, color: surface },
-      areaStyle: { color: cssVar(item.color), opacity },
-      itemStyle: { color: cssVar(item.color), opacity },
-      emphasis: { focus: "series" }
-    });
-
-    const series = [
-      ...MIX_SOURCES.map((source, i) =>
-        areaSeries(source, rows.map(row => row.sources[i]), "generation", 0.9)
-      ),
-      ...MIX_CONSUMPTION.map((item, i) =>
-        areaSeries(item, rows.map(row => row.consumption[i]), "consumption", 0.5)
-      ),
-      {
-        name: MIX_LOAD_NAME,
-        type: "line",
-        xAxisIndex: 0,
-        yAxisIndex: 0,
-        data: rows.map(row => row.load),
-        showSymbol: false,
-        connectNulls: false,
-        lineStyle: { color: cssVar("--chart-load"), width: 2 },
-        itemStyle: { color: cssVar("--chart-load") },
-        z: 5
-      },
-      {
-        name: MIX_PUN_NAME,
-        type: "line",
-        xAxisIndex: 1,
-        yAxisIndex: 1,
-        data: rows.map(row => row.pun),
-        showSymbol: false,
-        lineStyle: { color: cssVar("--chart-pun"), width: 1.5 },
-        itemStyle: { color: cssVar("--chart-pun") }
-      }
-    ];
-
-    const legendNames = series.map(item => item.name);
-    const legendRows = generationMixLegendRows(legendNames);
-
-    // Layout (px): legend, generation panel, gap, PUN panel, zoom bar.
-    const legendTop = 8;
-    const mixTop = legendTop + legendRows * 22 + 16;
-    const punHeight = 120;
-    const punBottom = CHART_GRID.bottom;
-    const mixBottom = punBottom + punHeight + 36;
-
-    const axisLabelStyle = { color: cssVar("--chart-axis-label"), fontSize: 10 };
-    const splitLine = { show: true, lineStyle: { color: cssVar("--chart-grid"), width: 1 } };
-
-    const xAxis = gridIndex => ({
+  function timelineXAxis(timeline, { gridIndex = 0, showLabels = true, onZero = true } = {}) {
+    return {
       type: "category",
       gridIndex,
       boundaryGap: false,
-      data: categories,
-      axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+      data: timeline.rows.map(row => row.key),
+      axisLine: { onZero, lineStyle: { color: cssVar("--chart-axis-line") } },
       axisTick: { show: false },
-      axisLabel: gridIndex === 1
+      axisLabel: showLabels
         ? {
-            ...axisLabelStyle,
+            ...timelineAxisTextStyle(),
             margin: 10,
             interval: 0,
             hideOverlap: true,
-            formatter: (value, index) => generationMixAxisLabel(index)
+            formatter: (value, index) => timelineAxisLabel(timeline, index)
           }
         : { show: false },
       splitLine: { show: false }
-    });
+    };
+  }
 
-    const yAxis = (gridIndex, name, extra) => ({
+  /* Value axes include 0 and extend below it only for negative data. */
+  function timelineYAxis(name, extra = {}) {
+    return {
       type: "value",
-      gridIndex,
       name,
       nameLocation: "middle",
       nameRotate: 90,
       nameGap: 52,
-      nameTextStyle: axisLabelStyle,
+      nameTextStyle: timelineAxisTextStyle(),
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: axisLabelStyle,
-      splitLine,
+      axisLabel: timelineAxisTextStyle(),
+      splitLine: { show: true, lineStyle: { color: cssVar("--chart-grid"), width: 1 } },
       ...extra
-    });
-
-    generationMixChart.setOption({
-      animation: false,
-      backgroundColor: "transparent",
-      legend: {
-        type: "plain",
-        top: legendTop,
-        left: CHART_GRID.left,
-        right: 24,
-        itemWidth: 18,
-        itemHeight: 8,
-        itemGap: 14,
-        textStyle: { color: cssVar("--chart-legend"), fontSize: 10 },
-        data: legendNames,
-        selected: { ...generationMixSelected }
-      },
-      axisPointer: { link: [{ xAxisIndex: "all" }] },
-      tooltip: {
-        trigger: "axis",
-        confine: true,
-        backgroundColor: cssVar("--chart-tooltip-bg"),
-        borderColor: cssVar("--chart-tooltip-border"),
-        borderWidth: 1,
-        textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
-        axisPointer: { type: "line", lineStyle: { color: cssVar("--chart-pointer"), width: 1 } },
-        formatter: generationMixTooltip
-      },
-      grid: [
-        { left: CHART_GRID.left, right: 24, top: mixTop, bottom: mixBottom, containLabel: false },
-        { left: CHART_GRID.left, right: 24, height: punHeight, bottom: punBottom, containLabel: false }
-      ],
-      xAxis: [xAxis(0), xAxis(1)],
-      yAxis: [
-        yAxis(0, unit, {}),
-        yAxis(1, "€/MWh", { splitNumber: 2 })
-      ],
-      series,
-      dataZoom: [
-        {
-          type: "inside",
-          xAxisIndex: [0, 1],
-          filterMode: "filter",
-          zoomOnMouseWheel: true,
-          moveOnMouseMove: false,
-          moveOnMouseWheel: false
-        },
-        {
-          type: "slider",
-          xAxisIndex: [0, 1],
-          filterMode: "filter",
-          bottom: 18,
-          height: 16,
-          left: CHART_GRID.left,
-          right: 24,
-          borderColor: cssVar("--chart-zoom-border"),
-          backgroundColor: cssVar("--chart-zoom-bg"),
-          fillerColor: cssVar("--chart-zoom-filler"),
-          handleStyle: { color: cssVar("--chart-zoom-handle"), borderColor: cssVar("--chart-zoom-handle") },
-          moveHandleStyle: { color: cssVar("--chart-zoom-move") },
-          textStyle: { color: cssVar("--chart-zoom-text"), fontSize: 9 },
-          showDetail: false
-        }
-      ]
-    }, true);
-
-    generationMixChart.resize();
+    };
   }
 
-  generationMixChart.on("legendselectchanged", event => {
-    generationMixSelected = { ...event.selected };
-  });
+  function timelineDataZoom(xAxisIndex = 0, right = 24) {
+    return [
+      {
+        type: "inside",
+        xAxisIndex,
+        filterMode: "filter",
+        zoomOnMouseWheel: true,
+        moveOnMouseMove: false,
+        moveOnMouseWheel: false
+      },
+      {
+        type: "slider",
+        xAxisIndex,
+        filterMode: "filter",
+        bottom: 18,
+        height: 16,
+        left: CHART_GRID.left,
+        right,
+        borderColor: cssVar("--chart-zoom-border"),
+        backgroundColor: cssVar("--chart-zoom-bg"),
+        fillerColor: cssVar("--chart-zoom-filler"),
+        handleStyle: { color: cssVar("--chart-zoom-handle"), borderColor: cssVar("--chart-zoom-handle") },
+        moveHandleStyle: { color: cssVar("--chart-zoom-move") },
+        textStyle: { color: cssVar("--chart-zoom-text"), fontSize: 9 },
+        showDetail: false
+      }
+    ];
+  }
 
-  generationMixChart.on("datazoom", () => {
-    const zoom = generationMixChart.getOption().dataZoom[0];
-    const last = Math.max(0, generationMixRows.length - 1);
-    const start = Number.isFinite(zoom.startValue)
-      ? zoom.startValue
-      : Math.round((zoom.start / 100) * last);
-    const end = Number.isFinite(zoom.endValue)
-      ? zoom.endValue
-      : Math.round((zoom.end / 100) * last);
-
-    generationMixVisibleStart = clamp(Math.min(start, end), 0, last);
-    generationMixVisibleEnd = clamp(Math.max(start, end), 0, last);
-  });
-
-  /* Drag horizontally across either panel to zoom to that range. */
-  (function attachGenerationMixDragZoom() {
-    const container = document.getElementById("generation-mix-chart-wrap");
-    const selection = document.getElementById("generation-mix-drag-selection");
+  /* Drag horizontally across the plot to zoom to that range. */
+  function attachDragZoom(chart, wrapId, selectionId) {
+    const container = document.getElementById(wrapId);
+    const selection = document.getElementById(selectionId);
     let startX = null;
     let currentX = null;
     let dragging = false;
@@ -4672,12 +4471,13 @@
       return [event.clientX - rect.left, event.clientY - rect.top];
     };
 
-    const inPlot = point =>
-      generationMixChart.containPixel({ gridIndex: 0 }, point) ||
-      generationMixChart.containPixel({ gridIndex: 1 }, point);
+    const inPlot = point => {
+      const grids = (chart.getOption() || {}).grid || [];
+      return grids.some((grid, gridIndex) => chart.containPixel({ gridIndex }, point));
+    };
 
     const indexAt = x =>
-      Math.round(generationMixChart.convertFromPixel({ xAxisIndex: 1 }, x));
+      Math.round(chart.convertFromPixel({ xAxisIndex: 0 }, x));
 
     const reset = () => {
       selection.style.display = "none";
@@ -4713,7 +4513,7 @@
         const startIndex = indexAt(Math.min(startX, currentX));
         const endIndex = indexAt(Math.max(startX, currentX));
         if (endIndex > startIndex) {
-          generationMixChart.dispatchAction({
+          chart.dispatchAction({
             type: "dataZoom",
             dataZoomIndex: [0, 1],
             startValue: startIndex,
@@ -4725,7 +4525,622 @@
     });
 
     container.addEventListener("pointercancel", reset);
+  }
+
+
+  /* ============================================================
+     CROSS-BORDER DATA (ENTSO-E 12.1.F / 12.1.G)
+     ============================================================ */
+
+  /* Neighbouring control areas, in a fixed colour order (colour follows
+     the country on every chart). */
+  const CROSS_BORDER_COUNTRIES = [
+    { code: "FR", name: "France", color: "--border-1" },
+    { code: "CH", name: "Switzerland", color: "--border-2" },
+    { code: "AT", name: "Austria", color: "--border-3" },
+    { code: "SI", name: "Slovenia", color: "--border-4" },
+    { code: "GR", name: "Greece", color: "--border-5" },
+    { code: "ME", name: "Montenegro", color: "--border-6" },
+    { code: "MT", name: "Malta", color: "--border-7" }
+  ];
+
+  const CROSS_BORDER_DATASETS = ["physical_flows", "scheduled_day_ahead", "scheduled_total"];
+
+  let rawCrossBorderData = null;
+  let crossBorderStatus = "loading"; // "loading" | "ready" | "missing"
+  const crossBorderCache = {};
+
+  /* Loaded after the main data so it never delays the first render. */
+  async function loadCrossBorderData() {
+    try {
+      const response = await fetch("./data/crossborder.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawCrossBorderData = decodeCompactPayload(await response.json());
+      crossBorderStatus = "ready";
+    } catch (error) {
+      console.warn("Cross-border data unavailable:", error);
+      crossBorderStatus = "missing";
+    }
+    updateView();
+  }
+
+  /*
+   * Rows for one border series at the current resolution.  Quarter-hours
+   * before the 15-minute market time unit are not stored: they repeat the
+   * hourly value.
+   */
+  function crossBorderRows(dataset, direction, country) {
+    const resolution = timelineResolutionKey();
+    const byResolution = rawCrossBorderData[dataset] || {};
+    const pick = key => ((byResolution[key] || {})[direction] || {})[country] || [];
+    const rows = pick(resolution);
+
+    if (resolution !== "quarter_hourly") return rows;
+
+    const nativeFrom = rawCrossBorderData.quarter_hourly_native_from;
+    const expanded = [];
+    pick("hourly").forEach(row => {
+      if (row.date >= nativeFrom) return;
+      const start = labelMinutes(row.time);
+      for (let offset = 0; offset < 60; offset += 15) {
+        expanded.push({
+          date: row.date,
+          time: compactTimeLabel((start + offset) / 15, 15),
+          value: row.value
+        });
+      }
+    });
+    return expanded.concat(rows);
+  }
+
+  /*
+   * Per resolution: bucket key -> MW for every dataset, direction and
+   * country, plus the net (imports - exports, positive = net import).
+   */
+  function getCrossBorderLookups() {
+    if (!rawCrossBorderData) return null;
+
+    const resolution = timelineResolutionKey();
+    if (crossBorderCache[resolution]) return crossBorderCache[resolution];
+
+    const lookups = {};
+    CROSS_BORDER_DATASETS.forEach(dataset => {
+      const entry = { imports: {}, exports: {}, net: new Map() };
+      ["imports", "exports"].forEach(direction => {
+        const sign = direction === "imports" ? 1 : -1;
+        CROSS_BORDER_COUNTRIES.forEach(country => {
+          const map = new Map();
+          crossBorderRows(dataset, direction, country.code).forEach(row => {
+            const key = timelineBucketKey(row);
+            const value = Number(row.value);
+            map.set(key, value);
+            entry.net.set(key, (entry.net.get(key) || 0) + sign * value);
+          });
+          entry[direction][country.code] = map;
+        });
+      });
+      // Round away floating-point noise from summing the borders.
+      entry.net.forEach((value, key) => entry.net.set(key, Math.round(value * 100) / 100));
+      lookups[dataset] = entry;
+    });
+
+    crossBorderCache[resolution] = lookups;
+    return lookups;
+  }
+
+  function lookupValue(map, key) {
+    const value = map.get(key);
+    return Number.isFinite(value) ? value : null;
+  }
+
+
+  /* ============================================================
+     GENERATION MIX, LOAD & PUN CHART
+     ============================================================ */
+
+  /*
+   * ENTSO-E production types grouped into nine sources, stacked bottom to
+   * top in this order, with the net cross-border physical flow (imports
+   * positive) at the very bottom.  The colours
+   * were checked for this order so that neighbouring areas stay
+   * distinguishable, including for colour-blind readers, in both themes;
+   * "Other & oil" is the neutral fold-in bucket.
+   */
+  const MIX_NET_IMPORTS = { name: "Net cross-border physical flow", color: "--mix-net-imports" };
+
+  const MIX_SOURCES = [
+    { name: "Coal", codes: ["B05", "B03"], color: "--mix-coal" },
+    { name: "Other & oil", codes: ["B20", "B06"], color: "--mix-other" },
+    { name: "Fossil gas", codes: ["B04"], color: "--mix-gas" },
+    { name: "Other renewables", codes: ["B01", "B17", "B15", "B09"], color: "--mix-renewables" },
+    { name: "Hydro", codes: ["B11", "B12"], color: "--mix-hydro" },
+    { name: "Pumped hydro", codes: ["B10"], color: "--mix-pumped" },
+    { name: "Battery storage", codes: ["B25"], color: "--mix-battery" },
+    { name: "Wind", codes: ["B19", "B18"], color: "--mix-wind" },
+    { name: "Solar", codes: ["B16"], color: "--mix-solar" }
+  ];
+
+  /* Storage consumption, drawn below zero in its source's colour.  Battery
+     comes first so it (not the similar pink pumping) borders net exports. */
+  const MIX_CONSUMPTION = [
+    { name: "Battery storage (charging)", codes: ["B25"], color: "--mix-battery" },
+    { name: "Pumped hydro (pumping)", codes: ["B10"], color: "--mix-pumped" }
+  ];
+
+  const MIX_LOAD_NAME = "Actual load";
+  const MIX_PUN_NAME = "PUN Index";
+
+  const generationMixChartElement =
+    document.getElementById("generation-mix-chart");
+
+  const generationMixChart =
+    echarts.init(generationMixChartElement);
+
+  const generationMixChartSection =
+    document.getElementById("generation-mix-chart-section");
+
+  const generationMixTimeline = createTimeline(generationMixChart);
+
+  let generationMixSelected = {};
+  let generationMixRows = [];
+
+  /* Per-granularity lookup tables (bucket key -> value), built once. */
+  const generationMixCache = {};
+
+  function sumGroupsByBucket(groups, codes) {
+    const totals = new Map();
+    codes.forEach(code => {
+      const group = groups[code];
+      const points = Array.isArray(group) ? group : (group && group.points) || [];
+      points.forEach(row => {
+        const key = timelineBucketKey(row);
+        totals.set(key, (totals.get(key) || 0) + Number(row.value || 0));
+      });
+    });
+    return totals;
+  }
+
+  function getGenerationMixLookups() {
+    const resolution = timelineResolutionKey();
+    if (generationMixCache[resolution]) return generationMixCache[resolution];
+
+    const data = rawGenerationLoadData || {};
+    const generation = (data.generation || {})[resolution] || {};
+    const consumption = (data.consumption || {})[resolution] || {};
+    const load = ((data.total_load || {})[resolution] || {}).TOTAL || [];
+
+    const lookups = {
+      sources: MIX_SOURCES.map(source => sumGroupsByBucket(generation, source.codes)),
+      consumption: MIX_CONSUMPTION.map(item => sumGroupsByBucket(consumption, item.codes)),
+      load: new Map(load.map(row => [timelineBucketKey(row), Number(row.value)]))
+    };
+    generationMixCache[resolution] = lookups;
+    return lookups;
+  }
+
+  /*
+   * One row per PUN timestamp.  A source missing at a timestamp that has
+   * other generation counts as 0; a timestamp with no generation at all
+   * stays empty (a gap).
+   */
+  function buildGenerationMixRows() {
+    const lookups = getGenerationMixLookups();
+    const crossBorder = getCrossBorderLookups();
+
+    return resetTimeline(generationMixTimeline).map(row => {
+      const hasGeneration = lookups.sources.some(map => map.has(row.key));
+
+      return {
+        ...row,
+        netImports: crossBorder
+          ? lookupValue(crossBorder.physical_flows.net, row.key)
+          : null,
+        sources: lookups.sources.map(map =>
+          hasGeneration ? (map.get(row.key) || 0) : null
+        ),
+        consumption: lookups.consumption.map(map =>
+          hasGeneration ? -(map.get(row.key) || 0) : null
+        ),
+        load: lookupValue(lookups.load, row.key)
+      };
+    });
+  }
+
+  function generationMixTooltip(params) {
+    if (!params || !params.length) return "";
+    const row = generationMixRows[params[0].dataIndex];
+    if (!row) return "";
+
+    const unit = timelineUnit();
+    const muted = cssVar("--chart-tooltip-muted");
+    const shown = name => generationMixSelected[name] !== false;
+
+    let html = tooltipHeader(row);
+
+    if (shown(MIX_LOAD_NAME) && row.load !== null) {
+      html += tooltipRow(cssVar("--chart-load"), MIX_LOAD_NAME, `${formatChartNumber(row.load)} ${unit}`, "line");
+    }
+
+    if (row.sources[0] !== null) {
+      const total = row.sources.reduce((sum, value) => sum + value, 0);
+      html += `<div style="margin:6px 0 2px;color:${muted};">Generation · ${formatChartNumber(total)} ${unit}</div>`;
+
+      // Top of the stack first, matching the picture.
+      for (let i = MIX_SOURCES.length - 1; i >= 0; i--) {
+        const source = MIX_SOURCES[i];
+        if (!shown(source.name) || !row.sources[i]) continue;
+        html += tooltipRow(cssVar(source.color), source.name, `${formatChartNumber(row.sources[i])} ${unit}`);
+      }
+
+      MIX_CONSUMPTION.forEach((item, i) => {
+        if (!shown(item.name) || !row.consumption[i]) return;
+        html += tooltipRow(cssVar(item.color), item.name, `${formatChartNumber(row.consumption[i])} ${unit}`);
+      });
+    }
+
+    if (shown(MIX_NET_IMPORTS.name) && row.netImports !== null) {
+      const name = row.netImports < 0 ? `${MIX_NET_IMPORTS.name} (net export)` : MIX_NET_IMPORTS.name;
+      html += `<div style="margin-top:6px;">` +
+        tooltipRow(cssVar(MIX_NET_IMPORTS.color), name, `${formatChartNumber(row.netImports)} ${unit}`) +
+        `</div>`;
+    }
+
+    if (shown(MIX_PUN_NAME) && Number.isFinite(row.pun)) {
+      html += `<div style="margin-top:6px;">` +
+        tooltipRow(cssVar("--chart-pun"), MIX_PUN_NAME, `${row.pun.toFixed(2)} €/MWh`, "line") + `</div>`;
+    }
+
+    return html;
+  }
+
+  /* Number of legend rows at the current chart width (legend wraps). */
+  function generationMixLegendRows(names) {
+    const width = generationMixChartElement.clientWidth - CHART_GRID.left - 24;
+    let rows = 1;
+    let used = 0;
+    names.forEach(name => {
+      const itemWidth = 18 + 5 + name.length * 6.2 + 14;
+      if (used + itemWidth > width && used > 0) {
+        rows += 1;
+        used = 0;
+      }
+      used += itemWidth;
+    });
+    return rows;
+  }
+
+  function renderGenerationMixChart() {
+    if (!rawGenerationLoadData || !rawData) return;
+
+    generationMixRows = buildGenerationMixRows();
+    const rows = generationMixRows;
+
+    if (!rows.length) {
+      generationMixChart.clear();
+      return;
+    }
+
+    setChartSubtitle("generation-mix-chart-subtitle", `${timelineMeasure()} by source`);
+
+    const surface = cssVar("--panel");
+
+    // Two stacks: generation and net imports above zero; storage
+    // consumption and net exports below it.  (Kept apart because a 0 in a
+    // shared stack counts as positive and would jump to the top.)
+    const areaSeries = (item, values, stack, opacity) => ({
+      name: item.name,
+      type: "line",
+      stack,
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      data: values,
+      showSymbol: false,
+      connectNulls: false,
+      // A thin surface-coloured edge separates neighbouring areas.
+      lineStyle: { width: 1, color: surface },
+      areaStyle: { color: cssVar(item.color), opacity },
+      itemStyle: { color: cssVar(item.color), opacity },
+      emphasis: { focus: "series" }
+    });
+
+    // The net cross-border flow is split into its import part (bottom of the
+    // generation stack) and export part (top of the consumption stack); both
+    // halves share one legend entry.
+    const part = (value, sign) =>
+      value === null ? null : sign > 0 ? Math.max(value, 0) : Math.min(value, 0);
+
+    const series = [
+      areaSeries(MIX_NET_IMPORTS, rows.map(row => part(row.netImports, 1)), "generation", 0.9),
+      ...MIX_SOURCES.map((source, i) =>
+        areaSeries(source, rows.map(row => row.sources[i]), "generation", 0.9)
+      ),
+      areaSeries(MIX_NET_IMPORTS, rows.map(row => part(row.netImports, -1)), "consumption", 0.9),
+      ...MIX_CONSUMPTION.map((item, i) =>
+        areaSeries(item, rows.map(row => row.consumption[i]), "consumption", 0.5)
+      ),
+      {
+        name: MIX_LOAD_NAME,
+        type: "line",
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        data: rows.map(row => row.load),
+        showSymbol: false,
+        connectNulls: false,
+        lineStyle: { color: cssVar("--chart-load"), width: 2 },
+        itemStyle: { color: cssVar("--chart-load") },
+        z: 5
+      },
+      {
+        name: MIX_PUN_NAME,
+        type: "line",
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        data: rows.map(row => row.pun),
+        showSymbol: false,
+        lineStyle: { color: cssVar("--chart-pun"), width: 1.5 },
+        itemStyle: { color: cssVar("--chart-pun") }
+      }
+    ];
+
+    const legendNames = [...new Set(series.map(item => item.name))];
+    const legendRows = generationMixLegendRows(legendNames);
+
+    // Layout (px): legend, generation panel, gap, PUN panel, zoom bar.
+    const legendTop = 8;
+    const mixTop = legendTop + legendRows * 22 + 16;
+    const punHeight = 120;
+    const punBottom = CHART_GRID.bottom;
+    const mixBottom = punBottom + punHeight + 36;
+
+    generationMixChart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      legend: {
+        type: "plain",
+        top: legendTop,
+        left: CHART_GRID.left,
+        right: 24,
+        itemWidth: 18,
+        itemHeight: 8,
+        itemGap: 14,
+        textStyle: { color: cssVar("--chart-legend"), fontSize: 10 },
+        data: legendNames,
+        selected: { ...generationMixSelected }
+      },
+      axisPointer: { link: [{ xAxisIndex: "all" }] },
+      tooltip: timelineTooltip(generationMixTooltip),
+      grid: [
+        { left: CHART_GRID.left, right: 24, top: mixTop, bottom: mixBottom, containLabel: false },
+        { left: CHART_GRID.left, right: 24, height: punHeight, bottom: punBottom, containLabel: false }
+      ],
+      xAxis: [
+        timelineXAxis(generationMixTimeline, { gridIndex: 0, showLabels: false }),
+        timelineXAxis(generationMixTimeline, { gridIndex: 1 })
+      ],
+      yAxis: [
+        timelineYAxis(timelineUnit(), { gridIndex: 0 }),
+        timelineYAxis("€/MWh", { gridIndex: 1, splitNumber: 2 })
+      ],
+      series,
+      dataZoom: timelineDataZoom([0, 1])
+    }, true);
+
+    generationMixChart.resize();
+  }
+
+  generationMixChart.on("legendselectchanged", event => {
+    generationMixSelected = { ...event.selected };
+  });
+
+  attachDragZoom(generationMixChart, "generation-mix-chart-wrap", "generation-mix-drag-selection");
+
+
+  /* ============================================================
+     INTERCONNECTION: IMPORTS, EXPORTS AND NET EXCHANGE
+     ============================================================ */
+
+  const interconnectionMount =
+    document.getElementById("chart-mount-interconnection");
+
+  const crossBorderImportsChart =
+    echarts.init(document.getElementById("crossborder-imports-chart"));
+  const crossBorderExportsChart =
+    echarts.init(document.getElementById("crossborder-exports-chart"));
+  const crossBorderNetChart =
+    echarts.init(document.getElementById("crossborder-net-chart"));
+
+  const crossBorderImportsTimeline = createTimeline(crossBorderImportsChart);
+  const crossBorderExportsTimeline = createTimeline(crossBorderExportsChart);
+  const crossBorderNetTimeline = createTimeline(crossBorderNetChart);
+
+  const CROSS_BORDER_NET_SERIES = [
+    { name: "Net cross-border physical flow", dataset: "physical_flows", color: "--flow-physical", shape: "line" },
+    { name: "Net commercial exchange (total)", dataset: "scheduled_total", color: "--flow-scheduled", shape: "line" },
+    { name: "Net commercial exchange (day-ahead)", dataset: "scheduled_day_ahead", color: "--flow-scheduled", shape: "dashed" }
+  ];
+
+  /* Country selection shared by the imports and exports charts. */
+  let crossBorderCountrySelected = {};
+
+  function crossBorderUnavailable(chart, subtitleIds) {
+    chart.clear();
+    const text = crossBorderStatus === "loading"
+      ? "Loading cross-border data…"
+      : "Cross-border data not available yet";
+    subtitleIds.forEach(id => {
+      const element = document.getElementById(id);
+      if (element) element.textContent = text;
+    });
+  }
+
+  function crossBorderDirectionTooltip(timeline, direction) {
+    return params => {
+      if (!params || !params.length) return "";
+      const row = timeline.rows[params[0].dataIndex];
+      const lookups = getCrossBorderLookups();
+      if (!row || !lookups) return "";
+
+      const unit = timelineUnit();
+      const values = CROSS_BORDER_COUNTRIES
+        .filter(country => crossBorderCountrySelected[country.name] !== false)
+        .map(country => ({
+          country,
+          value: lookupValue(lookups.physical_flows[direction][country.code], row.key)
+        }))
+        .filter(item => item.value !== null)
+        .sort((a, b) => b.value - a.value);
+
+      if (!values.length) return tooltipHeader(row) + "No data";
+
+      const total = values.reduce((sum, item) => sum + item.value, 0);
+      return tooltipHeader(row) +
+        values.map(item =>
+          tooltipRow(cssVar(item.country.color), item.country.name, `${formatChartNumber(item.value)} ${unit}`, "line")
+        ).join("") +
+        `<div style="margin-top:6px;">${tooltipRow("transparent", "Total shown", `${formatChartNumber(total)} ${unit}`)}</div>`;
+    };
+  }
+
+  function renderCrossBorderDirectionChart(chart, timeline, direction, subtitleId) {
+    const lookups = getCrossBorderLookups();
+    if (!lookups || !rawData) {
+      crossBorderUnavailable(chart, [subtitleId]);
+      return;
+    }
+
+    resetTimeline(timeline);
+    setChartSubtitle(subtitleId, `${timelineMeasure()} · physical flows ${direction === "imports" ? "into" : "out of"} Italy`);
+
+    const series = CROSS_BORDER_COUNTRIES.map(country => ({
+      name: country.name,
+      type: "line",
+      data: timeline.rows.map(row => lookupValue(lookups.physical_flows[direction][country.code], row.key)),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: cssVar(country.color), width: 1.5 },
+      itemStyle: { color: cssVar(country.color) },
+      emphasis: { focus: "series" }
+    }));
+
+    chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      // The legend is the shared HTML one above both charts.
+      legend: {
+        show: false,
+        data: series.map(item => item.name),
+        selected: { ...crossBorderCountrySelected }
+      },
+      tooltip: timelineTooltip(crossBorderDirectionTooltip(timeline, direction)),
+      grid: { left: CHART_GRID.left, right: 24, top: 20, bottom: CHART_GRID.bottom, containLabel: false },
+      xAxis: timelineXAxis(timeline),
+      yAxis: timelineYAxis(timelineUnit()),
+      series,
+      dataZoom: timelineDataZoom(0)
+    }, true);
+
+    chart.resize();
+  }
+
+  function crossBorderNetTooltip(params) {
+    if (!params || !params.length) return "";
+    const row = crossBorderNetTimeline.rows[params[0].dataIndex];
+    const lookups = getCrossBorderLookups();
+    if (!row || !lookups) return "";
+
+    const unit = timelineUnit();
+    return tooltipHeader(row) + CROSS_BORDER_NET_SERIES
+      .map(item => {
+        const value = lookupValue(lookups[item.dataset].net, row.key);
+        return tooltipRow(cssVar(item.color), item.name, value === null ? "—" : `${formatChartNumber(value)} ${unit}`, item.shape);
+      })
+      .join("") +
+      `<div style="margin-top:6px;color:${cssVar("--chart-tooltip-muted")};">Positive = net import into Italy</div>`;
+  }
+
+  function renderCrossBorderNetChart() {
+    const lookups = getCrossBorderLookups();
+    if (!lookups || !rawData) {
+      crossBorderUnavailable(crossBorderNetChart, ["crossborder-net-subtitle"]);
+      return;
+    }
+
+    resetTimeline(crossBorderNetTimeline);
+    setChartSubtitle("crossborder-net-subtitle", `${timelineMeasure()} · positive = net import`);
+
+    const series = CROSS_BORDER_NET_SERIES.map(item => ({
+      name: item.name,
+      type: "line",
+      data: crossBorderNetTimeline.rows.map(row => lookupValue(lookups[item.dataset].net, row.key)),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: {
+        color: cssVar(item.color),
+        width: item.dataset === "physical_flows" ? 2 : 1.5,
+        type: item.shape === "dashed" ? "dashed" : "solid"
+      },
+      itemStyle: { color: cssVar(item.color) },
+      emphasis: { focus: "series" }
+    }));
+
+    crossBorderNetChart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      tooltip: timelineTooltip(crossBorderNetTooltip),
+      grid: { left: CHART_GRID.left, right: 24, top: 20, bottom: CHART_GRID.bottom, containLabel: false },
+      // Keep the date labels at the bottom when values go negative.
+      xAxis: timelineXAxis(crossBorderNetTimeline, { onZero: false }),
+      yAxis: timelineYAxis(timelineUnit()),
+      series,
+      dataZoom: timelineDataZoom(0)
+    }, true);
+
+    crossBorderNetChart.resize();
+  }
+
+  function renderInterconnectionCharts() {
+    renderCrossBorderDirectionChart(
+      crossBorderImportsChart, crossBorderImportsTimeline, "imports", "crossborder-imports-subtitle"
+    );
+    renderCrossBorderDirectionChart(
+      crossBorderExportsChart, crossBorderExportsTimeline, "exports", "crossborder-exports-subtitle"
+    );
+    renderCrossBorderNetChart();
+  }
+
+  /* Shared country legend: one click toggles the country on both charts. */
+  (function buildCrossBorderLegend() {
+    const legend = document.getElementById("crossborder-legend");
+
+    CROSS_BORDER_COUNTRIES.forEach(country => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "legend-chip";
+      button.setAttribute("aria-pressed", "true");
+      button.innerHTML =
+        `<span class="legend-swatch" style="background:var(${country.color})"></span>${country.name}`;
+
+      button.addEventListener("click", () => {
+        const visible = crossBorderCountrySelected[country.name] === false;
+        crossBorderCountrySelected[country.name] = visible;
+        button.classList.toggle("off", !visible);
+        button.setAttribute("aria-pressed", String(visible));
+
+        [crossBorderImportsChart, crossBorderExportsChart].forEach(chart => {
+          chart.dispatchAction({
+            type: visible ? "legendSelect" : "legendUnSelect",
+            name: country.name
+          });
+        });
+      });
+
+      legend.appendChild(button);
+    });
   })();
+
+  attachDragZoom(crossBorderImportsChart, "crossborder-imports-wrap", "crossborder-imports-drag");
+  attachDragZoom(crossBorderExportsChart, "crossborder-exports-wrap", "crossborder-exports-drag");
+  attachDragZoom(crossBorderNetChart, "crossborder-net-wrap", "crossborder-net-drag");
 
 
   /* ============================================================
@@ -4835,11 +5250,16 @@
       currentZone === "italy" &&
       currentSubTab === "prices";
 
+    const showInterconnection =
+      hasData &&
+      currentZone === "italy" &&
+      currentSubTab === "interconnection";
+
     const zonePlaceholder =
       document.getElementById("zone-placeholder");
 
     zonePlaceholder.style.display =
-      showPunChart || showZonalChart
+      showPunChart || showZonalChart || showInterconnection
         ? "none"
         : "flex";
 
@@ -4881,7 +5301,14 @@
       zonalChartSection.remove();
     }
 
-    if (!showPunChart && !showZonalChart) {
+    interconnectionMount.style.display =
+      showInterconnection ? "grid" : "none";
+
+    if (showInterconnection) {
+      setTimeout(renderInterconnectionCharts, 0);
+    }
+
+    if (!showPunChart && !showZonalChart && !showInterconnection) {
       document.getElementById(
         "zone-placeholder-text"
       ).textContent =
@@ -5034,6 +5461,7 @@
     await originalLoadData();
     syncCalendarTriggerLabel();
     updateView();
+    loadCrossBorderData();
   };
 
   window.addEventListener("resize", () => {
@@ -5041,6 +5469,9 @@
     generationLoadChart.resize();
     zonalChart.resize();
     generationMixChart.resize();
+    crossBorderImportsChart.resize();
+    crossBorderExportsChart.resize();
+    crossBorderNetChart.resize();
   });
 
   /* ============================================================
