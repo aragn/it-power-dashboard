@@ -26,8 +26,8 @@
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
       --chart-pun:#d9dde2; --chart-generation:#5ecb8a; --chart-load:#5b9cff;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
-      --mix-coal:#e66767; --mix-pumped:#9085e9; --mix-battery:#d55181; --mix-renewables:#008300; --mix-hydro:#3987e5;
-      --mix-gas:#d95926; --mix-wind:#199e70; --mix-solar:#c98500; --mix-other:#7a8089; --mix-load:#f1f3f5;
+      --mix-coal:#e66767; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
+      --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d;
     }
     :root[data-theme="light"] {
       color-scheme:light;
@@ -39,8 +39,8 @@
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
       --chart-pun:#1f2429; --chart-generation:#1f9d57; --chart-load:#2f6fdb;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
-      --mix-coal:#e34948; --mix-pumped:#4a3aa7; --mix-battery:#e87ba4; --mix-renewables:#008300; --mix-hydro:#2a78d6;
-      --mix-gas:#eb6834; --mix-wind:#1baf7a; --mix-solar:#eda100; --mix-other:#8b9097; --mix-load:#14171a;
+      --mix-coal:#e34948; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
+      --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097;
     }
     #theme-toggle { position:fixed; left:16px; bottom:16px; z-index:150; display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 14px 8px 11px; font-size:12px; cursor:pointer; box-shadow:0 6px 18px var(--shadow); }
     #theme-toggle:hover { background:var(--hover); }
@@ -231,14 +231,6 @@
   
   <script>
 
-
-  /*
-   * Value axes start at 0, unless the data goes below zero: then the
-   * axis extends down to include the negative values.
-   */
-  function valueAxisMin(low, pad, step) {
-    return low < 0 ? Math.floor((low - pad) / step) * step : 0;
-  }
 
   /* Chart subtitle: "<text> · <calendar range>". */
   function setChartSubtitle(id, text) {
@@ -2437,10 +2429,6 @@
       return;
     }
 
-    const low = Math.min(...values);
-    const high = Math.max(...values);
-    const pad = Math.max(500, (high - low) * 0.08);
-
     setChartSubtitle('generation-load-chart-subtitle', {
       daily: 'Daily energy',
       hourly: 'Hourly average power',
@@ -2499,8 +2487,6 @@
       },
       yAxis: {
         type: 'value',
-        min: valueAxisMin(low, pad, 1000),
-        max: Math.ceil((high + pad) / 1000) * 1000,
         name: currentGranularity === 'daily' ? 'MWh' : 'MW',
         nameLocation: 'middle', nameRotate: 90, nameGap: 45,
         nameTextStyle: { color: cssVar('--chart-axis-label'), fontSize: 10 },
@@ -2897,10 +2883,6 @@
       return;
     }
 
-    const low = Math.min(...allValues);
-    const high = Math.max(...allValues);
-    const pad = Math.max(10, (high - low) * 0.08);
-
     const subtitle =
       zonalGranularity === "quarter"
         ? "15-minute MGP zonal prices"
@@ -3005,8 +2987,6 @@
       },
       yAxis: {
         type: "value",
-        min: valueAxisMin(low, pad, 10),
-        max: Math.ceil((high + pad) / 10) * 10,
         name: "€/MWh",
         nameLocation: "middle",
         nameRotate: 90,
@@ -3320,11 +3300,6 @@
         ? `${subtitle} · ${formatDate(currentStart)} – ${formatDate(currentEnd)}`
         : subtitle;
 
-    const values = series.map(row => Number(row.pun));
-    const low = Math.min(...values);
-    const high = Math.max(...values);
-    const pad = Math.max(10, (high - low) * 0.08);
-
     const categories = series.map((row, index) => makeCategoryKey(row, index));
 
     const option = {
@@ -3385,8 +3360,6 @@
       },
       yAxis: {
         type: 'value',
-        min: valueAxisMin(low, pad, 10),
-        max: Math.ceil((high + pad) / 10) * 10,
         name: '€/MWh',
         nameLocation: 'middle',
         nameRotate: 90,
@@ -4257,21 +4230,21 @@
      ============================================================ */
 
   /*
-   * ENTSO-E production types grouped into nine sources.  The stacking order
-   * (bottom to top) and colours were validated so that every pair of
-   * neighbouring areas stays distinguishable, including for colour-blind
+   * ENTSO-E production types grouped into nine sources, stacked bottom to
+   * top in this order.  The colours were checked for this order so that
+   * neighbouring areas stay distinguishable, including for colour-blind
    * readers, in both themes; "Other & oil" is the neutral fold-in bucket.
    */
   const MIX_SOURCES = [
     { name: "Coal", codes: ["B05", "B03"], color: "--mix-coal" },
-    { name: "Pumped hydro", codes: ["B10"], color: "--mix-pumped" },
-    { name: "Battery storage", codes: ["B25"], color: "--mix-battery" },
+    { name: "Other & oil", codes: ["B20", "B06"], color: "--mix-other" },
+    { name: "Fossil gas", codes: ["B04"], color: "--mix-gas" },
     { name: "Other renewables", codes: ["B01", "B17", "B15", "B09"], color: "--mix-renewables" },
     { name: "Hydro", codes: ["B11", "B12"], color: "--mix-hydro" },
-    { name: "Fossil gas", codes: ["B04"], color: "--mix-gas" },
+    { name: "Pumped hydro", codes: ["B10"], color: "--mix-pumped" },
+    { name: "Battery storage", codes: ["B25"], color: "--mix-battery" },
     { name: "Wind", codes: ["B19", "B18"], color: "--mix-wind" },
-    { name: "Solar", codes: ["B16"], color: "--mix-solar" },
-    { name: "Other & oil", codes: ["B20", "B06"], color: "--mix-other" }
+    { name: "Solar", codes: ["B16"], color: "--mix-solar" }
   ];
 
   /* Storage consumption, drawn below zero in its source's colour. */
@@ -4384,10 +4357,16 @@
     const unit = currentGranularity === "daily" ? "MWh" : "MW";
     const muted = cssVar("--chart-tooltip-muted");
     const shown = name => generationMixSelected[name] !== false;
-    const line = (color, name, value) =>
-      `<div style="display:flex;justify-content:space-between;gap:18px;">` +
-      `<span><span style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:${color};"></span>${name}</span>` +
-      `<b>${value}</b></div>`;
+    // Areas get a square swatch, lines a short line, so the blue load line
+    // reads differently from the blue hydro area.
+    const line = (color, name, value, shape = "area") => {
+      const swatch = shape === "line"
+        ? `width:12px;height:2px;margin:0 6px 3px 0;`
+        : `width:8px;height:8px;border-radius:2px;margin-right:6px;`;
+      return `<div style="display:flex;justify-content:space-between;gap:18px;">` +
+        `<span><span style="display:inline-block;${swatch}background:${color};"></span>${name}</span>` +
+        `<b>${value}</b></div>`;
+    };
 
     const dateText = parseDate(row.date).toLocaleDateString("en-GB", {
       day: "2-digit", month: "short", year: "numeric"
@@ -4397,7 +4376,7 @@
     let html = `<div style="margin-bottom:6px;color:${muted};">${dateText}${timeText}</div>`;
 
     if (shown(MIX_LOAD_NAME) && row.load !== null) {
-      html += line(cssVar("--mix-load"), MIX_LOAD_NAME, `${formatMixNumber(row.load)} ${unit}`);
+      html += line(cssVar("--chart-load"), MIX_LOAD_NAME, `${formatMixNumber(row.load)} ${unit}`, "line");
     }
 
     if (row.sources[0] !== null) {
@@ -4419,7 +4398,7 @@
 
     if (shown(MIX_PUN_NAME) && Number.isFinite(row.pun)) {
       html += `<div style="margin-top:6px;">` +
-        line(cssVar("--chart-pun"), MIX_PUN_NAME, `${row.pun.toFixed(2)} €/MWh`) + `</div>`;
+        line(cssVar("--chart-pun"), MIX_PUN_NAME, `${row.pun.toFixed(2)} €/MWh`, "line") + `</div>`;
     }
 
     return html;
@@ -4531,8 +4510,8 @@
         data: rows.map(row => row.load),
         showSymbol: false,
         connectNulls: false,
-        lineStyle: { color: cssVar("--mix-load"), width: 2 },
-        itemStyle: { color: cssVar("--mix-load") },
+        lineStyle: { color: cssVar("--chart-load"), width: 2 },
+        itemStyle: { color: cssVar("--chart-load") },
         z: 5
       },
       {
@@ -4626,13 +4605,8 @@
       ],
       xAxis: [xAxis(0), xAxis(1)],
       yAxis: [
-        // Value axes include 0; the MW axis extends below zero while
-        // storage consumption is shown.
         yAxis(0, unit, {}),
-        yAxis(1, "€/MWh", {
-          min: value => valueAxisMin(value.min, 0, 10),
-          splitNumber: 2
-        })
+        yAxis(1, "€/MWh", { splitNumber: 2 })
       ],
       series,
       dataZoom: [
