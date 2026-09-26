@@ -15,9 +15,15 @@
     .brand { display:flex; flex-direction:column; flex-shrink:0; line-height:1.1; }
     .brand-name { font-size:14px; font-weight:700; letter-spacing:-0.01em; }
     .brand-sub { font-size:10px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.06em; }
-    .zone-tabs { display:flex; gap:4px; overflow-x:auto; flex:0 1 auto; min-width:0; scrollbar-width:none; }
-    .zone-tabs::-webkit-scrollbar { display:none; }
-    .zone-tab { border:1px solid transparent; background:transparent; color:var(--muted); font-size:12.5px; padding:7px 13px; border-radius:6px; cursor:pointer; white-space:nowrap; }
+    .zone-select { position:relative; display:flex; flex-shrink:0; }
+    #zone-trigger { display:flex; align-items:center; gap:8px; min-width:150px; justify-content:space-between; border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:7px; padding:7px 12px; font-size:12.5px; font-weight:600; cursor:pointer; }
+    #zone-trigger:hover { background:#1a1f25; }
+    .zone-chevron { width:14px; height:14px; color:var(--muted); transition:transform .15s; }
+    #zone-trigger[aria-expanded="true"] .zone-chevron { transform:rotate(180deg); }
+    .zone-dropdown { display:none; position:absolute; top:calc(100% + 10px); left:0; z-index:200; min-width:200px; padding:6px; flex-direction:column; gap:2px; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:0 16px 40px rgba(0,0,0,.55); }
+    .zone-dropdown.open { display:flex; }
+    .zone-group-title { margin:8px 10px 4px; padding-top:8px; border-top:1px solid var(--border); color:var(--muted-2); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+    .zone-tab { width:100%; text-align:left; border:1px solid transparent; background:transparent; color:var(--muted); font-size:12.5px; padding:8px 10px; border-radius:6px; cursor:pointer; white-space:nowrap; }
     .zone-tab:hover { color:var(--text); background:#1a1f25; }
     .zone-tab.active { background:var(--panel-2); color:var(--text); border-color:var(--border); font-weight:600; }
     .topbar-right { display:flex; align-items:center; gap:10px; flex-shrink:0; margin-left:auto; }
@@ -107,6 +113,10 @@
     #chart-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:rgba(180,187,196,.45); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
     #chart-wrap.dragging #chart-drag-hint { opacity:0; }
     .chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
+    /* Keep the top bar on one line: drop the least important items first. */
+    @media (max-width:1000px) { .status{display:none} }
+    @media (max-width:860px) { .brand{display:none} }
+    @media (max-width:680px) { #calendar-trigger-label{display:none} .calendar-trigger-wrap .calendar-dropdown{right:0} #zone-trigger{min-width:0} }
     @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:min(92vw,520px);right:-60px} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} .chart-panel{width:100%;max-width:100%;} }
     @media (max-width:600px) { .topbar{padding:0 12px;gap:12px}.status{display:none}.main-content{padding:20px 12px 40px}.brand-sub{display:none}#chart-wrap{height:470px}.chart-header{align-items:flex-start;flex-direction:column}.granularity button{padding:7px 8px}.chart-help{margin-left:52px} }
   </style>
@@ -115,8 +125,11 @@
   <div class="page">
     <header class="topbar">
       <div class="brand"><div class="brand-name">IT Power Market Intelligence</div><div class="brand-sub">GME · Terna · ENTSO-E</div></div>
-      <div id="zone-tabs-wrap" class="zone-tabs">
-        <button class="zone-tab active" data-zone="italy" type="button">Italy</button><button class="zone-tab" data-zone="north" type="button">North</button><button class="zone-tab" data-zone="center-north" type="button">Center North</button><button class="zone-tab" data-zone="center-south" type="button">Center South</button><button class="zone-tab" data-zone="south" type="button">South</button><button class="zone-tab" data-zone="calabria" type="button">Calabria</button><button class="zone-tab" data-zone="sicily" type="button">Sicily</button><button class="zone-tab" data-zone="sardinia" type="button">Sardinia</button>
+      <div id="zone-tabs-wrap" class="zone-select">
+        <button id="zone-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="zone-dropdown"><span id="zone-trigger-label">Italy</span><svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div id="zone-dropdown" class="zone-dropdown">
+        <button class="zone-tab active" data-zone="italy" type="button">Italy</button><div class="zone-group-title">Bidding zones</div><button class="zone-tab" data-zone="north" type="button">North</button><button class="zone-tab" data-zone="center-north" type="button">Center North</button><button class="zone-tab" data-zone="center-south" type="button">Center South</button><button class="zone-tab" data-zone="south" type="button">South</button><button class="zone-tab" data-zone="calabria" type="button">Calabria</button><button class="zone-tab" data-zone="sicily" type="button">Sicily</button><button class="zone-tab" data-zone="sardinia" type="button">Sardinia</button>
+        </div>
       </div>
       <div id="granularity-control" class="granularity" role="group" aria-label="Data resolution for all charts"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div>
       <div class="topbar-right">
@@ -4240,6 +4253,9 @@
     document.getElementById("zone-title").textContent =
       ZONE_LABELS[currentZone];
 
+    document.getElementById("zone-trigger-label").textContent =
+      ZONE_LABELS[currentZone];
+
     document
       .querySelectorAll(".subnav-tab")
       .forEach(button => {
@@ -4330,9 +4346,46 @@
         currentZone =
           button.dataset.zone;
 
+        setZoneDropdownOpen(false);
         updateView();
       });
     });
+
+  /* Bidding-zone picker in the top bar. */
+  const zoneDropdown =
+    document.getElementById("zone-dropdown");
+
+  const zoneTrigger =
+    document.getElementById("zone-trigger");
+
+  function setZoneDropdownOpen(open) {
+    zoneDropdown.classList.toggle("open", open);
+    zoneTrigger.setAttribute("aria-expanded", String(open));
+  }
+
+  zoneTrigger.addEventListener("click", event => {
+    event.stopPropagation();
+    const open = !zoneDropdown.classList.contains("open");
+    if (open) {
+      document.getElementById("calendar-dropdown").classList.remove("open");
+    }
+    setZoneDropdownOpen(open);
+  });
+
+  zoneDropdown.addEventListener("click", event => {
+    event.stopPropagation();
+  });
+
+  document.addEventListener("click", () => {
+    setZoneDropdownOpen(false);
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      setZoneDropdownOpen(false);
+      document.getElementById("calendar-dropdown").classList.remove("open");
+    }
+  });
 
   document
     .querySelectorAll(".subnav-tab")
@@ -4363,6 +4416,7 @@
     "click",
     event => {
       event.stopPropagation();
+      setZoneDropdownOpen(false);
       calendarDropdown.classList.toggle("open");
     }
   );
