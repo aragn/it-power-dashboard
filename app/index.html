@@ -4,9 +4,47 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IT Power Market Intelligence</title>
+  <script>
+    // Apply the saved theme before the page paints, to avoid a flash.
+    try {
+      if (localStorage.getItem("theme") === "light") {
+        document.documentElement.dataset.theme = "light";
+      }
+    } catch (error) {}
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
   <style>
-    :root { --bg:#0b0d10; --panel:#111418; --panel-2:#15191e; --border:#272c33; --text:#f1f3f5; --muted:#8c949e; --muted-2:#666e78; --accent:#f2f4f6; --blue:#5b9cff; }
+    /* Colour tokens. Dark is the default; [data-theme="light"] overrides them.
+       Chart colours are read from here by cssVar() when a chart is drawn. */
+    :root {
+      color-scheme:dark;
+      --bg:#0b0d10; --panel:#111418; --panel-2:#15191e; --border:#272c33; --text:#f1f3f5; --muted:#8c949e; --muted-2:#666e78; --accent:#f2f4f6; --blue:#5b9cff;
+      --hover:#1a1f25; --range:#252b32; --selected-bg:#e8eaed; --selected-text:#0b0d10; --shadow:rgba(0,0,0,.55);
+      --status-ok:#5ecb8a; --drag-hint:rgba(180,187,196,.45); --selection-border:rgba(91,156,255,.9); --selection-fill:rgba(91,156,255,.1);
+      --chart-tooltip-bg:#171b20; --chart-tooltip-border:#30363e; --chart-tooltip-text:#f1f3f5; --chart-tooltip-muted:#9aa2ac; --chart-pointer:#5d6670;
+      --chart-axis-line:#30353c; --chart-axis-label:#727a84; --chart-grid:#20252b; --chart-legend:#b4bbc4;
+      --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
+      --chart-pun:#d9dde2; --chart-generation:#5ecb8a; --chart-load:#5b9cff;
+      --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
+    }
+    :root[data-theme="light"] {
+      color-scheme:light;
+      --bg:#f5f6f8; --panel:#ffffff; --panel-2:#f0f2f5; --border:#dde1e6; --text:#14171a; --muted:#5b6470; --muted-2:#7a838e; --accent:#14171a; --blue:#2f6fdb;
+      --hover:#e8ebef; --range:#e1e6ec; --selected-bg:#14171a; --selected-text:#ffffff; --shadow:rgba(16,24,40,.14);
+      --status-ok:#1f9d57; --drag-hint:rgba(90,98,108,.55); --selection-border:rgba(47,111,219,.9); --selection-fill:rgba(47,111,219,.1);
+      --chart-tooltip-bg:#ffffff; --chart-tooltip-border:#d5dae0; --chart-tooltip-text:#14171a; --chart-tooltip-muted:#66707b; --chart-pointer:#a3aab3;
+      --chart-axis-line:#cfd4da; --chart-axis-label:#66707b; --chart-grid:#eceef1; --chart-legend:#3f4750;
+      --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
+      --chart-pun:#1f2429; --chart-generation:#1f9d57; --chart-load:#2f6fdb;
+      --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
+    }
+    #theme-toggle { position:fixed; left:16px; bottom:16px; z-index:150; display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 14px 8px 11px; font-size:12px; cursor:pointer; box-shadow:0 6px 18px var(--shadow); }
+    #theme-toggle:hover { background:var(--hover); }
+    #theme-toggle svg { width:15px; height:15px; color:var(--muted); }
+    /* The button shows the theme it switches to. */
+    #theme-toggle .icon-moon { display:none; }
+    :root[data-theme="light"] #theme-toggle .icon-moon { display:block; }
+    :root[data-theme="light"] #theme-toggle .icon-sun { display:none; }
     * { box-sizing:border-box; }
     html, body { margin:0; padding:0; width:100%; min-height:100%; background:var(--bg); color:var(--text); font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; }
     button { font:inherit; }
@@ -15,33 +53,39 @@
     .brand { display:flex; flex-direction:column; flex-shrink:0; line-height:1.1; }
     .brand-name { font-size:14px; font-weight:700; letter-spacing:-0.01em; }
     .brand-sub { font-size:10px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.06em; }
-    .zone-tabs { display:flex; gap:4px; overflow-x:auto; flex:1; scrollbar-width:none; }
-    .zone-tabs::-webkit-scrollbar { display:none; }
-    .zone-tab { border:1px solid transparent; background:transparent; color:var(--muted); font-size:12.5px; padding:7px 13px; border-radius:6px; cursor:pointer; white-space:nowrap; }
-    .zone-tab:hover { color:var(--text); background:#1a1f25; }
+    .zone-select { position:relative; display:flex; flex-shrink:0; }
+    #zone-trigger { display:flex; align-items:center; gap:8px; min-width:150px; justify-content:space-between; border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:7px; padding:7px 12px; font-size:12.5px; font-weight:600; cursor:pointer; }
+    #zone-trigger:hover { background:var(--hover); }
+    .zone-chevron { width:14px; height:14px; color:var(--muted); transition:transform .15s; }
+    #zone-trigger[aria-expanded="true"] .zone-chevron { transform:rotate(180deg); }
+    .zone-dropdown { display:none; position:absolute; top:calc(100% + 10px); left:0; z-index:200; min-width:200px; padding:6px; flex-direction:column; gap:2px; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:0 16px 40px var(--shadow); }
+    .zone-dropdown.open { display:flex; }
+    .zone-group-title { margin:8px 10px 4px; padding-top:8px; border-top:1px solid var(--border); color:var(--muted-2); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+    .zone-tab { width:100%; text-align:left; border:1px solid transparent; background:transparent; color:var(--muted); font-size:12.5px; padding:8px 10px; border-radius:6px; cursor:pointer; white-space:nowrap; }
+    .zone-tab:hover { color:var(--text); background:var(--hover); }
     .zone-tab.active { background:var(--panel-2); color:var(--text); border-color:var(--border); font-weight:600; }
-    .topbar-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    .topbar-right { display:flex; align-items:center; gap:10px; flex-shrink:0; margin-left:auto; }
     .status { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:11.5px; }
-    .status-dot { width:7px; height:7px; border-radius:50%; background:#5ecb8a; flex-shrink:0; }
+    .status-dot { width:7px; height:7px; border-radius:50%; background:var(--status-ok); flex-shrink:0; }
     .calendar-trigger-wrap { position:relative; }
     #calendar-trigger { display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:7px; padding:7px 12px; font-size:12px; cursor:pointer; }
-    #calendar-trigger:hover { background:#1a1f25; }
+    #calendar-trigger:hover { background:var(--hover); }
     .calendar-icon { width:15px; height:15px; flex:0 0 15px; color:var(--muted); }
     #calendar-trigger:hover .calendar-icon { color:var(--text); }
-    .calendar-dropdown { display:none; position:absolute; top:calc(100% + 10px); right:0; z-index:200; width:520px; padding:12px; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:0 16px 40px rgba(0,0,0,.55); }
+    .calendar-dropdown { display:none; position:absolute; top:calc(100% + 10px); right:0; z-index:200; width:520px; padding:12px; background:var(--panel); border:1px solid var(--border); border-radius:10px; box-shadow:0 16px 40px var(--shadow); }
     .calendar-dropdown.open { display:block; }
     .calendar-dropdown-body { display:flex; gap:14px; }
     .calendar-dropdown-quick { width:135px; flex-shrink:0; display:flex; flex-direction:column; gap:6px; }
     .quick-title { margin-bottom:8px; color:var(--muted-2); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
     .quick-btn { border:1px solid var(--border); background:var(--panel-2); color:var(--muted); border-radius:6px; padding:9px 10px; text-align:left; cursor:pointer; font-size:11.5px; }
-    .quick-btn:hover { color:var(--text); background:#1a1f25; }
+    .quick-btn:hover { color:var(--text); background:var(--hover); }
     .calendar-dropdown-calendar { flex:1; min-width:0; }
     .calendar-dropdown-footer { display:flex; align-items:center; justify-content:flex-end; margin-top:8px; padding:0 0 7px; border-bottom:1px solid var(--border); }
     .timezone-label { color:var(--muted-2); font-size:11px; white-space:nowrap; }
     .app-body { display:flex; align-items:flex-start; }
     .sidebar { width:190px; flex-shrink:0; padding:20px 12px; position:sticky; top:56px; align-self:flex-start; }
     .sidebar-item { display:block; width:100%; text-align:left; padding:10px 12px; border:0; border-radius:6px; background:transparent; color:var(--muted); font-size:13px; cursor:pointer; margin-bottom:3px; }
-    .sidebar-item:hover { background:#1a1f25; color:var(--text); }
+    .sidebar-item:hover { background:var(--hover); color:var(--text); }
     .sidebar-item.active { background:var(--panel-2); color:var(--text); font-weight:600; }
     .main-content { flex:1; min-width:0; max-width:1500px; margin:0 auto; padding:24px 32px 50px; }
     .zone-header { margin-bottom:4px; }
@@ -58,7 +102,7 @@
     .zonal-chart-panel { width:100%; max-width:100%; padding:18px 18px 12px; min-width:0; margin:0; }
     #zonal-chart-wrap { position:relative; width:100%; height:520px; touch-action:none; }
     #zonal-chart { position:absolute; inset:0; width:100%; height:100%; }
-    #zonal-chart-drag-selection { position:absolute; z-index:20; display:none; top:55px; height:calc(100% - 125px); border:1px solid rgba(91,156,255,.9); background:rgba(91,156,255,.1); pointer-events:none; }
+    #zonal-chart-drag-selection { position:absolute; z-index:20; display:none; top:55px; height:calc(100% - 125px); border:1px solid var(--selection-border); background:var(--selection-fill); pointer-events:none; }
     #zonal-chart-wrap.dragging #zonal-chart-drag-hint { opacity:0; }
     .zonal-chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
     .zone-placeholder { display:none; align-items:center; justify-content:center; min-height:320px; padding:40px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--muted); font-size:13.5px; text-align:center; }
@@ -73,10 +117,10 @@
     .calendar-weekdays { margin-bottom:5px; }
     .weekday { padding:4px 0; color:var(--muted-2); font-size:10px; text-align:center; text-transform:uppercase; }
     .day { position:relative; height:35px; border:0; border-radius:5px; background:transparent; color:var(--muted); cursor:pointer; font-size:11px; }
-    .day:hover:not(.disabled) { background:#1a1f25; color:var(--text); }
+    .day:hover:not(.disabled) { background:var(--hover); color:var(--text); }
     .day.disabled { opacity:.18; cursor:default; }
-    .day.selected { background:#e8eaed; color:#0b0d10; font-weight:600; }
-    .day.range { background:#252b32; color:var(--text); border-radius:0; }
+    .day.selected { background:var(--selected-bg); color:var(--selected-text); font-weight:600; }
+    .day.range { background:var(--range); color:var(--text); border-radius:0; }
     .day.range-start { border-radius:5px 0 0 5px; }
     .day.range-end { border-radius:0 5px 5px 0; }
     .day.range-start.range-end { border-radius:5px; }
@@ -86,7 +130,7 @@
     .calendar-month-picker, .calendar-year-picker { display:none; }
     .picker-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
     .picker-btn { height:40px; border:1px solid var(--border); background:var(--panel-2); color:var(--muted); border-radius:6px; cursor:pointer; font-size:11px; }
-    .picker-btn:hover:not(.disabled) { background:#1a1f25; color:var(--text); }
+    .picker-btn:hover:not(.disabled) { background:var(--hover); color:var(--text); }
     .picker-btn.disabled { opacity:.2; cursor:default; }
     .chart-panel { width:100%; max-width:100%; padding:18px 18px 12px; min-width:0; margin:0; }
     .chart-header { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:5px; }
@@ -95,29 +139,37 @@
     .granularity { display:flex; overflow:hidden; flex-shrink:0; border:1px solid var(--border); border-radius:6px; background:var(--panel-2); }
     .granularity button { border:0; border-right:1px solid var(--border); background:transparent; color:var(--muted); padding:7px 11px; cursor:pointer; font-size:10px; letter-spacing:.03em; }
     .granularity button:last-child { border-right:0; }
-    .granularity button.active { background:#e8eaed; color:#0b0d10; font-weight:600; }
+    .granularity button.active { background:var(--selected-bg); color:var(--selected-text); font-weight:600; }
     #chart-wrap { position:relative; width:100%; height:520px; touch-action:none; }
     #chart { position:absolute; inset:0; width:100%; height:100%; }
     #generation-load-chart-wrap { position:relative; width:100%; height:520px; touch-action:none; }
     #generation-load-chart { position:absolute; inset:0; width:100%; height:100%; }
-    #generation-load-drag-selection { position:absolute; z-index:20; display:none; top:20px; height:calc(100% - 90px); border:1px solid rgba(91,156,255,.9); background:rgba(91,156,255,.1); pointer-events:none; }
-    #generation-load-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:rgba(180,187,196,.45); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
+    #generation-load-drag-selection { position:absolute; z-index:20; display:none; top:20px; height:calc(100% - 90px); border:1px solid var(--selection-border); background:var(--selection-fill); pointer-events:none; }
+    #generation-load-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:var(--drag-hint); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
     #generation-load-chart-wrap.dragging #generation-load-drag-hint { opacity:0; }
-    #chart-drag-selection { position:absolute; z-index:20; display:none; top:20px; height:calc(100% - 90px); border:1px solid rgba(91,156,255,.9); background:rgba(91,156,255,.1); pointer-events:none; }
-    #chart-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:rgba(180,187,196,.45); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
+    #chart-drag-selection { position:absolute; z-index:20; display:none; top:20px; height:calc(100% - 90px); border:1px solid var(--selection-border); background:var(--selection-fill); pointer-events:none; }
+    #chart-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:var(--drag-hint); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
     #chart-wrap.dragging #chart-drag-hint { opacity:0; }
     .chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
-    @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:min(92vw,520px);right:-60px} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} .chart-panel{width:100%;max-width:100%;} }
-    @media (max-width:600px) { .topbar{padding:0 12px;gap:12px}.status{display:none}.main-content{padding:20px 12px 40px}.brand-sub{display:none}#chart-wrap{height:470px}.chart-header{align-items:flex-start;flex-direction:column}.granularity{align-self:stretch}.granularity button{flex:1}.chart-help{margin-left:52px} }
+    /* Keep the top bar on one line: drop the least important items first. */
+    @media (max-width:1000px) { .status{display:none} }
+    @media (max-width:860px) { .brand{display:none} }
+    @media (max-width:680px) { #calendar-trigger-label{display:none} #zone-trigger{min-width:0} }
+    @media (max-width:900px) { .sidebar{display:none} .calendar-dropdown{width:min(92vw,520px);right:0} .calendar-dropdown-body{flex-direction:column} .calendar-dropdown-quick{width:100%;flex-direction:row;flex-wrap:wrap} .chart-panel{width:100%;max-width:100%;} }
+    @media (max-width:600px) { .topbar{padding:0 12px;gap:12px}.status{display:none}.main-content{padding:20px 12px 40px}.brand-sub{display:none}#chart-wrap{height:470px}.chart-header{align-items:flex-start;flex-direction:column}.granularity button{padding:7px 8px}.chart-help{margin-left:52px} }
   </style>
 </head>
 <body>
   <div class="page">
     <header class="topbar">
       <div class="brand"><div class="brand-name">IT Power Market Intelligence</div><div class="brand-sub">GME · Terna · ENTSO-E</div></div>
-      <div id="zone-tabs-wrap" class="zone-tabs">
-        <button class="zone-tab active" data-zone="italy" type="button">Italy</button><button class="zone-tab" data-zone="north" type="button">North</button><button class="zone-tab" data-zone="center-north" type="button">Center North</button><button class="zone-tab" data-zone="center-south" type="button">Center South</button><button class="zone-tab" data-zone="south" type="button">South</button><button class="zone-tab" data-zone="calabria" type="button">Calabria</button><button class="zone-tab" data-zone="sicily" type="button">Sicily</button><button class="zone-tab" data-zone="sardinia" type="button">Sardinia</button>
+      <div id="zone-tabs-wrap" class="zone-select">
+        <button id="zone-trigger" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="zone-dropdown"><span id="zone-trigger-label">Italy</span><svg class="zone-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+        <div id="zone-dropdown" class="zone-dropdown">
+        <button class="zone-tab active" data-zone="italy" type="button">Italy</button><div class="zone-group-title">Bidding zones</div><button class="zone-tab" data-zone="north" type="button">North</button><button class="zone-tab" data-zone="center-north" type="button">Center North</button><button class="zone-tab" data-zone="center-south" type="button">Center South</button><button class="zone-tab" data-zone="south" type="button">South</button><button class="zone-tab" data-zone="calabria" type="button">Calabria</button><button class="zone-tab" data-zone="sicily" type="button">Sicily</button><button class="zone-tab" data-zone="sardinia" type="button">Sardinia</button>
+        </div>
       </div>
+      <div id="granularity-control" class="granularity" role="group" aria-label="Data resolution for all charts"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div>
       <div class="topbar-right">
         <div class="status"><span class="status-dot"></span><span id="status-text">Loading data</span></div>
         <div class="calendar-trigger-wrap">
@@ -143,17 +195,12 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div></div><div class="granularity"><button data-granularity="quarter" type="button">15 MIN</button><button data-granularity="hourly" type="button">HOURLY</button><button data-granularity="daily" class="active" type="button">DAILY</button></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices">
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices">
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
                 <div class="chart-title">MGP Zonal Prices</div>
                 <div id="zonal-chart-subtitle" class="chart-subtitle">Daily average</div>
-              </div>
-              <div class="granularity">
-                <button data-zonal-granularity="quarter" type="button">15 MIN</button>
-                <button data-zonal-granularity="hourly" type="button">HOURLY</button>
-                <button data-zonal-granularity="daily" class="active" type="button">DAILY</button>
               </div>
             </div>
             <div id="zonal-chart-wrap">
@@ -168,9 +215,21 @@
       </main>
     </div>
   </div>
+  <button id="theme-toggle" type="button" aria-label="Switch to light mode">
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2.5v2M12 19.5v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2.5 12h2M19.5 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"></path></svg>
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"></path></svg>
+    <span id="theme-toggle-label">Light mode</span>
+  </button>
   
   <script>
 
+
+  /* Current value of a colour token from the :root theme blocks. */
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement)
+      .getPropertyValue(name)
+      .trim();
+  }
 
   const DATA_URL = "./data/pun.json";
   const GENERATION_LOAD_DATA_URL = "./data/generation_load.json";
@@ -362,6 +421,125 @@
      DATA
      ============================================================ */
 
+  /*
+   * The data files use a compact layout (see etl/compact.py): each series
+   * stores one array of values per day, and a value's position in the day
+   * gives its time.  These helpers expand it back into the row objects
+   * ({date, time, hour|period, value}) that the charts below work with.
+   */
+  function compactDayKey(start, offset) {
+    const [y, m, d] = start.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d + offset))
+      .toISOString()
+      .slice(0, 10);
+  }
+
+  function compactTimeLabel(slot, step) {
+    const minutes = slot * step;
+    return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:` +
+      `${String(minutes % 60).padStart(2, "0")}`;
+  }
+
+  function isCompactSeries(value) {
+    return Boolean(
+      value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      "step" in value &&
+      "field" in value
+    );
+  }
+
+  function decodeCompactSeries(series) {
+    const rows = [];
+    if (!series.start) return rows;
+
+    const { step, field } = series;
+    const indexField = series.index;
+
+    if (step === 1440) {
+      series.values.forEach((value, offset) => {
+        if (value === null) return;
+        rows.push({ date: compactDayKey(series.start, offset), [field]: value });
+      });
+      return rows;
+    }
+
+    series.days.forEach((day, offset) => {
+      if (!day) return;
+      const date = compactDayKey(series.start, offset);
+      day.forEach((value, slot) => {
+        if (value === null) return;
+        const row = { date, time: compactTimeLabel(slot, step) };
+        if (indexField) row[indexField] = slot + 1;
+        row[field] = value;
+        rows.push(row);
+      });
+    });
+    return rows;
+  }
+
+  /*
+   * Before GME's native 15-minute prices, each quarter-hour price is simply
+   * the hourly price repeated four times.  Those points are not stored in
+   * the file; rebuild them from the hourly series.
+   */
+  function prependQuarterHoursFromHourly(hourlySeries, quarterRows, nativeFrom) {
+    const field = hourlySeries.field;
+    const synthetic = [];
+
+    decodeCompactSeries(hourlySeries).forEach(row => {
+      if (row.date >= nativeFrom) return;
+      const firstPeriod = (row.hour - 1) * 4 + 1;
+      for (let offset = 0; offset < 4; offset++) {
+        const period = firstPeriod + offset;
+        synthetic.push({
+          date: row.date,
+          time: compactTimeLabel(period - 1, 15),
+          period,
+          [field]: row[field]
+        });
+      }
+    });
+
+    return synthetic.concat(quarterRows);
+  }
+
+  function decodeCompactPayload(payload) {
+    if (!payload || payload.format !== "compact-v1") {
+      return payload;
+    }
+    return decodeCompactNode(payload, payload.quarter_hourly_native_from);
+  }
+
+  function decodeCompactNode(node, nativeFrom) {
+    if (isCompactSeries(node)) {
+      return decodeCompactSeries(node);
+    }
+    if (!node || typeof node !== "object" || Array.isArray(node)) {
+      return node;
+    }
+
+    const result = {};
+    Object.entries(node).forEach(([key, value]) => {
+      result[key] = decodeCompactNode(value, nativeFrom);
+    });
+
+    if (
+      nativeFrom &&
+      isCompactSeries(node.hourly) && node.hourly.index === "hour" &&
+      isCompactSeries(node.quarter_hourly) && node.quarter_hourly.index === "period"
+    ) {
+      result.quarter_hourly = prependQuarterHoursFromHourly(
+        node.hourly,
+        result.quarter_hourly,
+        nativeFrom
+      );
+    }
+
+    return result;
+  }
+
   async function loadData() {
 
     try {
@@ -379,7 +557,7 @@
       }
 
       rawData =
-        await response.json();
+        decodeCompactPayload(await response.json());
 
       const zonalResponse =
         await fetch(
@@ -394,7 +572,7 @@
       }
 
       rawZonalData =
-        await zonalResponse.json();
+        decodeCompactPayload(await zonalResponse.json());
 
       const generationLoadResponse =
         await fetch(
@@ -409,7 +587,7 @@
       }
 
       rawGenerationLoadData =
-        await generationLoadResponse.json();
+        decodeCompactPayload(await generationLoadResponse.json());
 
       initialiseDateSelection();
 
@@ -1581,9 +1759,13 @@
      GRANULARITY
      ============================================================ */
 
+  /*
+   * One 15 MIN / HOURLY / DAILY control in the top bar sets the
+   * resolution for every chart on the dashboard.
+   */
   document
     .querySelectorAll(
-      ".granularity button"
+      "#granularity-control button"
     )
     .forEach(button => {
 
@@ -1603,10 +1785,13 @@
           currentGranularity =
             next;
 
+          zonalGranularity =
+            next;
+
 
           document
             .querySelectorAll(
-              ".granularity button"
+              "#granularity-control button"
             )
             .forEach(item => {
 
@@ -1626,9 +1811,10 @@
 
           renderCalendar();
 
-          renderChart();
-          renderGenerationLoadChart();
-          renderZonalChart();
+          // Re-renders only the charts on the visible tab; hidden charts
+          // are detached from the page and pick up the new resolution
+          // when their tab is opened.
+          updateView();
         }
       );
     });
@@ -2236,11 +2422,11 @@
       grid: { left: 72, right: 24, top: 20, bottom: 70, containLabel: false },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: '#171b20',
-        borderColor: '#30363e',
+        backgroundColor: cssVar('--chart-tooltip-bg'),
+        borderColor: cssVar('--chart-tooltip-border'),
         borderWidth: 1,
-        textStyle: { color: '#f1f3f5', fontSize: 11 },
-        axisPointer: { type: 'line', lineStyle: { color: '#5d6670', width: 1 } },
+        textStyle: { color: cssVar('--chart-tooltip-text'), fontSize: 11 },
+        axisPointer: { type: 'line', lineStyle: { color: cssVar('--chart-pointer'), width: 1 } },
         formatter: params => {
           if (!params || !params.length) return '';
           const key = String(params[0].axisValue);
@@ -2257,17 +2443,17 @@
           const loadText = Number.isFinite(row.load)
             ? `${Number(row.load).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${unit}`
             : '—';
-          return `<div style="margin-bottom:4px;color:#9aa2ac;">${dateText}${timeText}</div><div>Generation: <b>${genText}</b></div><div>Actual load: <b>${loadText}</b></div>`;
+          return `<div style="margin-bottom:4px;color:${cssVar('--chart-tooltip-muted')};">${dateText}${timeText}</div><div>Generation: <b>${genText}</b></div><div>Actual load: <b>${loadText}</b></div>`;
         }
       },
       xAxis: {
         type: 'category',
         boundaryGap: false,
         data: categories,
-        axisLine: { lineStyle: { color: '#30353c' } },
+        axisLine: { lineStyle: { color: cssVar('--chart-axis-line') } },
         axisTick: { show: false },
         axisLabel: {
-          color: '#727a84', fontSize: 10, margin: 10, interval: 0,
+          color: cssVar('--chart-axis-label'), fontSize: 10, margin: 10, interval: 0,
           hideOverlap: true, rotate: 0,
           formatter: value => {
             const index = generationLoadCategoryToIndex.get(String(value));
@@ -2286,23 +2472,23 @@
         max: Math.ceil((high + pad) / 1000) * 1000,
         name: currentGranularity === 'daily' ? 'MWh' : 'MW',
         nameLocation: 'middle', nameRotate: 90, nameGap: 45,
-        nameTextStyle: { color: '#727a84', fontSize: 10 },
+        nameTextStyle: { color: cssVar('--chart-axis-label'), fontSize: 10 },
         axisLine: { show: false }, axisTick: { show: false },
-        axisLabel: { color: '#727a84', fontSize: 10 },
-        splitLine: { show: true, lineStyle: { color: '#20252b', width: 1 } }
+        axisLabel: { color: cssVar('--chart-axis-label'), fontSize: 10 },
+        splitLine: { show: true, lineStyle: { color: cssVar('--chart-grid'), width: 1 } }
       },
       series: [
         {
           name: 'Generation', type: 'line',
           data: rows.map(r => r.generation),
           smooth: false, showSymbol: false, connectNulls: false,
-          lineStyle: { color: '#5ecb8a', width: 1.3 }, itemStyle: { color: '#5ecb8a' }
+          lineStyle: { color: cssVar('--chart-generation'), width: 1.3 }, itemStyle: { color: cssVar('--chart-generation') }
         },
         {
           name: 'Actual total load', type: 'line',
           data: rows.map(r => r.load),
           smooth: false, showSymbol: false, connectNulls: false,
-          lineStyle: { color: '#5b9cff', width: 1.3 }, itemStyle: { color: '#5b9cff' }
+          lineStyle: { color: cssVar('--chart-load'), width: 1.3 }, itemStyle: { color: cssVar('--chart-load') }
         }
       ],
       dataZoom: [
@@ -2312,10 +2498,10 @@
         },
         {
           type: 'slider', xAxisIndex: 0, filterMode: 'filter', bottom: 18, height: 16,
-          borderColor: '#252a30', backgroundColor: '#15191e',
-          fillerColor: 'rgba(150,157,166,0.16)',
-          handleStyle: { color: '#8b939d', borderColor: '#8b939d' },
-          moveHandleStyle: { color: '#555d67' }, textStyle: { color: '#6f7781', fontSize: 9 }
+          borderColor: cssVar('--chart-zoom-border'), backgroundColor: cssVar('--chart-zoom-bg'),
+          fillerColor: cssVar('--chart-zoom-filler'),
+          handleStyle: { color: cssVar('--chart-zoom-handle'), borderColor: cssVar('--chart-zoom-handle') },
+          moveHandleStyle: { color: cssVar('--chart-zoom-move') }, textStyle: { color: cssVar('--chart-zoom-text'), fontSize: 9 }
         }
       ]
     };
@@ -2392,14 +2578,14 @@
     return acc;
   }, {});
 
-  const ZONAL_LINE_COLORS = [
-    "#5b9cff",
-    "#d9dde2",
-    "#5ecb8a",
-    "#e7a84b",
-    "#c783ff",
-    "#ef6fae",
-    "#7fd1c5"
+  const ZONAL_LINE_COLOR_VARS = [
+    "--zone-1",
+    "--zone-2",
+    "--zone-3",
+    "--zone-4",
+    "--zone-5",
+    "--zone-6",
+    "--zone-7"
   ];
 
   function getZonalRows(zone = "NORD") {
@@ -2663,11 +2849,11 @@
         showSymbol: false,
         connectNulls: false,
         lineStyle: {
-          color: ZONAL_LINE_COLORS[zoneIndex],
+          color: cssVar(ZONAL_LINE_COLOR_VARS[zoneIndex]),
           width: 1.4
         },
         itemStyle: {
-          color: ZONAL_LINE_COLORS[zoneIndex]
+          color: cssVar(ZONAL_LINE_COLOR_VARS[zoneIndex])
         },
         emphasis: {
           focus: "series"
@@ -2715,24 +2901,24 @@
         itemHeight: 8,
         itemGap: 14,
         textStyle: {
-          color: "#b4bbc4",
+          color: cssVar('--chart-legend'),
           fontSize: 10
         },
         selected: { ...zonalSelected }
       },
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#171b20",
-        borderColor: "#30363e",
+        backgroundColor: cssVar('--chart-tooltip-bg'),
+        borderColor: cssVar('--chart-tooltip-border'),
         borderWidth: 1,
         textStyle: {
-          color: "#f1f3f5",
+          color: cssVar('--chart-tooltip-text'),
           fontSize: 11
         },
         axisPointer: {
           type: "line",
           lineStyle: {
-            color: "#5d6670",
+            color: cssVar('--chart-pointer'),
             width: 1
           }
         },
@@ -2744,7 +2930,7 @@
 
           const row = first.data.__row;
           let html =
-            `<div style="margin-bottom:6px;color:#9aa2ac;">${formatZonalTooltipDate(row)}</div>`;
+            `<div style="margin-bottom:6px;color:${cssVar('--chart-tooltip-muted')};">${formatZonalTooltipDate(row)}</div>`;
 
           params.forEach(item => {
             if (!item.data || !item.data.__row) return;
@@ -2767,11 +2953,11 @@
         boundaryGap: false,
         data: categories,
         axisLine: {
-          lineStyle: { color: "#30353c" }
+          lineStyle: { color: cssVar('--chart-axis-line') }
         },
         axisTick: { show: false },
         axisLabel: {
-          color: "#727a84",
+          color: cssVar('--chart-axis-label'),
           fontSize: 10,
           margin: 10,
           interval: 0,
@@ -2795,19 +2981,19 @@
         nameRotate: 90,
         nameGap: 45,
         nameTextStyle: {
-          color: "#727a84",
+          color: cssVar('--chart-axis-label'),
           fontSize: 10
         },
         axisLine: { show: false },
         axisTick: { show: false },
         axisLabel: {
-          color: "#727a84",
+          color: cssVar('--chart-axis-label'),
           fontSize: 10
         },
         splitLine: {
           show: true,
           lineStyle: {
-            color: "#20252b",
+            color: cssVar('--chart-grid'),
             width: 1
           }
         }
@@ -2830,18 +3016,18 @@
           filterMode: "filter",
           bottom: 18,
           height: 16,
-          borderColor: "#252a30",
-          backgroundColor: "#15191e",
-          fillerColor: "rgba(150,157,166,0.16)",
+          borderColor: cssVar('--chart-zoom-border'),
+          backgroundColor: cssVar('--chart-zoom-bg'),
+          fillerColor: cssVar('--chart-zoom-filler'),
           handleStyle: {
-            color: "#8b939d",
-            borderColor: "#8b939d"
+            color: cssVar('--chart-zoom-handle'),
+            borderColor: cssVar('--chart-zoom-handle')
           },
           moveHandleStyle: {
-            color: "#555d67"
+            color: cssVar('--chart-zoom-move')
           },
           textStyle: {
-            color: "#6f7781",
+            color: cssVar('--chart-zoom-text'),
             fontSize: 9
           }
         }
@@ -3122,13 +3308,13 @@
       },
       tooltip: {
         trigger: 'axis',
-        backgroundColor: '#171b20',
-        borderColor: '#30363e',
+        backgroundColor: cssVar('--chart-tooltip-bg'),
+        borderColor: cssVar('--chart-tooltip-border'),
         borderWidth: 1,
-        textStyle: { color: '#f1f3f5', fontSize: 11 },
+        textStyle: { color: cssVar('--chart-tooltip-text'), fontSize: 11 },
         axisPointer: {
           type: 'line',
-          lineStyle: { color: '#5d6670', width: 1 }
+          lineStyle: { color: cssVar('--chart-pointer'), width: 1 }
         },
         formatter: params => {
           if (!params || !params.length) return '';
@@ -3140,7 +3326,7 @@
           if (!row) return '';
 
           return `
-            <div style="margin-bottom:4px;color:#9aa2ac;">
+            <div style="margin-bottom:4px;color:${cssVar('--chart-tooltip-muted')};">
               ${formatTooltipDate(row)}
             </div>
             <div style="font-size:14px;font-weight:600;">
@@ -3153,10 +3339,10 @@
         type: 'category',
         boundaryGap: false,
         data: categories,
-        axisLine: { lineStyle: { color: '#30353c' } },
+        axisLine: { lineStyle: { color: cssVar('--chart-axis-line') } },
         axisTick: { show: false },
         axisLabel: {
-          color: '#727a84',
+          color: cssVar('--chart-axis-label'),
           fontSize: 10,
           margin: 10,
           interval: 0,
@@ -3174,11 +3360,11 @@
         nameLocation: 'middle',
         nameRotate: 90,
         nameGap: 45,
-        nameTextStyle: { color: '#727a84', fontSize: 10 },
+        nameTextStyle: { color: cssVar('--chart-axis-label'), fontSize: 10 },
         axisLine: { show: false },
         axisTick: { show: false },
-        axisLabel: { color: '#727a84', fontSize: 10 },
-        splitLine: { show: true, lineStyle: { color: '#20252b', width: 1 } }
+        axisLabel: { color: cssVar('--chart-axis-label'), fontSize: 10 },
+        splitLine: { show: true, lineStyle: { color: cssVar('--chart-grid'), width: 1 } }
       },
       series: [{
         type: 'line',
@@ -3188,8 +3374,8 @@
         })),
         smooth: false,
         showSymbol: false,
-        lineStyle: { color: '#d9dde2', width: 1.2 },
-        itemStyle: { color: '#d9dde2' }
+        lineStyle: { color: cssVar('--chart-pun'), width: 1.2 },
+        itemStyle: { color: cssVar('--chart-pun') }
       }],
       dataZoom: [
         {
@@ -3208,12 +3394,12 @@
           filterMode: 'filter',
           bottom: 18,
           height: 16,
-          borderColor: '#252a30',
-          backgroundColor: '#15191e',
-          fillerColor: 'rgba(150,157,166,0.16)',
-          handleStyle: { color: '#8b939d', borderColor: '#8b939d' },
-          moveHandleStyle: { color: '#555d67' },
-          textStyle: { color: '#6f7781', fontSize: 9 }
+          borderColor: cssVar('--chart-zoom-border'),
+          backgroundColor: cssVar('--chart-zoom-bg'),
+          fillerColor: cssVar('--chart-zoom-filler'),
+          handleStyle: { color: cssVar('--chart-zoom-handle'), borderColor: cssVar('--chart-zoom-handle') },
+          moveHandleStyle: { color: cssVar('--chart-zoom-move') },
+          textStyle: { color: cssVar('--chart-zoom-text'), fontSize: 9 }
         }
       ]
     };
@@ -4081,6 +4267,9 @@
     document.getElementById("zone-tabs-wrap").style.display =
       isDataSection ? "flex" : "none";
 
+    document.getElementById("granularity-control").style.display =
+      isDataSection ? "flex" : "none";
+
     document.getElementById("zone-page").style.display =
       isDataSection ? "block" : "none";
 
@@ -4112,6 +4301,9 @@
       });
 
     document.getElementById("zone-title").textContent =
+      ZONE_LABELS[currentZone];
+
+    document.getElementById("zone-trigger-label").textContent =
       ZONE_LABELS[currentZone];
 
     document
@@ -4204,9 +4396,46 @@
         currentZone =
           button.dataset.zone;
 
+        setZoneDropdownOpen(false);
         updateView();
       });
     });
+
+  /* Bidding-zone picker in the top bar. */
+  const zoneDropdown =
+    document.getElementById("zone-dropdown");
+
+  const zoneTrigger =
+    document.getElementById("zone-trigger");
+
+  function setZoneDropdownOpen(open) {
+    zoneDropdown.classList.toggle("open", open);
+    zoneTrigger.setAttribute("aria-expanded", String(open));
+  }
+
+  zoneTrigger.addEventListener("click", event => {
+    event.stopPropagation();
+    const open = !zoneDropdown.classList.contains("open");
+    if (open) {
+      document.getElementById("calendar-dropdown").classList.remove("open");
+    }
+    setZoneDropdownOpen(open);
+  });
+
+  zoneDropdown.addEventListener("click", event => {
+    event.stopPropagation();
+  });
+
+  document.addEventListener("click", () => {
+    setZoneDropdownOpen(false);
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      setZoneDropdownOpen(false);
+      document.getElementById("calendar-dropdown").classList.remove("open");
+    }
+  });
 
   document
     .querySelectorAll(".subnav-tab")
@@ -4216,27 +4445,6 @@
           button.dataset.tab;
 
         updateView();
-      });
-    });
-
-  document
-    .querySelectorAll("[data-zonal-granularity]")
-    .forEach(button => {
-      button.addEventListener("click", () => {
-        zonalGranularity =
-          button.dataset.zonalGranularity;
-
-        document
-          .querySelectorAll("[data-zonal-granularity]")
-          .forEach(other => {
-            other.classList.toggle(
-              "active",
-              other.dataset.zonalGranularity ===
-                zonalGranularity
-            );
-          });
-
-        renderZonalChart();
       });
     });
 
@@ -4258,6 +4466,7 @@
     "click",
     event => {
       event.stopPropagation();
+      setZoneDropdownOpen(false);
       calendarDropdown.classList.toggle("open");
     }
   );
@@ -4321,6 +4530,44 @@
     generationLoadChart.resize();
     zonalChart.resize();
   });
+
+  /* ============================================================
+     LIGHT / DARK THEME
+     ============================================================ */
+
+  const themeToggle =
+    document.getElementById("theme-toggle");
+
+  function syncThemeToggle() {
+    const target =
+      document.documentElement.dataset.theme === "light" ? "dark" : "light";
+    const label = `${target.charAt(0).toUpperCase()}${target.slice(1)} mode`;
+
+    document.getElementById("theme-toggle-label").textContent = label;
+    themeToggle.setAttribute("aria-label", `Switch to ${target} mode`);
+  }
+
+  themeToggle.addEventListener("click", () => {
+    const light =
+      document.documentElement.dataset.theme !== "light";
+
+    if (light) {
+      document.documentElement.dataset.theme = "light";
+    } else {
+      delete document.documentElement.dataset.theme;
+    }
+
+    try {
+      localStorage.setItem("theme", light ? "light" : "dark");
+    } catch (error) {}
+
+    syncThemeToggle();
+
+    // Chart colours are read from the theme when drawn, so redraw.
+    updateView();
+  });
+
+  syncThemeToggle();
 
   updateView();
   loadData();

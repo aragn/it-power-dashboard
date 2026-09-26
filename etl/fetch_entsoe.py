@@ -22,6 +22,8 @@ from datetime import date, datetime, timedelta
 
 import requests
 
+import compact
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
@@ -454,10 +456,7 @@ def load_existing():
             "total_load": empty_dataset(),
         }
 
-    import json
-
-    with open(OUTPUT_PATH, "r", encoding="utf-8") as f:
-        payload = json.load(f)
+    payload = compact.load(OUTPUT_PATH)
 
     def normalize_dataset(dataset):
         normalized = {}
@@ -499,14 +498,53 @@ def load_existing():
     }
 
 
-def label_groups(by_group):
+def label_groups(by_group, resolution):
     """Attach human-readable PSR names where applicable (generation/consumption)."""
 
     labelled = {}
     for code, rows in by_group.items():
         name = PSR_TYPE_NAMES.get(code, code)
-        labelled[code] = {"label": name, "points": rows}
+        labelled[code] = {
+            "label": name,
+            "points": compact.encode_series(rows, resolution),
+        }
     return labelled
+
+
+def encode_groups(by_group, resolution):
+    return {
+        code: compact.encode_series(rows, resolution)
+        for code, rows in by_group.items()
+    }
+
+
+def build_output(generation, consumption, total_load):
+    return {
+        "source": "ENTSO-E Transparency Platform",
+        "control_area": f"IT ({IT_DOMAIN})",
+        "description": (
+            "16.1.B&C Actual Generation per Production Type (A75) and "
+            "6.1.A&B Actual Total Load (A65) for Italy. Native "
+            "quarter-hourly resolution from 1 October 2025 onward "
+            "(hourly data before that is expanded into four identical "
+            "quarter-hour points). Hourly values are the average of the "
+            "quarter-hour values within the hour; daily values are the "
+            "sum of the 24 hourly values (approximate MWh/day)."
+        ),
+        "quarter_hourly_native_from": "2025-10-01",
+        "generation": {
+            resolution: label_groups(generation[resolution], resolution)
+            for resolution in ("quarter_hourly", "hourly", "daily")
+        },
+        "consumption": {
+            resolution: label_groups(consumption[resolution], resolution)
+            for resolution in ("quarter_hourly", "hourly", "daily")
+        },
+        "total_load": {
+            resolution: encode_groups(total_load[resolution], resolution)
+            for resolution in ("quarter_hourly", "hourly", "daily")
+        },
+    }
 
 
 # ============================================================================
@@ -588,37 +626,9 @@ def main():
     consumption = build_dataset(cons_records, existing["consumption"])
     total_load = build_dataset(load_records, existing["total_load"])
 
-    output = {
-        "source": "ENTSO-E Transparency Platform",
-        "control_area": f"IT ({IT_DOMAIN})",
-        "description": (
-            "16.1.B&C Actual Generation per Production Type (A75) and "
-            "6.1.A&B Actual Total Load (A65) for Italy. Native "
-            "quarter-hourly resolution from 1 October 2025 onward "
-            "(hourly data before that is expanded into four identical "
-            "quarter-hour points). Hourly values are the average of the "
-            "quarter-hour values within the hour; daily values are the "
-            "sum of the 24 hourly values (approximate MWh/day)."
-        ),
-        "quarter_hourly_native_from": "2025-10-01",
-        "generation": {
-            "quarter_hourly": label_groups(generation["quarter_hourly"]),
-            "hourly": label_groups(generation["hourly"]),
-            "daily": label_groups(generation["daily"]),
-        },
-        "consumption": {
-            "quarter_hourly": label_groups(consumption["quarter_hourly"]),
-            "hourly": label_groups(consumption["hourly"]),
-            "daily": label_groups(consumption["daily"]),
-        },
-        "total_load": total_load,
-    }
-
-    import json
-
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, separators=(",", ":"))
+    compact.dump(
+        build_output(generation, consumption, total_load), OUTPUT_PATH
+    )
 
     print()
     print("=" * 70)

@@ -10,6 +10,8 @@ from datetime import date, datetime, timedelta
 
 import requests
 
+import compact
+
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
@@ -652,8 +654,7 @@ def load_existing():
             "zones": {zone: empty_zone_series() for zone in ITALIAN_ZONES},
         }
 
-    with open(OUTPUT_PATH, "r", encoding="utf-8") as f:
-        payload = json.load(f)
+    payload = compact.load(OUTPUT_PATH)
 
     zones = payload.get("zones", {})
 
@@ -664,6 +665,46 @@ def load_existing():
         "source": payload.get(
             "source", "GME - MGP Zonal Prices (Italian bidding zones)"
         ),
+        "zones": zones,
+    }
+
+
+# ============================================================================
+# OUTPUT
+# ============================================================================
+
+
+def build_output(zones_output):
+
+    # Quarter-hour points before PT15_START are only the hourly price
+    # repeated four times, so they are not stored: the dashboard rebuilds
+    # them from the hourly series, and load_existing() ignores them anyway.
+    zones = {
+        zone: {
+            "daily": compact.encode_series(series["daily"], "daily", "price"),
+            "hourly": compact.encode_series(series["hourly"], "hourly", "price"),
+            "quarter_hourly": compact.encode_series(
+                series["quarter_hourly"],
+                "quarter_hourly",
+                "price",
+                skip_before=PT15_START.isoformat(),
+            ),
+        }
+        for zone, series in zones_output.items()
+    }
+
+    return {
+        "source": "GME - MGP Zonal Prices (Italian bidding zones)",
+        "description": (
+            "MGP day-ahead zonal electricity prices for the Italian "
+            "bidding zones (NORD, CNOR, CSUD, SUD, CALA, SICI, SARD). "
+            "Hourly data uses GME historical/default granularity before "
+            "1 October 2025 and PT60 from 1 October 2025 onward. "
+            "Quarter-hourly data uses native GME PT15 results from "
+            "1 October 2025 onward. Before 1 October 2025, hourly "
+            "prices are repeated across four quarter-hour intervals."
+        ),
+        "quarter_hourly_native_from": PT15_START.isoformat(),
         "zones": zones,
     }
 
@@ -898,25 +939,7 @@ def main():
     # 4. WRITE JSON
     # ========================================================================
 
-    output = {
-        "source": "GME - MGP Zonal Prices (Italian bidding zones)",
-        "description": (
-            "MGP day-ahead zonal electricity prices for the Italian "
-            "bidding zones (NORD, CNOR, CSUD, SUD, CALA, SICI, SARD). "
-            "Hourly data uses GME historical/default granularity before "
-            "1 October 2025 and PT60 from 1 October 2025 onward. "
-            "Quarter-hourly data uses native GME PT15 results from "
-            "1 October 2025 onward. Before 1 October 2025, hourly "
-            "prices are repeated across four quarter-hour intervals."
-        ),
-        "quarter_hourly_native_from": "2025-10-01",
-        "zones": zones_output,
-    }
-
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
-
-    with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
-        json.dump(output, f, ensure_ascii=False, separators=(",", ":"))
+    compact.dump(build_output(zones_output), OUTPUT_PATH)
 
     print()
     print("=" * 70)

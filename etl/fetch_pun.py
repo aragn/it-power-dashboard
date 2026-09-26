@@ -10,6 +10,8 @@ from datetime import date, datetime, timedelta
 
 import requests
 
+import compact
+
 
 # ============================================================================
 # CONFIGURATION
@@ -860,13 +862,9 @@ def load_existing():
             "quarter_hourly": [],
         }
 
-    with open(
-        OUTPUT_PATH,
-        "r",
-        encoding="utf-8",
-    ) as f:
-
-        payload = json.load(f)
+    payload = compact.load(
+        OUTPUT_PATH
+    )
 
     # ------------------------------------------------------------------------
     # New format
@@ -910,6 +908,57 @@ def load_existing():
         "daily": old_series,
         "hourly": [],
         "quarter_hourly": [],
+    }
+
+
+# ============================================================================
+# OUTPUT
+# ============================================================================
+
+def build_output(daily, hourly, quarter_hourly):
+
+    # Quarter-hour points before PT15_START are only the hourly price
+    # repeated four times, so they are not stored: the dashboard rebuilds
+    # them from the hourly series, and load_existing() ignores them anyway.
+
+    return {
+        "source": (
+            "GME - PUN Index GME (MGP)"
+        ),
+
+        "description": (
+            "PUN Index GME day-ahead electricity price. "
+            "Hourly data uses GME historical/default "
+            "granularity before 1 October 2025 and PT60 "
+            "from 1 October 2025 onward. "
+            "Quarter-hourly data uses native GME PT15 "
+            "results from 1 October 2025 onward. "
+            "Before 1 October 2025, hourly prices are "
+            "repeated across four quarter-hour intervals."
+        ),
+
+        "quarter_hourly_native_from": (
+            PT15_START.isoformat()
+        ),
+
+        "daily": compact.encode_series(
+            daily,
+            "daily",
+            "pun",
+        ),
+
+        "hourly": compact.encode_series(
+            hourly,
+            "hourly",
+            "pun",
+        ),
+
+        "quarter_hourly": compact.encode_series(
+            quarter_hourly,
+            "quarter_hourly",
+            "pun",
+            skip_before=PT15_START.isoformat(),
+        ),
     }
 
 
@@ -1242,55 +1291,14 @@ def main():
     # 5. WRITE JSON
     # ========================================================================
 
-    output = {
-        "source": (
-            "GME - PUN Index GME (MGP)"
+    compact.dump(
+        build_output(
+            daily,
+            hourly,
+            quarter_hourly,
         ),
-
-        "description": (
-            "PUN Index GME day-ahead electricity price. "
-            "Hourly data uses GME historical/default "
-            "granularity before 1 October 2025 and PT60 "
-            "from 1 October 2025 onward. "
-            "Quarter-hourly data uses native GME PT15 "
-            "results from 1 October 2025 onward. "
-            "Before 1 October 2025, hourly prices are "
-            "repeated across four quarter-hour intervals."
-        ),
-
-        "quarter_hourly_native_from": (
-            "2025-10-01"
-        ),
-
-        "daily": daily,
-
-        "hourly": hourly,
-
-        "quarter_hourly": quarter_hourly,
-    }
-
-    os.makedirs(
-        os.path.dirname(
-            OUTPUT_PATH
-        ),
-        exist_ok=True,
-    )
-
-    with open(
         OUTPUT_PATH,
-        "w",
-        encoding="utf-8",
-    ) as f:
-
-        json.dump(
-            output,
-            f,
-            ensure_ascii=False,
-            separators=(
-                ",",
-                ":",
-            ),
-        )
+    )
 
     print("=" * 70)
     print(
