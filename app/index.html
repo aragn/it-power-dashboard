@@ -26,8 +26,8 @@
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
       --chart-pun:#d9dde2; --chart-generation:#5ecb8a; --chart-load:#5b9cff;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
-      --mix-coal:#e66767; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
-      --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#b8c2d0;
+      --mix-coal:#b8c2d0; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
+      --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
       --border-1:#3987e5; --border-2:#d95926; --border-3:#199e70; --border-4:#c98500; --border-5:#d55181; --border-6:#008300; --border-7:#9085e9;
       --flow-physical:#3987e5; --flow-scheduled:#d95926;
     }
@@ -41,8 +41,8 @@
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
       --chart-pun:#1f2429; --chart-generation:#1f9d57; --chart-load:#2f6fdb;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
-      --mix-coal:#e34948; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
-      --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#4b5563;
+      --mix-coal:#4b5563; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
+      --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
       --border-1:#2a78d6; --border-2:#eb6834; --border-3:#1baf7a; --border-4:#eda100; --border-5:#e87ba4; --border-6:#008300; --border-7:#4a3aa7;
       --flow-physical:#2a78d6; --flow-scheduled:#eb6834;
     }
@@ -233,7 +233,7 @@
             </div>
             <div class="zonal-chart-help">Click a zone in the legend to hide or show its price line. Drag horizontally across the chart to select a narrower range.</div>
           </section>
-        </div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the import and export charts"><span class="legend-title">Countries</span></div><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled day-ahead covers long-term and day-ahead allocations; total adds intraday. Drag horizontally across the chart to select a narrower range.</div></section></div></div>
+        </div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the import and export charts"><span class="legend-title">Countries</span></div><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Drag horizontally across the chart to select a narrower range.</div></section></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
       </main>
@@ -4640,12 +4640,13 @@
 
   /*
    * ENTSO-E production types grouped into nine sources, stacked bottom to
-   * top in this order, with net imports at the very bottom.  The colours
+   * top in this order, with the net cross-border physical flow (imports
+   * positive) at the very bottom.  The colours
    * were checked for this order so that neighbouring areas stay
    * distinguishable, including for colour-blind readers, in both themes;
    * "Other & oil" is the neutral fold-in bucket.
    */
-  const MIX_NET_IMPORTS = { name: "Net imports", color: "--mix-net-imports" };
+  const MIX_NET_IMPORTS = { name: "Net cross-border physical flow", color: "--mix-net-imports" };
 
   const MIX_SOURCES = [
     { name: "Coal", codes: ["B05", "B03"], color: "--mix-coal" },
@@ -4659,10 +4660,11 @@
     { name: "Solar", codes: ["B16"], color: "--mix-solar" }
   ];
 
-  /* Storage consumption, drawn below zero in its source's colour. */
+  /* Storage consumption, drawn below zero in its source's colour.  Battery
+     comes first so it (not the similar pink pumping) borders net exports. */
   const MIX_CONSUMPTION = [
-    { name: "Pumped hydro (pumping)", codes: ["B10"], color: "--mix-pumped" },
-    { name: "Battery storage (charging)", codes: ["B25"], color: "--mix-battery" }
+    { name: "Battery storage (charging)", codes: ["B25"], color: "--mix-battery" },
+    { name: "Pumped hydro (pumping)", codes: ["B10"], color: "--mix-pumped" }
   ];
 
   const MIX_LOAD_NAME = "Actual load";
@@ -4777,7 +4779,7 @@
     }
 
     if (shown(MIX_NET_IMPORTS.name) && row.netImports !== null) {
-      const name = row.netImports < 0 ? "Net imports (net export)" : MIX_NET_IMPORTS.name;
+      const name = row.netImports < 0 ? `${MIX_NET_IMPORTS.name} (net export)` : MIX_NET_IMPORTS.name;
       html += `<div style="margin-top:6px;">` +
         tooltipRow(cssVar(MIX_NET_IMPORTS.color), name, `${formatChartNumber(row.netImports)} ${unit}`) +
         `</div>`;
@@ -4841,9 +4843,9 @@
       emphasis: { focus: "series" }
     });
 
-    // Net imports is split into its import part (bottom of the generation
-    // stack) and export part (top of the consumption stack); both halves
-    // share one legend entry.
+    // The net cross-border flow is split into its import part (bottom of the
+    // generation stack) and export part (top of the consumption stack); both
+    // halves share one legend entry.
     const part = (value, sign) =>
       value === null ? null : sign > 0 ? Math.max(value, 0) : Math.min(value, 0);
 
@@ -4952,14 +4954,13 @@
   const crossBorderNetTimeline = createTimeline(crossBorderNetChart);
 
   const CROSS_BORDER_NET_SERIES = [
-    { name: "Net physical flow", dataset: "physical_flows", color: "--flow-physical", shape: "line" },
-    { name: "Net scheduled (total)", dataset: "scheduled_total", color: "--flow-scheduled", shape: "line" },
-    { name: "Net scheduled (day-ahead)", dataset: "scheduled_day_ahead", color: "--flow-scheduled", shape: "dashed" }
+    { name: "Net cross-border physical flow", dataset: "physical_flows", color: "--flow-physical", shape: "line" },
+    { name: "Net commercial exchange (total)", dataset: "scheduled_total", color: "--flow-scheduled", shape: "line" },
+    { name: "Net commercial exchange (day-ahead)", dataset: "scheduled_day_ahead", color: "--flow-scheduled", shape: "dashed" }
   ];
 
   /* Country selection shared by the imports and exports charts. */
   let crossBorderCountrySelected = {};
-  let crossBorderNetSelected = {};
 
   function crossBorderUnavailable(chart, subtitleIds) {
     chart.clear();
@@ -5049,7 +5050,6 @@
 
     const unit = timelineUnit();
     return tooltipHeader(row) + CROSS_BORDER_NET_SERIES
-      .filter(item => crossBorderNetSelected[item.name] !== false)
       .map(item => {
         const value = lookupValue(lookups[item.dataset].net, row.key);
         return tooltipRow(cssVar(item.color), item.name, value === null ? "—" : `${formatChartNumber(value)} ${unit}`, item.shape);
@@ -5086,19 +5086,8 @@
     crossBorderNetChart.setOption({
       animation: false,
       backgroundColor: "transparent",
-      legend: {
-        top: 5,
-        left: CHART_GRID.left,
-        right: 24,
-        itemWidth: 22,
-        itemHeight: 8,
-        itemGap: 14,
-        textStyle: { color: cssVar("--chart-legend"), fontSize: 10 },
-        data: series.map(item => item.name),
-        selected: { ...crossBorderNetSelected }
-      },
       tooltip: timelineTooltip(crossBorderNetTooltip),
-      grid: { left: CHART_GRID.left, right: 24, top: 45, bottom: CHART_GRID.bottom, containLabel: false },
+      grid: { left: CHART_GRID.left, right: 24, top: 20, bottom: CHART_GRID.bottom, containLabel: false },
       // Keep the date labels at the bottom when values go negative.
       xAxis: timelineXAxis(crossBorderNetTimeline, { onZero: false }),
       yAxis: timelineYAxis(timelineUnit()),
@@ -5118,10 +5107,6 @@
     );
     renderCrossBorderNetChart();
   }
-
-  crossBorderNetChart.on("legendselectchanged", event => {
-    crossBorderNetSelected = { ...event.selected };
-  });
 
   /* Shared country legend: one click toggles the country on both charts. */
   (function buildCrossBorderLegend() {
