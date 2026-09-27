@@ -106,7 +106,10 @@
     .panel { background:var(--panel); border:1px solid var(--border); border-radius:10px; }
     #chart-mount-overview { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { #chart-mount-overview { grid-template-columns:1fr; } }
-    #chart-mount-prices { width:100%; }
+    #chart-mount-prices { width:100%; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; align-items:stretch; }
+    #chart-mount-prices .zonal-chart-panel { grid-column:1 / -1; }
+    @media (max-width: 1050px) { #chart-mount-prices { grid-template-columns:1fr; } }
+    .intraday-chart-wrap { height:360px; }
     #chart-mount-interconnection { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { #chart-mount-interconnection { grid-template-columns:1fr; } }
     .crossborder-legend { grid-column:1 / -1; display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; padding:10px 14px; }
@@ -122,7 +125,7 @@
     .zonal-chart-panel { width:100%; max-width:100%; padding:18px 18px 12px; min-width:0; margin:0; }
     #zonal-chart-wrap { position:relative; width:100%; height:520px; touch-action:none; }
     #zonal-chart { position:absolute; inset:0; width:100%; height:100%; }
-    #zonal-chart-drag-selection { position:absolute; z-index:20; display:none; top:55px; height:calc(100% - 125px); border:1px solid var(--selection-border); background:var(--selection-fill); pointer-events:none; }
+    #zonal-chart-drag-selection { position:absolute; z-index:20; display:none; top:20px; height:calc(100% - 90px); border:1px solid var(--selection-border); background:var(--selection-fill); pointer-events:none; }
     #zonal-chart-wrap.dragging #zonal-chart-drag-hint { opacity:0; }
     .zonal-chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
     .zone-placeholder { display:none; align-items:center; justify-content:center; min-height:320px; padding:40px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--muted); font-size:13.5px; text-align:center; }
@@ -219,7 +222,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Storage charging and pumping are shown below zero. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices">
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Storage charging and pumping are shown below zero. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -231,8 +234,11 @@
               <div id="zonal-chart"></div>
               <div id="zonal-chart-drag-selection"></div>
             </div>
-            <div class="zonal-chart-help">Click a zone in the legend to hide or show its price line. Drag horizontally across the chart to select a narrower range.</div>
+            <div class="zonal-chart-help">Click a zone above to hide or show it on all price charts. Drag horizontally across the chart to select a narrower range.</div>
           </section>
+          <section id="intraday-mia1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A1 Zonal Prices</div><div id="intraday-mia1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="intraday-mia1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia1-chart" class="timeline-chart"></div><div id="intraday-mia1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (afternoon); covers the whole day.</div></section>
+          <section id="intraday-mia2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A2 Zonal Prices</div><div id="intraday-mia2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="intraday-mia2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia2-chart" class="timeline-chart"></div><div id="intraday-mia2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (evening); covers the whole day.</div></section>
+          <section id="intraday-mia3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A3 Zonal Prices</div><div id="intraday-mia3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="intraday-mia3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia3-chart" class="timeline-chart"></div><div id="intraday-mia3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held on the day (morning); covers only the afternoon and evening, so its daily average is for those hours.</div></section>
         </div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the import and export charts"><span class="legend-title">Countries</span></div><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Drag horizontally across the chart to select a narrower range.</div></section></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
@@ -2917,22 +2923,13 @@
       grid: {
         left: CHART_GRID.left,
         right: CHART_GRID.right,
-        top: 55,
+        top: 20,
         bottom: CHART_GRID.bottom,
         containLabel: false
       },
+      // The legend is the shared HTML one above the price charts.
       legend: {
-        type: "scroll",
-        top: 5,
-        left: CHART_GRID.left,
-        right: CHART_GRID.right,
-        itemWidth: 18,
-        itemHeight: 8,
-        itemGap: 14,
-        textStyle: {
-          color: cssVar('--chart-legend'),
-          fontSize: 10
-        },
+        show: false,
         selected: { ...zonalSelected }
       },
       tooltip: {
@@ -3127,7 +3124,7 @@
 
     const left = CHART_GRID.left;
     const right = width - CHART_GRID.right;
-    const top = 55;
+    const top = 20;
     const bottom = height - CHART_GRID.bottom;
 
     return x >= left && x <= right && y >= top && y <= bottom;
@@ -5104,16 +5101,23 @@
    * larger one.  Re-run after zooming or toggling countries.
    */
   function syncCrossBorderDirectionAxes() {
-    const charts = [crossBorderImportsChart, crossBorderExportsChart];
     if (!getCrossBorderLookups()) return;
+    shareValueAxis([crossBorderImportsChart, crossBorderExportsChart]);
+  }
 
-    charts.forEach(chart => chart.setOption({ yAxis: { max: null } }));
-    const max = Math.max(...charts.map(chart => {
-      const axis = chart.getModel().getComponent("yAxis", 0);
-      return axis ? axis.axis.scale.getExtent()[1] : 0;
-    }));
-    if (Number.isFinite(max) && max > 0) {
-      charts.forEach(chart => chart.setOption({ yAxis: { max } }));
+  /* Give charts the same y-axis range: the widest of their own ranges. */
+  function shareValueAxis(charts) {
+    charts.forEach(chart => chart.setOption({ yAxis: { min: null, max: null } }));
+    const extents = charts
+      .map(chart => chart.getModel() && chart.getModel().getComponent("yAxis", 0))
+      .filter(Boolean)
+      .map(axis => axis.axis.scale.getExtent());
+    if (!extents.length) return;
+
+    const min = Math.min(...extents.map(extent => extent[0]));
+    const max = Math.max(...extents.map(extent => extent[1]));
+    if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
+      charts.forEach(chart => chart.setOption({ yAxis: { min, max } }));
     }
   }
 
@@ -5166,6 +5170,216 @@
   attachDragZoom(crossBorderImportsChart, "crossborder-imports-wrap", "crossborder-imports-drag");
   attachDragZoom(crossBorderExportsChart, "crossborder-exports-wrap", "crossborder-exports-drag");
   attachDragZoom(crossBorderNetChart, "crossborder-net-wrap", "crossborder-net-drag");
+
+
+  /* ============================================================
+     INTRADAY AUCTION ZONAL PRICES (GME MI-A1 / MI-A2 / MI-A3)
+     ============================================================ */
+
+  /*
+   * One chart per auction, on the same timeline as the charts above.  The
+   * zones use the MGP colours and the shared zone legend toggles them on
+   * the MGP and intraday charts together.  The three intraday charts share
+   * one y-axis range so their prices compare at a glance.
+   */
+  const INTRADAY_MARKETS = [
+    { code: "MI-A1", id: "mia1", coverage: "held D-1 afternoon" },
+    { code: "MI-A2", id: "mia2", coverage: "held D-1 evening" },
+    { code: "MI-A3", id: "mia3", coverage: "held on the day, afternoon/evening only" }
+  ].map(market => {
+    const chart = echarts.init(document.getElementById(`intraday-${market.id}-chart`));
+    return { ...market, chart, timeline: createTimeline(chart) };
+  });
+
+  let rawIntradayData = null;
+  let intradayStatus = "loading"; // "loading" | "ready" | "missing"
+  const intradayCache = {};
+
+  async function loadIntradayData() {
+    try {
+      const response = await fetch("./data/intraday_prices.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawIntradayData = decodeCompactPayload(await response.json());
+      intradayStatus = "ready";
+    } catch (error) {
+      console.warn("Intraday price data unavailable:", error);
+      intradayStatus = "missing";
+    }
+    updateView();
+  }
+
+  /* Rows for one auction and zone; quarter-hours before the 15-minute
+     market time unit repeat the hourly price. */
+  function intradayRows(market, zone) {
+    const resolution = timelineResolutionKey();
+    const series = ((rawIntradayData.markets || {})[market] || {})[zone] || {};
+    const rows = series[resolution] || [];
+    if (resolution !== "quarter_hourly") return rows;
+
+    const nativeFrom = rawIntradayData.quarter_hourly_native_from;
+    const expanded = [];
+    (series.hourly || []).forEach(row => {
+      if (row.date >= nativeFrom) return;
+      const start = labelMinutes(row.time);
+      for (let offset = 0; offset < 60; offset += 15) {
+        expanded.push({
+          date: row.date,
+          time: compactTimeLabel((start + offset) / 15, 15),
+          price: row.price
+        });
+      }
+    });
+    return expanded.concat(rows);
+  }
+
+  /* Per resolution: market -> zone -> (bucket key -> EUR/MWh). */
+  function getIntradayLookups() {
+    if (!rawIntradayData) return null;
+
+    const resolution = timelineResolutionKey();
+    if (intradayCache[resolution]) return intradayCache[resolution];
+
+    const lookups = {};
+    INTRADAY_MARKETS.forEach(market => {
+      lookups[market.code] = {};
+      ZONAL_ORDER.forEach(zone => {
+        const map = new Map();
+        intradayRows(market.code, zone).forEach(row => {
+          map.set(timelineBucketKey(row), Number(row.price));
+        });
+        lookups[market.code][zone] = map;
+      });
+    });
+
+    intradayCache[resolution] = lookups;
+    return lookups;
+  }
+
+  function intradayMeasure() {
+    return {
+      daily: "Daily average price",
+      hourly: "Hourly price",
+      quarter: "15-minute price"
+    }[currentGranularity];
+  }
+
+  function formatPrice(value) {
+    return `${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/MWh`;
+  }
+
+  function intradayTooltip(market) {
+    return params => {
+      if (!params || !params.length) return "";
+      const row = market.timeline.rows[params[0].dataIndex];
+      const lookups = getIntradayLookups();
+      if (!row || !lookups) return "";
+
+      const lines = ZONAL_ORDER
+        .map((zone, index) => ({ zone, index }))
+        .filter(item => zonalSelected[ZONAL_LABELS[item.zone]] !== false)
+        .map(item => {
+          const value = lookupValue(lookups[market.code][item.zone], row.key);
+          return tooltipRow(
+            cssVar(ZONAL_LINE_COLOR_VARS[item.index]),
+            ZONAL_LABELS[item.zone],
+            value === null ? "—" : formatPrice(value),
+            "line"
+          );
+        });
+
+      return tooltipHeader(row) + (lines.length ? lines.join("") : "No zone selected");
+    };
+  }
+
+  function renderIntradayChart(market) {
+    const subtitleId = `intraday-${market.id}-subtitle`;
+    const lookups = getIntradayLookups();
+
+    if (!lookups || !rawData) {
+      market.chart.clear();
+      setChartSubtitle(subtitleId, intradayStatus === "loading"
+        ? "Loading intraday prices…"
+        : "Intraday prices not available yet");
+      return;
+    }
+
+    resetTimeline(market.timeline);
+    setChartSubtitle(subtitleId, `${intradayMeasure()} · ${market.coverage}`);
+
+    const series = ZONAL_ORDER.map((zone, index) => ({
+      name: ZONAL_LABELS[zone],
+      type: "line",
+      data: market.timeline.rows.map(row => lookupValue(lookups[market.code][zone], row.key)),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: cssVar(ZONAL_LINE_COLOR_VARS[index]), width: 1.4 },
+      itemStyle: { color: cssVar(ZONAL_LINE_COLOR_VARS[index]) },
+      emphasis: { focus: "series" }
+    }));
+
+    market.chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      legend: {
+        show: false,
+        data: series.map(item => item.name),
+        selected: { ...zonalSelected }
+      },
+      tooltip: timelineTooltip(intradayTooltip(market)),
+      grid: { left: CHART_GRID.left, right: 16, top: 20, bottom: CHART_GRID.bottom, containLabel: false },
+      // Keep the date labels at the bottom when prices go negative.
+      xAxis: timelineXAxis(market.timeline, { onZero: false }),
+      yAxis: timelineYAxis("€/MWh"),
+      series,
+      dataZoom: timelineDataZoom(0, 16)
+    }, true);
+
+    market.chart.resize();
+  }
+
+  function syncIntradayAxes() {
+    if (!getIntradayLookups()) return;
+    shareValueAxis(INTRADAY_MARKETS.map(market => market.chart));
+  }
+
+  function renderIntradayCharts() {
+    INTRADAY_MARKETS.forEach(renderIntradayChart);
+    syncIntradayAxes();
+  }
+
+  INTRADAY_MARKETS.forEach(market => {
+    market.chart.on("datazoom", syncIntradayAxes);
+    attachDragZoom(market.chart, `intraday-${market.id}-wrap`, `intraday-${market.id}-drag`);
+  });
+
+  /* Shared zone legend: one click toggles the zone on every price chart. */
+  (function buildZonalLegend() {
+    const legend = document.getElementById("zonal-legend");
+
+    ZONAL_ORDER.forEach((zone, index) => {
+      const name = ZONAL_LABELS[zone];
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "legend-chip";
+      button.setAttribute("aria-pressed", "true");
+      button.innerHTML =
+        `<span class="legend-swatch" style="background:var(${ZONAL_LINE_COLOR_VARS[index]})"></span>${name}`;
+
+      button.addEventListener("click", () => {
+        const visible = zonalSelected[name] === false;
+        zonalSelected[name] = visible;
+        button.classList.toggle("off", !visible);
+        button.setAttribute("aria-pressed", String(visible));
+
+        [zonalChart, ...INTRADAY_MARKETS.map(market => market.chart)].forEach(chart => {
+          chart.dispatchAction({ type: visible ? "legendSelect" : "legendUnSelect", name });
+        });
+        syncIntradayAxes();
+      });
+
+      legend.appendChild(button);
+    });
+  })();
 
 
   /* ============================================================
@@ -5314,9 +5528,11 @@
       const mount =
         document.getElementById("chart-mount-prices");
 
-      mount.appendChild(zonalChartSection);
+      document.getElementById("zonal-legend").after(zonalChartSection);
+      mount.style.display = "grid";
 
       renderZonalChart();
+      setTimeout(renderIntradayCharts, 0);
 
       setTimeout(() => {
         zonalChart.resize();
@@ -5324,6 +5540,7 @@
       }, 0);
     } else {
       zonalChartSection.remove();
+      document.getElementById("chart-mount-prices").style.display = "none";
     }
 
     interconnectionMount.style.display =
@@ -5487,6 +5704,7 @@
     syncCalendarTriggerLabel();
     updateView();
     loadCrossBorderData();
+    loadIntradayData();
   };
 
   window.addEventListener("resize", () => {
@@ -5497,6 +5715,7 @@
     crossBorderImportsChart.resize();
     crossBorderExportsChart.resize();
     crossBorderNetChart.resize();
+    INTRADAY_MARKETS.forEach(market => market.chart.resize());
   });
 
   /* ============================================================
