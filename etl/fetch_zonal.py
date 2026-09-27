@@ -135,9 +135,9 @@ def parse_date(value):
 # ============================================================================
 
 
-def request_chunk(token, start_date, end_date, granularity=None):
+def request_chunk(token, start_date, end_date, granularity=None, segment="MGP"):
     """
-    Request one date chunk from GME.
+    Request one date chunk from GME for a market segment (MGP, MI-A1, ...).
 
     granularity:
       None  -> GME historical/default granularity
@@ -150,7 +150,7 @@ def request_chunk(token, start_date, end_date, granularity=None):
 
     body = {
         "Platform": "PublicMarketResults",
-        "Segment": "MGP",
+        "Segment": segment,
         "DataName": "ME_ZonalPrices",
         "IntervalStart": start_date.strftime("%Y%m%d"),
         "IntervalEnd": end_date.strftime("%Y%m%d"),
@@ -320,7 +320,7 @@ def request_chunk(token, start_date, end_date, granularity=None):
 # ============================================================================
 
 
-def request_data(login, password, start_date, end_date, granularity=None):
+def request_data(login, password, start_date, end_date, granularity=None, segment="MGP"):
     """
     Download a date range in monthly chunks.
 
@@ -334,7 +334,7 @@ def request_data(login, password, start_date, end_date, granularity=None):
 
     chunks = list(month_ranges(start_date, end_date))
 
-    print(f"  {granularity or 'DEFAULT'}: {len(chunks)} monthly API request(s)")
+    print(f"  {segment} {granularity or 'DEFAULT'}: {len(chunks)} monthly API request(s)")
 
     for index, (chunk_start, chunk_end) in enumerate(chunks, start=1):
 
@@ -349,6 +349,7 @@ def request_data(login, password, start_date, end_date, granularity=None):
                 start_date=chunk_start,
                 end_date=chunk_end,
                 granularity=granularity,
+                segment=segment,
             )
         except PermissionError:
             print("    Token expired. Re-authenticating...")
@@ -358,6 +359,7 @@ def request_data(login, password, start_date, end_date, granularity=None):
                 start_date=chunk_start,
                 end_date=chunk_end,
                 granularity=granularity,
+                segment=segment,
             )
 
         print(f"    Received {len(rows):,} rows")
