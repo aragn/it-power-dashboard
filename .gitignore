@@ -3,3 +3,9 @@ __pycache__/
 .pytest_cache/
 .env
 *.tmp
+
+# Data files live on the "data" branch (see .github/scripts/data-branch.sh).
+app/data/pun.json
+app/data/zonal_prices.json
+app/data/generation_load.json
+app/data/crossborder.json

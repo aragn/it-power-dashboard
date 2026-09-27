@@ -31,9 +31,9 @@ import requests
 import compact
 from entsoe_api import (
     REQUEST_PAUSE_SECONDS,
-    build_resolutions,
     day_chunks,
-    merge_group_series,
+    market_today,
+    merge_resolutions,
     parse_date,
     parse_points,
     request_entsoe,
@@ -73,6 +73,10 @@ OUTPUT_PATH = os.path.join(
 )
 
 DEFAULT_HISTORY_START = date(2025, 1, 1)
+
+# Incremental runs re-download this many days, so points published late
+# or revised are picked up by a later run.
+LOOKBACK_DAYS = 7
 PT15_START = date(2025, 10, 1)
 
 # These documents are one series per request; the API accepts up to a
@@ -216,14 +220,14 @@ def main():
     )
     args = parser.parse_args()
 
-    end_date = parse_date(args.end) if args.end else date.today()
+    end_date = parse_date(args.end) if args.end else market_today()
 
     if args.start:
         start_date = parse_date(args.start)
     elif args.full_history:
         start_date = DEFAULT_HISTORY_START
     else:
-        start_date = end_date - timedelta(days=3)
+        start_date = end_date - timedelta(days=LOOKBACK_DAYS)
 
     start_date = max(start_date, DEFAULT_HISTORY_START)
 
@@ -253,11 +257,7 @@ def main():
         records = download_dataset(token, name, start_date, end_date)
         print(f"  {len(records):,} points")
 
-        new = build_resolutions(records)
-        datasets[name] = {
-            resolution: merge_group_series(existing[name][resolution], new[resolution])
-            for resolution in RESOLUTIONS
-        }
+        datasets[name] = merge_resolutions(existing[name], records, RESOLUTIONS)
         print()
 
     if not any(datasets["physical_flows"]["daily"].values()):

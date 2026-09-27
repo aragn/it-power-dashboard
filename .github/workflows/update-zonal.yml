@@ -30,6 +30,9 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
+      - name: Restore current data from the data branch
+        run: bash .github/scripts/data-branch.sh restore
+
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
 
@@ -55,17 +58,5 @@ jobs:
           echo "Running: python etl/fetch_zonal.py ${ARGS[*]}"
           python etl/fetch_zonal.py "${ARGS[@]}"
 
-      - name: Commit and push updated data
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add app/data/zonal_prices.json
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "Update zonal prices [automated]"
-            git pull --rebase origin "${{ github.ref_name }}"
-            git push origin "HEAD:${{ github.ref_name }}"
-          fi
+      - name: Publish updated data to the data branch
+        run: bash .github/scripts/data-branch.sh publish app/data/zonal_prices.json

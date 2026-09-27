@@ -45,6 +45,8 @@ jobs:
         with:
           # Deploy the latest main, including the data commit just pushed.
           ref: main
+      - name: Restore data files from the data branch
+        run: bash .github/scripts/data-branch.sh restore
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

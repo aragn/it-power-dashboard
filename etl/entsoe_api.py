@@ -51,6 +51,11 @@ def parse_date(value):
     return datetime.strptime(value, "%Y%m%d").date()
 
 
+def market_today():
+    """Today's date in Italian market time (the runner clock is UTC)."""
+    return datetime.now(MARKET_TZ).date()
+
+
 def day_chunks(start_date, end_date, chunk_days):
     current = start_date
     while current <= end_date:
@@ -268,6 +273,33 @@ def build_resolutions(records):
         "hourly": hourly,
         "daily": hourly_to_daily(hourly),
     }
+
+
+def merge_resolutions(existing, records, resolutions=("quarter_hourly", "hourly", "daily")):
+    """
+    Merge freshly downloaded point records onto existing series.
+
+    Quarter-hours are merged point by point (new values win, points the
+    new download lacks are kept), then the hourly and daily values of
+    every date the download touched are recomputed from the merged
+    quarter-hours.  A later run can therefore fill gaps or pick up
+    revisions without a partial download shrinking a daily total.
+    """
+    new = build_resolutions(records)
+    quarter = merge_group_series(existing.get("quarter_hourly"), new["quarter_hourly"])
+
+    touched = {row["date"] for row in records}
+    recent_quarter = {
+        group: [row for row in rows if row["date"] in touched]
+        for group, rows in quarter.items()
+    }
+    hourly_new = quarter_hourly_to_hourly(recent_quarter)
+    merged = {
+        "quarter_hourly": quarter,
+        "hourly": merge_group_series(existing.get("hourly"), hourly_new),
+        "daily": merge_group_series(existing.get("daily"), hourly_to_daily(hourly_new)),
+    }
+    return {resolution: merged[resolution] for resolution in resolutions}
 
 
 def merge_group_series(existing, new):
