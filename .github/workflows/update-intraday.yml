@@ -5,7 +5,7 @@ on:
     # Daily at 00:50 UTC: after MI-A2 for today and MI-A3 for yesterday
     # are published, and clear of the other GME runs.
     - cron: "50 0 * * *"
-  # TEMPORARY: one-off full-history fetch from the feature branch.
+  # TEMPORARY: one-off backfill of the 2025 quarter-hours from the feature branch.
   push:
     branches: ["intraday-prices"]
   workflow_dispatch:
@@ -55,9 +55,10 @@ jobs:
           GME_API_PASSWORD: ${{ secrets.GME_API_PASSWORD }}
         run: |
           ARGS=()
+          if [ "${{ github.event_name }}" = "push" ]; then ARGS+=(--start 20250101 --end 20250930); fi
           if [ -n "${{ inputs.start }}" ]; then ARGS+=(--start "${{ inputs.start }}"); fi
           if [ -n "${{ inputs.end }}" ]; then ARGS+=(--end "${{ inputs.end }}"); fi
-          if [ "${{ inputs.full_history }}" = "true" ] || [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ inputs.full_history }}" = "true" ]; then
             ARGS+=(--full-history)
           fi
           echo "Running: python etl/fetch_intraday.py ${ARGS[*]}"
