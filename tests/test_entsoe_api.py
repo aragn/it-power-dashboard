@@ -92,3 +92,40 @@ def test_merge_orders_24_hour_labels_after_23():
         {"A": [{"date": "2025-10-26", "time": "23:00", "value": 2}]},
     )
     assert [r["time"] for r in merged["A"]] == ["23:00", "24:00"]
+
+
+def quarter_records(day, values, start_minutes=0):
+    return [
+        {"group": "A", "date": day, "time": entsoe_api.minutes_label(start_minutes + 15 * i),
+         "minutes": 15, "value": v}
+        for i, v in enumerate(values)
+    ]
+
+
+def test_later_run_fills_gaps_and_recomputes_totals():
+    # First run: only the first two quarter-hours of 00:00 were published.
+    first = entsoe_api.merge_resolutions({}, quarter_records("2026-09-26", [100, 100]))
+    assert first["hourly"]["A"][0]["value"] == 100.0
+    assert first["daily"]["A"][0]["value"] == 100.0
+
+    # Later run: the missing quarter-hours arrive and one value is revised.
+    second = entsoe_api.merge_resolutions(first, quarter_records("2026-09-26", [120, 100, 200, 200]))
+    assert len(second["quarter_hourly"]["A"]) == 4
+    assert second["hourly"]["A"][0]["value"] == 155.0
+    assert second["daily"]["A"][0]["value"] == 155.0
+
+
+def test_partial_download_keeps_existing_points():
+    full = entsoe_api.merge_resolutions({}, quarter_records("2026-09-26", [100] * 8))
+    # A later download only has the second hour: the first hour survives
+    # and the daily total is still built from both hours.
+    later = entsoe_api.merge_resolutions(full, quarter_records("2026-09-26", [300] * 4, start_minutes=60))
+    assert [r["value"] for r in later["hourly"]["A"]] == [100.0, 300.0]
+    assert later["daily"]["A"][0]["value"] == 400.0
+
+
+def test_untouched_days_are_left_alone():
+    existing = entsoe_api.merge_resolutions({}, quarter_records("2026-09-20", [50] * 4))
+    later = entsoe_api.merge_resolutions(existing, quarter_records("2026-09-26", [10] * 4))
+    assert [r["date"] for r in later["daily"]["A"]] == ["2026-09-20", "2026-09-26"]
+    assert later["daily"]["A"][0]["value"] == 50.0

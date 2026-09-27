@@ -24,7 +24,7 @@ it-power-dashboard/
 
 ## 2. Runtime model
 
-No server, no live agent. GitHub Actions runs the ETL on a schedule (e.g. daily after MGP closes ~13:00 CET), commits refreshed JSON into `app/data/`, and GitHub Pages serves the static `app/` folder. The browser never talks to GME/ENTSO-E/Terna directly — it only reads your pre-built JSON. This keeps your API credentials server-side (in GitHub Actions secrets) and never exposed in client code.
+No server, no live agent. GitHub Actions runs the ETL on a schedule (e.g. daily after MGP closes ~13:00 CET), publishes refreshed JSON to the `data` branch (a single commit, replaced on every update, so the history doesn't grow), and GitHub Pages serves the static `app/` folder with those files restored into `app/data/`. The browser never talks to GME/ENTSO-E/Terna directly — it only reads your pre-built JSON. This keeps your API credentials server-side (in GitHub Actions secrets) and never exposed in client code.
 
 ## 3. GitHub setup checklist
 

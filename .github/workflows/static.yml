@@ -6,6 +6,16 @@ on:
   push:
     branches: ["main"]
 
+  # Data commits pushed by the update workflows use GITHUB_TOKEN, which
+  # does not trigger "push" events, so redeploy when one of them finishes.
+  workflow_run:
+    workflows:
+      - "Update PUN data"
+      - "Update Zonal Prices"
+      - "Update Generation & Load (ENTSO-E)"
+      - "Update Cross-Border Exchanges (ENTSO-E)"
+    types: [completed]
+
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -24,6 +34,7 @@ concurrency:
 jobs:
   # Single deploy job since we're just deploying
   deploy:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -31,6 +42,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Deploy the latest main, including the data commit just pushed.
+          ref: main
+      - name: Restore data files from the data branch
+        run: bash .github/scripts/data-branch.sh restore
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

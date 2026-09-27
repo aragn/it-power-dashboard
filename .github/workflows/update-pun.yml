@@ -28,6 +28,9 @@ jobs:
           python-version: "3.13"
           cache: "pip"
 
+      - name: Restore current data from the data branch
+        run: bash .github/scripts/data-branch.sh restore
+
       - name: Install dependencies
         run: python -m pip install -r requirements.txt
 
@@ -54,16 +57,5 @@ jobs:
             --start "$START" \
             --end "$END"
 
-      - name: Commit updated data
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add app/data/pun.json
-
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "Update PUN data"
-            git push
-          fi
+      - name: Publish updated data to the data branch
+        run: bash .github/scripts/data-branch.sh publish app/data/pun.json
