@@ -8,9 +8,10 @@ and are coupled with the European intraday auctions (IDA1-3):
   - MI-A2: held on D-1 evening, covers all of day D
   - MI-A3: held on day D morning, covers only the second half of day D
 
-GME returns them at their native granularity (hourly before the 15-minute
-market time unit, 15-minute from 1 October 2025); GranularityType is only
-valid for MGP.  Hourly values from 15-minute results are the average of
+GME returns them at their native granularity (15-minute for the whole
+history since 2025, unlike MGP, which only went 15-minute on 1 October
+2025); GranularityType is only valid for MGP.  Hourly days are still
+handled in case older data is requested.  Hourly values from 15-minute results are the average of
 the quarter-hours, and daily values the average of the day's periods, so
 an MI-A3 "daily" value only covers the hours that auction trades.
 
@@ -27,7 +28,6 @@ import compact
 from fetch_zonal import (
     DEFAULT_HISTORY_START,
     ITALIAN_ZONES,
-    PT15_START,
     REQUEST_PAUSE_SECONDS,
     filter_zonal,
     market_time_from_period,
@@ -140,23 +140,17 @@ def build_output(markets):
         "source": "GME - MI-A intraday auction zonal prices (Italian bidding zones)",
         "description": (
             "Zonal prices of the GME intraday auctions MI-A1, MI-A2 and "
-            "MI-A3 for the Italian bidding zones, EUR/MWh. Native hourly "
-            "results before 1 October 2025 and 15-minute results from then "
-            "on. Hourly = average of the quarter-hours; daily = average of "
-            "the day's periods (MI-A3 covers only part of the day). "
-            "Quarter-hourly series start at quarter_hourly_native_from; "
-            "earlier quarter-hours repeat the hourly value."
+            "MI-A3 for the Italian bidding zones, EUR/MWh, at GME's native "
+            "15-minute resolution. Hourly = average of the quarter-hours; "
+            "daily = average of the day's periods (MI-A3 covers only part "
+            "of the day)."
         ),
-        "quarter_hourly_native_from": PT15_START.isoformat(),
+        # Native quarter-hours for the whole history.
+        "quarter_hourly_native_from": DEFAULT_HISTORY_START.isoformat(),
         "markets": {
             market: {
                 zone: {
-                    resolution: compact.encode_series(
-                        series[resolution],
-                        resolution,
-                        "price",
-                        skip_before=PT15_START.isoformat() if resolution == "quarter_hourly" else None,
-                    )
+                    resolution: compact.encode_series(series[resolution], resolution, "price")
                     for resolution in RESOLUTIONS
                 }
                 for zone, series in zones.items()
