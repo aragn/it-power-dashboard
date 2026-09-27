@@ -9,3 +9,4 @@ app/data/pun.json
 app/data/zonal_prices.json
 app/data/generation_load.json
 app/data/crossborder.json
+app/data/intraday_prices.json
