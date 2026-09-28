@@ -239,7 +239,7 @@
           <section id="intraday-mia1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A1 Zonal Prices</div><div id="intraday-mia1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="intraday-mia1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia1-chart" class="timeline-chart"></div><div id="intraday-mia1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (afternoon); covers the whole day.</div></section>
           <section id="intraday-mia2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A2 Zonal Prices</div><div id="intraday-mia2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="intraday-mia2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia2-chart" class="timeline-chart"></div><div id="intraday-mia2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (evening); covers the whole day.</div></section>
           <section id="intraday-mia3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A3 Zonal Prices</div><div id="intraday-mia3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="intraday-mia3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia3-chart" class="timeline-chart"></div><div id="intraday-mia3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held on the day (morning); covers only the afternoon and evening, so its daily average is for those hours.</div></section>
-        </div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the import and export charts"><span class="legend-title">Countries</span></div><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Drag horizontally across the chart to select a narrower range.</div></section></div></div>
+        </div><div id="chart-mount-interconnection" style="display:none"><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Drag horizontally across the chart to select a narrower range.</div></section><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the import and export charts"><span class="legend-title">Countries</span></div><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on both charts. Drag horizontally across the chart to select a narrower range.</div></section></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
       </main>
@@ -4610,6 +4610,10 @@
     const lookups = {};
     CROSS_BORDER_DATASETS.forEach(dataset => {
       const entry = { imports: {}, exports: {}, net: new Map() };
+      const sums = new Map();
+      const counts = new Map();
+      let seriesWithData = 0;
+
       ["imports", "exports"].forEach(direction => {
         const sign = direction === "imports" ? 1 : -1;
         CROSS_BORDER_COUNTRIES.forEach(country => {
@@ -4618,13 +4622,26 @@
             const key = timelineBucketKey(row);
             const value = Number(row.value);
             map.set(key, value);
-            entry.net.set(key, (entry.net.get(key) || 0) + sign * value);
+            sums.set(key, (sums.get(key) || 0) + sign * value);
+            counts.set(key, (counts.get(key) || 0) + 1);
           });
+          if (map.size) seriesWithData += 1;
           entry[direction][country.code] = map;
         });
       });
-      // Round away floating-point noise from summing the borders.
-      entry.net.forEach((value, key) => entry.net.set(key, Math.round(value * 100) / 100));
+
+      // The most recent slots are often reported for some borders before
+      // others, and a partial sum shows as a false drop, so the net stops
+      // at the last slot every border has reported.  (Older gaps, mostly
+      // Malta's, stay summed from the borders that are there.)  Keys sort
+      // chronologically as "YYYY-MM-DD|HH:MM" strings.
+      let lastComplete = "";
+      counts.forEach((count, key) => {
+        if (count === seriesWithData && key > lastComplete) lastComplete = key;
+      });
+      sums.forEach((value, key) => {
+        if (key <= lastComplete) entry.net.set(key, Math.round(value * 100) / 100);
+      });
       lookups[dataset] = entry;
     });
 
