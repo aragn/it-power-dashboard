@@ -4,9 +4,6 @@ on:
   schedule:
     # Daily at 00:35 UTC, between the other GME runs.
     - cron: "35 0 * * *"
-  # TEMPORARY: one-off full-history fetch from the feature branch.
-  push:
-    branches: ["market-coupling"]
   workflow_dispatch:
     inputs:
       start:
@@ -56,7 +53,7 @@ jobs:
           ARGS=()
           if [ -n "${{ inputs.start }}" ]; then ARGS+=(--start "${{ inputs.start }}"); fi
           if [ -n "${{ inputs.end }}" ]; then ARGS+=(--end "${{ inputs.end }}"); fi
-          if [ "${{ inputs.full_history }}" = "true" ] || [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ inputs.full_history }}" = "true" ]; then
             ARGS+=(--full-history)
           fi
           echo "Running: python etl/fetch_coupling.py ${ARGS[*]}"
