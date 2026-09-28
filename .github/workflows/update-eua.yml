@@ -4,9 +4,6 @@ on:
   schedule:
     # EU auctions clear at 11:00 CET on weekdays; EEX's report follows.
     - cron: "40 12 * * *"
-  # TEMPORARY: one-off first fetch from the feature branch.
-  push:
-    branches: ["eua-auctions"]
   workflow_dispatch:
 
 permissions:
