@@ -19,6 +19,7 @@ on:
       - "Update Market Coupling (GME)"
       - "Update Day-Ahead Forecasts (ENTSO-E)"
       - "Update EU ETS Auction Prices (EEX)"
+      - "Update Wind & Solar Forecasts (ENTSO-E)"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab

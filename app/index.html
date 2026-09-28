@@ -24,7 +24,7 @@
       --chart-tooltip-bg:#171b20; --chart-tooltip-border:#30363e; --chart-tooltip-text:#f1f3f5; --chart-tooltip-muted:#9aa2ac; --chart-pointer:#5d6670;
       --chart-axis-line:#30353c; --chart-axis-label:#727a84; --chart-grid:#20252b; --chart-legend:#b4bbc4;
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
-      --chart-pun:#d9dde2; --chart-eua:#e7a84b; --chart-generation:#5ecb8a; --chart-load:#5b9cff;
+      --chart-pun:#d9dde2; --chart-eua:#e7a84b; --res-actual:#d9dde2; --res-day-ahead:#5b9cff; --res-intraday:#d55181; --chart-generation:#5ecb8a; --chart-load:#5b9cff;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
       --mix-coal:#b8c2d0; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
       --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
@@ -40,7 +40,7 @@
       --chart-tooltip-bg:#ffffff; --chart-tooltip-border:#d5dae0; --chart-tooltip-text:#14171a; --chart-tooltip-muted:#66707b; --chart-pointer:#a3aab3;
       --chart-axis-line:#cfd4da; --chart-axis-label:#66707b; --chart-grid:#eceef1; --chart-legend:#3f4750;
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
-      --chart-pun:#1f2429; --chart-eua:#b36b00; --chart-generation:#1f9d57; --chart-load:#2f6fdb;
+      --chart-pun:#1f2429; --chart-eua:#b36b00; --res-actual:#1f2429; --res-day-ahead:#2f6fdb; --res-intraday:#c93d74; --chart-generation:#1f9d57; --chart-load:#2f6fdb;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
       --mix-coal:#4b5563; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
       --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
@@ -231,7 +231,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Storage charging and pumping are shown below zero. Dashed: day-ahead load and generation forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Storage charging and pumping are shown below zero. Dashed: day-ahead load and generation forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -4340,7 +4340,8 @@
     const swatch = {
       area: `width:8px;height:8px;border-radius:2px;margin-right:6px;background:${color};`,
       line: `width:12px;height:2px;margin:0 6px 3px 0;background:${color};`,
-      dashed: `width:12px;height:0;margin:0 6px 3px 0;border-top:2px dashed ${color};`
+      dashed: `width:12px;height:0;margin:0 6px 3px 0;border-top:2px dashed ${color};`,
+      dotted: `width:12px;height:0;margin:0 6px 3px 0;border-top:2px dotted ${color};`
     }[shape];
     return `<div style="display:flex;justify-content:space-between;gap:18px;">` +
       `<span><span style="display:inline-block;${swatch}"></span>${name}</span>` +
@@ -4369,8 +4370,13 @@
         ? zoom.endValue
         : Math.round((zoom.end / 100) * last);
 
-      timeline.start = clamp(Math.min(start, end), 0, last);
-      timeline.end = clamp(Math.max(start, end), 0, last);
+      const next = [clamp(Math.min(start, end), 0, last), clamp(Math.max(start, end), 0, last)];
+      if (next[0] === timeline.start && next[1] === timeline.end) return;
+      timeline.start = next[0];
+      timeline.end = next[1];
+      // The axis labels were laid out before this handler ran, for the old
+      // span; lay them out again for the new one.
+      chart.setOption({ xAxis: {} });
     });
 
     return timeline;
@@ -4442,6 +4448,9 @@
   }
 
   function timelineXAxis(timeline, { gridIndex = 0, showLabels = true, onZero = true } = {}) {
+    // A zoomed axis numbers its labels from the start of the zoom window,
+    // so labels are looked up by their key, not by the index ECharts passes.
+    const indexByKey = new Map(timeline.rows.map((row, index) => [row.key, index]));
     return {
       type: "category",
       gridIndex,
@@ -4455,7 +4464,7 @@
             margin: 10,
             interval: 0,
             hideOverlap: true,
-            formatter: (value, index) => timelineAxisLabel(timeline, index)
+            formatter: value => timelineAxisLabel(timeline, indexByKey.get(value))
           }
         : { show: false },
       splitLine: { show: false }
@@ -5085,6 +5094,157 @@
   generationMixChart.on("datazoom", syncPunEuaAxes);
 
   attachDragZoom(generationMixChart, "generation-mix-chart-wrap", "generation-mix-drag-selection");
+
+
+  /* ============================================================
+     WIND AND SOLAR: FORECASTS VS ACTUAL
+     ============================================================ */
+
+  /*
+   * One chart per production type: the actual generation (up to the last
+   * complete quarter-hour, like the charts above) with ENTSO-E's day-ahead
+   * and intraday forecasts.  Italy publishes no offshore wind forecast.
+   */
+  const RES_FORECAST_TYPES = [
+    { code: "B19", id: "wind", name: "Onshore wind" },
+    { code: "B16", id: "solar", name: "Solar" }
+  ];
+
+  const RES_FORECAST_SERIES = [
+    { key: "actual", name: "Actual", color: "--res-actual", line: "solid", shape: "line", width: 2 },
+    { key: "day_ahead", name: "Day-ahead forecast", color: "--res-day-ahead", line: "dashed", shape: "dashed", width: 1.5 },
+    { key: "intraday", name: "Intraday forecast", color: "--res-intraday", line: "dotted", shape: "dotted", width: 2 }
+  ];
+
+  RES_FORECAST_TYPES.forEach(type => {
+    type.section = document.getElementById(`res-${type.id}-section`);
+    type.chart = echarts.init(document.getElementById(`res-${type.id}-chart`));
+    type.timeline = createTimeline(type.chart);
+    type.selected = {};
+    type.chart.on("legendselectchanged", event => { type.selected = { ...event.selected }; });
+    attachDragZoom(type.chart, `res-${type.id}-wrap`, `res-${type.id}-drag`);
+  });
+
+  let rawResForecastData = null;
+  let resForecastStatus = "loading"; // "loading" | "ready" | "missing"
+  const resForecastCache = {};
+
+  async function loadResForecastData() {
+    try {
+      const response = await fetch("./data/res_forecasts.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawResForecastData = decodeCompactPayload(await response.json());
+      resForecastStatus = "ready";
+    } catch (error) {
+      console.warn("Wind and solar forecasts unavailable:", error);
+      resForecastStatus = "missing";
+    }
+    updateView();
+  }
+
+  /* Per resolution and production type: actual, day_ahead, intraday maps. */
+  function getResForecastLookups() {
+    if (!rawResForecastData || !rawGenerationLoadData) return null;
+
+    const resolution = timelineResolutionKey();
+    if (resForecastCache[resolution]) return resForecastCache[resolution];
+
+    const generation = (rawGenerationLoadData.generation || {})[resolution] || {};
+    const forecast = (name, code) => new Map(
+      ((((rawResForecastData[name] || {})[resolution]) || {})[code] || [])
+        .map(row => [timelineBucketKey(row), Number(row.value)])
+    );
+    const lookups = {};
+    RES_FORECAST_TYPES.forEach(type => {
+      lookups[type.code] = {
+        actual: sumGroupsByBucket(generation, [type.code]),
+        day_ahead: forecast("day_ahead", type.code),
+        intraday: forecast("intraday", type.code)
+      };
+    });
+    resForecastCache[resolution] = lookups;
+    return lookups;
+  }
+
+  function resForecastValues(type, lookups) {
+    const cutoffs = getActualCutoffs() || {};
+    const maps = lookups[type.code];
+    return type.timeline.rows.map(row => ({
+      actual: withinActualCutoff(row.key, cutoffs.generation) ? lookupValue(maps.actual, row.key) : null,
+      day_ahead: lookupValue(maps.day_ahead, row.key),
+      intraday: lookupValue(maps.intraday, row.key)
+    }));
+  }
+
+  function renderResForecastChart(type, lookups) {
+    const { chart, timeline } = type;
+    resetTimeline(timeline);
+    setChartSubtitle(`res-${type.id}-subtitle`, timelineMeasure());
+
+    const values = resForecastValues(type, lookups);
+    const unit = timelineUnit();
+    const series = RES_FORECAST_SERIES.map(item => ({
+      name: item.name,
+      type: "line",
+      data: values.map(value => value[item.key]),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: cssVar(item.color), width: item.width, type: item.line },
+      itemStyle: { color: cssVar(item.color) },
+      z: item.key === "actual" ? 5 : 3
+    }));
+
+    const tooltip = params => {
+      if (!params || !params.length) return "";
+      const index = params[0].dataIndex;
+      const row = timeline.rows[index];
+      if (!row) return "";
+      const shown = name => type.selected[name] !== false;
+      let body = "";
+      RES_FORECAST_SERIES.forEach(item => {
+        const value = values[index][item.key];
+        if (!shown(item.name) || value === null) return;
+        body += tooltipRow(cssVar(item.color), item.name, `${formatChartNumber(value)} ${unit}`, item.shape);
+      });
+      return tooltipHeader(row) + (body || "No data");
+    };
+
+    chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      legend: {
+        top: 4,
+        left: 56,
+        itemWidth: 18,
+        itemHeight: 8,
+        itemGap: 14,
+        textStyle: { color: cssVar("--chart-legend"), fontSize: 10 },
+        data: RES_FORECAST_SERIES.map(item => item.name),
+        selected: { ...type.selected }
+      },
+      tooltip: timelineTooltip(tooltip),
+      grid: { left: 56, right: 16, top: 36, bottom: CHART_GRID.bottom, containLabel: false },
+      xAxis: timelineXAxis(timeline),
+      yAxis: timelineYAxis(unit, { nameGap: 40 }),
+      series,
+      dataZoom: timelineDataZoom(0, 16, 56)
+    }, true);
+    chart.resize();
+  }
+
+  function renderResForecastCharts() {
+    const lookups = getResForecastLookups();
+    RES_FORECAST_TYPES.forEach(type => {
+      if (!lookups || !rawData) {
+        type.chart.clear();
+        setChartSubtitle(`res-${type.id}-subtitle`, resForecastStatus === "loading"
+          ? "Loading forecasts…"
+          : "Wind and solar forecasts not available yet");
+        return;
+      }
+      renderResForecastChart(type, lookups);
+    });
+  }
 
 
   /* ============================================================
@@ -6347,6 +6507,7 @@
       mount.appendChild(punChartSection);
       mount.appendChild(generationLoadChartSection);
       mount.appendChild(generationMixChartSection);
+      RES_FORECAST_TYPES.forEach(type => mount.appendChild(type.section));
 
       setTimeout(() => {
         // Another tab may have been opened in the meantime.
@@ -6357,11 +6518,13 @@
         renderChart();
         renderGenerationLoadChart();
         renderGenerationMixChart();
+        renderResForecastCharts();
       }, 0);
     } else {
       punChartSection.remove();
       generationLoadChartSection.remove();
       generationMixChartSection.remove();
+      RES_FORECAST_TYPES.forEach(type => type.section.remove());
     }
 
     if (showZonalChart) {
@@ -6551,6 +6714,7 @@
     loadCouplingData();
     loadForecastData();
     loadEuaData();
+    loadResForecastData();
   };
 
   window.addEventListener("resize", () => {
@@ -6558,6 +6722,7 @@
     generationLoadChart.resize();
     zonalChart.resize();
     generationMixChart.resize();
+    RES_FORECAST_TYPES.forEach(type => type.chart.resize());
     CROSS_BORDER_DIRECTION_CHARTS.forEach(item => item.chart.resize());
     neighbourPricesChart.resize();
     couplingCharts.forEach(chart => chart.resize());
