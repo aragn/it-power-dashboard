@@ -5457,7 +5457,7 @@
   }
 
   // Flow charts in the first row, price charts below, in border order.
-  COUPLING_BORDERS.forEach(border => { border.flows = couplingPanel(`${border.id}-flows`, `${border.title} day-ahead flows`); });
+  COUPLING_BORDERS.forEach(border => { border.flows = couplingPanel(`${border.id}-flows`, `${border.title} day-ahead commercial exchanges`); });
   COUPLING_BORDERS.forEach(border => { border.prices = couplingPanel(`${border.id}-prices`, `${border.title} day-ahead prices`); });
 
   const couplingPriceCharts = COUPLING_BORDERS.map(border => border.prices.chart);
@@ -5627,8 +5627,8 @@
       const neighbourPrice = neighbourLookups ? lookupValue(neighbourLookups[border.neighbour], row.key) : null;
       const format = value => (value === null ? "—" : formatPrice(value));
 
-      let body = tooltipRow(cssVar(italian.color), `${italian.short} (GME)`, format(italianPrice), "line") +
-        tooltipRow(cssVar(COUPLING_SERIES.neighbour.color), `${border.neighbourName} (ENTSO-E)`, format(neighbourPrice), "line");
+      let body = tooltipRow(cssVar(italian.color), italian.short, format(italianPrice), "line") +
+        tooltipRow(cssVar(COUPLING_SERIES.neighbour.color), border.neighbourName, format(neighbourPrice), "line");
       if (italianPrice !== null && neighbourPrice !== null) {
         body += `<div style="margin-top:6px;">${tooltipRow("transparent", `Spread (${italian.short} − ${border.neighbourName})`, formatPrice(italianPrice - neighbourPrice))}</div>`;
       }
@@ -5641,7 +5641,7 @@
     resetTimeline(timeline);
 
     const italian = COUPLING_SERIES[border.italian];
-    setChartSubtitle(subtitleId, `${priceMeasure()} · ${italian.short} (GME) vs ${border.neighbourName} (ENTSO-E)`);
+    setChartSubtitle(subtitleId, `${priceMeasure()} · ${italian.short} vs ${border.neighbourName}`);
 
     const neighbourLookups = getNeighbourPriceLookups();
     const priceSeries = (item, data) => ({
