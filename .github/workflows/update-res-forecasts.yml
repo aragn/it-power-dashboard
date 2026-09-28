@@ -6,9 +6,6 @@ on:
     # the day-ahead ones for tomorrow are due by 18:00 Brussels time, so
     # this runs every hour (two small requests per run).
     - cron: "5 * * * *"
-  # TEMPORARY: first full-history fetch from the feature branch.
-  push:
-    branches: [res-forecasts]
   workflow_dispatch:
     inputs:
       start:
@@ -57,7 +54,7 @@ jobs:
           ARGS=()
           if [ -n "${{ inputs.start }}" ]; then ARGS+=(--start "${{ inputs.start }}"); fi
           if [ -n "${{ inputs.end }}" ]; then ARGS+=(--end "${{ inputs.end }}"); fi
-          if [ "${{ inputs.full_history }}" = "true" ] || [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ inputs.full_history }}" = "true" ]; then
             ARGS+=(--full-history)
           fi
           echo "Running: python etl/fetch_res_forecasts.py ${ARGS[*]}"
