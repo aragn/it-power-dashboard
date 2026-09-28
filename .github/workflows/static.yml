@@ -17,6 +17,7 @@ on:
       - "Update Intraday Prices (GME MI-A)"
       - "Update Neighbour Day-Ahead Prices (ENTSO-E)"
       - "Update Market Coupling (GME)"
+      - "Update Day-Ahead Forecasts (ENTSO-E)"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab
