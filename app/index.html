@@ -4696,7 +4696,7 @@
   ];
 
   const MIX_LOAD_NAME = "Actual load";
-  const MIX_PUN_NAME = "PUN Index";
+  const PUN_INDEX_NAME = "PUN Index";
 
   const generationMixChartElement =
     document.getElementById("generation-mix-chart");
@@ -4813,9 +4813,9 @@
         `</div>`;
     }
 
-    if (shown(MIX_PUN_NAME) && Number.isFinite(row.pun)) {
+    if (shown(PUN_INDEX_NAME) && Number.isFinite(row.pun)) {
       html += `<div style="margin-top:6px;">` +
-        tooltipRow(cssVar("--chart-pun"), MIX_PUN_NAME, `${row.pun.toFixed(2)} €/MWh`, "line") + `</div>`;
+        tooltipRow(cssVar("--chart-pun"), PUN_INDEX_NAME, `${row.pun.toFixed(2)} €/MWh`, "line") + `</div>`;
     }
 
     return html;
@@ -4899,7 +4899,7 @@
         z: 5
       },
       {
-        name: MIX_PUN_NAME,
+        name: PUN_INDEX_NAME,
         type: "line",
         xAxisIndex: 1,
         yAxisIndex: 1,
@@ -5307,13 +5307,17 @@
     const lookups = getNeighbourPriceLookups();
     if (!row || !lookups) return "";
 
+    const pun = Number.isFinite(row.pun)
+      ? `<div style="margin-bottom:4px;">${tooltipRow(cssVar("--chart-pun"), PUN_INDEX_NAME, formatPrice(row.pun), "line")}</div>`
+      : "";
     const lines = CROSS_BORDER_COUNTRIES
       .filter(country => crossBorderCountrySelected[country.name] !== false)
       .map(country => ({ country, value: lookupValue(lookups[country.code], row.key) }))
       .filter(item => item.value !== null)
       .map(item => tooltipRow(cssVar(item.country.color), item.country.name, formatPrice(item.value), "line"));
 
-    return tooltipHeader(row) + (lines.length ? lines.join("") : "No data");
+    const body = pun + lines.join("");
+    return tooltipHeader(row) + (body || "No data");
   }
 
   function renderNeighbourPricesChart() {
@@ -5327,7 +5331,7 @@
     }
 
     resetTimeline(neighbourPricesTimeline);
-    setChartSubtitle("neighbour-prices-subtitle", `${priceMeasure()} · day-ahead market`);
+    setChartSubtitle("neighbour-prices-subtitle", `${priceMeasure()} · day-ahead market, with Italy's PUN Index`);
 
     // Zones without a published day-ahead price keep their legend chip but
     // draw no line; the note under the chart names them.
@@ -5335,7 +5339,8 @@
       .filter(country => !lookups[country.code].size)
       .map(country => country.name);
     document.getElementById("neighbour-prices-help").textContent =
-      "Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). " +
+      "Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D), with Italy's " +
+      "PUN Index (MGP) as the thicker neutral line for reference. " +
       (unpublished.length ? `No day-ahead price is published for ${unpublished.join(", ")}. ` : "") +
       "Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.";
 
@@ -5350,13 +5355,27 @@
       emphasis: { focus: "series" }
     }));
 
+    // Italy's PUN Index for reference, on top.  It is not in the country
+    // legend, so the legend never hides it.
+    series.push({
+      name: PUN_INDEX_NAME,
+      type: "line",
+      data: neighbourPricesTimeline.rows.map(row => (Number.isFinite(row.pun) ? row.pun : null)),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: cssVar("--chart-pun"), width: 2 },
+      itemStyle: { color: cssVar("--chart-pun") },
+      emphasis: { focus: "series" },
+      z: 5
+    });
+
     neighbourPricesChart.setOption({
       animation: false,
       backgroundColor: "transparent",
-      // The legend is the shared HTML one above the charts.
+      // The legend is the shared HTML one above the charts (countries only).
       legend: {
         show: false,
-        data: series.map(item => item.name),
+        data: CROSS_BORDER_COUNTRIES.map(country => country.name),
         selected: { ...crossBorderCountrySelected }
       },
       tooltip: timelineTooltip(neighbourPricesTooltip),
@@ -5734,6 +5753,8 @@
       mount.appendChild(generationMixChartSection);
 
       setTimeout(() => {
+        // Another tab may have been opened in the meantime.
+        if (!punChartSection.isConnected) return;
         chart.resize();
         generationLoadChart.resize();
         generationMixChart.resize();
@@ -5758,6 +5779,8 @@
       setTimeout(renderIntradayCharts, 0);
 
       setTimeout(() => {
+        // Another tab may have been opened in the meantime.
+        if (!zonalChartSection.isConnected) return;
         zonalChart.resize();
         renderZonalChart();
       }, 0);
