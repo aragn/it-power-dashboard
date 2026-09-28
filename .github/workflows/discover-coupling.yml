@@ -1,0 +1,25 @@
+name: TEMPORARY discover GME market coupling data
+
+on:
+  push:
+    branches: ["market-coupling"]
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: python -m pip install -r requirements.txt
+      - name: Discover
+        env:
+          GME_API_LOGIN: ${{ secrets.GME_API_LOGIN }}
+          GME_API_PASSWORD: ${{ secrets.GME_API_PASSWORD }}
+        run: cd etl && python discover_coupling.py
