@@ -135,9 +135,11 @@ def parse_date(value):
 # ============================================================================
 
 
-def request_chunk(token, start_date, end_date, granularity=None, segment="MGP"):
+def request_chunk(token, start_date, end_date, granularity=None, segment="MGP",
+                  data_name="ME_ZonalPrices"):
     """
-    Request one date chunk from GME for a market segment (MGP, MI-A1, ...).
+    Request one date chunk of a GME data item (ME_ZonalPrices by default)
+    for a market segment (MGP, MI-A1, ...).
 
     granularity:
       None  -> GME historical/default granularity
@@ -151,7 +153,7 @@ def request_chunk(token, start_date, end_date, granularity=None, segment="MGP"):
     body = {
         "Platform": "PublicMarketResults",
         "Segment": segment,
-        "DataName": "ME_ZonalPrices",
+        "DataName": data_name,
         "IntervalStart": start_date.strftime("%Y%m%d"),
         "IntervalEnd": end_date.strftime("%Y%m%d"),
         "Attributes": {},
@@ -320,7 +322,8 @@ def request_chunk(token, start_date, end_date, granularity=None, segment="MGP"):
 # ============================================================================
 
 
-def request_data(login, password, start_date, end_date, granularity=None, segment="MGP"):
+def request_data(login, password, start_date, end_date, granularity=None, segment="MGP",
+                 data_name="ME_ZonalPrices"):
     """
     Download a date range in monthly chunks.
 
@@ -334,7 +337,7 @@ def request_data(login, password, start_date, end_date, granularity=None, segmen
 
     chunks = list(month_ranges(start_date, end_date))
 
-    print(f"  {segment} {granularity or 'DEFAULT'}: {len(chunks)} monthly API request(s)")
+    print(f"  {data_name} {segment} {granularity or 'DEFAULT'}: {len(chunks)} monthly API request(s)")
 
     for index, (chunk_start, chunk_end) in enumerate(chunks, start=1):
 
@@ -350,6 +353,7 @@ def request_data(login, password, start_date, end_date, granularity=None, segmen
                 end_date=chunk_end,
                 granularity=granularity,
                 segment=segment,
+                data_name=data_name,
             )
         except PermissionError:
             print("    Token expired. Re-authenticating...")
@@ -360,6 +364,7 @@ def request_data(login, password, start_date, end_date, granularity=None, segmen
                 end_date=chunk_end,
                 granularity=granularity,
                 segment=segment,
+                data_name=data_name,
             )
 
         print(f"    Received {len(rows):,} rows")

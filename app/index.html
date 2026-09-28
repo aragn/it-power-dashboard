@@ -30,6 +30,7 @@
       --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
       --border-1:#3987e5; --border-2:#d95926; --border-3:#199e70; --border-4:#c98500; --border-5:#d55181; --border-6:#008300; --border-7:#9085e9;
       --flow-physical:#3987e5; --flow-scheduled:#d95926;
+      --coupling-flow:#199e70; --coupling-limit:#d9dde2; --coupling-price-italy:#e66767; --coupling-price-sud:#d55181; --coupling-price-neighbour:#9085e9;
     }
     :root[data-theme="light"] {
       color-scheme:light;
@@ -45,6 +46,7 @@
       --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
       --border-1:#2a78d6; --border-2:#eb6834; --border-3:#1baf7a; --border-4:#eda100; --border-5:#e87ba4; --border-6:#008300; --border-7:#4a3aa7;
       --flow-physical:#2a78d6; --flow-scheduled:#eb6834;
+      --coupling-flow:#12805f; --coupling-limit:#1f2429; --coupling-price-italy:#e34948; --coupling-price-sud:#c93d74; --coupling-price-neighbour:#4a3aa7;
     }
     #theme-toggle { position:fixed; left:16px; bottom:16px; z-index:150; display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 14px 8px 11px; font-size:12px; cursor:pointer; box-shadow:0 6px 18px var(--shadow); }
     #theme-toggle:hover { background:var(--hover); }
@@ -117,6 +119,13 @@
     .legend-chip { display:flex; align-items:center; gap:7px; border:0; border-radius:6px; background:transparent; color:var(--text); font-size:12px; padding:5px 8px; cursor:pointer; }
     .legend-chip:hover { background:var(--hover); }
     .legend-swatch { width:16px; height:3px; border-radius:2px; }
+    .legend-swatch.area { width:12px; height:10px; }
+    .coupling-grid { grid-column:1 / -1; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px; align-items:stretch; }
+    @media (max-width: 1300px) { .coupling-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    @media (max-width: 700px) { .coupling-grid { grid-template-columns:1fr; } }
+    .timeline-chart-wrap.coupling-chart-wrap { height:320px; }
+    .coupling-grid .chart-help { margin-left:56px; }
+    .coupling-note { grid-column:1 / -1; margin:0; padding:0 4px; color:var(--muted-2); font-size:11px; line-height:1.5; }
     .legend-chip.off { color:var(--muted-2); }
     .legend-chip.off .legend-swatch { opacity:.25; }
     .timeline-chart-wrap { position:relative; width:100%; height:460px; touch-action:none; }
@@ -239,7 +248,7 @@
           <section id="intraday-mia1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A1 Zonal Prices</div><div id="intraday-mia1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="intraday-mia1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia1-chart" class="timeline-chart"></div><div id="intraday-mia1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (afternoon); covers the whole day.</div></section>
           <section id="intraday-mia2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A2 Zonal Prices</div><div id="intraday-mia2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="intraday-mia2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia2-chart" class="timeline-chart"></div><div id="intraday-mia2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (evening); covers the whole day.</div></section>
           <section id="intraday-mia3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A3 Zonal Prices</div><div id="intraday-mia3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="intraday-mia3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia3-chart" class="timeline-chart"></div><div id="intraday-mia3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held on the day (morning); covers only the afternoon and evening, so its daily average is for those hours.</div></section>
-        </div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section></div></div>
+        </div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">MGP market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
       </main>
@@ -4432,7 +4441,7 @@
     };
   }
 
-  function timelineDataZoom(xAxisIndex = 0, right = 24) {
+  function timelineDataZoom(xAxisIndex = 0, right = 24, left = CHART_GRID.left) {
     return [
       {
         type: "inside",
@@ -4448,7 +4457,7 @@
         filterMode: "filter",
         bottom: 18,
         height: 16,
-        left: CHART_GRID.left,
+        left,
         right,
         borderColor: cssVar("--chart-zoom-border"),
         backgroundColor: cssVar("--chart-zoom-bg"),
@@ -5241,6 +5250,7 @@
     CROSS_BORDER_DIRECTION_CHARTS.forEach(renderCrossBorderDirectionChart);
     syncCrossBorderDirectionAxes();
     renderCrossBorderNetChart();
+    renderCouplingCharts();
   }
 
   /* ============================================================
@@ -5391,6 +5401,318 @@
   }
 
   attachDragZoom(neighbourPricesChart, "neighbour-prices-wrap", "neighbour-prices-drag");
+
+
+  /* ============================================================
+     MGP MARKET COUPLING (GME)
+     ============================================================ */
+
+  /*
+   * One chart per coupled border with its import (above zero) and export
+   * (below zero) flows against the limits, and below them one price chart
+   * per border: the Italian side's MGP price (Italia Coupling, or Sud for
+   * the Greek border) against the coupled zone's day-ahead price.  GME's
+   * own "... Coupling" zone prices repeat the Italian price, so the
+   * neighbour's price comes from the ENTSO-E day-ahead prices.  One legend
+   * toggles the series on all eight charts.
+   */
+  const COUPLING_BORDERS = [
+    { zone: "BSP", id: "si", title: "Italy – Slovenia", italian: "COUP", neighbour: "SI", neighbourName: "Slovenia" },
+    { zone: "XAUS", id: "at", title: "Italy – Austria", italian: "COUP", neighbour: "AT", neighbourName: "Austria" },
+    { zone: "XFRA", id: "fr", title: "Italy – France", italian: "COUP", neighbour: "FR", neighbourName: "France" },
+    { zone: "SUD", id: "gr", title: "Sud – Greece", italian: "SUD", neighbour: "GR", neighbourName: "Greece" }
+  ];
+
+  const COUPLING_SERIES = {
+    flow: { name: "Flow", color: "--coupling-flow", shape: "area" },
+    limit: { name: "Limit", color: "--coupling-limit", shape: "line" },
+    COUP: { name: "Day-ahead price Italia Coupling (GME)", short: "Italia Coupling", color: "--coupling-price-italy", shape: "line" },
+    SUD: { name: "Day-ahead price Sud (GME)", short: "Sud", color: "--coupling-price-sud", shape: "line" },
+    neighbour: { name: "Day-ahead price coupled zone (ENTSO-E)", color: "--coupling-price-neighbour", shape: "line" }
+  };
+
+  const COUPLING_FIELDS = ["import_flow", "export_flow", "import_limit", "export_limit"];
+
+  /* Legend state shared by the eight charts (name -> false when hidden). */
+  let couplingSelected = {};
+
+  const couplingGrid = document.getElementById("coupling-grid");
+  const couplingNote = document.getElementById("coupling-note");
+
+  function couplingPanel(key, title) {
+    const section = document.createElement("section");
+    section.id = `coupling-${key}-section`;
+    section.className = "panel chart-panel";
+    section.innerHTML =
+      `<div class="chart-header"><div><div class="chart-title">${title}</div>` +
+      `<div id="coupling-${key}-subtitle" class="chart-subtitle"></div></div></div>` +
+      `<div id="coupling-${key}-wrap" class="timeline-chart-wrap coupling-chart-wrap">` +
+      `<div id="coupling-${key}-chart" class="timeline-chart"></div>` +
+      `<div id="coupling-${key}-drag" class="timeline-drag-selection"></div></div>`;
+    couplingGrid.insertBefore(section, couplingNote);
+
+    const chart = echarts.init(document.getElementById(`coupling-${key}-chart`));
+    attachDragZoom(chart, `coupling-${key}-wrap`, `coupling-${key}-drag`);
+    return { chart, timeline: createTimeline(chart), subtitleId: `coupling-${key}-subtitle` };
+  }
+
+  // Flow charts in the first row, price charts below, in border order.
+  COUPLING_BORDERS.forEach(border => { border.flows = couplingPanel(`${border.id}-flows`, `${border.title} day-ahead flows`); });
+  COUPLING_BORDERS.forEach(border => { border.prices = couplingPanel(`${border.id}-prices`, `${border.title} day-ahead prices`); });
+
+  const couplingPriceCharts = COUPLING_BORDERS.map(border => border.prices.chart);
+  const couplingCharts = COUPLING_BORDERS.flatMap(border => [border.flows.chart, border.prices.chart]);
+
+  let rawCouplingData = null;
+  let couplingStatus = "loading"; // "loading" | "ready" | "missing"
+  const couplingCache = {};
+
+  async function loadCouplingData() {
+    try {
+      const response = await fetch("./data/coupling.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawCouplingData = decodeCompactPayload(await response.json());
+      couplingStatus = "ready";
+    } catch (error) {
+      console.warn("Market coupling data unavailable:", error);
+      couplingStatus = "missing";
+    }
+    updateView();
+  }
+
+  /* Rows of a flow field ("flows", zone, field) or a price ("prices", zone). */
+  function couplingRows(kind, zone, field) {
+    const resolution = timelineResolutionKey();
+    const source = rawCouplingData[kind] || {};
+    const pick = key => {
+      const byZone = (source[key] || {})[zone];
+      return (field ? (byZone || {})[field] : byZone) || [];
+    };
+    const rows = pick(resolution);
+    if (resolution !== "quarter_hourly") return rows;
+    return quarterHourlyWithHistory(rows, pick("hourly"), rawCouplingData.quarter_hourly_native_from);
+  }
+
+  /* Per resolution: flows[zone][field] and prices[zone] as bucket key -> value. */
+  function getCouplingLookups() {
+    if (!rawCouplingData) return null;
+
+    const resolution = timelineResolutionKey();
+    if (couplingCache[resolution]) return couplingCache[resolution];
+
+    const toMap = rows => new Map(rows.map(row => [timelineBucketKey(row), Number(row.value)]));
+    const lookups = { flows: {}, prices: {} };
+    COUPLING_BORDERS.forEach(border => {
+      lookups.flows[border.zone] = {};
+      COUPLING_FIELDS.forEach(field => {
+        lookups.flows[border.zone][field] = toMap(couplingRows("flows", border.zone, field));
+      });
+      lookups.prices[border.italian] = toMap(couplingRows("prices", border.italian));
+    });
+
+    couplingCache[resolution] = lookups;
+    return lookups;
+  }
+
+  function couplingUnavailable() {
+    const text = couplingStatus === "loading"
+      ? "Loading market coupling data…"
+      : "Market coupling data not available yet";
+    COUPLING_BORDERS.forEach(border => {
+      [border.flows, border.prices].forEach(panel => {
+        panel.chart.clear();
+        setChartSubtitle(panel.subtitleId, text);
+      });
+    });
+  }
+
+  function couplingOption(timeline, series, tooltip, unit) {
+    return {
+      animation: false,
+      backgroundColor: "transparent",
+      // The legend is the shared HTML one above the charts.
+      legend: {
+        show: false,
+        data: [...new Set(series.map(item => item.name))],
+        selected: { ...couplingSelected }
+      },
+      tooltip: timelineTooltip(tooltip),
+      grid: { left: 56, right: 16, top: 20, bottom: CHART_GRID.bottom, containLabel: false },
+      // Keep the date labels at the bottom when values go negative.
+      xAxis: timelineXAxis(timeline, { onZero: false }),
+      yAxis: timelineYAxis(unit, { nameGap: 40 }),
+      series,
+      dataZoom: timelineDataZoom(0, 16, 56)
+    };
+  }
+
+  function couplingFlowTooltip(border) {
+    return params => {
+      if (!params || !params.length) return "";
+      const row = border.flows.timeline.rows[params[0].dataIndex];
+      const lookups = getCouplingLookups();
+      if (!row || !lookups) return "";
+
+      const unit = timelineUnit();
+      const get = field => lookupValue(lookups.flows[border.zone][field], row.key);
+      const line = (label, flowField, limitField) => {
+        const flow = get(flowField);
+        const limit = get(limitField);
+        if (flow === null && limit === null) return "";
+        const used = flow !== null && limit ? ` (${Math.round((flow / limit) * 100)}%)` : "";
+        const text = `${flow === null ? "—" : formatChartNumber(flow)} of ` +
+          `${limit === null ? "—" : formatChartNumber(limit)} ${unit}${used}`;
+        return tooltipRow(cssVar(COUPLING_SERIES.flow.color), label, text);
+      };
+
+      const body = line("Import", "import_flow", "import_limit") + line("Export", "export_flow", "export_limit");
+      return tooltipHeader(row) + (body || "No data") +
+        `<div style="margin-top:6px;color:${cssVar("--chart-tooltip-muted")};">Flow of limit (use)</div>`;
+    };
+  }
+
+  function renderCouplingFlowChart(border, lookups) {
+    const { chart, timeline, subtitleId } = border.flows;
+    resetTimeline(timeline);
+    setChartSubtitle(subtitleId, `${timelineMeasure()} · import +, export −`);
+
+    const flows = lookups.flows[border.zone];
+    const values = (field, sign) => timeline.rows.map(row => {
+      const value = lookupValue(flows[field], row.key);
+      return value === null ? null : sign * value;
+    });
+    const flowSeries = data => ({
+      name: COUPLING_SERIES.flow.name,
+      type: "line",
+      data,
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { width: 1, color: cssVar(COUPLING_SERIES.flow.color) },
+      areaStyle: { color: cssVar(COUPLING_SERIES.flow.color), opacity: 0.45 },
+      itemStyle: { color: cssVar(COUPLING_SERIES.flow.color) },
+      emphasis: { focus: "series" }
+    });
+    // Limits on top, so a flow at its limit shows as the area reaching the line.
+    const limitSeries = data => ({
+      name: COUPLING_SERIES.limit.name,
+      type: "line",
+      data,
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { width: 1.5, color: cssVar(COUPLING_SERIES.limit.color) },
+      itemStyle: { color: cssVar(COUPLING_SERIES.limit.color) },
+      z: 5
+    });
+
+    const series = [
+      flowSeries(values("import_flow", 1)),
+      flowSeries(values("export_flow", -1)),
+      limitSeries(values("import_limit", 1)),
+      limitSeries(values("export_limit", -1))
+    ];
+    chart.setOption(couplingOption(timeline, series, couplingFlowTooltip(border), timelineUnit()), true);
+    chart.resize();
+  }
+
+  function couplingPriceTooltip(border) {
+    return params => {
+      if (!params || !params.length) return "";
+      const row = border.prices.timeline.rows[params[0].dataIndex];
+      const lookups = getCouplingLookups();
+      if (!row || !lookups) return "";
+
+      const neighbourLookups = getNeighbourPriceLookups();
+      const italian = COUPLING_SERIES[border.italian];
+      const italianPrice = lookupValue(lookups.prices[border.italian], row.key);
+      const neighbourPrice = neighbourLookups ? lookupValue(neighbourLookups[border.neighbour], row.key) : null;
+      const format = value => (value === null ? "—" : formatPrice(value));
+
+      let body = tooltipRow(cssVar(italian.color), `${italian.short} (GME)`, format(italianPrice), "line") +
+        tooltipRow(cssVar(COUPLING_SERIES.neighbour.color), `${border.neighbourName} (ENTSO-E)`, format(neighbourPrice), "line");
+      if (italianPrice !== null && neighbourPrice !== null) {
+        body += `<div style="margin-top:6px;">${tooltipRow("transparent", `Spread (${italian.short} − ${border.neighbourName})`, formatPrice(italianPrice - neighbourPrice))}</div>`;
+      }
+      return tooltipHeader(row) + body;
+    };
+  }
+
+  function renderCouplingPriceChart(border, lookups) {
+    const { chart, timeline, subtitleId } = border.prices;
+    resetTimeline(timeline);
+
+    const italian = COUPLING_SERIES[border.italian];
+    setChartSubtitle(subtitleId, `${priceMeasure()} · ${italian.short} (GME) vs ${border.neighbourName} (ENTSO-E)`);
+
+    const neighbourLookups = getNeighbourPriceLookups();
+    const priceSeries = (item, data) => ({
+      name: item.name,
+      type: "line",
+      data,
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { width: 1.5, color: cssVar(item.color) },
+      itemStyle: { color: cssVar(item.color) },
+      emphasis: { focus: "series" }
+    });
+
+    const series = [
+      priceSeries(italian, timeline.rows.map(row => lookupValue(lookups.prices[border.italian], row.key))),
+      priceSeries(COUPLING_SERIES.neighbour, timeline.rows.map(row =>
+        neighbourLookups ? lookupValue(neighbourLookups[border.neighbour], row.key) : null
+      ))
+    ];
+    chart.setOption(couplingOption(timeline, series, couplingPriceTooltip(border), "€/MWh"), true);
+    chart.resize();
+  }
+
+  /* The four price charts share one y-axis range. */
+  function syncCouplingPriceAxes() {
+    if (!getCouplingLookups()) return;
+    shareValueAxis(couplingPriceCharts);
+  }
+
+  couplingPriceCharts.forEach(chart => chart.on("datazoom", syncCouplingPriceAxes));
+
+  function renderCouplingCharts() {
+    const lookups = getCouplingLookups();
+    if (!lookups || !rawData) {
+      couplingUnavailable();
+      return;
+    }
+    COUPLING_BORDERS.forEach(border => {
+      renderCouplingFlowChart(border, lookups);
+      renderCouplingPriceChart(border, lookups);
+    });
+    syncCouplingPriceAxes();
+  }
+
+  /* Coupling legend: one click toggles the series on all eight charts. */
+  (function buildCouplingLegend() {
+    const legend = document.getElementById("coupling-legend");
+
+    Object.values(COUPLING_SERIES).forEach(item => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "legend-chip";
+      button.setAttribute("aria-pressed", "true");
+      button.innerHTML =
+        `<span class="legend-swatch${item.shape === "area" ? " area" : ""}" style="background:var(${item.color})"></span>${item.name}`;
+
+      button.addEventListener("click", () => {
+        const visible = couplingSelected[item.name] === false;
+        couplingSelected[item.name] = visible;
+        button.classList.toggle("off", !visible);
+        button.setAttribute("aria-pressed", String(visible));
+
+        couplingCharts.forEach(chart => {
+          chart.dispatchAction({ type: visible ? "legendSelect" : "legendUnSelect", name: item.name });
+        });
+        syncCouplingPriceAxes();
+      });
+
+      legend.appendChild(button);
+    });
+  })();
 
 
   /* Shared country legend: one click toggles the country on every chart of
@@ -5952,6 +6274,7 @@
     loadCrossBorderData();
     loadIntradayData();
     loadNeighbourPrices();
+    loadCouplingData();
   };
 
   window.addEventListener("resize", () => {
@@ -5961,6 +6284,7 @@
     generationMixChart.resize();
     CROSS_BORDER_DIRECTION_CHARTS.forEach(item => item.chart.resize());
     neighbourPricesChart.resize();
+    couplingCharts.forEach(chart => chart.resize());
     crossBorderNetChart.resize();
     INTRADAY_MARKETS.forEach(market => market.chart.resize());
   });
