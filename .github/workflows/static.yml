@@ -16,6 +16,7 @@ on:
       - "Update Cross-Border Exchanges (ENTSO-E)"
       - "Update Intraday Prices (GME MI-A)"
       - "Update Neighbour Day-Ahead Prices (ENTSO-E)"
+      - "Update Market Coupling (GME)"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab
