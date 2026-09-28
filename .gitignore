@@ -13,4 +13,5 @@ app/data/intraday_prices.json
 app/data/neighbour_prices.json
 app/data/coupling.json
 app/data/forecasts.json
+app/data/res_forecasts.json
 app/data/eua.json
