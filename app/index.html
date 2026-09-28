@@ -239,7 +239,7 @@
           <section id="intraday-mia1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A1 Zonal Prices</div><div id="intraday-mia1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="intraday-mia1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia1-chart" class="timeline-chart"></div><div id="intraday-mia1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (afternoon); covers the whole day.</div></section>
           <section id="intraday-mia2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A2 Zonal Prices</div><div id="intraday-mia2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="intraday-mia2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia2-chart" class="timeline-chart"></div><div id="intraday-mia2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (evening); covers the whole day.</div></section>
           <section id="intraday-mia3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A3 Zonal Prices</div><div id="intraday-mia3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="intraday-mia3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia3-chart" class="timeline-chart"></div><div id="intraday-mia3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held on the day (morning); covers only the afternoon and evening, so its daily average is for those hours.</div></section>
-        </div><div id="chart-mount-interconnection" style="display:none"><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Drag horizontally across the chart to select a narrower range.</div></section><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the import and export charts"><span class="legend-title">Countries</span></div><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all four charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all four charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all four charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all four charts. Drag horizontally across the chart to select a narrower range.</div></section></div></div>
+        </div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
       </main>
@@ -4569,10 +4569,23 @@
   }
 
   /*
-   * Rows for one border series at the current resolution.  Quarter-hours
-   * before the 15-minute market time unit are not stored: they repeat the
+   * Quarter-hourly rows for a series whose quarter-hours before nativeFrom
+   * (the 15-minute market time unit) are not stored: those repeat the
    * hourly value.
    */
+  function quarterHourlyWithHistory(quarterRows, hourlyRows, nativeFrom) {
+    const expanded = [];
+    hourlyRows.forEach(row => {
+      if (row.date >= nativeFrom) return;
+      const start = labelMinutes(row.time);
+      for (let offset = 0; offset < 60; offset += 15) {
+        expanded.push({ ...row, time: compactTimeLabel((start + offset) / 15, 15) });
+      }
+    });
+    return expanded.concat(quarterRows);
+  }
+
+  /* Rows for one border series at the current resolution. */
   function crossBorderRows(dataset, direction, country) {
     const resolution = timelineResolutionKey();
     const byResolution = rawCrossBorderData[dataset] || {};
@@ -4580,21 +4593,7 @@
     const rows = pick(resolution);
 
     if (resolution !== "quarter_hourly") return rows;
-
-    const nativeFrom = rawCrossBorderData.quarter_hourly_native_from;
-    const expanded = [];
-    pick("hourly").forEach(row => {
-      if (row.date >= nativeFrom) return;
-      const start = labelMinutes(row.time);
-      for (let offset = 0; offset < 60; offset += 15) {
-        expanded.push({
-          date: row.date,
-          time: compactTimeLabel((start + offset) / 15, 15),
-          value: row.value
-        });
-      }
-    });
-    return expanded.concat(rows);
+    return quarterHourlyWithHistory(rows, pick("hourly"), rawCrossBorderData.quarter_hourly_native_from);
   }
 
   /*
@@ -4642,6 +4641,7 @@
       sums.forEach((value, key) => {
         if (key <= lastComplete) entry.net.set(key, Math.round(value * 100) / 100);
       });
+      entry.lastComplete = lastComplete;
       lookups[dataset] = entry;
     });
 
@@ -4652,6 +4652,13 @@
   function lookupValue(map, key) {
     const value = map.get(key);
     return Number.isFinite(value) ? value : null;
+  }
+
+  /* One border's MW, up to the last slot every border has reported (a
+     stacked total would otherwise dip while borders are still missing). */
+  function crossBorderCountryValue(lookups, dataset, direction, code, key) {
+    const entry = lookups[dataset];
+    return key <= entry.lastComplete ? lookupValue(entry[direction][code], key) : null;
   }
 
 
@@ -5027,21 +5034,22 @@
       if (!row || !lookups) return "";
 
       const unit = timelineUnit();
+      // Top of the stack first, as drawn.
       const values = CROSS_BORDER_COUNTRIES
         .filter(country => crossBorderCountrySelected[country.name] !== false)
         .map(country => ({
           country,
-          value: lookupValue(lookups[dataset][direction][country.code], row.key)
+          value: crossBorderCountryValue(lookups, dataset, direction, country.code, row.key)
         }))
         .filter(item => item.value !== null)
-        .sort((a, b) => b.value - a.value);
+        .reverse();
 
       if (!values.length) return tooltipHeader(row) + "No data";
 
       const total = values.reduce((sum, item) => sum + item.value, 0);
       return tooltipHeader(row) +
         values.map(item =>
-          tooltipRow(cssVar(item.country.color), item.country.name, `${formatChartNumber(item.value)} ${unit}`, "line")
+          tooltipRow(cssVar(item.country.color), item.country.name, `${formatChartNumber(item.value)} ${unit}`)
         ).join("") +
         `<div style="margin-top:6px;">${tooltipRow("transparent", "Total shown", `${formatChartNumber(total)} ${unit}`)}</div>`;
     };
@@ -5057,13 +5065,20 @@
     resetTimeline(timeline);
     setChartSubtitle(subtitleId, `${timelineMeasure()} · ${CROSS_BORDER_DATASET_LABELS[dataset]} ${direction === "imports" ? "into" : "out of"} Italy`);
 
+    // Stacked areas, France at the bottom as in the legend order.
+    const surface = cssVar("--panel");
     const series = CROSS_BORDER_COUNTRIES.map(country => ({
       name: country.name,
       type: "line",
-      data: timeline.rows.map(row => lookupValue(lookups[dataset][direction][country.code], row.key)),
+      stack: "countries",
+      data: timeline.rows.map(row =>
+        crossBorderCountryValue(lookups, dataset, direction, country.code, row.key)
+      ),
       showSymbol: false,
       connectNulls: false,
-      lineStyle: { color: cssVar(country.color), width: 1.5 },
+      // A thin surface-coloured edge separates neighbouring areas.
+      lineStyle: { width: 1, color: surface },
+      areaStyle: { color: cssVar(country.color), opacity: 0.9 },
       itemStyle: { color: cssVar(country.color) },
       emphasis: { focus: "series" }
     }));
@@ -5071,7 +5086,7 @@
     chart.setOption({
       animation: false,
       backgroundColor: "transparent",
-      // The legend is the shared HTML one above both charts.
+      // The legend is the shared HTML one above the charts.
       legend: {
         show: false,
         data: series.map(item => item.name),
@@ -5088,6 +5103,51 @@
     chart.resize();
   }
 
+  /*
+   * Net (imports - exports) over the countries selected in the legend, up
+   * to the last slot every border has reported; null where none has data.
+   * (The generation mix chart uses the all-country net in the lookups.)
+   */
+  function selectedCrossBorderNet(lookups, dataset, key) {
+    const entry = lookups[dataset];
+    if (key > entry.lastComplete) return null;
+
+    let sum = 0;
+    let found = false;
+    CROSS_BORDER_COUNTRIES.forEach(country => {
+      if (crossBorderCountrySelected[country.name] === false) return;
+      const imports = entry.imports[country.code].get(key);
+      const exports = entry.exports[country.code].get(key);
+      if (Number.isFinite(imports)) { sum += imports; found = true; }
+      if (Number.isFinite(exports)) { sum -= exports; found = true; }
+    });
+    return found ? Math.round(sum * 100) / 100 : null;
+  }
+
+  function crossBorderNetSubtitle() {
+    const hidden = CROSS_BORDER_COUNTRIES
+      .filter(country => crossBorderCountrySelected[country.name] === false)
+      .map(country => country.name);
+    return `${timelineMeasure()} · positive = net import` +
+      (hidden.length ? ` · excl. ${hidden.join(", ")}` : "");
+  }
+
+  function crossBorderNetSeriesData(lookups) {
+    return CROSS_BORDER_NET_SERIES.map(item =>
+      crossBorderNetTimeline.rows.map(row => selectedCrossBorderNet(lookups, item.dataset, row.key))
+    );
+  }
+
+  /* After a legend click: new sums, same zoom. */
+  function refreshCrossBorderNet() {
+    const lookups = getCrossBorderLookups();
+    if (!lookups || !crossBorderNetTimeline.rows.length) return;
+    setChartSubtitle("crossborder-net-subtitle", crossBorderNetSubtitle());
+    crossBorderNetChart.setOption({
+      series: crossBorderNetSeriesData(lookups).map(data => ({ data }))
+    });
+  }
+
   function crossBorderNetTooltip(params) {
     if (!params || !params.length) return "";
     const row = crossBorderNetTimeline.rows[params[0].dataIndex];
@@ -5097,7 +5157,7 @@
     const unit = timelineUnit();
     return tooltipHeader(row) + CROSS_BORDER_NET_SERIES
       .map(item => {
-        const value = lookupValue(lookups[item.dataset].net, row.key);
+        const value = selectedCrossBorderNet(lookups, item.dataset, row.key);
         return tooltipRow(cssVar(item.color), item.name, value === null ? "—" : `${formatChartNumber(value)} ${unit}`, item.shape);
       })
       .join("") +
@@ -5112,12 +5172,13 @@
     }
 
     resetTimeline(crossBorderNetTimeline);
-    setChartSubtitle("crossborder-net-subtitle", `${timelineMeasure()} · positive = net import`);
+    setChartSubtitle("crossborder-net-subtitle", crossBorderNetSubtitle());
 
-    const series = CROSS_BORDER_NET_SERIES.map(item => ({
+    const netData = crossBorderNetSeriesData(lookups);
+    const series = CROSS_BORDER_NET_SERIES.map((item, index) => ({
       name: item.name,
       type: "line",
-      data: crossBorderNetTimeline.rows.map(row => lookupValue(lookups[item.dataset].net, row.key)),
+      data: netData[index],
       showSymbol: false,
       connectNulls: false,
       lineStyle: {
@@ -5176,12 +5237,145 @@
   });
 
   function renderInterconnectionCharts() {
+    renderNeighbourPricesChart();
     CROSS_BORDER_DIRECTION_CHARTS.forEach(renderCrossBorderDirectionChart);
     syncCrossBorderDirectionAxes();
     renderCrossBorderNetChart();
   }
 
-  /* Shared country legend: one click toggles the country on both charts. */
+  /* ============================================================
+     NEIGHBOURING DAY-AHEAD PRICES (ENTSO-E 12.1.D)
+     ============================================================ */
+
+  /*
+   * Day-ahead prices of the neighbouring bidding zones, one line per country
+   * in the legend colours, on the same timeline as the other charts.  Loaded
+   * in the background like the cross-border data.
+   */
+  const neighbourPricesChart =
+    echarts.init(document.getElementById("neighbour-prices-chart"));
+  const neighbourPricesTimeline = createTimeline(neighbourPricesChart);
+
+  let rawNeighbourPrices = null;
+  let neighbourPricesStatus = "loading"; // "loading" | "ready" | "missing"
+  const neighbourPricesCache = {};
+
+  async function loadNeighbourPrices() {
+    try {
+      const response = await fetch("./data/neighbour_prices.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawNeighbourPrices = decodeCompactPayload(await response.json());
+      neighbourPricesStatus = "ready";
+    } catch (error) {
+      console.warn("Neighbouring day-ahead prices unavailable:", error);
+      neighbourPricesStatus = "missing";
+    }
+    updateView();
+  }
+
+  function neighbourPriceRows(code) {
+    const resolution = timelineResolutionKey();
+    const pick = key => ((rawNeighbourPrices.prices || {})[key] || {})[code] || [];
+    const rows = pick(resolution);
+    if (resolution !== "quarter_hourly") return rows;
+    return quarterHourlyWithHistory(rows, pick("hourly"), rawNeighbourPrices.quarter_hourly_native_from);
+  }
+
+  /* Per resolution: country code -> (bucket key -> EUR/MWh). */
+  function getNeighbourPriceLookups() {
+    if (!rawNeighbourPrices) return null;
+
+    const resolution = timelineResolutionKey();
+    if (neighbourPricesCache[resolution]) return neighbourPricesCache[resolution];
+
+    const lookups = {};
+    CROSS_BORDER_COUNTRIES.forEach(country => {
+      const map = new Map();
+      neighbourPriceRows(country.code).forEach(row => {
+        map.set(timelineBucketKey(row), Number(row.value));
+      });
+      lookups[country.code] = map;
+    });
+
+    neighbourPricesCache[resolution] = lookups;
+    return lookups;
+  }
+
+  function neighbourPricesTooltip(params) {
+    if (!params || !params.length) return "";
+    const row = neighbourPricesTimeline.rows[params[0].dataIndex];
+    const lookups = getNeighbourPriceLookups();
+    if (!row || !lookups) return "";
+
+    const lines = CROSS_BORDER_COUNTRIES
+      .filter(country => crossBorderCountrySelected[country.name] !== false)
+      .map(country => ({ country, value: lookupValue(lookups[country.code], row.key) }))
+      .filter(item => item.value !== null)
+      .map(item => tooltipRow(cssVar(item.country.color), item.country.name, formatPrice(item.value), "line"));
+
+    return tooltipHeader(row) + (lines.length ? lines.join("") : "No data");
+  }
+
+  function renderNeighbourPricesChart() {
+    const lookups = getNeighbourPriceLookups();
+    if (!lookups || !rawData) {
+      neighbourPricesChart.clear();
+      setChartSubtitle("neighbour-prices-subtitle", neighbourPricesStatus === "loading"
+        ? "Loading day-ahead prices…"
+        : "Day-ahead prices not available yet");
+      return;
+    }
+
+    resetTimeline(neighbourPricesTimeline);
+    setChartSubtitle("neighbour-prices-subtitle", `${priceMeasure()} · day-ahead market`);
+
+    // Zones without a published day-ahead price keep their legend chip but
+    // draw no line; the note under the chart names them.
+    const unpublished = CROSS_BORDER_COUNTRIES
+      .filter(country => !lookups[country.code].size)
+      .map(country => country.name);
+    document.getElementById("neighbour-prices-help").textContent =
+      "Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). " +
+      (unpublished.length ? `No day-ahead price is published for ${unpublished.join(", ")}. ` : "") +
+      "Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.";
+
+    const series = CROSS_BORDER_COUNTRIES.map(country => ({
+      name: country.name,
+      type: "line",
+      data: neighbourPricesTimeline.rows.map(row => lookupValue(lookups[country.code], row.key)),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: cssVar(country.color), width: 1.5 },
+      itemStyle: { color: cssVar(country.color) },
+      emphasis: { focus: "series" }
+    }));
+
+    neighbourPricesChart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      // The legend is the shared HTML one above the charts.
+      legend: {
+        show: false,
+        data: series.map(item => item.name),
+        selected: { ...crossBorderCountrySelected }
+      },
+      tooltip: timelineTooltip(neighbourPricesTooltip),
+      grid: { left: CHART_GRID.left, right: 24, top: 20, bottom: CHART_GRID.bottom, containLabel: false },
+      // Keep the date labels at the bottom when prices go negative.
+      xAxis: timelineXAxis(neighbourPricesTimeline, { onZero: false }),
+      yAxis: timelineYAxis("€/MWh"),
+      series,
+      dataZoom: timelineDataZoom(0)
+    }, true);
+
+    neighbourPricesChart.resize();
+  }
+
+  attachDragZoom(neighbourPricesChart, "neighbour-prices-wrap", "neighbour-prices-drag");
+
+
+  /* Shared country legend: one click toggles the country on every chart of
+     the tab, and in or out of the net sums. */
   (function buildCrossBorderLegend() {
     const legend = document.getElementById("crossborder-legend");
 
@@ -5199,13 +5393,14 @@
         button.classList.toggle("off", !visible);
         button.setAttribute("aria-pressed", String(visible));
 
-        CROSS_BORDER_DIRECTION_CHARTS.map(item => item.chart).forEach(chart => {
+        [neighbourPricesChart, ...CROSS_BORDER_DIRECTION_CHARTS.map(item => item.chart)].forEach(chart => {
           chart.dispatchAction({
             type: visible ? "legendSelect" : "legendUnSelect",
             name: country.name
           });
         });
         syncCrossBorderDirectionAxes();
+        refreshCrossBorderNet();
       });
 
       legend.appendChild(button);
@@ -5251,28 +5446,13 @@
     updateView();
   }
 
-  /* Rows for one auction and zone; quarter-hours before the 15-minute
-     market time unit repeat the hourly price. */
+  /* Rows for one auction and zone. */
   function intradayRows(market, zone) {
     const resolution = timelineResolutionKey();
     const series = ((rawIntradayData.markets || {})[market] || {})[zone] || {};
     const rows = series[resolution] || [];
     if (resolution !== "quarter_hourly") return rows;
-
-    const nativeFrom = rawIntradayData.quarter_hourly_native_from;
-    const expanded = [];
-    (series.hourly || []).forEach(row => {
-      if (row.date >= nativeFrom) return;
-      const start = labelMinutes(row.time);
-      for (let offset = 0; offset < 60; offset += 15) {
-        expanded.push({
-          date: row.date,
-          time: compactTimeLabel((start + offset) / 15, 15),
-          price: row.price
-        });
-      }
-    });
-    return expanded.concat(rows);
+    return quarterHourlyWithHistory(rows, series.hourly || [], rawIntradayData.quarter_hourly_native_from);
   }
 
   /* Per resolution: market -> zone -> (bucket key -> EUR/MWh). */
@@ -5298,7 +5478,7 @@
     return lookups;
   }
 
-  function intradayMeasure() {
+  function priceMeasure() {
     return {
       daily: "Daily average price",
       hourly: "Hourly price",
@@ -5347,7 +5527,7 @@
     }
 
     resetTimeline(market.timeline);
-    setChartSubtitle(subtitleId, `${intradayMeasure()} · ${market.coverage}`);
+    setChartSubtitle(subtitleId, `${priceMeasure()} · ${market.coverage}`);
 
     const series = ZONAL_ORDER.map((zone, index) => ({
       name: ZONAL_LABELS[zone],
@@ -5748,6 +5928,7 @@
     updateView();
     loadCrossBorderData();
     loadIntradayData();
+    loadNeighbourPrices();
   };
 
   window.addEventListener("resize", () => {
@@ -5756,6 +5937,7 @@
     zonalChart.resize();
     generationMixChart.resize();
     CROSS_BORDER_DIRECTION_CHARTS.forEach(item => item.chart.resize());
+    neighbourPricesChart.resize();
     crossBorderNetChart.resize();
     INTRADAY_MARKETS.forEach(market => market.chart.resize());
   });

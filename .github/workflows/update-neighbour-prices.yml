@@ -7,9 +7,6 @@ on:
     # backup run that also picks up late corrections.
     - cron: "25 13 * * *"
     - cron: "25 1 * * *"
-  # TEMPORARY: one-off full-history fetch from the feature branch.
-  push:
-    branches: ["neighbour-prices"]
   workflow_dispatch:
     inputs:
       start:
@@ -58,7 +55,7 @@ jobs:
           ARGS=()
           if [ -n "${{ inputs.start }}" ]; then ARGS+=(--start "${{ inputs.start }}"); fi
           if [ -n "${{ inputs.end }}" ]; then ARGS+=(--end "${{ inputs.end }}"); fi
-          if [ "${{ inputs.full_history }}" = "true" ] || [ "${{ github.event_name }}" = "push" ]; then
+          if [ "${{ inputs.full_history }}" = "true" ]; then
             ARGS+=(--full-history)
           fi
           echo "Running: python etl/fetch_neighbour_prices.py ${ARGS[*]}"
