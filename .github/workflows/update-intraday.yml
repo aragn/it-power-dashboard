@@ -2,9 +2,12 @@ name: Update Intraday Prices (GME MI-A)
 
 on:
   schedule:
-    # Daily at 00:50 UTC: after MI-A2 for today and MI-A3 for yesterday
-    # are published, and clear of the other GME runs.
+    # 00:50 UTC: after MI-A2 for today and MI-A3 for yesterday are
+    # published, and clear of the other GME runs.
     - cron: "50 0 * * *"
+    # 11:35 UTC: after MI-A3 for today (held late morning Italian time,
+    # in both summer and winter time), so it shows the same day.
+    - cron: "35 11 * * *"
   workflow_dispatch:
     inputs:
       start:
