@@ -5457,7 +5457,7 @@
   }
 
   // Flow charts in the first row, price charts below, in border order.
-  COUPLING_BORDERS.forEach(border => { border.flows = couplingPanel(`${border.id}-flows`, `${border.title} day-ahead flows`); });
+  COUPLING_BORDERS.forEach(border => { border.flows = couplingPanel(`${border.id}-flows`, `${border.title} day-ahead commercial exchanges`); });
   COUPLING_BORDERS.forEach(border => { border.prices = couplingPanel(`${border.id}-prices`, `${border.title} day-ahead prices`); });
 
   const couplingPriceCharts = COUPLING_BORDERS.map(border => border.prices.chart);
