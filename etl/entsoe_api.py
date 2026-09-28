@@ -149,6 +149,14 @@ def _text(elem, tag):
 RESOLUTION_MINUTES = {"PT15M": 15, "PT30M": 30, "PT60M": 60}
 
 
+def point_value(point):
+    """Volumes are published as <quantity>, prices as <price.amount>."""
+    value = _text(point, "quantity")
+    if value is None:
+        value = _text(point, "price.amount")
+    return float(value)
+
+
 def parse_points(root, group_of=lambda ts: "TOTAL", keep=lambda ts: True):
     """
     Flatten every TimeSeries in a response into point records:
@@ -178,7 +186,7 @@ def parse_points(root, group_of=lambda ts: "TOTAL", keep=lambda ts: True):
             positions = int((end - start).total_seconds() // 60 // step)
 
             points = sorted(
-                (int(_text(point, "position")), float(_text(point, "quantity")))
+                (int(_text(point, "position")), point_value(point))
                 for point in period.findall("{*}Point")
             )
 
@@ -247,8 +255,11 @@ def quarter_hourly_to_hourly(quarter_hourly_by_group):
     return result
 
 
-def hourly_to_daily(hourly_by_group):
-    """Daily value = sum of the hourly values (MWh per day)."""
+def hourly_to_daily(hourly_by_group, daily="sum"):
+    """
+    Daily value from the hourly values: their sum for power (MWh per day,
+    the default) or their mean for prices (daily="mean").
+    """
     result = {}
 
     for group, rows in hourly_by_group.items():
@@ -257,25 +268,28 @@ def hourly_to_daily(hourly_by_group):
             grouped[row["date"]].append(row["value"])
 
         result[group] = sorted(
-            ({"date": d, "value": round(sum(v), 2)} for d, v in grouped.items()),
+            (
+                {"date": d, "value": round(sum(v) / len(v) if daily == "mean" else sum(v), 2)}
+                for d, v in grouped.items()
+            ),
             key=lambda x: x["date"],
         )
 
     return result
 
 
-def build_resolutions(records):
+def build_resolutions(records, daily="sum"):
     """All three resolutions from raw point records."""
     quarter_hourly = to_quarter_hourly(records)
     hourly = quarter_hourly_to_hourly(quarter_hourly)
     return {
         "quarter_hourly": quarter_hourly,
         "hourly": hourly,
-        "daily": hourly_to_daily(hourly),
+        "daily": hourly_to_daily(hourly, daily),
     }
 
 
-def merge_resolutions(existing, records, resolutions=("quarter_hourly", "hourly", "daily")):
+def merge_resolutions(existing, records, resolutions=("quarter_hourly", "hourly", "daily"), daily="sum"):
     """
     Merge freshly downloaded point records onto existing series.
 
@@ -285,7 +299,7 @@ def merge_resolutions(existing, records, resolutions=("quarter_hourly", "hourly"
     quarter-hours.  A later run can therefore fill gaps or pick up
     revisions without a partial download shrinking a daily total.
     """
-    new = build_resolutions(records)
+    new = build_resolutions(records, daily)
     quarter = merge_group_series(existing.get("quarter_hourly"), new["quarter_hourly"])
 
     touched = {row["date"] for row in records}
@@ -297,7 +311,7 @@ def merge_resolutions(existing, records, resolutions=("quarter_hourly", "hourly"
     merged = {
         "quarter_hourly": quarter,
         "hourly": merge_group_series(existing.get("hourly"), hourly_new),
-        "daily": merge_group_series(existing.get("daily"), hourly_to_daily(hourly_new)),
+        "daily": merge_group_series(existing.get("daily"), hourly_to_daily(hourly_new, daily)),
     }
     return {resolution: merged[resolution] for resolution in resolutions}
 
