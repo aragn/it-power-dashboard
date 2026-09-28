@@ -18,6 +18,7 @@ on:
       - "Update Neighbour Day-Ahead Prices (ENTSO-E)"
       - "Update Market Coupling (GME)"
       - "Update Day-Ahead Forecasts (ENTSO-E)"
+      - "Update EU ETS Auction Prices (EEX)"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab
