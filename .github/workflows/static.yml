@@ -15,6 +15,7 @@ on:
       - "Update Generation & Load (ENTSO-E)"
       - "Update Cross-Border Exchanges (ENTSO-E)"
       - "Update Intraday Prices (GME MI-A)"
+      - "Update Neighbour Day-Ahead Prices (ENTSO-E)"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab
