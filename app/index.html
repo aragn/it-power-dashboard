@@ -24,7 +24,7 @@
       --chart-tooltip-bg:#171b20; --chart-tooltip-border:#30363e; --chart-tooltip-text:#f1f3f5; --chart-tooltip-muted:#9aa2ac; --chart-pointer:#5d6670;
       --chart-axis-line:#30353c; --chart-axis-label:#727a84; --chart-grid:#20252b; --chart-legend:#b4bbc4;
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
-      --chart-pun:#d9dde2; --chart-generation:#5ecb8a; --chart-load:#5b9cff;
+      --chart-pun:#d9dde2; --chart-eua:#e7a84b; --chart-generation:#5ecb8a; --chart-load:#5b9cff;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
       --mix-coal:#b8c2d0; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
       --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
@@ -40,7 +40,7 @@
       --chart-tooltip-bg:#ffffff; --chart-tooltip-border:#d5dae0; --chart-tooltip-text:#14171a; --chart-tooltip-muted:#66707b; --chart-pointer:#a3aab3;
       --chart-axis-line:#cfd4da; --chart-axis-label:#66707b; --chart-grid:#eceef1; --chart-legend:#3f4750;
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
-      --chart-pun:#1f2429; --chart-generation:#1f9d57; --chart-load:#2f6fdb;
+      --chart-pun:#1f2429; --chart-eua:#b36b00; --chart-generation:#1f9d57; --chart-load:#2f6fdb;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
       --mix-coal:#4b5563; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
       --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
@@ -231,7 +231,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Storage charging and pumping are shown below zero. Dashed: day-ahead load and generation forecasts. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Storage charging and pumping are shown below zero. Dashed: day-ahead load and generation forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -4874,6 +4874,11 @@
         `</div>`;
     }
 
+    if (shown(EUA_NAME) && Number.isFinite(row.eua)) {
+      html += `<div style="margin-top:6px;">` +
+        tooltipRow(cssVar("--chart-eua"), EUA_NAME, `${row.eua.toFixed(2)} €/tCO₂`, "line") + `</div>`;
+    }
+
     if (shown(PUN_INDEX_NAME) && Number.isFinite(row.pun)) {
       html += `<div style="margin-top:6px;">` +
         tooltipRow(cssVar("--chart-pun"), PUN_INDEX_NAME, `${row.pun.toFixed(2)} €/MWh`, "line") + `</div>`;
@@ -4903,6 +4908,8 @@
 
     generationMixRows = buildGenerationMixRows();
     const rows = generationMixRows;
+    const eua = euaStepValues(rows);
+    rows.forEach((row, index) => { row.eua = eua[index]; });
 
     if (!rows.length) {
       generationMixChart.clear();
@@ -4994,6 +5001,18 @@
         showSymbol: false,
         lineStyle: { color: cssVar("--chart-pun"), width: 1.5 },
         itemStyle: { color: cssVar("--chart-pun") }
+      },
+      {
+        name: EUA_NAME,
+        type: "line",
+        xAxisIndex: 1,
+        yAxisIndex: 2,
+        data: eua,
+        step: "end",
+        showSymbol: false,
+        connectNulls: false,
+        lineStyle: { color: cssVar("--chart-eua"), width: 1.5 },
+        itemStyle: { color: cssVar("--chart-eua") }
       }
     ];
 
@@ -5025,8 +5044,9 @@
       axisPointer: { link: [{ xAxisIndex: "all" }] },
       tooltip: timelineTooltip(generationMixTooltip),
       grid: [
-        { left: CHART_GRID.left, right: 24, top: mixTop, bottom: mixBottom, containLabel: false },
-        { left: CHART_GRID.left, right: 24, height: punHeight, bottom: punBottom, containLabel: false }
+        // Room on the right for the €/tCO₂ axis of the lower panel.
+        { left: CHART_GRID.left, right: 64, top: mixTop, bottom: mixBottom, containLabel: false },
+        { left: CHART_GRID.left, right: 64, height: punHeight, bottom: punBottom, containLabel: false }
       ],
       xAxis: [
         timelineXAxis(generationMixTimeline, { gridIndex: 0, showLabels: false }),
@@ -5034,21 +5054,80 @@
       ],
       yAxis: [
         timelineYAxis(timelineUnit(), { gridIndex: 0 }),
-        timelineYAxis("€/MWh", { gridIndex: 1, splitNumber: 2 })
+        timelineYAxis("€/MWh", { gridIndex: 1, splitNumber: 2 }),
+        timelineYAxis("€/tCO₂", { gridIndex: 1, position: "right", splitNumber: 2, nameGap: 44, splitLine: { show: false } })
       ],
       series,
-      dataZoom: timelineDataZoom([0, 1])
+      dataZoom: timelineDataZoom([0, 1], 64)
     }, true);
 
     generationMixChart.resize();
+    syncPunEuaAxes();
+  }
+
+  /* The €/MWh and €/tCO₂ axes of the lower panel share one range. */
+  function syncPunEuaAxes() {
+    const axis = index => generationMixChart.getModel()?.getComponent("yAxis", index);
+    if (!axis(2)) return;
+    generationMixChart.setOption({ yAxis: [{}, { min: null, max: null }, { min: null, max: null }] });
+    const extents = [1, 2].map(index => axis(index).axis.scale.getExtent());
+    const min = Math.min(...extents.map(extent => extent[0]));
+    const max = Math.max(...extents.map(extent => extent[1]));
+    if (Number.isFinite(min) && Number.isFinite(max) && max > min) {
+      generationMixChart.setOption({ yAxis: [{}, { min, max }, { min, max }] });
+    }
   }
 
   generationMixChart.on("legendselectchanged", event => {
     generationMixSelected = { ...event.selected };
+    syncPunEuaAxes();
   });
+  generationMixChart.on("datazoom", syncPunEuaAxes);
 
   attachDragZoom(generationMixChart, "generation-mix-chart-wrap", "generation-mix-drag-selection");
 
+
+  /* ============================================================
+     EU ETS AUCTION PRICE (EEX)
+     ============================================================ */
+
+  const EUA_NAME = "EU ETS auction price";
+
+  let rawEuaData = null;
+
+  async function loadEuaData() {
+    try {
+      const response = await fetch("./data/eua.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawEuaData = decodeCompactPayload(await response.json());
+    } catch (error) {
+      console.warn("EU ETS auction prices unavailable:", error);
+    }
+    updateView();
+  }
+
+  /*
+   * The clearing price in effect at each row: an auction's price applies
+   * from its time (11:00) until the next auction.  A daily row takes the
+   * price in effect at the end of the day.
+   */
+  function euaStepValues(rows) {
+    const auctions = (rawEuaData && rawEuaData.auctions) || [];
+    const daily = currentGranularity === "daily";
+    let next = 0;
+    let price = null;
+    return rows.map(row => {
+      while (next < auctions.length) {
+        const auction = auctions[next];
+        const inEffect = auction.date < row.date ||
+          (auction.date === row.date && (daily || (row.time || "") >= auction.time));
+        if (!inEffect) break;
+        price = auction.price;
+        next += 1;
+      }
+      return price;
+    });
+  }
 
   /* ============================================================
      DAY-AHEAD FORECASTS AND THE END OF THE ACTUAL DATA
@@ -6471,6 +6550,7 @@
     loadNeighbourPrices();
     loadCouplingData();
     loadForecastData();
+    loadEuaData();
   };
 
   window.addEventListener("resize", () => {
