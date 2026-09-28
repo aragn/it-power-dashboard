@@ -231,7 +231,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Storage charging and pumping are shown below zero. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Storage charging and pumping are shown below zero. Dashed: day-ahead load and generation forecasts. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -2238,6 +2238,8 @@
       ...loadMap.keys()
     ]);
 
+    const cutoffs = getActualCutoffs() || {};
+
     return [...keys]
       .map(key => {
         const g = generationMap.get(key);
@@ -2248,8 +2250,9 @@
         return {
           date,
           time,
-          generation: g ? g.generation : null,
-          load: Number.isFinite(loadValue) ? loadValue : null
+          // Only up to the last complete quarter-hour (see getActualCutoffs).
+          generation: g && withinActualCutoff(key, cutoffs.generation) ? g.generation : null,
+          load: Number.isFinite(loadValue) && withinActualCutoff(key, cutoffs.load) ? loadValue : null
         };
       })
       .sort((a, b) => {
@@ -2451,8 +2454,27 @@
       return key;
     });
 
+    // The day-ahead forecasts continue each line, dashed, from its last
+    // actual point over the slots without actual data yet.
+    const forecasts = getForecastLookups();
+    const continuation = (field, map) => {
+      let last = -1;
+      rows.forEach((row, index) => { if (Number.isFinite(row[field])) last = index; });
+      return rows.map((row, index) => {
+        if (!map || index < last) return null;
+        if (index === last) return row[field];
+        return lookupValue(map, generationLoadCategoryKey(row));
+      });
+    };
+    const generationForecast = continuation('generation', forecasts && forecasts.generation);
+    const loadForecast = continuation('load', forecasts && forecasts.load);
+    rows.forEach((row, index) => {
+      row.generationForecast = Number.isFinite(row.generation) ? null : generationForecast[index];
+      row.loadForecast = Number.isFinite(row.load) ? null : loadForecast[index];
+    });
+
     const values = rows
-      .flatMap(row => [row.generation, row.load])
+      .flatMap(row => [row.generation, row.load, row.generationForecast, row.loadForecast])
       .filter(v => Number.isFinite(v));
 
     if (!values.length) {
@@ -2493,7 +2515,11 @@
           const loadText = Number.isFinite(row.load)
             ? `${Number(row.load).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${unit}`
             : '—';
-          return `<div style="margin-bottom:4px;color:${cssVar('--chart-tooltip-muted')};">${dateText}${timeText}</div><div>Generation: <b>${genText}</b></div><div>Actual load: <b>${loadText}</b></div>`;
+          const amount = value => `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${unit}`;
+          const forecastLines =
+            (Number.isFinite(row.generationForecast) ? `<div>${GENERATION_FORECAST_NAME}: <b>${amount(row.generationForecast)}</b></div>` : '') +
+            (Number.isFinite(row.loadForecast) ? `<div>${LOAD_FORECAST_NAME}: <b>${amount(row.loadForecast)}</b></div>` : '');
+          return `<div style="margin-bottom:4px;color:${cssVar('--chart-tooltip-muted')};">${dateText}${timeText}</div><div>Generation: <b>${genText}</b></div><div>Actual load: <b>${loadText}</b></div>${forecastLines}`;
         }
       },
       xAxis: {
@@ -2537,6 +2563,18 @@
           data: rows.map(r => r.load),
           smooth: false, showSymbol: false, connectNulls: false,
           lineStyle: { color: cssVar('--chart-load'), width: 1.3 }, itemStyle: { color: cssVar('--chart-load') }
+        },
+        {
+          name: GENERATION_FORECAST_NAME, type: 'line',
+          data: generationForecast,
+          smooth: false, showSymbol: false, connectNulls: false,
+          lineStyle: { color: cssVar('--chart-generation'), width: 1.3, type: 'dashed' }, itemStyle: { color: cssVar('--chart-generation') }
+        },
+        {
+          name: LOAD_FORECAST_NAME, type: 'line',
+          data: loadForecast,
+          smooth: false, showSymbol: false, connectNulls: false,
+          lineStyle: { color: cssVar('--chart-load'), width: 1.3, type: 'dashed' }, itemStyle: { color: cssVar('--chart-load') }
         }
       ],
       dataZoom: [
@@ -4757,15 +4795,21 @@
 
   /*
    * One row per PUN timestamp.  A source missing at a timestamp that has
-   * other generation counts as 0; a timestamp with no generation at all
-   * stays empty (a gap).
+   * other generation counts as 0; a timestamp with no generation at all,
+   * or after the last complete quarter-hour, stays empty (a gap).
    */
   function buildGenerationMixRows() {
     const lookups = getGenerationMixLookups();
     const crossBorder = getCrossBorderLookups();
+    const cutoffs = getActualCutoffs() || {};
+    const forecasts = getForecastLookups();
 
     return resetTimeline(generationMixTimeline).map(row => {
-      const hasGeneration = lookups.sources.some(map => map.has(row.key));
+      // The stack ends where its first layer does: the generation or the net
+      // cross-border flow, whichever has been fully reported less far.
+      const hasGeneration = withinActualCutoff(row.key, cutoffs.generation) &&
+        (!crossBorder || row.key <= crossBorder.physical_flows.lastComplete) &&
+        lookups.sources.some(map => map.has(row.key));
 
       return {
         ...row,
@@ -4778,7 +4822,9 @@
         consumption: lookups.consumption.map(map =>
           hasGeneration ? -(map.get(row.key) || 0) : null
         ),
-        load: lookupValue(lookups.load, row.key)
+        load: withinActualCutoff(row.key, cutoffs.load) ? lookupValue(lookups.load, row.key) : null,
+        loadForecast: forecasts ? lookupValue(forecasts.load, row.key) : null,
+        generationForecast: forecasts ? lookupValue(forecasts.generation, row.key) : null
       };
     });
   }
@@ -4796,6 +4842,12 @@
 
     if (shown(MIX_LOAD_NAME) && row.load !== null) {
       html += tooltipRow(cssVar("--chart-load"), MIX_LOAD_NAME, `${formatChartNumber(row.load)} ${unit}`, "line");
+    }
+    if (shown(LOAD_FORECAST_NAME) && row.loadForecast !== null) {
+      html += tooltipRow(cssVar("--chart-load"), LOAD_FORECAST_NAME, `${formatChartNumber(row.loadForecast)} ${unit}`, "dashed");
+    }
+    if (shown(GENERATION_FORECAST_NAME) && row.generationForecast !== null) {
+      html += tooltipRow(cssVar("--chart-generation"), GENERATION_FORECAST_NAME, `${formatChartNumber(row.generationForecast)} ${unit}`, "dashed");
     }
 
     if (row.sources[0] !== null) {
@@ -4907,6 +4959,32 @@
         itemStyle: { color: cssVar("--chart-load") },
         z: 5
       },
+      // The day-ahead forecasts over the whole range, dashed in the colours
+      // of the actual load and generation.
+      {
+        name: LOAD_FORECAST_NAME,
+        type: "line",
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        data: rows.map(row => row.loadForecast),
+        showSymbol: false,
+        connectNulls: false,
+        lineStyle: { color: cssVar("--chart-load"), width: 1.5, type: "dashed" },
+        itemStyle: { color: cssVar("--chart-load") },
+        z: 5
+      },
+      {
+        name: GENERATION_FORECAST_NAME,
+        type: "line",
+        xAxisIndex: 0,
+        yAxisIndex: 0,
+        data: rows.map(row => row.generationForecast),
+        showSymbol: false,
+        connectNulls: false,
+        lineStyle: { color: cssVar("--chart-generation"), width: 1.5, type: "dashed" },
+        itemStyle: { color: cssVar("--chart-generation") },
+        z: 5
+      },
       {
         name: PUN_INDEX_NAME,
         type: "line",
@@ -4970,6 +5048,123 @@
   });
 
   attachDragZoom(generationMixChart, "generation-mix-chart-wrap", "generation-mix-drag-selection");
+
+
+  /* ============================================================
+     DAY-AHEAD FORECASTS AND THE END OF THE ACTUAL DATA
+     ============================================================ */
+
+  const LOAD_FORECAST_NAME = "Load forecast (day-ahead)";
+  const GENERATION_FORECAST_NAME = "Generation forecast (day-ahead)";
+
+  let rawForecastData = null;
+  const forecastCache = {};
+
+  async function loadForecastData() {
+    try {
+      const response = await fetch("./data/forecasts.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawForecastData = decodeCompactPayload(await response.json());
+    } catch (error) {
+      console.warn("Day-ahead forecasts unavailable:", error);
+    }
+    updateView();
+  }
+
+  /* Per resolution: load and generation forecast as bucket key -> value. */
+  function getForecastLookups() {
+    if (!rawForecastData) return null;
+
+    const resolution = timelineResolutionKey();
+    if (forecastCache[resolution]) return forecastCache[resolution];
+
+    const toMap = name => new Map(
+      ((((rawForecastData[name] || {})[resolution]) || {}).TOTAL || [])
+        .map(row => [timelineBucketKey(row), Number(row.value)])
+    );
+    forecastCache[resolution] = {
+      load: toMap("load_forecast"),
+      generation: toMap("generation_forecast")
+    };
+    return forecastCache[resolution];
+  }
+
+  /*
+   * ENTSO-E publishes the newest quarter-hours before every production type
+   * has reported them, and sometimes a provisional, partial value for the
+   * very last one, so the actual data would plunge at its end.  The actual
+   * generation and load stop at the last quarter-hour that looks complete:
+   * every production type that reported each of the two hours before is
+   * there, and nothing falls by more than a quarter within 15 minutes (not
+   * possible for Italy's total load or generation).  The day-ahead
+   * forecasts take over from there.
+   */
+  let actualCutoffs = null;
+
+  function lastCompleteKey(keys, looksIncomplete) {
+    let end = keys.length - 1;
+    while (end > 0 && looksIncomplete(end)) end -= 1;
+    return keys[end] || null;
+  }
+
+  /* {generation, load}: the last complete quarter-hour, "YYYY-MM-DD|HH:MM". */
+  function getActualCutoffs() {
+    if (actualCutoffs || !rawGenerationLoadData) return actualCutoffs;
+
+    const data = rawGenerationLoadData;
+    const slotKey = row => `${row.date}|${row.time}`;
+
+    // Only the newest rows matter; the series are sorted by date.
+    const points = group => (Array.isArray(group) ? group : (group && group.points) || []);
+    const groups = Object.entries((data.generation || {}).quarter_hourly || {});
+    const newest = groups.map(([, group]) => points(group)).filter(rows => rows.length)
+      .map(rows => rows[rows.length - 1].date).sort().pop();
+    if (!newest) return null;
+    const since = new Date(`${newest}T00:00:00Z`);
+    since.setUTCDate(since.getUTCDate() - 3);
+    const sinceDate = since.toISOString().slice(0, 10);
+
+    const slots = new Map();
+    groups.forEach(([code, group]) => {
+      const rows = points(group);
+      for (let i = rows.length - 1; i >= 0 && rows[i].date >= sinceDate; i--) {
+        const row = rows[i];
+        const slot = slots.get(slotKey(row)) || { types: new Set(), total: 0 };
+        slot.types.add(code);
+        slot.total += Number(row.value || 0);
+        slots.set(slotKey(row), slot);
+      }
+    });
+    // Keys sort chronologically as "YYYY-MM-DD|HH:MM" strings.
+    const generationKeys = [...slots.keys()].sort();
+    const generation = lastCompleteKey(generationKeys, end => {
+      const slot = slots.get(generationKeys[end]);
+      const before = generationKeys.slice(Math.max(0, end - 8), end).map(key => slots.get(key));
+      const regular = [...before[0].types].filter(code => before.every(other => other.types.has(code)));
+      return regular.some(code => !slot.types.has(code)) ||
+        slot.total < 0.75 * before[before.length - 1].total;
+    });
+
+    const loadRows = (((data.total_load || {}).quarter_hourly || {}).TOTAL || [])
+      .filter(row => row.date >= sinceDate);
+    const loadValues = new Map(loadRows.map(row => [slotKey(row), Number(row.value)]));
+    const loadKeys = [...loadValues.keys()].sort();
+    const load = lastCompleteKey(loadKeys, end =>
+      loadValues.get(loadKeys[end]) < 0.75 * loadValues.get(loadKeys[end - 1])
+    );
+
+    actualCutoffs = { generation, load };
+    return actualCutoffs;
+  }
+
+  /* Whether a bucket of the current resolution is complete by the cutoff:
+     whole hours and days only, so a partial one is not shown as a dip. */
+  function withinActualCutoff(key, cutoff) {
+    if (!cutoff) return true;
+    if (currentGranularity === "daily") return key < cutoff.slice(0, 10);
+    if (currentGranularity === "hourly") return `${key.slice(0, 13)}:45` <= cutoff;
+    return key <= cutoff;
+  }
 
 
   /* ============================================================
@@ -6275,6 +6470,7 @@
     loadIntradayData();
     loadNeighbourPrices();
     loadCouplingData();
+    loadForecastData();
   };
 
   window.addEventListener("resize", () => {
