@@ -2831,6 +2831,13 @@
     }, false);
   }
 
+  /* No MGP prices in the selected range yet (e.g. today's before the
+     daily update has run): say so instead of a blank chart. */
+  function showZonalUnavailable() {
+    zonalChart.clear();
+    setChartSubtitle("zonal-chart-subtitle", "MGP zonal prices for these dates are not available yet");
+  }
+
   function renderZonalChart() {
     if (!rawZonalData || !rawZonalData.zones) {
       return;
@@ -2839,7 +2846,7 @@
     const baseRows = filterZonalRows(getZonalRows("NORD"));
 
     if (!baseRows.length) {
-      zonalChart.clear();
+      showZonalUnavailable();
       return;
     }
 
@@ -2901,7 +2908,7 @@
     });
 
     if (!allValues.length) {
-      zonalChart.clear();
+      showZonalUnavailable();
       return;
     }
 
