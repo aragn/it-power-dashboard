@@ -177,11 +177,12 @@ def unit_types(token):
 
 def repair(outages, types):
     """
-    Some documents give the nominal and available capacity in kW (e.g.
-    VOGHERA 395,500 for Terna's 395.5 MW), and most of those label coal and
-    gas units B09, geothermal - no Italian geothermal unit reaches the
-    100 MW reporting threshold.  Rescale them, and take the production type
-    from the ENTSO-E unit list or from the unit's other documents.
+    Documents published from September 2026 give the nominal and available
+    capacity in kW (e.g. VOGHERA 395,500 for Terna's 395.5 MW), and most of
+    them label coal and gas units B09, geothermal.  Rescale them, and take
+    the production type of every B09 document from the ENTSO-E unit list
+    or from the unit's other documents (the one real geothermal unit of
+    100 MW or more, in Tuscany, is listed as B09 there and stays so).
     """
     scaled = 0
     scaled_starts = []

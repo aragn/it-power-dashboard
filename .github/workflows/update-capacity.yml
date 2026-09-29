@@ -48,7 +48,7 @@ jobs:
 
       - name: Fetch installed capacity
         # Monthly run, manual runs, and whenever the file is missing.
-        if: github.event.schedule == '15 4 1 * *' || github.event_name != 'schedule' || hashFiles('app/data/capacity.json') == ''
+        if: github.event_name != 'push'
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
           TERNA_KEY: ${{ secrets.TERNA_KEY }}
@@ -56,6 +56,7 @@ jobs:
         run: python etl/fetch_capacity.py
 
       - name: Fetch unavailability of generation units
+        if: github.event_name != 'push'
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
         run: |
@@ -75,6 +76,7 @@ jobs:
         run: python etl/check_outages.py
 
       - name: Publish updated data to the data branch
+        if: github.event_name != 'push'
         run: |
           FILES=(app/data/outages.json)
           if [ -f app/data/capacity.json ]; then FILES+=(app/data/capacity.json); fi
