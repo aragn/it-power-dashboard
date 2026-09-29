@@ -8,9 +8,6 @@ on:
     # Installed capacity (Terna yearly, ENTSO-E 14.1.A/B): monthly, on the
     # 1st; new years appear when Terna and ENTSO-E publish them.
     - cron: "15 4 1 * *"
-  # TEMPORARY: first full-history fetch from the feature branch.
-  push:
-    branches: [capacity-outages]
   workflow_dispatch:
     inputs:
       full_history:
@@ -48,7 +45,7 @@ jobs:
 
       - name: Fetch installed capacity
         # Monthly run, manual runs, and whenever the file is missing.
-        if: github.event_name != 'push'
+        if: github.event.schedule == '15 4 1 * *' || github.event_name != 'schedule' || hashFiles('app/data/capacity.json') == ''
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
           TERNA_KEY: ${{ secrets.TERNA_KEY }}
@@ -56,27 +53,17 @@ jobs:
         run: python etl/fetch_capacity.py
 
       - name: Fetch unavailability of generation units
-        if: github.event_name != 'push'
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
         run: |
           ARGS=()
-          if [ "${{ inputs.full_history }}" = "true" ] || [ "${{ github.event_name }}" = "push" ] || [ ! -f app/data/outages.json ]; then
+          if [ "${{ inputs.full_history }}" = "true" ] || [ ! -f app/data/outages.json ]; then
             ARGS+=(--full-history)
           fi
           echo "Running: python etl/fetch_outages.py ${ARGS[*]}"
           python etl/fetch_outages.py "${ARGS[@]}"
 
-      - name: TEMPORARY check Terna outages against ENTSO-E
-        if: github.event_name == 'push'
-        env:
-          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
-          TERNA_KEY: ${{ secrets.TERNA_KEY }}
-          TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
-        run: python etl/check_outages.py
-
       - name: Publish updated data to the data branch
-        if: github.event_name != 'push'
         run: |
           FILES=(app/data/outages.json)
           if [ -f app/data/capacity.json ]; then FILES+=(app/data/capacity.json); fi
