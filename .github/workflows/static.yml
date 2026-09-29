@@ -20,6 +20,7 @@ on:
       - "Update Day-Ahead Forecasts (ENTSO-E)"
       - "Update EU ETS Auction Prices (EEX)"
       - "Update Wind & Solar Forecasts (ENTSO-E)"
+      - "Update Continuous Intraday Prices (GME MI-XBID)"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab
