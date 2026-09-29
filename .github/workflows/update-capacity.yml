@@ -1,0 +1,27 @@
+name: Update Installed Capacity & Unavailability
+
+on:
+  # TEMPORARY: inspect the APIs from the feature branch.
+  push:
+    branches: [capacity-outages]
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: python -m pip install -r requirements.txt
+      - name: Inspect capacity and unavailability data
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+          TERNA_KEY: ${{ secrets.TERNA_KEY }}
+          TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
+        run: python etl/discover_capacity.py
