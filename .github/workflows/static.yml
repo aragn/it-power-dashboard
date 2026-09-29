@@ -22,6 +22,7 @@ on:
       - "Update Wind & Solar Forecasts (ENTSO-E)"
       - "Update Continuous Intraday Prices (GME MI-XBID)"
       - "Update Terna Geothermal & Total Load"
+      - "Update Installed Capacity & Unavailability"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab
