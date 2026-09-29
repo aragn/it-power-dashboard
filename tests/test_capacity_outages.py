@@ -53,6 +53,25 @@ def test_overlapping_outages_of_one_unit_count_once():
     assert fetch_outages.to_rows(totals["NORD|B04|A54"])["daily"] == [{"date": "2026-08-15", "value": 400.0}]
 
 
+def test_kw_documents_are_rescaled_and_retyped():
+    doc = outage_doc(points=((1, 0), (13, 150000)))
+    doc.find(".//{*}production_RegisteredResource.pSRType.powerSystemResources.nominalP").text = "395500"
+    doc.find(".//{*}production_RegisteredResource.pSRType.psrType").text = "B09"
+    outage = fetch_outages.parse_document(doc)
+    fetch_outages.repair([outage], {"UP_TEST_1": "B04"})
+    assert outage["nominal"] == 395.5 and outage["psr"] == "B04"
+    assert [a for _, _, a in outage["periods"]] == [0.0, 150.0]
+    assert fetch_outages.plausible(outage)
+
+
+def test_geothermal_label_without_a_known_type_becomes_other():
+    doc = outage_doc()
+    doc.find(".//{*}production_RegisteredResource.pSRType.psrType").text = "B09"
+    outage = fetch_outages.parse_document(doc)
+    fetch_outages.repair([outage], {})
+    assert outage["psr"] == "B20" and outage["nominal"] == 400.0
+
+
 def test_window_clips_outages():
     outage = fetch_outages.parse_document(outage_doc(start="2026-08-01T22:00Z", end="2026-09-30T22:00Z"))
     start = datetime(2026, 8, 14, 22, tzinfo=timezone.utc)

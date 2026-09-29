@@ -22,7 +22,7 @@ The API token is read from ENTSOE_API_KEY.
 import argparse
 import os
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -45,6 +45,7 @@ ZONES = {
     "SARD": "10Y1001A1001A74G",
 }
 EIC_ZONE = {eic: zone for zone, eic in ZONES.items()}
+IT_DOMAIN = "10YIT-GRTN-----B"
 
 DEFAULT_HISTORY_START = datetime(2025, 1, 1).date()
 LOOKBACK_DAYS = 45      # outages are revised after the fact
@@ -146,7 +147,73 @@ def download(token, start_date, end_date):
             print(f"  {zone} {window_start} -> {window_end}: {len(outages):,} outages so far")
             window_start = window_end + timedelta(days=1)
     active = [o for o in outages.values() if o["status"] not in DROPPED_STATUS]
+    repair(active, unit_types(token))
     return [o for o in active if plausible(o)]
+
+
+def unit_types(token):
+    """
+    {generation unit mRID or name: psrType} from ENTSO-E 14.1.B (units of
+    100 MW or more), this year and last, to correct outage documents.
+    """
+    types = {}
+    year = market_today().year
+    for y in (year - 1, year):
+        try:
+            root = request_entsoe(token, {"documentType": "A71", "processType": "A33", "in_Domain": IT_DOMAIN,
+                                          "periodStart": f"{y}01010000", "periodEnd": f"{y}01020000"})
+        except requests.HTTPError as error:
+            print(f"  unit list {y}: {error}")
+            continue
+        for ts in [] if root is None else root.findall(".//{*}TimeSeries"):
+            psr = text(ts, "psrType")
+            for resource in ts.findall(".//{*}PowerSystemResources"):
+                for key in (text(resource, "mRID"), text(resource, "name")):
+                    if key and psr:
+                        types[key] = psr
+        time.sleep(REQUEST_PAUSE_SECONDS)
+    return types
+
+
+def repair(outages, types):
+    """
+    Some documents give the nominal and available capacity in kW (e.g.
+    VOGHERA 395,500 for Terna's 395.5 MW), and most of those label coal and
+    gas units B09, geothermal - no Italian geothermal unit reaches the
+    100 MW reporting threshold.  Rescale them, and take the production type
+    from the ENTSO-E unit list or from the unit's other documents.
+    """
+    scaled = 0
+    scaled_starts = []
+    for outage in outages:
+        if outage["nominal"] > MAX_UNIT_MW and outage["nominal"] / 1000 <= MAX_UNIT_MW:
+            outage["nominal"] /= 1000
+            outage["periods"] = [(s, e, a / 1000) for s, e, a in outage["periods"]]
+            outage["scaled"] = True
+            scaled += 1
+            scaled_starts += [s for s, _, _ in outage["periods"]]
+    if scaled_starts:
+        print(f"  documents in kW cover {min(scaled_starts):%Y-%m-%d} -> {max(scaled_starts):%Y-%m-%d}")
+
+    learned = defaultdict(Counter)
+    for outage in outages:
+        if not outage.get("scaled") and outage["psr"] != "B09":
+            learned[outage["unit"]][outage["psr"]] += 1
+
+    retyped, unresolved = Counter(), Counter()
+    for outage in outages:
+        if not outage.get("scaled") and outage["psr"] != "B09":
+            continue
+        known = (types.get(outage["unit"]) or types.get(outage["unit_name"])
+                 or (learned[outage["unit"]].most_common(1)[0][0] if learned[outage["unit"]] else None))
+        if known and known != outage["psr"]:
+            retyped[f"{outage['psr']}->{known}"] += 1
+            outage["psr"] = known
+        elif not known and outage["psr"] == "B09":
+            unresolved[outage["unit_name"]] += 1
+            outage["psr"] = "B20"  # "other" rather than a wrong geothermal
+    print(f"  repaired: {scaled} documents rescaled from kW, types {dict(retyped)}, "
+          f"B09 without a known type (shown as other): {dict(unresolved)}")
 
 
 def plausible(outage):

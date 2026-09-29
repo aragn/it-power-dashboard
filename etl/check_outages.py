@@ -24,9 +24,12 @@ def number(value):
 
 
 def main():
-    start, end = date(2026, 8, 1), date(2026, 9, 29)
+    start, end = date(2026, 9, 15), date(2026, 9, 29)
     client = Client(os.environ["TERNA_KEY"], os.environ["TERNA_SECRET"])
-    terna = terna_records(client, start, end)
+    # Terna's feed only holds recently published outages; ask in one go.
+    payload = client.get("/outages/v1.0/generation-unit-unavailability",
+                         {"dateFrom": start.strftime("%d/%m/%Y"), "dateTo": end.strftime("%d/%m/%Y")})
+    terna = payload.get("unavailability_productive_units") or []
     print(f"Terna: {len(terna)} records {start} -> {end}")
     print("  outage_type:", dict(Counter(r.get("outage_type") for r in terna)),
           " plant type:", dict(Counter(r.get("plan_type") or r.get("plant_type") for r in terna)),
