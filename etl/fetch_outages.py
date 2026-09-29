@@ -93,6 +93,8 @@ def parse_document(doc):
     return {
         "mrid": text(doc, "mRID"),
         "revision": int(text(doc, "revisionNumber") or 0),
+        # When the document (this revision) was created, e.g. "2026-09-22T10:01:41Z".
+        "created": text(doc, "createdDateTime"),
         "status": text(doc, "docStatus/{*}value"),
         "zone": zone,
         "psr": text(ts, "production_RegisteredResource.pSRType.psrType"),
@@ -245,9 +247,13 @@ def quarter_totals(outages, window_start, window_end):
     """
     {group: {utc slot start: MW unavailable}} within [window_start, window_end).
 
-    A unit with overlapping outages (e.g. a planned and a forced one) counts
-    once per slot, with its largest unavailability - its lowest available
-    capacity - attributed to that outage's group.
+    A unit counts once per slot.  Where its documents overlap, the most
+    recently created one holds: operators post new documents rather than
+    withdrawing old ones, so a planned outage announced months ahead can
+    stay active after later documents (and Terna's own availability) show
+    the unit running - e.g. TAVAZZANO 5, planned 0 MW from 17 Sept 2026 in
+    December 2025, with 711 MW available in documents of 22 September.
+    Ties go to the higher revision, then to the larger unavailability.
     """
     by_unit = defaultdict(list)
     for outage in outages:
@@ -255,23 +261,27 @@ def quarter_totals(outages, window_start, window_end):
 
     totals = defaultdict(lambda: defaultdict(float))
     for unit_outages in by_unit.values():
-        worst = {}  # slot -> (MW, group)
+        latest = {}  # slot -> (created, revision, MW, group)
         for outage in unit_outages:
             group = f"{outage['zone']}|{outage['psr']}|{outage['business']}"
+            created = outage.get("created") or ""
             for start, end, available in outage["periods"]:
-                unavailable = outage["nominal"] - available
-                if unavailable <= 0:
-                    continue
+                # A newer document with the unit fully available still counts:
+                # it overrides older ones.
+                unavailable = max(outage["nominal"] - available, 0.0)
+                rank = (created, outage["revision"], unavailable)
                 slot = max(start, window_start)
                 # First slot boundary at or after the start.
                 slot += (-(slot - window_start)) % STEP
                 last = min(end, window_end)
                 while slot < last:
-                    if unavailable > worst.get(slot, (0.0, None))[0]:
-                        worst[slot] = (unavailable, group)
+                    held = latest.get(slot)
+                    if held is None or rank > held[:3]:
+                        latest[slot] = (*rank, group)
                     slot += STEP
-        for slot, (value, group) in worst.items():
-            totals[group][slot] += value
+        for slot, (_, _, value, group) in latest.items():
+            if value > 0:
+                totals[group][slot] += value
     return totals
 
 

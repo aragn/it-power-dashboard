@@ -13,10 +13,12 @@ import fetch_outages  # noqa: E402
 NS = "urn:iec62325.351:tc57wg16:451-6:outagedocument:3:0"
 
 
-def outage_doc(status="A05", revision=1, business="A54", points=((1, 0),), start="2026-08-14T22:00Z", end="2026-08-15T22:00Z"):
+def outage_doc(status="A05", revision=1, business="A54", points=((1, 0),), start="2026-08-14T22:00Z", end="2026-08-15T22:00Z",
+               created="2026-08-01T00:00:00Z"):
     pts = "".join(f"<Point><position>{p}</position><quantity>{q}</quantity></Point>" for p, q in points)
     return ET.fromstring(
         f'<Unavailability_MarketDocument xmlns="{NS}"><mRID>abc</mRID><revisionNumber>{revision}</revisionNumber>'
+        f"<createdDateTime>{created}</createdDateTime>"
         f"<docStatus><value>{status}</value></docStatus><TimeSeries><businessType>{business}</businessType>"
         "<biddingZone_Domain.mRID>10Y1001A1001A73I</biddingZone_Domain.mRID>"
         "<production_RegisteredResource.pSRType.psrType>B04</production_RegisteredResource.pSRType.psrType>"
@@ -51,6 +53,28 @@ def test_overlapping_outages_of_one_unit_count_once():
     totals = fetch_outages.quarter_totals([planned, forced], start, end)
     assert set(totals) == {"NORD|B04|A54"}
     assert fetch_outages.to_rows(totals["NORD|B04|A54"])["daily"] == [{"date": "2026-08-15", "value": 400.0}]
+
+
+def test_newer_document_overrides_an_older_planned_outage():
+    # TAVAZZANO 5: planned 0 MW announced in December, then a derating document
+    # from September says 360 MW available for the same day -> 40 MW out, forced.
+    planned = fetch_outages.parse_document(outage_doc(business="A53", points=((1, 0),), created="2025-12-01T19:10:14Z"))
+    derating = fetch_outages.parse_document(outage_doc(business="A54", points=((1, 360),), created="2026-08-14T10:01:41Z"))
+    derating["mrid"] = "other"
+    start = datetime(2026, 8, 14, 22, tzinfo=timezone.utc)
+    end = datetime(2026, 8, 15, 22, tzinfo=timezone.utc)
+    totals = fetch_outages.quarter_totals([planned, derating], start, end)
+    assert set(totals) == {"NORD|B04|A54"}
+    assert fetch_outages.to_rows(totals["NORD|B04|A54"])["daily"] == [{"date": "2026-08-15", "value": 40.0}]
+
+
+def test_newer_document_with_the_unit_fully_available_clears_the_outage():
+    planned = fetch_outages.parse_document(outage_doc(business="A53", points=((1, 0),), created="2025-10-08T05:01:57Z"))
+    back = fetch_outages.parse_document(outage_doc(business="A54", points=((1, 400),), created="2026-08-10T08:00:00Z"))
+    back["mrid"] = "other"
+    start = datetime(2026, 8, 14, 22, tzinfo=timezone.utc)
+    end = datetime(2026, 8, 15, 22, tzinfo=timezone.utc)
+    assert not fetch_outages.quarter_totals([planned, back], start, end)
 
 
 def test_kw_documents_are_rescaled_and_retyped():
