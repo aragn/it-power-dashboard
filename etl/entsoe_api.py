@@ -22,8 +22,10 @@ The API token is read by the calling script from the ENTSOE_API_KEY
 environment variable; it is never stored in the repository.
 """
 
+import io
 import time
 import xml.etree.ElementTree as ET
+import zipfile
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
@@ -101,6 +103,21 @@ def minutes_label(total):
 # ============================================================================
 
 
+def parse_response(content):
+    """
+    The XML root of a response.  Some document types (e.g. outages) come as
+    a zip of one XML document each; those are gathered under one <Documents>
+    root, so findall(".//{*}...") works the same on both.
+    """
+    if content[:2] != b"PK":
+        return ET.fromstring(content)
+    root = ET.Element("Documents")
+    with zipfile.ZipFile(io.BytesIO(content)) as archive:
+        for name in archive.namelist():
+            root.append(ET.fromstring(archive.read(name)))
+    return root
+
+
 def request_entsoe(token, params):
     """
     Call the Restful API and return the parsed XML root, or None when the
@@ -126,7 +143,7 @@ def request_entsoe(token, params):
             return None
 
         response.raise_for_status()
-        return ET.fromstring(response.content)
+        return parse_response(response.content)
 
     return None
 
