@@ -21,6 +21,7 @@ on:
       - "Update EU ETS Auction Prices (EEX)"
       - "Update Wind & Solar Forecasts (ENTSO-E)"
       - "Update Continuous Intraday Prices (GME MI-XBID)"
+      - "Update Terna Geothermal & Total Load"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab
