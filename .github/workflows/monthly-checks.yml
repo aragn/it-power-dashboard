@@ -5,9 +5,6 @@ on:
     # On the 8th: Terna's per-unit available capacity for the previous month
     # is final 7 days after each day.
     - cron: "30 5 8 * *"
-  # TEMPORARY: first run from the feature branch.
-  push:
-    branches: [monthly-checks]
   workflow_dispatch:
     inputs:
       month:

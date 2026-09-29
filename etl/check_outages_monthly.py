@@ -127,10 +127,16 @@ def installed_by_unit(token, year):
                                   "periodStart": f"{year}01010000", "periodEnd": f"{year}01020000"})
     installed = {}
     for ts in [] if root is None else root.findall(".//{*}TimeSeries"):
-        name = ts.find(".//{*}PowerSystemResources/{*}name")
+        found = ts.find(".//{*}PowerSystemResources/{*}name")
+        name = found.text if found is not None else None
+        if not name:
+            # Some units only carry the plant name, e.g. "IM_2247308UP_BIGFISH_4".
+            registered = ts.find("{*}registeredResource.name")
+            match = re.search(r"(UP_.*)$", registered.text if registered is not None and registered.text else "")
+            name = match.group(1) if match else None
         quantity = ts.find(".//{*}quantity")
-        if name is not None and name.text and quantity is not None and float(quantity.text) <= 5000:
-            installed[name.text] = float(quantity.text)
+        if name and quantity is not None and float(quantity.text) <= 5000:
+            installed[name] = float(quantity.text)
     return installed
 
 
