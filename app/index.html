@@ -189,6 +189,19 @@
     #chart-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:var(--drag-hint); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
     #chart-wrap.dragging #chart-drag-hint { opacity:0; }
     .chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
+    .checks-select { border:1px solid var(--border); border-radius:6px; background:var(--panel-2); color:var(--text); font-size:12px; padding:5px 8px; max-width:100%; }
+    .checks-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin:10px 0 6px; }
+    .checks-stat { border:1px solid var(--border); border-radius:8px; padding:10px 12px; min-width:0; }
+    .checks-stat-value { font-size:20px; font-weight:600; font-variant-numeric:tabular-nums; }
+    .checks-stat-label { color:var(--muted); font-size:11px; margin-top:2px; }
+    .checks-heading { font-size:12px; font-weight:600; margin:16px 0 6px; }
+    .checks-table-wrap { overflow-x:auto; max-width:100%; }
+    .checks-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .checks-table th { text-align:left; color:var(--muted); font-weight:500; border-bottom:1px solid var(--border); padding:6px 8px; white-space:nowrap; }
+    .checks-table td { border-bottom:1px solid var(--border); padding:6px 8px; white-space:nowrap; }
+    .checks-table .num { text-align:right; font-variant-numeric:tabular-nums; }
+    .checks-note { color:var(--muted); font-size:12px; margin:8px 0; }
+    #data-checks-section .chart-help { margin:12px 0 0; }
     /* Keep the top bar on one line: drop the least important items first. */
     @media (max-width:1000px) { .status{display:none} }
     @media (max-width:860px) { .brand{display:none} }
@@ -233,7 +246,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range.</div></section><section id="data-checks-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Data Checks · Unavailable Capacity</div><div id="data-checks-subtitle" class="chart-subtitle"></div></div><select id="data-checks-select" class="checks-select" aria-label="Monthly check" hidden></select></div><div id="data-checks-body"></div><div class="chart-help">On the 8th of every month the unavailability history is rebuilt from ENTSO-E, which picks up corrections older than the 45 days the daily update re-reads, and the previous month is compared hour by hour with Terna's final available capacity of each unit (tolerance: 20 MW or 10% of the unit, whichever is larger). "Overstated": Terna shows the unit more available than ENTSO-E's outages imply; "understated": less available.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -5615,6 +5628,156 @@
 
 
   /* ============================================================
+     DATA CHECKS: MONTHLY CHECK OF THE UNAVAILABILITY DATA
+     ============================================================ */
+
+  const PSR_NAMES = {
+    B01: "Biomass", B02: "Lignite", B03: "Coal-derived gas", B04: "Gas", B05: "Coal", B06: "Oil",
+    B09: "Geothermal", B10: "Pumped hydro", B11: "Run-of-river hydro", B12: "Reservoir hydro",
+    B16: "Solar", B17: "Waste", B18: "Wind offshore", B19: "Wind onshore", B20: "Other", B25: "Battery storage"
+  };
+
+  const dataChecksSection = document.getElementById("data-checks-section");
+  const dataChecksSelect = document.getElementById("data-checks-select");
+  let rawDataChecks = null;
+  let dataChecksStatus = "loading";
+
+  async function loadDataChecks() {
+    try {
+      const response = await fetch("./data/data_checks.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawDataChecks = await response.json();
+      dataChecksStatus = "ready";
+    } catch (error) {
+      console.warn("Data checks unavailable:", error);
+      dataChecksStatus = "missing";
+    }
+    renderDataChecks();
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function formatMonth(month) {
+    return new Date(`${month}-01T12:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  }
+
+  function formatCheckDate(stamp) {
+    return new Date(stamp.replace("Z", ":00Z")).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  }
+
+  /* "2026-09-15 03:00" -> "15 Sept 03:00" */
+  function formatHour(stamp) {
+    if (!stamp) return "—";
+    const [day, hour] = stamp.split(" ");
+    return `${parseDate(day).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} ${hour}`;
+  }
+
+  function checksTable(columns, rows) {
+    const head = columns.map(c => `<th${c.num ? ' class="num"' : ""}>${c.label}</th>`).join("");
+    const body = rows.map(row => `<tr>${columns.map(c =>
+      `<td${c.num ? ' class="num"' : ""}>${escapeHtml(c.value(row))}</td>`).join("")}</tr>`).join("");
+    return `<div class="checks-table-wrap"><table class="checks-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+  }
+
+  function checksStat(value, label) {
+    return `<div class="checks-stat"><div class="checks-stat-value">${escapeHtml(value)}</div><div class="checks-stat-label">${escapeHtml(label)}</div></div>`;
+  }
+
+  function renderDataChecks() {
+    if (!dataChecksSection.isConnected) return;
+    const body = document.getElementById("data-checks-body");
+    const subtitle = document.getElementById("data-checks-subtitle");
+    const reports = (rawDataChecks && rawDataChecks.reports) || [];
+    if (!reports.length) {
+      dataChecksSelect.hidden = true;
+      subtitle.textContent = dataChecksStatus === "loading" ? "Loading…" : "No monthly check yet";
+      body.innerHTML = dataChecksStatus === "loading" ? "" :
+        `<div class="checks-note">The first monthly check runs on the 8th.</div>`;
+      return;
+    }
+
+    // One entry per check; the newest first.
+    if (dataChecksSelect.options.length !== reports.length) {
+      dataChecksSelect.innerHTML = reports.map((r, i) =>
+        `<option value="${i}">${escapeHtml(formatMonth(r.month))} · checked ${escapeHtml(formatCheckDate(r.checked_at))}</option>`).join("");
+    }
+    dataChecksSelect.hidden = reports.length < 2;
+    const report = reports[Number(dataChecksSelect.value) || 0];
+    subtitle.textContent = `${formatMonth(report.month)} against Terna · checked ${formatCheckDate(report.checked_at)}`;
+
+    const nf = value => Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    const t = report.terna;
+    const r = report.revisions;
+    let html = "";
+
+    const stats = [];
+    if (t) {
+      stats.push(checksStat(t.agree_share === null ? "—" : `${Math.round(t.agree_share * 100)}%`,
+        `of ${nf(t.hours_with_outage)} unit-hours with an ENTSO-E outage agree with Terna`));
+      const over = t.overstated.reduce((sum, row) => sum + row.mwh, 0);
+      const under = t.understated.reduce((sum, row) => sum + row.mwh, 0);
+      stats.push(checksStat(`${t.overstated.length} units`, `overstated by ENTSO-E · ${nf(over)} MWh`));
+      stats.push(checksStat(`${t.understated.length} units`, `understated by ENTSO-E · ${nf(under)} MWh`));
+    }
+    stats.push(r
+      ? checksStat(`${r.months.length} months · ${r.units.length} units`, `revised since ${formatCheckDate(r.previous)}`)
+      : checksStat("Baseline", "first check: revisions are compared from the next one"));
+    html += `<div class="checks-stats">${stats.join("")}</div>`;
+
+    if (t) {
+      const disagreements = [
+        ...t.overstated.map(row => ({ ...row, direction: "Overstated" })),
+        ...t.understated.map(row => ({ ...row, direction: "Understated" }))
+      ].sort((a, b) => b.mwh - a.mwh);
+      html += `<div class="checks-heading">Units where ENTSO-E and Terna disagree, ${escapeHtml(formatMonth(report.month))}</div>`;
+      html += disagreements.length ? checksTable([
+        { label: "Unit", value: row => row.unit },
+        { label: "Zone", value: row => row.zone },
+        { label: "Type", value: row => PSR_NAMES[row.psr] || row.psr },
+        { label: "ENTSO-E", value: row => row.direction },
+        { label: "Installed MW", num: true, value: row => nf(row.installed) },
+        { label: "Hours", num: true, value: row => nf(row.hours) },
+        { label: "ENTSO-E avail. MW", num: true, value: row => nf(row.entsoe_available) },
+        { label: "Terna avail. MW", num: true, value: row => nf(row.terna_available) },
+        { label: "Difference MWh", num: true, value: row => nf(row.mwh) },
+        { label: "From", value: row => formatHour(row.first) },
+        { label: "To", value: row => formatHour(row.last) }
+      ], disagreements) : `<div class="checks-note">No unit disagrees for more than a few hours.</div>`;
+      if (t.terna_only && t.terna_only.units) {
+        html += `<div class="checks-note">Terna also shows ${t.terna_only.units} units below their capacity without an ENTSO-E outage ` +
+          `(${nf(t.terna_only.mwh)} MWh; e.g. temperature deratings), largest: ` +
+          `${t.terna_only.largest.slice(0, 5).map(u => `${escapeHtml(u.unit)} ${nf(u.mwh)} MWh`).join(", ")}.</div>`;
+      }
+    }
+
+    if (r) {
+      html += `<div class="checks-heading">Revisions since ${escapeHtml(formatCheckDate(r.previous))}</div>`;
+      if (r.months.length) {
+        html += checksTable([
+          { label: "Month", value: row => formatMonth(row.month) },
+          { label: "Planned MW (avg) before → after", num: true, value: row => `${nf(row.planned[0])} → ${nf(row.planned[1])}` },
+          { label: "Forced MW (avg) before → after", num: true, value: row => `${nf(row.forced[0])} → ${nf(row.forced[1])}` }
+        ], r.months);
+      }
+      html += r.units.length ? checksTable([
+        { label: "Unit", value: row => row.unit },
+        { label: "Zone", value: row => row.zone },
+        { label: "Type", value: row => PSR_NAMES[row.psr] || row.psr },
+        { label: "Month", value: row => formatMonth(row.month) },
+        { label: "MWh before → after", num: true, value: row => `${nf(row.before)} → ${nf(row.after)}` },
+        { label: "Change", value: row => row.change }
+      ], r.units.slice(0, 25)) : `<div class="checks-note">No unit's outages changed noticeably.</div>`;
+    }
+
+    body.innerHTML = html;
+  }
+
+  dataChecksSelect.addEventListener("change", renderDataChecks);
+
+
+  /* ============================================================
      EU ETS AUCTION PRICE (EEX)
      ============================================================ */
 
@@ -7053,6 +7216,7 @@
       RES_FORECAST_TYPES.forEach(type => mount.appendChild(type.section));
       mount.appendChild(capacitySection);
       mount.appendChild(outagesSection);
+      mount.appendChild(dataChecksSection);
 
       setTimeout(() => {
         // Another tab may have been opened in the meantime.
@@ -7066,6 +7230,7 @@
         renderResForecastCharts();
         renderCapacityChart();
         renderOutagesChart();
+        renderDataChecks();
       }, 0);
     } else {
       punChartSection.remove();
@@ -7074,6 +7239,7 @@
       RES_FORECAST_TYPES.forEach(type => type.section.remove());
       capacitySection.remove();
       outagesSection.remove();
+      dataChecksSection.remove();
     }
 
     if (showZonalChart) {
@@ -7273,6 +7439,7 @@
     loadTernaData();
     loadCapacityData();
     loadOutageData();
+    loadDataChecks();
   };
 
   window.addEventListener("resize", () => {
