@@ -23,6 +23,7 @@ on:
       - "Update Continuous Intraday Prices (GME MI-XBID)"
       - "Update Terna Geothermal & Total Load"
       - "Update Installed Capacity & Unavailability"
+      - "Monthly Data Checks"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab

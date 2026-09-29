@@ -57,7 +57,7 @@ jobs:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
         run: |
           ARGS=()
-          if [ "${{ inputs.full_history }}" = "true" ] || [ ! -f app/data/outages.json ]; then
+          if [ "${{ inputs.full_history }}" = "true" ] || [ ! -f app/data/outages.json ] || [ ! -f app/data/outage_units.json ]; then
             ARGS+=(--full-history)
           fi
           echo "Running: python etl/fetch_outages.py ${ARGS[*]}"
@@ -65,6 +65,6 @@ jobs:
 
       - name: Publish updated data to the data branch
         run: |
-          FILES=(app/data/outages.json)
+          FILES=(app/data/outages.json app/data/outage_units.json)
           if [ -f app/data/capacity.json ]; then FILES+=(app/data/capacity.json); fi
           bash .github/scripts/data-branch.sh publish "${FILES[@]}"

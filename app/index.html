@@ -189,6 +189,12 @@
     #chart-drag-hint { position:absolute; z-index:5; top:24px; left:50%; color:var(--drag-hint); font-size:10px; pointer-events:none; transform:translateX(-50%); transition:opacity .2s; }
     #chart-wrap.dragging #chart-drag-hint { opacity:0; }
     .chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
+    .info-hover { position:relative; color:var(--text); text-decoration:underline dotted; cursor:help; outline:none; }
+    .info-pop { display:none; position:absolute; z-index:40; left:0; top:calc(100% + 6px); width:min(460px, 80vw); padding:10px 12px; border:1px solid var(--chart-tooltip-border); border-radius:8px; background:var(--chart-tooltip-bg); color:var(--chart-tooltip-text); font-size:11px; line-height:1.45; box-shadow:0 6px 18px var(--shadow); cursor:default; }
+    .info-hover:hover .info-pop, .info-hover:focus .info-pop, .info-hover:focus-within .info-pop { display:block; }
+    .info-pop p { margin:0 0 6px; }
+    .info-pop ul { margin:0 0 6px; padding-left:16px; }
+    .info-pop .muted { color:var(--chart-tooltip-muted); }
     /* Keep the top bar on one line: drop the least important items first. */
     @media (max-width:1000px) { .status{display:none} }
     @media (max-width:860px) { .brand{display:none} }
@@ -233,7 +239,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range. <span class="info-hover" tabindex="0" aria-describedby="outages-info">Read here for more info<span id="outages-info" class="info-pop" role="tooltip"></span></span></div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -5615,6 +5621,76 @@
 
 
   /* ============================================================
+     DATA CHECKS: MONTHLY CHECK OF THE UNAVAILABILITY DATA
+     ============================================================ */
+
+  let rawDataChecks = null;
+
+  async function loadDataChecks() {
+    try {
+      const response = await fetch("./data/data_checks.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawDataChecks = await response.json();
+    } catch (error) {
+      console.warn("Data checks unavailable:", error);
+    }
+    renderDataChecks();
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function formatMonth(month) {
+    return new Date(`${month}-01T12:00:00`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  }
+
+  function formatCheckDate(stamp) {
+    return new Date(stamp.replace("Z", ":00Z")).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  }
+
+  /* The note behind "Read here for more info" on the unavailable-capacity chart. */
+  function renderDataChecks() {
+    const pop = document.getElementById("outages-info");
+    if (!pop) return;
+    const nf = value => Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    let html =
+      "<p>Source: ENTSO-E 15.1, units of 100 MW or more. Where a unit's documents overlap, the most recently " +
+      "published one counts; documents giving the nominal power in kW are rescaled.</p>" +
+      "<p>Updates: every day the last 45 days and the next 14 are re-read, so corrections appear the next " +
+      "morning. On the 8th of every month the whole history is rebuilt (older corrections) and the previous " +
+      "month is compared hour by hour with Terna's final available capacity of each unit (tolerance 20 MW or " +
+      "10% of the unit).</p>";
+    const report = ((rawDataChecks && rawDataChecks.reports) || [])[0];
+    if (!report) {
+      html += '<p class="muted">No monthly check yet; the first runs on the 8th.</p>';
+    } else {
+      const t = report.terna;
+      const r = report.revisions;
+      html += `<p><b>Latest check</b> (${escapeHtml(formatCheckDate(report.checked_at))}, ${escapeHtml(formatMonth(report.month))}):</p><ul>`;
+      if (t) {
+        html += `<li>Terna agrees in ${t.agree_share === null ? "—" : Math.round(t.agree_share * 100) + "%"} of ` +
+          `${nf(t.hours_with_outage)} unit-hours with an outage.</li>`;
+        const listed = [...t.overstated.map(u => ({ ...u, dir: "overstated" })), ...t.understated.map(u => ({ ...u, dir: "understated" }))]
+          .sort((a, b) => b.mwh - a.mwh);
+        if (listed.length) {
+          html += `<li>${t.overstated.length} units overstated, ${t.understated.length} understated by ENTSO-E; largest: ` +
+            listed.slice(0, 4).map(u => `${escapeHtml(u.unit)} (${u.dir}, ${nf(u.hours)} h, ${nf(u.mwh)} MWh)`).join(", ") + ".</li>";
+        } else {
+          html += "<li>No unit disagrees for more than a few hours.</li>";
+        }
+      }
+      html += r
+        ? `<li>Revised since ${escapeHtml(formatCheckDate(r.previous))}: ${r.months.length} months, ${r.units.length} unit-months` +
+          (r.months.length ? ` (e.g. ${escapeHtml(formatMonth(r.months[0].month))}: forced ${nf(r.months[0].forced[0])} → ${nf(r.months[0].forced[1])} MW)` : "") + ".</li>"
+        : "<li>First check: revisions are compared from the next one.</li>";
+      html += '</ul><p class="muted">The full report is on the monthly GitHub Actions run.</p>';
+    }
+    pop.innerHTML = html;
+  }
+
+
+  /* ============================================================
      EU ETS AUCTION PRICE (EEX)
      ============================================================ */
 
@@ -7066,6 +7142,7 @@
         renderResForecastCharts();
         renderCapacityChart();
         renderOutagesChart();
+        renderDataChecks();
       }, 0);
     } else {
       punChartSection.remove();
@@ -7273,6 +7350,7 @@
     loadTernaData();
     loadCapacityData();
     loadOutageData();
+    loadDataChecks();
   };
 
   window.addEventListener("resize", () => {

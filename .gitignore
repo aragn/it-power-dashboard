@@ -14,6 +14,8 @@ app/data/xbid_prices.json
 app/data/terna.json
 app/data/capacity.json
 app/data/outages.json
+app/data/outage_units.json
+app/data/data_checks.json
 app/data/neighbour_prices.json
 app/data/coupling.json
 app/data/forecasts.json

@@ -38,6 +38,7 @@ from entsoe_api import (
 )
 
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "data", "outages.json")
+UNITS_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "data", "outage_units.json")
 
 ZONES = {
     "NORD": "10Y1001A1001A73I", "CNOR": "10Y1001A1001A70O", "CSUD": "10Y1001A1001A71M",
@@ -243,9 +244,17 @@ def plausible(outage):
     return True
 
 
-def quarter_totals(outages, window_start, window_end):
+def by_unit(outages):
+    units = defaultdict(list)
+    for outage in outages:
+        units[outage["unit"]].append(outage)
+    return units
+
+
+def unit_slots(unit_outages, window_start, window_end):
     """
-    {group: {utc slot start: MW unavailable}} within [window_start, window_end).
+    {utc slot start: (created, revision, MW unavailable, group)} for one unit
+    within [window_start, window_end).
 
     A unit counts once per slot.  Where its documents overlap, the most
     recently created one holds: operators post new documents rather than
@@ -255,34 +264,89 @@ def quarter_totals(outages, window_start, window_end):
     December 2025, with 711 MW available in documents of 22 September.
     Ties go to the higher revision, then to the larger unavailability.
     """
-    by_unit = defaultdict(list)
-    for outage in outages:
-        by_unit[outage["unit"]].append(outage)
+    latest = {}
+    for outage in unit_outages:
+        group = f"{outage['zone']}|{outage['psr']}|{outage['business']}"
+        created = outage.get("created") or ""
+        for start, end, available in outage["periods"]:
+            # A newer document with the unit fully available still counts:
+            # it overrides older ones.
+            unavailable = max(outage["nominal"] - available, 0.0)
+            rank = (created, outage["revision"], unavailable)
+            slot = max(start, window_start)
+            # First slot boundary at or after the start.
+            slot += (-(slot - window_start)) % STEP
+            last = min(end, window_end)
+            while slot < last:
+                held = latest.get(slot)
+                if held is None or rank > held[:3]:
+                    latest[slot] = (*rank, group)
+                slot += STEP
+    return latest
 
+
+def quarter_totals(outages, window_start, window_end):
+    """{group: {utc slot start: MW unavailable}} within [window_start, window_end)."""
     totals = defaultdict(lambda: defaultdict(float))
-    for unit_outages in by_unit.values():
-        latest = {}  # slot -> (created, revision, MW, group)
-        for outage in unit_outages:
-            group = f"{outage['zone']}|{outage['psr']}|{outage['business']}"
-            created = outage.get("created") or ""
-            for start, end, available in outage["periods"]:
-                # A newer document with the unit fully available still counts:
-                # it overrides older ones.
-                unavailable = max(outage["nominal"] - available, 0.0)
-                rank = (created, outage["revision"], unavailable)
-                slot = max(start, window_start)
-                # First slot boundary at or after the start.
-                slot += (-(slot - window_start)) % STEP
-                last = min(end, window_end)
-                while slot < last:
-                    held = latest.get(slot)
-                    if held is None or rank > held[:3]:
-                        latest[slot] = (*rank, group)
-                    slot += STEP
-        for slot, (_, _, value, group) in latest.items():
+    for unit_outages in by_unit(outages).values():
+        for slot, (_, _, value, group) in unit_slots(unit_outages, window_start, window_end).items():
             if value > 0:
                 totals[group][slot] += value
     return totals
+
+
+def iso(moment):
+    return moment.strftime("%Y-%m-%dT%H:%MZ")
+
+
+def unit_intervals(outages, window_start, window_end):
+    """
+    {unit name: {"zone", "psr", "nominal", "intervals": [[start, end, MW, businessType], ...]}}:
+    each unit's unavailability as counted in the totals, as runs of equal
+    quarter-hours (UTC, "YYYY-MM-DDTHH:MMZ", end exclusive).
+    """
+    result = {}
+    for unit_outages in by_unit(outages).values():
+        slots = unit_slots(unit_outages, window_start, window_end)
+        runs = []
+        for slot in sorted(slots):
+            _, _, value, group = slots[slot]
+            if value <= 0:
+                continue
+            business = group.rsplit("|", 1)[1]
+            if runs and runs[-1][1] == slot and runs[-1][2] == value and runs[-1][3] == business:
+                runs[-1][1] = slot + STEP
+            else:
+                runs.append([slot, slot + STEP, value, business])
+        if not runs:
+            continue
+        # Zone, type and size from the unit's newest document.
+        newest = max(unit_outages, key=lambda o: (o.get("created") or "", o["revision"]))
+        result[newest["unit_name"] or newest["unit"]] = {
+            "zone": newest["zone"],
+            "psr": newest["psr"],
+            "nominal": round(newest["nominal"], 1),
+            "intervals": [[iso(s), iso(e), round(v, 1), b] for s, e, v, b in runs],
+        }
+    return result
+
+
+def merge_units(existing, new, window_start, window_end):
+    """Existing intervals outside [window_start, window_end) (clipped) plus all new ones."""
+    start, end = iso(window_start), iso(window_end)
+    merged = {}
+    for name in set(existing) | set(new):
+        kept = []
+        for s, e, mw, business in existing.get(name, {}).get("intervals", []):
+            if s < start:
+                kept.append([s, min(e, start), mw, business])
+            if e > end:
+                kept.append([max(s, end), e, mw, business])
+        intervals = sorted(kept + new.get(name, {}).get("intervals", []))
+        if intervals:
+            info = new.get(name) or existing[name]
+            merged[name] = {"zone": info["zone"], "psr": info["psr"], "nominal": info["nominal"], "intervals": intervals}
+    return merged
 
 
 def to_rows(slots):
@@ -358,10 +422,26 @@ def main():
     outages = download(token, start_date, end_date)
     print(f"{len(outages):,} active outages")
 
-    totals = quarter_totals(outages, local_midnight_utc(start_date), local_midnight_utc(end_date + timedelta(days=1)))
+    window_start = local_midnight_utc(start_date)
+    window_end = local_midnight_utc(end_date + timedelta(days=1))
+    totals = quarter_totals(outages, window_start, window_end)
     new = {group: to_rows(slots) for group, slots in totals.items()}
     existing = {} if args.full_history else load_existing()
     groups = merge(existing, new, start_date.isoformat(), end_date.isoformat())
+
+    existing_units = {} if args.full_history or not os.path.exists(UNITS_PATH) else compact.load(UNITS_PATH).get("units", {})
+    units = merge_units(existing_units, unit_intervals(outages, window_start, window_end), window_start, window_end)
+    compact.dump({
+        "source": "ENTSO-E Transparency Platform, 15.1.A/B (A80)",
+        "description": (
+            "Unavailability of each Italian generation unit of 100 MW or more as "
+            "counted in outages.json (after the kW/type repairs; where a unit's "
+            "documents overlap the newest holds): runs of equal quarter-hours "
+            "[start, end (exclusive), MW unavailable, A53 planned / A54 forced], UTC."
+        ),
+        "units": dict(sorted(units.items())),
+    }, UNITS_PATH)
+    print(f"Wrote {UNITS_PATH} ({len(units)} units)")
 
     compact.dump({
         "source": "ENTSO-E Transparency Platform, 15.1.A/B (A80)",
