@@ -67,7 +67,7 @@ def parse_time(value):
     return datetime.strptime(value, "%Y-%m-%dT%H:%MZ").replace(tzinfo=timezone.utc)
 
 
-RESOLUTION_MINUTES = {"PT15M": 15, "PT30M": 30, "PT60M": 60, "P1D": 1440}
+RESOLUTION_MINUTES = {"PT1M": 1, "PT15M": 15, "PT30M": 30, "PT60M": 60, "P1D": 1440}
 
 
 def parse_document(doc):
@@ -177,19 +177,25 @@ def unit_types(token):
 
 def repair(outages, types):
     """
-    Documents published from September 2026 give the nominal and available
-    capacity in kW (e.g. VOGHERA 395,500 for Terna's 395.5 MW), and most of
-    them label coal and gas units B09, geothermal.  Rescale them, and take
-    the production type of every B09 document from the ENTSO-E unit list
-    or from the unit's other documents (the one real geothermal unit of
-    100 MW or more, in Tuscany, is listed as B09 there and stays so).
+    Some documents (for outages from September 2026) give the nominal power
+    in kW while the available capacity stays in MW: SIMERI CRICHI, nominal
+    885000.0 with 368 available, is 517 MW out - Terna reports 505 MW for
+    the same days.  Most of them also label coal and gas units B09,
+    geothermal.  Rescale the nominal power (and an available capacity only
+    if it cannot be MW, i.e. exceeds the nominal), and take the production
+    type of every B09 document from the ENTSO-E unit list or from the unit's
+    other documents (the one real geothermal unit of 100 MW or more, in
+    Tuscany, is listed as B09 there and stays so).
     """
     scaled = 0
     scaled_starts = []
     for outage in outages:
         if outage["nominal"] > MAX_UNIT_MW and outage["nominal"] / 1000 <= MAX_UNIT_MW:
             outage["nominal"] /= 1000
-            outage["periods"] = [(s, e, a / 1000) for s, e, a in outage["periods"]]
+            outage["periods"] = [
+                (s, e, a / 1000 if a > outage["nominal"] and a / 1000 <= outage["nominal"] else a)
+                for s, e, a in outage["periods"]
+            ]
             outage["scaled"] = True
             scaled += 1
             scaled_starts += [s for s, _, _ in outage["periods"]]

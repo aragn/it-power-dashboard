@@ -64,6 +64,28 @@ def test_kw_documents_are_rescaled_and_retyped():
     assert fetch_outages.plausible(outage)
 
 
+def test_kw_nominal_with_available_in_mw_keeps_the_available_capacity():
+    # SIMERI CRICHI, Sept 2026: nominal 885000.0 (kW) but 368 MW available -> 517 MW out.
+    doc = outage_doc(points=((1, 368),))
+    doc.find(".//{*}production_RegisteredResource.pSRType.powerSystemResources.nominalP").text = "885000.0"
+    outage = fetch_outages.parse_document(doc)
+    fetch_outages.repair([outage], {"UP_TEST_1": "B04"})
+    assert outage["nominal"] == 885.0
+    assert [a for _, _, a in outage["periods"]] == [368.0]
+    start = datetime(2026, 8, 14, 22, tzinfo=timezone.utc)
+    end = datetime(2026, 8, 15, 22, tzinfo=timezone.utc)
+    rows = fetch_outages.to_rows(fetch_outages.quarter_totals([outage], start, end)["NORD|B04|A54"])
+    assert rows["daily"] == [{"date": "2026-08-15", "value": 517.0}]
+
+
+def test_one_minute_resolution_positions():
+    # Two points at PT1M: 0 MW available for 90 minutes, then 400 (back in service).
+    doc = outage_doc(points=((1, 0), (91, 400)))
+    doc.find(".//{*}resolution").text = "PT1M"
+    periods = fetch_outages.parse_document(doc)["periods"]
+    assert (periods[0][1] - periods[0][0]).total_seconds() == 90 * 60
+
+
 def test_geothermal_label_without_a_known_type_becomes_other():
     doc = outage_doc()
     doc.find(".//{*}production_RegisteredResource.pSRType.psrType").text = "B09"
