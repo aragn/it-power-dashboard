@@ -1,4 +1,4 @@
-"""TEMPORARY: inspect installed capacity and unavailability data (ENTSO-E + Terna)."""
+"""TEMPORARY: inspect installed capacity and unavailability data (ENTSO-E + Terna), pass 2."""
 
 import io
 import os
@@ -15,8 +15,15 @@ ZONES = {
     "SUD": "10Y1001A1001A788", "CALA": "10Y1001C--00096J", "SICI": "10Y1001A1001A75E",
     "SARD": "10Y1001A1001A74G",
 }
+EIC_ZONE = {v: k for k, v in ZONES.items()}
 IT = "10YIT-GRTN-----B"
 TOKEN = os.environ["ENTSOE_API_KEY"]
+REGION_ZONE = {
+    "Valle D'Aosta": "NORD", "Piemonte": "NORD", "Liguria": "NORD", "Lombardia": "NORD",
+    "Trentino Alto Adige": "NORD", "Veneto": "NORD", "Friuli Venezia Giulia": "NORD", "Emilia Romagna": "NORD",
+    "Toscana": "CNOR", "Marche": "CNOR", "Lazio": "CSUD", "Abruzzo": "CSUD", "Campania": "CSUD", "Umbria": "CSUD",
+    "Molise": "SUD", "Puglia": "SUD", "Basilicata": "SUD", "Calabria": "CALA", "Sicilia": "SICI", "Sardegna": "SARD",
+}
 
 
 def txt(e, tag):
@@ -28,61 +35,67 @@ def entsoe(params):
     r = requests.get(API, params={**params, "securityToken": TOKEN}, timeout=180)
     time.sleep(1)
     if r.status_code != 200:
-        return r.status_code, r.text[:300]
+        return r.status_code, r.text[:600]
     if r.content[:2] == b"PK":
         z = zipfile.ZipFile(io.BytesIO(r.content))
         return 200, [ET.fromstring(z.read(n)) for n in z.namelist()]
     return 200, [ET.fromstring(r.content)]
 
 
-def capacity_by_type():
-    print("=" * 90, "\nENTSO-E 14.1.A installed capacity per production type (A68/A33)")
-    for year in (2025, 2026):
-        for zone, eic in [("IT", IT)] + list(ZONES.items()):
-            status, docs = entsoe({"documentType": "A68", "processType": "A33", "in_Domain": eic,
-                                   "periodStart": f"{year}01010000", "periodEnd": f"{year}01020000"})
+def entsoe_capacity_years():
+    print("=" * 90, "\nENTSO-E 14.1.A Italy per year (MW)")
+    for year in range(2019, 2027):
+        status, docs = entsoe({"documentType": "A68", "processType": "A33", "in_Domain": IT,
+                               "periodStart": f"{year}01010000", "periodEnd": f"{year}01020000"})
+        caps = {}
+        for d in docs if status == 200 else []:
+            for ts in d.findall(".//{*}TimeSeries"):
+                caps[txt(ts, "psrType")] = float(txt(ts, "quantity"))
+        print(year, {k: round(v) for k, v in sorted(caps.items()) if v})
+
+
+def entsoe_units_master():
+    print("=" * 90, "\nENTSO-E A95 production and generation units (master data)")
+    status, docs = entsoe({"documentType": "A95", "businessType": "B11", "BiddingZone_Domain": ZONES["SICI"],
+                           "Implementation_DateAndOrTime": "2026-01-01"})
+    print("status", status, str(docs)[:300] if status != 200 else "")
+    if status == 200:
+        tss = [ts for d in docs for ts in d.findall(".//{*}TimeSeries")]
+        print("units:", len(tss))
+        for ts in tss[:2]:
+            print(ET.tostring(ts, encoding="unicode")[:1500])
+        dates = Counter((txt(ts, "implementation_DateAndOrTime.date") or "")[:4] for ts in tss)
+        print("implementation years:", dict(sorted(dates.items())))
+
+
+def entsoe_outages(start, end):
+    """{unit: (zone, psr, businessType, nominal, [(start,end,available)])} for A80 in a window."""
+    units = {}
+    for zone, eic in ZONES.items():
+        offset = 0
+        while True:
+            status, docs = entsoe({"documentType": "A80", "BiddingZone_Domain": eic,
+                                   "periodStart": start, "periodEnd": end, "offset": offset})
             if status != 200:
-                print(year, zone, status, docs[:120]); continue
-            caps = {}
-            for d in docs:
-                for ts in d.findall(".//{*}TimeSeries"):
-                    caps[txt(ts, "psrType")] = float(txt(ts, "quantity"))
-            print(year, zone, "total", round(sum(caps.values())), dict(sorted(caps.items())))
-
-
-def capacity_by_unit():
-    print("=" * 90, "\nENTSO-E 14.1.B installed capacity per production unit (A71/A33)")
-    status, docs = entsoe({"documentType": "A71", "processType": "A33", "in_Domain": IT,
-                           "periodStart": "202601010000", "periodEnd": "202601020000"})
-    print("status", status)
-    if status != 200:
-        print(docs); return
-    tss = [ts for d in docs for ts in d.findall(".//{*}TimeSeries")]
-    print("units:", len(tss))
-    if tss:
-        print("first TimeSeries XML:", ET.tostring(tss[0], encoding="unicode")[:1500])
-    by = defaultdict(float); n = Counter()
-    for ts in tss:
-        by[txt(ts, "psrType")] += float(txt(ts, "quantity") or 0); n[txt(ts, "psrType")] += 1
-    print("per type MW:", {k: round(v) for k, v in sorted(by.items())}, "counts:", dict(n))
-
-
-def outages():
-    print("=" * 90, "\nENTSO-E 15.1 unavailability (A80 generation units, A77 production units), 10-20 Aug 2026")
-    for doc_type in ("A80", "A77"):
-        total_docs = 0; types = Counter(); zones = Counter(); business = Counter(); sample = None
-        for zone, eic in ZONES.items():
-            status, docs = entsoe({"documentType": doc_type, "BiddingZone_Domain": eic,
-                                   "periodStart": "202608100000", "periodEnd": "202608200000"})
-            if status != 200:
-                print(doc_type, zone, status, str(docs)[:160]); continue
-            total_docs += len(docs)
-            for d in docs:
-                types[txt(d, "psrType")] += 1; zones[zone] += 1; business[txt(d, "businessType")] += 1
-                sample = sample or d
-        print(doc_type, "docs:", total_docs, "psrType:", dict(types), "zones:", dict(zones), "businessType:", dict(business))
-        if sample is not None:
-            print("sample:", ET.tostring(sample, encoding="unicode")[:2500])
+                print("  A80", zone, "offset", offset, status, docs[:400]); break
+            real = [d for d in docs if d.tag.endswith("Unavailability_MarketDocument")]
+            for d in real:
+                if txt(d, "docStatus/{*}value") == "A13":  # withdrawn
+                    continue
+                ts = d.find(".//{*}TimeSeries")
+                name = txt(ts, "production_RegisteredResource.pSRType.powerSystemResources.name")
+                units.setdefault((name, txt(d, "mRID")), {
+                    "zone": zone, "psr": txt(ts, "production_RegisteredResource.pSRType.psrType"),
+                    "business": txt(ts, "businessType"),
+                    "nominal": float(txt(ts, "production_RegisteredResource.pSRType.powerSystemResources.nominalP") or 0),
+                    "points": [(txt(p, "start"), txt(p, "end"), float(txt(p, "quantity"))) for p in ts.findall(".//{*}Available_Period")
+                               for _ in [0]] or [],
+                    "start": txt(ts, "start_DateAndOrTime.date"), "end": txt(ts, "end_DateAndOrTime.date"),
+                })
+            if len(docs) < 200 or not real:
+                break
+            offset += 200
+    return units
 
 
 TERNA_TOKEN = {"v": None, "t": 0}
@@ -97,7 +110,7 @@ def terna(path, params):
     for attempt in range(6):
         r = requests.get("https://api.terna.it" + path, params=params, timeout=120,
                          headers={"Authorization": f"Bearer {TERNA_TOKEN['v']}", "Accept": "application/json"})
-        if r.status_code in (429, 403) and "Qps" in r.text or r.status_code == 429:
+        if r.status_code == 429 or (r.status_code == 403 and "Qps" in r.text):
             time.sleep(5 * (attempt + 1)); continue
         time.sleep(3)
         if r.status_code != 200:
@@ -105,52 +118,77 @@ def terna(path, params):
         return r.json()
 
 
-def terna_capacity():
-    print("=" * 90, "\nTERNA installed capacity")
-    for year in (2024, 2025, 2026):
-        res = terna("/generation/v2.0/installed-capacity", {"year": year})
-        print(year, "installed-capacity:", res.get("error") or res.get("installed_capacity"))
-    for path, key in (("/generation/v2.0/renewable-source-capacity", "renewable_source_capacity"),
-                      ("/generation/v2.0/thermoelectric-capacity", "thermoelectric_capacity"),
-                      ("/generation/v2.0/generation-plants", "generation_plants")):
-        for year in (2025, 2024):
-            res = terna(path, {"year": year, "capacityType": "Netta"})
-            if res.get("error"):
-                print(path, year, res); continue
-            recs = next((v for k, v in res.items() if isinstance(v, list)), [])
-            print(path, year, len(recs), "records; keys:", list(res.keys()), "first:", recs[:2])
-            by = defaultdict(float)
-            for r in recs:
-                v = str(r.get("efficient_power_MW", "0")).replace(".", "").replace(",", ".")
-                try:
-                    by[r.get("source") or r.get("subcategory") or r.get("category")] += float(v)
-                except ValueError:
-                    pass
-            print("   MW by source:", {k: round(v) for k, v in by.items()})
-            if recs:
-                break
+def records(res):
+    return next((v for v in res.values() if isinstance(v, list)), [])
 
 
-def terna_outages():
-    print("=" * 90, "\nTERNA generation unit unavailability 10-20 Aug 2026")
-    res = terna("/outages/v1.0/generation-unit-unavailability", {"dateFrom": "10/08/26", "dateTo": "20/08/26"})
+def terna_capacity_years():
+    print("=" * 90, "\nTERNA generation-plants (net, MW) per year and source; per zone for the latest")
+    res = terna("/generation/v2.0/installed-capacity", {"year": 2024})
+    print("installed-capacity 2024 raw:", str(res)[:600])
+    latest = None
+    for year in range(2019, 2027):
+        res = terna("/generation/v2.0/generation-plants", {"year": year, "capacityType": "Netta"})
+        recs = records(res) if not res.get("error") else []
+        by = defaultdict(float)
+        for r in recs:
+            by[r["source"]] += float(r["efficient_power_MW"])
+        print(year, res.get("error") or "", {k: round(v) for k, v in sorted(by.items())}, "total", round(sum(by.values())))
+        if recs:
+            latest = (year, recs)
+    if latest:
+        year, recs = latest
+        zone = defaultdict(lambda: defaultdict(float)); unknown = Counter()
+        for r in recs:
+            z = REGION_ZONE.get(r["region"])
+            if not z:
+                unknown[r["region"]] += 1; continue
+            zone[z][r["source"]] += float(r["efficient_power_MW"])
+        print(f"{year} per zone:")
+        for z in ZONES:
+            print("  ", z, {k: round(v) for k, v in sorted(zone[z].items())})
+        print("   unmapped regions:", dict(unknown))
+    res = terna("/generation/v2.0/generation-plants", {"year": 2025, "capacityType": "Lorda"})
+    by = defaultdict(float)
+    for r in records(res):
+        by[r["source"]] += float(r["efficient_power_MW"])
+    print("2025 gross (Lorda):", {k: round(v) for k, v in sorted(by.items())})
+
+
+def terna_outages(date_from, date_to):
+    res = terna("/outages/v1.0/generation-unit-unavailability", {"dateFrom": date_from, "dateTo": date_to})
     if res.get("error"):
-        print(res); return
-    recs = next((v for k, v in res.items() if isinstance(v, list)), [])
-    print(len(recs), "records; keys:", list(res.keys()))
+        print("terna outages", res); return []
+    recs = records(res)
+    print("TERNA outages", date_from, date_to, len(recs), "records; keys:", list(res.keys()))
     for r in recs[:3]:
         print("  ", r)
-    print("plant_type:", Counter(r.get("plant_type") for r in recs))
-    print("zones:", Counter(r.get("biddingZone") for r in recs))
-    print("outage_type:", Counter(r.get("outage_type") for r in recs))
-    print("status:", Counter(r.get("unavailable_status") for r in recs))
-    caps = sorted(float(str(r.get("installed_capacity") or 0).replace(",", ".")) for r in recs)
-    print("installed_capacity min/median/max:", caps[:1], caps[len(caps)//2:len(caps)//2+1], caps[-1:])
+    for field in ("plant_type", "biddingZone", "outage_type", "unavailable_status"):
+        print("  ", field, dict(Counter(r.get(field) for r in recs)))
+    return recs
+
+
+def compare_outages():
+    print("=" * 90, "\nOUTAGES 15 Aug 2026: ENTSO-E A80 vs Terna")
+    ent = entsoe_outages("202608142200", "202608152200")
+    print("ENTSO-E A80 documents:", len(ent))
+    print("  psr:", dict(Counter(u["psr"] for u in ent.values())), " business:", dict(Counter(u["business"] for u in ent.values())),
+          " zones:", dict(Counter(u["zone"] for u in ent.values())))
+    sample = next(iter(ent.values()), None)
+    print("  sample:", sample)
+    ter = terna_outages("15/08/2026", "15/08/2026")
+    ent_names = {name for name, _ in ent}
+    ter_names = {r.get("unit_name") for r in ter}
+    print("unit names in both:", len(ent_names & ter_names), " only ENTSO-E:", len(ent_names - ter_names),
+          " only Terna:", len(ter_names - ent_names))
+    print("  e.g. only ENTSO-E:", sorted(ent_names - ter_names)[:8])
+    print("  e.g. only Terna:", sorted(n for n in ter_names - ent_names if n)[:8])
 
 
 if __name__ == "__main__":
-    for step in (capacity_by_type, capacity_by_unit, outages, terna_capacity, terna_outages):
+    for step in (entsoe_capacity_years, entsoe_units_master, terna_capacity_years, compare_outages):
         try:
             step()
         except Exception as error:  # keep going: this is a discovery run
-            print("STEP FAILED", step.__name__, repr(error))
+            import traceback
+            print("STEP FAILED", step.__name__, repr(error)); traceback.print_exc()
