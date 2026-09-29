@@ -186,9 +186,11 @@ def compare_outages():
 
 
 if __name__ == "__main__":
-    for step in (entsoe_capacity_years, entsoe_units_master, terna_capacity_years, compare_outages):
-        try:
-            step()
-        except Exception as error:  # keep going: this is a discovery run
-            import traceback
-            print("STEP FAILED", step.__name__, repr(error)); traceback.print_exc()
+    for a, b in (("22/09/2026", "29/09/2026"), ("29/09/2026", "15/10/2026"), ("01/08/2026", "31/08/2026"), ("01/01/2026", "31/01/2026")):
+        recs = terna_outages(a, b)
+        if recs:
+            pub = sorted(r.get("publication_date") for r in recs)
+            starts = sorted(r.get("start_date") for r in recs)
+            print("   publication", pub[0], "->", pub[-1], " start", starts[0], "->", starts[-1])
+            caps = sorted(float(r.get("installed_capacity") or 0) for r in recs)
+            print("   installed_capacity min/max", caps[0], caps[-1])
