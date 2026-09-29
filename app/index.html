@@ -112,6 +112,8 @@
     #chart-mount-prices .zonal-chart-panel { grid-column:1 / -1; }
     @media (max-width: 1050px) { #chart-mount-prices { grid-template-columns:1fr; } }
     .intraday-chart-wrap { height:320px; }
+    .xbid-grid { grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
+    @media (max-width: 1050px) { .xbid-grid { grid-template-columns:1fr; } }
     #chart-mount-interconnection { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { #chart-mount-interconnection { grid-template-columns:1fr; } }
     .crossborder-legend { grid-column:1 / -1; display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; padding:10px 14px; }
@@ -248,6 +250,7 @@
           <section id="intraday-mia1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A1 Zonal Prices</div><div id="intraday-mia1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="intraday-mia1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia1-chart" class="timeline-chart"></div><div id="intraday-mia1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (afternoon); covers the whole day.</div></section>
           <section id="intraday-mia2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A2 Zonal Prices</div><div id="intraday-mia2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="intraday-mia2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia2-chart" class="timeline-chart"></div><div id="intraday-mia2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (evening); covers the whole day.</div></section>
           <section id="intraday-mia3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A3 Zonal Prices</div><div id="intraday-mia3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="intraday-mia3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia3-chart" class="timeline-chart"></div><div id="intraday-mia3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held on the day (morning); covers only the afternoon and evening, so its daily average is for those hours.</div></section>
+          <div class="xbid-grid"><section id="intraday-xbid60-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-XBID 60 min Zonal Prices</div><div id="intraday-xbid60-subtitle" class="chart-subtitle">Continuous trading</div></div></div><div id="intraday-xbid60-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-xbid60-chart" class="timeline-chart"></div><div id="intraday-xbid60-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Reference price: the volume-weighted average price of all trades of each hourly product (all trading phases), published the day after delivery. In the 15-minute view each hour's price is repeated over its quarter-hours. Hours without trades have no price; the line joins the traded ones.</div></section><section id="intraday-xbid15-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-XBID 15 min Zonal Prices</div><div id="intraday-xbid15-subtitle" class="chart-subtitle">Continuous trading</div></div></div><div id="intraday-xbid15-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-xbid15-chart" class="timeline-chart"></div><div id="intraday-xbid15-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Reference price: the volume-weighted average price of all trades of each 15-minute product (all trading phases), published the day after delivery. Hourly and daily views average the traded quarter-hours. Quarter-hours without trades have no price; the line joins the traded ones.</div></section></div>
         </div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
@@ -6369,18 +6372,18 @@
     return `${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €/MWh`;
   }
 
-  function intradayTooltip(market) {
+  /* zoneMaps: zone -> (bucket key -> EUR/MWh) of one market. */
+  function zonePriceTooltip(market, zoneMaps) {
     return params => {
       if (!params || !params.length) return "";
       const row = market.timeline.rows[params[0].dataIndex];
-      const lookups = getIntradayLookups();
-      if (!row || !lookups) return "";
+      if (!row) return "";
 
       const lines = ZONAL_ORDER
         .map((zone, index) => ({ zone, index }))
         .filter(item => zonalSelected[ZONAL_LABELS[item.zone]] !== false)
         .map(item => {
-          const value = lookupValue(lookups[market.code][item.zone], row.key);
+          const value = lookupValue(zoneMaps[item.zone], row.key);
           return tooltipRow(
             cssVar(ZONAL_LINE_COLOR_VARS[item.index]),
             ZONAL_LABELS[item.zone],
@@ -6406,14 +6409,20 @@
     }
 
     resetTimeline(market.timeline);
-    setChartSubtitle(subtitleId, `${priceMeasure()} · ${market.coverage}`);
+    renderZonePriceChart(market, lookups[market.code], `${priceMeasure()} · ${market.coverage}`);
+  }
+
+  /* One line per zone, on market.timeline (already reset).  joinGaps: draw
+     the line across slots without a price (untraded continuous products). */
+  function renderZonePriceChart(market, zoneMaps, subtitle, joinGaps = false) {
+    setChartSubtitle(`intraday-${market.id}-subtitle`, subtitle);
 
     const series = ZONAL_ORDER.map((zone, index) => ({
       name: ZONAL_LABELS[zone],
       type: "line",
-      data: market.timeline.rows.map(row => lookupValue(lookups[market.code][zone], row.key)),
+      data: market.timeline.rows.map(row => lookupValue(zoneMaps[zone], row.key)),
       showSymbol: false,
-      connectNulls: false,
+      connectNulls: joinGaps,
       lineStyle: { color: cssVar(ZONAL_LINE_COLOR_VARS[index]), width: 1.4 },
       itemStyle: { color: cssVar(ZONAL_LINE_COLOR_VARS[index]) },
       emphasis: { focus: "series" }
@@ -6427,7 +6436,7 @@
         data: series.map(item => item.name),
         selected: { ...zonalSelected }
       },
-      tooltip: timelineTooltip(intradayTooltip(market)),
+      tooltip: timelineTooltip(zonePriceTooltip(market, zoneMaps)),
       grid: { left: CHART_GRID.left, right: 16, top: 20, bottom: CHART_GRID.bottom, containLabel: false },
       // Keep the date labels at the bottom when prices go negative.
       xAxis: timelineXAxis(market.timeline, { onZero: false }),
@@ -6454,6 +6463,121 @@
     attachDragZoom(market.chart, `intraday-${market.id}-wrap`, `intraday-${market.id}-drag`);
   });
 
+  /* ============================================================
+     CONTINUOUS INTRADAY ZONAL PRICES (GME MI-XBID)
+     ============================================================ */
+
+  /*
+   * GME's reference price ("Riferimento", the volume-weighted average price
+   * of all trades) of the 60-minute and 15-minute products, from the
+   * results of all trading phases ("Esiti totali").  Same zones, colours
+   * and legend as the auction charts; the two charts share one y-axis
+   * range.  The 60-minute price is repeated over its quarter-hours in the
+   * 15-minute view; the 15-minute prices are averaged in the hourly and
+   * daily views (both done in the ETL except the repetition).
+   */
+  const XBID_MARKETS = [
+    { code: "XBID-60", id: "xbid60", coverage: "60-minute products" },
+    { code: "XBID-15", id: "xbid15", coverage: "15-minute products" }
+  ].map(market => {
+    const chart = echarts.init(document.getElementById(`intraday-${market.id}-chart`));
+    return { ...market, chart, timeline: createTimeline(chart) };
+  });
+
+  let rawXbidData = null;
+  let xbidStatus = "loading"; // "loading" | "ready" | "missing"
+  const xbidCache = {};
+
+  async function loadXbidData() {
+    try {
+      const response = await fetch("./data/xbid_prices.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawXbidData = decodeCompactPayload(await response.json());
+      xbidStatus = "ready";
+    } catch (error) {
+      console.warn("MI-XBID price data unavailable:", error);
+      xbidStatus = "missing";
+    }
+    updateView();
+  }
+
+  /* Rows for one product and zone; the hourly product repeats its price
+     over the quarter-hours in the 15-minute view. */
+  function xbidRows(market, zone) {
+    const resolution = timelineResolutionKey();
+    const series = ((rawXbidData.markets || {})[market] || {})[zone] || {};
+    if (resolution === "quarter_hourly" && market === "XBID-60") {
+      return quarterHourlyWithHistory([], series.hourly || [], "9999-12-31");
+    }
+    return series[resolution] || [];
+  }
+
+  /* Per resolution: product -> zone -> (bucket key -> EUR/MWh). */
+  function getXbidLookups() {
+    if (!rawXbidData) return null;
+
+    const resolution = timelineResolutionKey();
+    if (xbidCache[resolution]) return xbidCache[resolution];
+
+    const lookups = {};
+    XBID_MARKETS.forEach(market => {
+      lookups[market.code] = {};
+      ZONAL_ORDER.forEach(zone => {
+        lookups[market.code][zone] = new Map(
+          xbidRows(market.code, zone).map(row => [timelineBucketKey(row), Number(row.price)])
+        );
+      });
+    });
+
+    xbidCache[resolution] = lookups;
+    return lookups;
+  }
+
+  function xbidMeasure(market) {
+    if (currentGranularity === "quarter" && market.code === "XBID-60") return "Hourly price in 15-minute steps";
+    if (currentGranularity === "hourly" && market.code === "XBID-15") return "Hourly average price";
+    return priceMeasure();
+  }
+
+  function renderXbidCharts() {
+    const lookups = getXbidLookups();
+    XBID_MARKETS.forEach(market => {
+      const subtitleId = `intraday-${market.id}-subtitle`;
+      if (!lookups || !rawData) {
+        market.chart.clear();
+        setChartSubtitle(subtitleId, xbidStatus === "loading"
+          ? "Loading continuous trading prices…"
+          : "Continuous trading prices not available yet");
+        return;
+      }
+
+      resetTimeline(market.timeline);
+      const hasData = market.timeline.rows.some(row =>
+        ZONAL_ORDER.some(zone => lookups[market.code][zone].has(row.key)));
+      if (!hasData) {
+        // The totals of a day are published the day after delivery.
+        market.chart.clear();
+        setChartSubtitle(subtitleId, "Results for these dates are not published yet (the day after delivery)");
+        return;
+      }
+
+      renderZonePriceChart(market, lookups[market.code], `${xbidMeasure(market)} · ${market.coverage}`, true);
+    });
+    syncXbidAxes();
+  }
+
+  function syncXbidAxes() {
+    // Only the charts drawn: one can be empty while its results are pending.
+    const charts = XBID_MARKETS.map(market => market.chart)
+      .filter(chart => ((chart.getOption() || {}).series || []).length);
+    if (charts.length) shareValueAxis(charts);
+  }
+
+  XBID_MARKETS.forEach(market => {
+    market.chart.on("datazoom", syncXbidAxes);
+    attachDragZoom(market.chart, `intraday-${market.id}-wrap`, `intraday-${market.id}-drag`);
+  });
+
   /* Shared zone legend: one click toggles the zone on every price chart. */
   (function buildZonalLegend() {
     const legend = document.getElementById("zonal-legend");
@@ -6473,10 +6597,11 @@
         button.classList.toggle("off", !visible);
         button.setAttribute("aria-pressed", String(visible));
 
-        [zonalChart, ...INTRADAY_MARKETS.map(market => market.chart)].forEach(chart => {
+        [zonalChart, ...INTRADAY_MARKETS.map(market => market.chart), ...XBID_MARKETS.map(market => market.chart)].forEach(chart => {
           chart.dispatchAction({ type: visible ? "legendSelect" : "legendUnSelect", name });
         });
         syncIntradayAxes();
+        syncXbidAxes();
       });
 
       legend.appendChild(button);
@@ -6639,7 +6764,12 @@
       mount.style.display = "grid";
 
       renderZonalChart();
-      setTimeout(renderIntradayCharts, 0);
+      setTimeout(() => {
+        // Another tab may have been opened in the meantime.
+        if (!zonalChartSection.isConnected) return;
+        renderIntradayCharts();
+        renderXbidCharts();
+      }, 0);
 
       setTimeout(() => {
         // Another tab may have been opened in the meantime.
@@ -6814,6 +6944,7 @@
     updateView();
     loadCrossBorderData();
     loadIntradayData();
+    loadXbidData();
     loadNeighbourPrices();
     loadCouplingData();
     loadForecastData();
@@ -6832,6 +6963,7 @@
     couplingCharts.forEach(chart => chart.resize());
     crossBorderNetChart.resize();
     INTRADAY_MARKETS.forEach(market => market.chart.resize());
+    XBID_MARKETS.forEach(market => market.chart.resize());
   });
 
   /* ============================================================

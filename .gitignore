@@ -10,6 +10,7 @@ app/data/zonal_prices.json
 app/data/generation_load.json
 app/data/crossborder.json
 app/data/intraday_prices.json
+app/data/xbid_prices.json
 app/data/neighbour_prices.json
 app/data/coupling.json
 app/data/forecasts.json
