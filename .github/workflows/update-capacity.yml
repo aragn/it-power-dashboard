@@ -66,6 +66,14 @@ jobs:
           echo "Running: python etl/fetch_outages.py ${ARGS[*]}"
           python etl/fetch_outages.py "${ARGS[@]}"
 
+      - name: TEMPORARY check Terna outages against ENTSO-E
+        if: github.event_name == 'push'
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+          TERNA_KEY: ${{ secrets.TERNA_KEY }}
+          TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
+        run: python etl/check_outages.py
+
       - name: Publish updated data to the data branch
         run: |
           FILES=(app/data/outages.json)

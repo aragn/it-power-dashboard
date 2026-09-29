@@ -35,6 +35,7 @@ OUTPUT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "d
 
 IT_DOMAIN = "10YIT-GRTN-----B"
 FIRST_YEAR = 2019
+MAX_UNIT_MW = 5000
 
 ZONE_EIC = {
     "10Y1001A1001A73I": "NORD", "10Y1001A1001A70O": "CNOR", "10Y1001A1001A71M": "CSUD",
@@ -111,7 +112,12 @@ def entsoe_pumped_by_zone(token, year):
         if ts.find(".//{*}psrType").text != "B10":
             continue
         zone = ZONE_EIC.get(ts.find("{*}inBiddingZone_Domain.mRID").text)
-        zones[zone] += float(ts.find(".//{*}quantity").text)
+        quantity = float(ts.find(".//{*}quantity").text)
+        # A year not yet published has come back with absurd values
+        # (978 GW in NORD for 2027); no single unit is anywhere near 5 GW.
+        if zone is None or quantity > MAX_UNIT_MW:
+            continue
+        zones[zone] += quantity
     return dict(zones) or None
 
 
@@ -166,7 +172,8 @@ def main():
             continue
         if caps:
             entsoe[year] = caps
-        if pumped:
+        # Unit data only for years ENTSO-E has published (14.1.A present).
+        if caps and pumped:
             units[year] = pumped
         print(f"ENTSO-E {year}: {'no data' if not caps else round(sum(caps.values()))} MW, pumped units by zone {pumped}")
 

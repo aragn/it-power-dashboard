@@ -52,6 +52,7 @@ LOOKAHEAD_DAYS = 14     # planned outages ahead
 WINDOW_DAYS = 31
 PAGE_SIZE = 200         # the API returns at most 200 documents per request
 DROPPED_STATUS = {"A09", "A13"}  # cancelled, withdrawn
+MAX_UNIT_MW = 5000      # no Italian unit is anywhere near this
 STEP = timedelta(minutes=15)
 RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
 
@@ -99,6 +100,7 @@ def parse_document(doc):
         "unit": (text(ts, "production_RegisteredResource.pSRType.powerSystemResources.mRID")
                  or text(ts, "production_RegisteredResource.pSRType.powerSystemResources.name")
                  or text(doc, "mRID")),
+        "unit_name": text(ts, "production_RegisteredResource.pSRType.powerSystemResources.name"),
         "nominal": float(nominal),
         "periods": periods,
     }
@@ -143,7 +145,26 @@ def download(token, start_date, end_date):
                 offset += PAGE_SIZE
             print(f"  {zone} {window_start} -> {window_end}: {len(outages):,} outages so far")
             window_start = window_end + timedelta(days=1)
-    return [o for o in outages.values() if o["status"] not in DROPPED_STATUS]
+    active = [o for o in outages.values() if o["status"] not in DROPPED_STATUS]
+    return [o for o in active if plausible(o)]
+
+
+def plausible(outage):
+    """
+    Some documents carry impossible values (a nominal power of hundreds of
+    GW, or an available capacity outside 0..nominal).  Drop the first and
+    clamp the second, logging both so they can be checked at the source.
+    """
+    if not 0 < outage["nominal"] <= MAX_UNIT_MW:
+        print(f"  DROPPED {outage['unit']} {outage['zone']} {outage['psr']} {outage['business']}: "
+              f"nominal {outage['nominal']:,.0f} MW (mRID {outage['mrid']})")
+        return False
+    bad = [a for _, _, a in outage["periods"] if not 0 <= a <= outage["nominal"]]
+    if bad:
+        print(f"  CLAMPED {outage['unit']} {outage['zone']} {outage['psr']} {outage['business']}: "
+              f"nominal {outage['nominal']:,.0f} MW, available {min(bad):,.0f}..{max(bad):,.0f} MW")
+        outage["periods"] = [(s, e, min(max(a, 0.0), outage["nominal"])) for s, e, a in outage["periods"]]
+    return True
 
 
 def quarter_totals(outages, window_start, window_end):
