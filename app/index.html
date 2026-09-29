@@ -24,7 +24,7 @@
       --chart-tooltip-bg:#171b20; --chart-tooltip-border:#30363e; --chart-tooltip-text:#f1f3f5; --chart-tooltip-muted:#9aa2ac; --chart-pointer:#5d6670;
       --chart-axis-line:#30353c; --chart-axis-label:#727a84; --chart-grid:#20252b; --chart-legend:#b4bbc4;
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
-      --chart-pun:#d9dde2; --chart-eua:#e7a84b; --res-actual:#d9dde2; --chart-total-load:#f28c28; --res-day-ahead:#5b9cff; --res-intraday:#d55181; --chart-generation:#5ecb8a; --chart-load:#5b9cff; --chart-residual:#e0e3e7;
+      --chart-pun:#d9dde2; --chart-eua:#e7a84b; --res-actual:#d9dde2; --res-day-ahead:#5b9cff; --res-intraday:#d55181; --chart-generation:#5ecb8a; --chart-load:#5b9cff; --chart-residual:#e0e3e7;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
       --mix-coal:#b8c2d0; --mix-geothermal:#b5651d; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
       --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
@@ -40,7 +40,7 @@
       --chart-tooltip-bg:#ffffff; --chart-tooltip-border:#d5dae0; --chart-tooltip-text:#14171a; --chart-tooltip-muted:#66707b; --chart-pointer:#a3aab3;
       --chart-axis-line:#cfd4da; --chart-axis-label:#66707b; --chart-grid:#eceef1; --chart-legend:#3f4750;
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
-      --chart-pun:#1f2429; --chart-eua:#b36b00; --res-actual:#1f2429; --chart-total-load:#c25e00; --res-day-ahead:#2f6fdb; --res-intraday:#c93d74; --chart-generation:#1f9d57; --chart-load:#2f6fdb; --chart-residual:#3d434b;
+      --chart-pun:#1f2429; --chart-eua:#b36b00; --res-actual:#1f2429; --res-day-ahead:#2f6fdb; --res-intraday:#c93d74; --chart-generation:#1f9d57; --chart-load:#2f6fdb; --chart-residual:#3d434b;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
       --mix-coal:#4b5563; --mix-geothermal:#9c5a3c; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
       --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
@@ -233,7 +233,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Orange: total load including self-consumption (Terna). Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal and the total load including self-consumption are from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -2484,10 +2484,8 @@
       });
     };
     const residual = getResidualLookups();
-    const totalLoad = ternaMap("total_load");
     rows.forEach(row => {
       row.residual = residual ? lookupValue(residual.actual, generationLoadCategoryKey(row)) : null;
-      row.totalLoad = lookupValue(totalLoad, generationLoadCategoryKey(row));
     });
     const generationForecast = continuation('generation', forecasts && forecasts.generation);
     const loadForecast = continuation('load', forecasts && forecasts.load);
@@ -2499,7 +2497,7 @@
     });
 
     const values = rows
-      .flatMap(row => [row.generation, row.load, row.residual, row.totalLoad, row.generationForecast, row.loadForecast, row.residualForecast])
+      .flatMap(row => [row.generation, row.load, row.residual, row.generationForecast, row.loadForecast, row.residualForecast])
       .filter(v => Number.isFinite(v));
 
     if (!values.length) {
@@ -2546,8 +2544,7 @@
             (Number.isFinite(row.loadForecast) ? `<div>${LOAD_FORECAST_NAME}: <b>${amount(row.loadForecast)}</b></div>` : '') +
             (Number.isFinite(row.residualForecast) ? `<div>${RESIDUAL_FORECAST_NAME}: <b>${amount(row.residualForecast)}</b></div>` : '');
           const residualLine = Number.isFinite(row.residual) ? `<div>${RESIDUAL_LOAD_NAME}: <b>${amount(row.residual)}</b></div>` : '';
-          const totalLoadLine = Number.isFinite(row.totalLoad) ? `<div>${TOTAL_LOAD_NAME}: <b>${amount(row.totalLoad)}</b></div>` : '';
-          return `<div style="margin-bottom:4px;color:${cssVar('--chart-tooltip-muted')};">${dateText}${timeText}</div><div>Generation: <b>${genText}</b></div><div>Actual load: <b>${loadText}</b></div>${totalLoadLine}${residualLine}${forecastLines}`;
+          return `<div style="margin-bottom:4px;color:${cssVar('--chart-tooltip-muted')};">${dateText}${timeText}</div><div>Generation: <b>${genText}</b></div><div>Actual load: <b>${loadText}</b></div>${residualLine}${forecastLines}`;
         }
       },
       xAxis: {
@@ -2603,12 +2600,6 @@
           data: loadForecast,
           smooth: false, showSymbol: false, connectNulls: false,
           lineStyle: { color: cssVar('--chart-load'), width: 1.3, type: 'dashed' }, itemStyle: { color: cssVar('--chart-load') }
-        },
-        {
-          name: TOTAL_LOAD_NAME, type: 'line',
-          data: rows.map(r => r.totalLoad),
-          smooth: false, showSymbol: false, connectNulls: false,
-          lineStyle: { color: cssVar('--chart-total-load'), width: 1.3 }, itemStyle: { color: cssVar('--chart-total-load') }
         },
         {
           name: RESIDUAL_LOAD_NAME, type: 'line',
@@ -4890,7 +4881,6 @@
         loadForecast: forecasts ? lookupValue(forecasts.load, row.key) : null,
         generationForecast: forecasts ? lookupValue(forecasts.generation, row.key) : null,
         residual: residual ? lookupValue(residual.actual, row.key) : null,
-        totalLoad: lookupValue(ternaMap("total_load"), row.key),
         residualForecast: residual ? lookupValue(residual.forecast, row.key) : null
       };
     });
@@ -4909,9 +4899,6 @@
 
     if (shown(MIX_LOAD_NAME) && row.load !== null) {
       html += tooltipRow(cssVar("--chart-load"), MIX_LOAD_NAME, `${formatChartNumber(row.load)} ${unit}`, "line");
-    }
-    if (shown(TOTAL_LOAD_NAME) && row.totalLoad !== null) {
-      html += tooltipRow(cssVar("--chart-total-load"), TOTAL_LOAD_NAME, `${formatChartNumber(row.totalLoad)} ${unit}`, "line");
     }
     if (shown(LOAD_FORECAST_NAME) && row.loadForecast !== null) {
       html += tooltipRow(cssVar("--chart-load"), LOAD_FORECAST_NAME, `${formatChartNumber(row.loadForecast)} ${unit}`, "dashed");
@@ -5040,18 +5027,6 @@
         connectNulls: false,
         lineStyle: { color: cssVar("--chart-load"), width: 2 },
         itemStyle: { color: cssVar("--chart-load") },
-        z: 5
-      },
-      {
-        name: TOTAL_LOAD_NAME,
-        type: "line",
-        xAxisIndex: 0,
-        yAxisIndex: 0,
-        data: rows.map(row => row.totalLoad),
-        showSymbol: false,
-        connectNulls: false,
-        lineStyle: { color: cssVar("--chart-total-load"), width: 1.5 },
-        itemStyle: { color: cssVar("--chart-total-load") },
         z: 5
       },
       // The day-ahead forecasts over the whole range, dashed in the colours
@@ -5351,10 +5326,8 @@
 
 
   /* ============================================================
-     TERNA: GEOTHERMAL GENERATION AND TOTAL LOAD
+     TERNA: GEOTHERMAL GENERATION (TOTAL LOAD KEPT IN THE DATA, NOT SHOWN)
      ============================================================ */
-
-  const TOTAL_LOAD_NAME = "Total load (incl. self-consumption)";
 
   let rawTernaData = null;
   const ternaCache = {};
