@@ -92,6 +92,11 @@ RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
 
 # Incremental runs re-read this many days (corrections, final Terna values).
 LOOKBACK_DAYS = 3
+
+# The history starts here; routine runs fill Terna's gaps before the
+# lookback window TERNA_CATCH_UP_DAYS at a time (see main).
+HISTORY_START = date(2025, 1, 1)
+TERNA_CATCH_UP_DAYS = 28
 BID_RETENTION_DAYS = 35
 
 # Request sizes: ENTSO-E allows a year per request (the PICASSO prices one
@@ -560,6 +565,12 @@ def imbalance_rows(client, first, last):
     return rows
 
 
+def terna_gap(series, before):
+    """Days from HISTORY_START to before (excluded) without Terna's macrozonal imbalance."""
+    have = {row["date"] for row in series["daily"].get("NORD|imbalance_volume", [])}
+    return [day for day in market_days(HISTORY_START, before - timedelta(days=1)) if day.isoformat() not in have]
+
+
 def fetch_terna(start_day, end_day):
     client = Client(os.environ["TERNA_KEY"], os.environ["TERNA_SECRET"])
     records = []
@@ -576,7 +587,7 @@ def fetch_terna(start_day, end_day):
                         lambda r, f=field: r.get(f))
     except TernaRefused as error:
         # Keep what came in; a later run fills the rest.
-        print(f"  Terna stopped refusing requests at the week of {first}: rerun from {first} ({error})")
+        print(f"  Terna kept refusing requests at the week of {first}: stopped, to go on from there later ({error})")
         return records
 
     # Reserve requirements: one request per MSD session and chunk; each
@@ -805,6 +816,17 @@ def main():
             series = merge(series, fetch(start_day, last))
         except Exception as error:  # one source failing must not lose the others
             print(f"  {name} failed: {error!r}")
+    if "terna" in sources and not args.start:
+        # Terna refuses requests beyond a quota, so its history is filled a
+        # few weeks per routine run, oldest gap first.
+        missing = terna_gap(series, start_day)
+        if missing:
+            last = min(missing[0] + timedelta(days=TERNA_CATCH_UP_DAYS - 1), start_day - timedelta(days=1))
+            print(f"  Terna catch-up {missing[0]} -> {last} ({len(missing)} days missing)")
+            try:
+                series = merge(series, fetch_terna(missing[0], last))
+            except Exception as error:
+                print(f"  Terna catch-up failed: {error!r}")
     if "bids" in sources:
         # Bids are not revised once published: routine runs fetch only
         # yesterday (its last hours) and today, and none are kept beyond

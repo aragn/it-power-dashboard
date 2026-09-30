@@ -180,3 +180,9 @@ def test_picasso_prices_split_the_25_hour_day(monkeypatch):
     windows.clear()
     fb.picasso_prices("t", date(2026, 9, 28))
     assert windows == [("202609272200", "202609282200")]
+
+
+def test_terna_gap_lists_days_without_imbalance_volume():
+    from datetime import date
+    series = {"daily": {"NORD|imbalance_volume": [{"date": "2025-01-02", "value": 1.0}]}}
+    assert fb.terna_gap(series, date(2025, 1, 4)) == [date(2025, 1, 1), date(2025, 1, 3)]
