@@ -7626,7 +7626,7 @@
     const italy = zone === "IT";
     document.getElementById("depth-note").textContent = shown.length
       ? (italy
-        ? "All zones' bids (ENTSO-E 12.3.B&C) stacked in merit order for the quarter-hour chosen: cumulative MW against the bid price, up cheapest first, down highest price first; log price scale. PICASSO selects Italy's standard aFRR bids nationally (one cross-border marginal price, the horizontal line); local aFRR is activated per area (Continent, Sicily, Sardinia) and RR zone by zone within the transmission limits, so those curves show the combined offer rather than one auction. Vertical line: the MW activated in Italy. "
+        ? "All zones' bids (ENTSO-E 12.3.B&C) stacked in merit order for the quarter-hour chosen: cumulative MW against the bid price, up cheapest first, down highest price first; log price scale. Bids go to one national platform, but only PICASSO settles them at one price for Italy (its cross-border marginal price, the horizontal line): Terna activates local aFRR per regulation area (Continent, Sicily, Sardinia) and RR within the transmission limits, each accepted bid paid its own price. Vertical line: the MW activated in Italy. "
         : "The zone's bids (ENTSO-E 12.3.B&C) in merit order for the quarter-hour chosen: cumulative MW against the bid price, up cheapest first, down highest price first; log price scale. Horizontal line: the activation price of that quarter-hour; vertical line: the MW activated in the zone. ") +
         `Bids are kept for the last 35 days; the strip under the slider marks the days with bids in the date range (${shown.length} of ${days.length}).`
       : "No bids in the date range: bids are kept for the last 35 days.";
