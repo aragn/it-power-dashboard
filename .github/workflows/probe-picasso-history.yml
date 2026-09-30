@@ -1,0 +1,20 @@
+name: TEMPORARY probe PICASSO history
+on:
+  push:
+    branches: [picasso-history]
+    paths: [etl/probe_picasso_history.py]
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - run: cd etl && python probe_picasso_history.py
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
