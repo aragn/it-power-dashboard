@@ -186,3 +186,17 @@ def test_terna_gap_lists_days_without_imbalance_volume():
     from datetime import date
     series = {"daily": {"NORD|imbalance_volume": [{"date": "2025-01-02", "value": 1.0}]}}
     assert fb.terna_gap(series, date(2025, 1, 4)) == [date(2025, 1, 1), date(2025, 1, 3)]
+
+
+def test_standard_aFRR_before_local_selection_comes_from_the_aFRR_document(monkeypatch):
+    # Until late June 2026 the standard product's activations were in A51.
+    doc = ET.fromstring(
+        f'<Balancing_MarketDocument xmlns="{NS}"><TimeSeries><businessType>A14</businessType>'
+        "<standard_MarketProduct.marketProductType>A01</standard_MarketProduct.marketProductType>"
+        "<flowDirection.direction>A01</flowDirection.direction><curveType>A03</curveType><Period><timeInterval>"
+        "<start>2026-05-10T10:00Z</start><end>2026-05-10T10:15Z</end></timeInterval><resolution>PT15M</resolution>"
+        "<Point><position>1</position><quantity>400</quantity><secondaryQuantity>73</secondaryQuantity></Point>"
+        "</Period></TimeSeries></Balancing_MarketDocument>")
+    monkeypatch.setattr(fb, "entsoe_get", lambda token, params: doc)
+    assert [(r["group"], r["value"]) for r in fb.activated_volumes("t", "NORD", "eic", "A51", "", "")] == [
+        ("NORD|activated_picasso_up", 73.0)]
