@@ -94,9 +94,12 @@ RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
 LOOKBACK_DAYS = 3
 
 # The history starts here; routine runs fill Terna's gaps before the
-# lookback window TERNA_CATCH_UP_DAYS at a time (see main).
+# lookback window a few weeks at a time (see main): Terna allows 300 calls
+# a day per key, which the routine runs share with the catch-up unless a
+# second key is set.
 HISTORY_START = date(2025, 1, 1)
 TERNA_CATCH_UP_DAYS = 28
+TERNA_CATCH_UP_DAYS_SHARED_KEY = 7
 BID_RETENTION_DAYS = 35
 
 # Request sizes: ENTSO-E allows a year per request (the PICASSO prices one
@@ -242,8 +245,15 @@ def imbalance_prices(token, zone, eic, start, end):
                          ((instant, seconds, price) for instant, (seconds, price) in prices.items()))
 
 
-# (processType, businessType, product) of the zone activation prices.
+# (processType, businessType, product) of the zone activation prices.  The
+# standard aFRR product (PICASSO) was published with the specific one (A16)
+# until late June 2026 and under A68 since: A68 comes later, so its values
+# win where both exist.
 ACTIVATION_PRICES = (("A16", "A96", "afrr"), ("A68", "A96", "picasso"), ("A16", "A98", "rr"))
+
+
+def standard_product(ts):
+    return _text(ts, "standard_MarketProduct.marketProductType") == "A01"
 
 
 def activation_prices(token, zone, eic, start, end):
@@ -254,7 +264,11 @@ def activation_prices(token, zone, eic, start, end):
                                   "controlArea_Domain": eic, "periodStart": start, "periodEnd": end})
         for ts in _series(root):
             direction = DIRECTIONS.get(_text(ts, "flowDirection.direction"))
-            records += point_records(f"{zone}|price_{product}_{direction}",
+            if product == "afrr" and standard_product(ts):
+                product_of_ts = "picasso"
+            else:
+                product_of_ts = product
+            records += point_records(f"{zone}|price_{product_of_ts}_{direction}",
                                      expand_points(ts, lambda p: number(p, "activation_Price.amount")))
     return records
 
@@ -274,18 +288,18 @@ def drop_idle_prices(records):
 
 def activated_volumes(token, area, eic, process, start, end):
     """
-    12.3.E: activated MW (secondaryQuantity) per product and direction.  In
-    the aFRR document (A51) the standard product's activations are always
-    0: they are published under A68.
+    12.3.E: activated MW (secondaryQuantity) per product and direction.  The
+    standard aFRR product (PICASSO) was published in the aFRR document
+    (A51) until late June 2026 and under A68 since (A51 then reads 0):
+    A68 is fetched after A51, so its values win where both exist.
     """
     root = entsoe_get(token, {"documentType": "A24", "processType": process, "area_Domain": eic,
                               "curveType": "A03", "periodStart": start, "periodEnd": end})
     records = []
     for ts in _series(root):
-        if process == "A51" and _text(ts, "standard_MarketProduct.marketProductType") == "A01":
-            continue
         direction = DIRECTIONS.get(_text(ts, "flowDirection.direction"))
-        product = {"A51": "afrr", "A68": "picasso", "A46": "rr", "A67": "central"}[process]
+        product = {"A51": "picasso" if standard_product(ts) else "afrr", "A68": "picasso", "A46": "rr",
+                   "A67": "central"}[process]
         records += point_records(f"{area}|activated_{product}_{direction}",
                                  expand_points(ts, lambda p: number(p, "secondaryQuantity")))
     return records
@@ -571,8 +585,8 @@ def terna_gap(series, before):
     return [day for day in market_days(HISTORY_START, before - timedelta(days=1)) if day.isoformat() not in have]
 
 
-def fetch_terna(start_day, end_day):
-    client = Client(os.environ["TERNA_KEY"], os.environ["TERNA_SECRET"])
+def fetch_terna(start_day, end_day, keys=("TERNA_KEY", "TERNA_SECRET")):
+    client = Client(os.environ[keys[0]], os.environ[keys[1]])
     records = []
     try:
         for first, last in day_chunks(start_day, end_day, 7):
@@ -817,14 +831,19 @@ def main():
         except Exception as error:  # one source failing must not lose the others
             print(f"  {name} failed: {error!r}")
     if "terna" in sources and not args.start:
-        # Terna refuses requests beyond a quota, so its history is filled a
-        # few weeks per routine run, oldest gap first.
+        # Terna allows 300 calls a day per key, so its history is filled a
+        # few weeks per routine run, newest gap first; with a second key
+        # (TERNA_KEY_2 / TERNA_SECRET_2) the catch-up has its own quota.
         missing = terna_gap(series, start_day)
         if missing:
-            last = min(missing[0] + timedelta(days=TERNA_CATCH_UP_DAYS - 1), start_day - timedelta(days=1))
-            print(f"  Terna catch-up {missing[0]} -> {last} ({len(missing)} days missing)")
+            second_key = bool(os.environ.get("TERNA_KEY_2") and os.environ.get("TERNA_SECRET_2"))
+            days = TERNA_CATCH_UP_DAYS if second_key else TERNA_CATCH_UP_DAYS_SHARED_KEY
+            first = max(missing[-1] - timedelta(days=days - 1), HISTORY_START)
+            print(f"  Terna catch-up {first} -> {missing[-1]} ({len(missing)} days missing, "
+                  f"{'second' if second_key else 'main'} key)")
             try:
-                series = merge(series, fetch_terna(missing[0], last))
+                keys = ("TERNA_KEY_2", "TERNA_SECRET_2") if second_key else ("TERNA_KEY", "TERNA_SECRET")
+                series = merge(series, fetch_terna(first, missing[-1], keys))
             except Exception as error:
                 print(f"  Terna catch-up failed: {error!r}")
     if "bids" in sources:

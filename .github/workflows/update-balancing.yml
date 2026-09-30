@@ -53,6 +53,9 @@ jobs:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
           TERNA_KEY: ${{ secrets.TERNA_KEY }}
           TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
+          # A second Terna key, only for filling the history (300 calls a day per key).
+          TERNA_KEY_2: ${{ secrets.SECOND_NAME_TERNA }}
+          TERNA_SECRET_2: ${{ secrets.SECRET_SECOND_TERNA }}
           GME_API_LOGIN: ${{ secrets.GME_API_LOGIN }}
           GME_API_PASSWORD: ${{ secrets.GME_API_PASSWORD }}
           START: ${{ inputs.start }}
