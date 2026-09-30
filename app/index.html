@@ -7109,17 +7109,19 @@
     },
     {
       id: "energy", title: "Balancing Energy", wide: true, right: "energy",
-      help: zone => `Lines: prices of the activated balancing energy (ENTSO-E 17.1.F: local aFRR and RR, i.e. the balancing market MB)${hasPicasso(zone) ? " and PICASSO's cross-border marginal price for Italy (15-minute mean of the 4-second prices, IF aFRR 3.16)" : ""}, against the zone's day-ahead price. Bars: energy activated in the zone (12.3.E), up above zero, down below. Drag horizontally across the chart to select a narrower range.`,
+      help: zone => `Lines: prices of the balancing energy activated in the zone (ENTSO-E 17.1.F)${hasPicasso(zone) ? ": aFRR standard product (the bids offered to PICASSO; published under 'local selection', A68), aFRR specific product (local only)" : ": aFRR (Sardinia offers only the specific product, outside PICASSO)"} and RR (the balancing market MB), against the zone's day-ahead price. Bars: the energy activated in the zone (12.3.E), up above zero, down below. Drag horizontally across the chart to select a narrower range.`,
       series: zone => [
-        hasPicasso(zone) && { name: "aFRR up (PICASSO)", color: "--bal-picasso", group: "IT|picasso_price_up", unit: "price", sparse: true },
-        hasPicasso(zone) && { name: "aFRR down (PICASSO)", color: "--bal-picasso", group: "IT|picasso_price_down", unit: "price", line: "dashed", sparse: true },
+        hasPicasso(zone) && { name: "aFRR up (PICASSO)", color: "--bal-picasso", group: `${zone}|price_picasso_up`, unit: "price", sparse: true },
+        hasPicasso(zone) && { name: "aFRR down (PICASSO)", color: "--bal-picasso", group: `${zone}|price_picasso_down`, unit: "price", line: "dashed", sparse: true },
         { name: "aFRR up (local)", color: "--bal-afrr", group: `${zone}|price_afrr_up`, unit: "price", sparse: true },
         { name: "aFRR down (local)", color: "--bal-afrr", group: `${zone}|price_afrr_down`, unit: "price", line: "dashed", sparse: true },
         { name: "RR up", color: "--bal-rr", group: `${zone}|price_rr_up`, unit: "price", sparse: true },
         { name: "RR down", color: "--bal-rr", group: `${zone}|price_rr_down`, unit: "price", line: "dashed", sparse: true },
         dayAheadSeries,
-        { name: "aFRR activated up", color: "--bal-afrr", group: `${zone}|activated_afrr_up`, unit: "energy", axis: 1, type: "bar" },
-        { name: "aFRR activated down", color: "--bal-afrr", group: `${zone}|activated_afrr_down`, unit: "energy", axis: 1, type: "bar", sign: -1 },
+        hasPicasso(zone) && { name: "aFRR (PICASSO) activated up", color: "--bal-picasso", group: `${zone}|activated_picasso_up`, unit: "energy", axis: 1, type: "bar" },
+        hasPicasso(zone) && { name: "aFRR (PICASSO) activated down", color: "--bal-picasso", group: `${zone}|activated_picasso_down`, unit: "energy", axis: 1, type: "bar", sign: -1 },
+        { name: "aFRR (local) activated up", color: "--bal-afrr", group: `${zone}|activated_afrr_up`, unit: "energy", axis: 1, type: "bar" },
+        { name: "aFRR (local) activated down", color: "--bal-afrr", group: `${zone}|activated_afrr_down`, unit: "energy", axis: 1, type: "bar", sign: -1 },
         { name: "RR activated up", color: "--bal-rr", group: `${zone}|activated_rr_up`, unit: "energy", axis: 1, type: "bar" },
         { name: "RR activated down", color: "--bal-rr", group: `${zone}|activated_rr_down`, unit: "energy", axis: 1, type: "bar", sign: -1 }
       ]
@@ -7153,15 +7155,13 @@
     {
       id: "afrr-sources", title: "aFRR Activated", left: "energy",
       help: zone => hasPicasso(zone)
-        ? "Bars: local aFRR activated from the zone's own bids (12.3.E, specific product). Lines, all Italy (not split by zone): standard aFRR bids activated through PICASSO (12.3.E) and the imbalance netted with the IGCC partners instead of being activated (IF 3.10, import above zero). Dotted blue: the aFRR half band Terna requires in MSD for the area (MW; not in the daily view)."
-        : "Local aFRR activated from Sardinia's own bids (12.3.E); Sardinia does not take part in PICASSO or IGCC netting. Dotted: the aFRR half band Terna requires in MSD for Sardinia (MW; not in the daily view).",
+        ? "aFRR energy activated in the zone (12.3.E), up above zero and down below: bids of the standard product, offered to PICASSO (green), and of the specific product, local only (blue). Dotted: the aFRR half band Terna requires in MSD for the area (MW; not in the daily view). Imports through PICASSO and IGCC netting are published for Italy as a whole only."
+        : "aFRR energy activated in Sardinia (12.3.E), up above zero and down below: Sardinia offers only the specific product and takes no part in PICASSO or IGCC netting. Dotted: the aFRR half band Terna requires in MSD for Sardinia (MW; not in the daily view).",
       series: zone => [
-        { name: "Local aFRR up", color: "--bal-afrr", group: `${zone}|activated_afrr_up`, unit: "energy", type: "bar" },
-        { name: "Local aFRR down", color: "--bal-afrr", group: `${zone}|activated_afrr_down`, unit: "energy", type: "bar", sign: -1 },
-        hasPicasso(zone) && { name: "PICASSO up (Italy)", color: "--bal-picasso", group: "IT|activated_picasso_up", unit: "energy" },
-        hasPicasso(zone) && { name: "PICASSO down (Italy)", color: "--bal-picasso", group: "IT|activated_picasso_down", unit: "energy", line: "dashed", sign: -1 },
-        hasPicasso(zone) && { name: "IGCC import (Italy)", color: "--bal-reference", group: "IT|igcc_import", unit: "energy", line: "dotted" },
-        hasPicasso(zone) && { name: "IGCC export (Italy)", color: "--bal-reference", group: "IT|igcc_export", unit: "energy", line: "dotted", sign: -1 },
+        hasPicasso(zone) && { name: "PICASSO up", color: "--bal-picasso", group: `${zone}|activated_picasso_up`, unit: "energy", type: "bar" },
+        hasPicasso(zone) && { name: "PICASSO down", color: "--bal-picasso", group: `${zone}|activated_picasso_down`, unit: "energy", type: "bar", sign: -1 },
+        { name: "Local up", color: "--bal-afrr", group: `${zone}|activated_afrr_up`, unit: "energy", type: "bar" },
+        { name: "Local down", color: "--bal-afrr", group: `${zone}|activated_afrr_down`, unit: "energy", type: "bar", sign: -1 },
         // MW; the daily view sums energy (MWh/day), so it is left out there.
         currentGranularity !== "daily" &&
           { name: `aFRR requirement (${balancingArea("afrr", zone)})`, color: "--bal-afrr", group: `${balancingArea("afrr", zone)}|afrr_requirement`, unit: "capacity", line: "dotted", width: 1.8 }
@@ -7387,11 +7387,11 @@
 
   const DEPTH_PRODUCTS = [
     { key: "afrr_picasso_up", title: "aFRR up (PICASSO) market depth", color: "--bal-picasso", picasso: true,
-      price: "IT|picasso_price_up", priceName: "PICASSO price (Italy)" },
+      price: "price_picasso_up", activated: "activated_picasso_up" },
     { key: "afrr_up", title: "aFRR up market depth", color: "--bal-afrr",
       price: "price_afrr_up", activated: "activated_afrr_up" },
     { key: "afrr_picasso_down", title: "aFRR down (PICASSO) market depth", color: "--bal-picasso", picasso: true,
-      price: "IT|picasso_price_down", priceName: "PICASSO price (Italy)" },
+      price: "price_picasso_down", activated: "activated_picasso_down" },
     { key: "afrr_down", title: "aFRR down market depth", color: "--bal-afrr",
       price: "price_afrr_down", activated: "activated_afrr_down" },
     { key: "rr_up", title: "RR up market depth", color: "--bal-rr", price: "price_rr_up", activated: "activated_rr_up" },
@@ -7539,8 +7539,7 @@
       product.subtitle.textContent = `${formatChartNumber(total)} MW offered at ${bidCount} price${bidCount === 1 ? "" : "s"} · ${ZONE_LABELS[currentZone]}`;
 
       const quarterKey = `${slot.date}|${slot.time}`;
-      const priceGroup = product.price.includes("|") ? product.price : `${zone}|${product.price}`;
-      const price = lookupValue(balancingMap(priceGroup, "quarter_hourly"), quarterKey);
+      const price = lookupValue(balancingMap(`${zone}|${product.price}`, "quarter_hourly"), quarterKey);
       const activated = product.activated
         ? lookupValue(balancingMap(`${zone}|${product.activated}`, "quarter_hourly"), quarterKey) : null;
       const color = cssVar(product.color);
@@ -7549,8 +7548,8 @@
       const high = Math.max(low + 1, Math.ceil(Math.max(0, ...prices.map(symlog))));
       const markLines = [];
       if (price !== null) {
-        markLines.push({ yAxis: symlog(price), name: product.priceName || "Activation price",
-          label: { formatter: `${product.priceName || "Activated at"} ${formatPrice(price)}` } });
+        markLines.push({ yAxis: symlog(price), name: "Activation price",
+          label: { formatter: `Activated at ${formatPrice(price)}` } });
       }
       if (activated) {
         markLines.push({ xAxis: activated, name: "Activated",

@@ -9,14 +9,24 @@ average for prices and capacities, sum of the hours for energy):
   ENTSO-E (zone = bidding zone, Italy = the Italian LFC area)
     imbalance_price        17.1.G  A85        zone   EUR/MWh (NORD has its own
                                                      price, the other zones share one)
-    price_afrr_up/_down    17.1.F  A84 A96    zone   EUR/MWh, local aFRR activation
-    price_rr_up/_down      17.1.F  A84 A98    zone   EUR/MWh, RR (MB) activation
-    activated_* offered_*  12.3.E  A24        zone   MW activated / offered bids:
-                                                     afrr (specific product), rr
-    picasso_price_up/_down IF aFRR 3.16 A84 A67  Italy  EUR/MWh, 15-minute mean of the
-                                                     4-second cross-border marginal price
-    picasso_activated_*    12.3.E  A24 A67    Italy  MW of standard aFRR bids activated
+    price_afrr_up/_down    17.1.F  A84 A16 A96  zone  EUR/MWh, specific (local) aFRR product
+    price_picasso_up/_down 17.1.F  A84 A68 A96  zone  EUR/MWh, standard aFRR product
+                                                      (the bids offered to PICASSO)
+    price_rr_up/_down      17.1.F  A84 A16 A98  zone  EUR/MWh, RR (MB) activation
+    activated_* offered_*  12.3.E  A24          zone  MW activated / offered bids: afrr
+                                                      (specific, A51), picasso (standard:
+                                                      offered A51, activated A68), rr (A46)
+    picasso_price_up/_down IF aFRR 3.16 A84 A67 Italy  EUR/MWh, 15-minute mean of the
+                                                      4-second cross-border marginal price
+    *_central_up/_down     12.3.E  A24 A67    Italy  PICASSO central selection for the
+                                                     Italian area: offered = the zones'
+                                                     standard bids, "activated" can exceed
+                                                     them (not Italian bids alone); kept,
+                                                     not shown
     igcc_import/_export    IF 3.10 B17 A63    Italy  MW netted with the IGCC partners
+
+    Italy publishes each zone's standard-product (PICASSO) activations under
+    processType A68, "local selection"; the numbers match balancing.services.
 
   Terna (developer.terna.it)
     imbalance_volume       FEES macrozonal imbalance  NORD / SUD macrozone, MW
@@ -185,33 +195,53 @@ def imbalance_prices(token, zone, eic, start, end):
     return quarter_records(f"{zone}|imbalance_price", prices)
 
 
+# (processType, businessType, product) of the zone activation prices.
+ACTIVATION_PRICES = (("A16", "A96", "afrr"), ("A68", "A96", "picasso"), ("A16", "A98", "rr"))
+
+
 def activation_prices(token, zone, eic, start, end):
-    """17.1.F: prices of activated aFRR (A96) and RR (A98); 0 = nothing activated."""
+    """17.1.F: prices of the activated aFRR (specific, standard) and RR energy."""
     records = []
-    for business, product in (("A96", "afrr"), ("A98", "rr")):
-        root = entsoe_get(token, {"documentType": "A84", "processType": "A16", "businessType": business,
+    for process, business, product in ACTIVATION_PRICES:
+        root = entsoe_get(token, {"documentType": "A84", "processType": process, "businessType": business,
                                   "controlArea_Domain": eic, "periodStart": start, "periodEnd": end})
         for ts in (root.findall(".//{*}TimeSeries") if root is not None else []):
             direction = DIRECTIONS.get(_text(ts, "flowDirection.direction"))
-            slots = {instant: value for instant, _, value in expand_points(ts, lambda p: number(p, "activation_Price.amount"))
-                     if value}
+            slots = {instant: value for instant, _, value in expand_points(ts, lambda p: number(p, "activation_Price.amount"))}
             records += quarter_records(f"{zone}|price_{product}_{direction}", slots)
     return records
 
 
-def aggregated_bids(token, area, eic, process, product, start, end):
-    """12.3.E: offered (quantity) and activated (secondaryQuantity) MW per direction."""
+def drop_idle_prices(records):
+    """
+    Activation prices read 0 in the quarter-hours without activation: keep a
+    0 only where the matching volume (activated_* of the same product,
+    direction and zone) was activated.
+    """
+    active = {(record["group"].replace("|activated_", "|price_"), record["date"], record["time"])
+              for record in records if "|activated_" in record["group"] and record["value"]}
+    return [record for record in records
+            if not ("|price_" in record["group"] and record["value"] == 0
+                    and (record["group"], record["date"], record["time"]) not in active)]
+
+
+def aggregated_bids(token, area, eic, process, start, end):
+    """
+    12.3.E: offered (quantity) and activated (secondaryQuantity) MW per
+    product and direction.  aFRR (A51) splits the standard product (offered
+    to PICASSO) from the specific one, but its standard activations are
+    always 0: they are published under A68 (which has no offers).
+    """
     root = entsoe_get(token, {"documentType": "A24", "processType": process, "area_Domain": eic,
                               "curveType": "A03", "periodStart": start, "periodEnd": end})
     records = []
     for ts in (root.findall(".//{*}TimeSeries") if root is not None else []):
         direction = DIRECTIONS.get(_text(ts, "flowDirection.direction"))
         standard = _text(ts, "standard_MarketProduct.marketProductType") == "A01"
-        # Per zone, only the specific (local) aFRR product is split out;
-        # standard-product activations are published for Italy as a whole.
-        if process == "A51" and standard:
-            continue
+        product = {"A51": "picasso" if standard else "afrr", "A68": "picasso", "A46": "rr", "A67": "central"}[process]
         for kind, tag in (("offered", "quantity"), ("activated", "secondaryQuantity")):
+            if (process == "A51" and standard and kind == "activated") or (process == "A68" and kind == "offered"):
+                continue
             slots = {instant: value for instant, _, value in expand_points(ts, lambda p, t=tag: number(p, t))}
             records += quarter_records(f"{area}|{kind}_{product}_{direction}", slots)
     return records
@@ -256,16 +286,16 @@ def fetch_entsoe(start_day, end_day):
         print(f"  ENTSO-E {zone}")
         records += imbalance_prices(token, zone, eic, start, end)
         records += activation_prices(token, zone, eic, start, end)
-        records += aggregated_bids(token, zone, eic, "A51", "afrr", start, end)
-        records += aggregated_bids(token, zone, eic, "A46", "rr", start, end)
+        for process in ("A51", "A68", "A46"):
+            records += aggregated_bids(token, zone, eic, process, start, end)
     print("  ENTSO-E Italy: PICASSO and IGCC")
-    records += aggregated_bids(token, "IT", IT_DOMAIN, "A67", "picasso", start, end)
+    records += aggregated_bids(token, "IT", IT_DOMAIN, "A67", start, end)
     day = start_day
     while day <= end_day:
         records += picasso_prices(token, day)
         records += igcc_netting(token, day)
         day += timedelta(days=1)
-    return records
+    return drop_idle_prices(records)
 
 
 # ============================================================================
@@ -494,11 +524,18 @@ def is_mean(group):
     return group.split("|", 1)[1].startswith(MEAN_PREFIXES)
 
 
+# Series no longer written: Italy's central selection used to be stored as
+# *_picasso_* (now *_central_*).
+RETIRED_GROUPS = ("IT|activated_picasso_", "IT|offered_picasso_")
+
+
 def load_existing():
     if not os.path.exists(OUTPUT_PATH):
         return {resolution: {} for resolution in RESOLUTIONS}
     payload = compact.load(OUTPUT_PATH)
-    return {resolution: dict(payload.get("series", {}).get(resolution, {})) for resolution in RESOLUTIONS}
+    return {resolution: {group: rows for group, rows in payload.get("series", {}).get(resolution, {}).items()
+                         if not group.startswith(RETIRED_GROUPS)}
+            for resolution in RESOLUTIONS}
 
 
 def merge(existing, records):

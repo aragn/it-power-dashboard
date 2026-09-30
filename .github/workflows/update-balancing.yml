@@ -6,6 +6,10 @@ on:
     # the hour; Terna's final macrozonal imbalance at 17:00 on D+1; GME's
     # MSD ex-ante results for D+1 by 21:45 Italian time.
     - cron: "40 1,7,13,19 * * *"
+  push:
+    # TEMPORARY: refetch the test week from the feature branch.
+    branches: [balancing]
+    paths: [etl/fetch_balancing.py]
   workflow_dispatch:
     inputs:
       start:
@@ -54,9 +58,9 @@ jobs:
           TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
           GME_API_LOGIN: ${{ secrets.GME_API_LOGIN }}
           GME_API_PASSWORD: ${{ secrets.GME_API_PASSWORD }}
-          START: ${{ inputs.start }}
-          END: ${{ inputs.end }}
-          SOURCES: ${{ inputs.sources || 'entsoe,terna,gme,bids' }}
+          START: ${{ inputs.start || (github.event_name == 'push' && '2026-09-22' || '') }}
+          END: ${{ inputs.end || (github.event_name == 'push' && '2026-09-29' || '') }}
+          SOURCES: ${{ inputs.sources || (github.event_name == 'push' && 'entsoe' || 'entsoe,terna,gme,bids') }}
         run: |
           ARGS=(--sources "$SOURCES")
           if [ -n "$START" ]; then ARGS+=(--start "$START"); fi

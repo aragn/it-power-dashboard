@@ -78,3 +78,37 @@ def test_daily_rule_per_series():
     assert fb.is_mean("NORD|offered_rr_up") and fb.is_mean("NORD|rr_requirement")
     assert not fb.is_mean("NORD|activated_rr_up") and not fb.is_mean("SUD|imbalance_volume")
     assert not fb.is_mean("IT|igcc_import") and not fb.is_mean("NORD|msd_volume_up")
+
+
+def test_zero_prices_are_kept_only_with_an_activation():
+    records = [
+        {"group": "NORD|price_picasso_up", "date": "2026-09-28", "time": "11:00", "value": 0.0},
+        {"group": "NORD|price_picasso_down", "date": "2026-09-28", "time": "11:00", "value": 0.0},
+        {"group": "NORD|price_rr_up", "date": "2026-09-28", "time": "11:00", "value": 288.0},
+        {"group": "NORD|activated_picasso_down", "date": "2026-09-28", "time": "11:00", "value": 45.825},
+        {"group": "NORD|activated_picasso_up", "date": "2026-09-28", "time": "11:00", "value": 0.0},
+        {"group": "IT|picasso_price_up", "date": "2026-09-28", "time": "11:00", "value": 0.0},
+    ]
+    kept = {record["group"] for record in fb.drop_idle_prices(records)}
+    assert kept == {"NORD|price_picasso_down", "NORD|price_rr_up", "NORD|activated_picasso_down",
+                    "NORD|activated_picasso_up", "IT|picasso_price_up"}
+
+
+def test_standard_aFRR_activations_come_from_local_selection(monkeypatch):
+    def document(*series):
+        body = "".join(
+            f"<TimeSeries><businessType>A14</businessType>{product}<flowDirection.direction>A02</flowDirection.direction>"
+            "<curveType>A03</curveType><Period><timeInterval><start>2026-09-28T09:00Z</start><end>2026-09-28T09:15Z</end>"
+            f"</timeInterval><resolution>PT15M</resolution><Point><position>1</position><quantity>{offered}</quantity>"
+            f"<secondaryQuantity>{activated}</secondaryQuantity></Point></Period></TimeSeries>"
+            for product, offered, activated in series)
+        return ET.fromstring(f'<Balancing_MarketDocument xmlns="{NS}">{body}</Balancing_MarketDocument>')
+
+    standard = "<standard_MarketProduct.marketProductType>A01</standard_MarketProduct.marketProductType>"
+    specific = "<original_MarketProduct.marketProductType>A02</original_MarketProduct.marketProductType>"
+    responses = {"A51": document((standard, 560, 0), (specific, 1765.75, 0)), "A68": document((standard, 0, 45.825))}
+    monkeypatch.setattr(fb, "entsoe_get", lambda token, params: responses[params["processType"]])
+    values = {r["group"]: r["value"] for process in ("A51", "A68")
+              for r in fb.aggregated_bids("t", "NORD", "eic", process, "", "")}
+    assert values == {"NORD|offered_picasso_down": 560, "NORD|offered_afrr_down": 1765.75,
+                      "NORD|activated_afrr_down": 0, "NORD|activated_picasso_down": 45.825}
