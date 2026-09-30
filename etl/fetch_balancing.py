@@ -345,6 +345,21 @@ def igcc_netting(token, start, end):
     return records
 
 
+def imbalance_volume(token, start, end):
+    """
+    17.1.H: Italy's total imbalance, MWh per quarter-hour as MW; the
+    direction A01 (surplus) above zero, A02 (deficit) below.
+    """
+    root = entsoe_get(token, {"documentType": "A86", "controlArea_Domain": IT_DOMAIN,
+                              "periodStart": start, "periodEnd": end})
+    records = []
+    for ts in _series(root):
+        sign = -1 if _text(ts, "flowDirection.direction") == "A02" else 1
+        records += point_records("IT|imbalance_volume_total", expand_points(ts, lambda p: number(p, "quantity")),
+                                 scale=sign, energy=True)
+    return records
+
+
 def zone_entsoe(token, zone, eic, start, end):
     records = imbalance_prices(token, zone, eic, start, end)
     records += activation_prices(token, zone, eic, start, end)
@@ -377,6 +392,7 @@ def fetch_entsoe(start_day, end_day):
             records += logged(f"IT central selection {chunk_start}", activated_volumes,
                               token, "IT", IT_DOMAIN, "A67", start, end)
             records += logged(f"IGCC {chunk_start}", igcc_netting, token, start, end)
+            records += logged(f"Italy imbalance volume {chunk_start}", imbalance_volume, token, start, end)
         print("  ENTSO-E PICASSO cross-border marginal prices, one day per request")
         for day_records in pool.map(lambda day: logged(f"PICASSO prices {day}", picasso_prices, token, day),
                                     market_days(start_day, end_day)):
@@ -765,10 +781,33 @@ def area_prefixes(zone):
     return (f"{MACROZONE[zone]}|imbalance_volume", f"{FCR_AREA[zone]}|fcr_", f"{AFRR_AREA[zone]}|afrr_requirement")
 
 
+# The imbalance prices of the two macrozones, for Italy's file.
+MACROZONE_PRICES = ("NORD|imbalance_price", "SUD|imbalance_price")
+
+
+def national_sums(series):
+    """
+    IT|sum_activated_<product>_<direction>: the activated volumes summed over
+    the zones, at every resolution (energy: the sum of the zones' sums).
+    """
+    for resolution in RESOLUTIONS:
+        for product in ("picasso", "afrr", "rr"):
+            for direction in ("up", "down"):
+                totals = defaultdict(float)
+                for zone in ZONES:
+                    for row in series[resolution].get(f"{zone}|activated_{product}_{direction}", []):
+                        totals[(row["date"], row.get("time"))] += row["value"]
+                series[resolution][f"IT|sum_activated_{product}_{direction}"] = [
+                    {"date": day, **({"time": label} if label else {}), "value": round(value, 2)}
+                    for (day, label), value in sorted(
+                        totals.items(), key=lambda item: (item[0][0], label_minutes(item[0][1]) if item[0][1] else 0))]
+    return series
+
+
 def file_groups(name, groups):
-    """Series of one file: a zone's own and its areas', or Italy's and all areas'."""
+    """Series of one file: a zone's own and its areas', or Italy's, all areas' and the macrozone prices."""
     if name == "IT":
-        prefixes = ("IT|",) + tuple({prefix for zone in ZONES for prefix in area_prefixes(zone)})
+        prefixes = ("IT|",) + tuple({prefix for zone in ZONES for prefix in area_prefixes(zone)}) + MACROZONE_PRICES
     else:
         prefixes = (f"{name}|",) + area_prefixes(name)
     return sorted(group for group in groups if group.startswith(prefixes))
@@ -788,7 +827,8 @@ def build_output(name, series):
         "zone": name,
         "areas": ({"macrozone": MACROZONE, "afrr": AFRR_AREA, "fcr": FCR_AREA} if name == "IT" else
                   {"macrozone": MACROZONE[name], "afrr": AFRR_AREA[name], "fcr": FCR_AREA[name]}),
-        "bid_days": bid_days().get(name, []),
+        "bid_days": (sorted({day for days in bid_days().values() for day in days}) if name == "IT"
+                     else bid_days().get(name, [])),
         "series": {
             resolution: {group: compact.encode_series(series[resolution][group], resolution)
                          for group in groups if group in series[resolution]}
@@ -798,6 +838,7 @@ def build_output(name, series):
 
 
 def write_outputs(series):
+    series = national_sums(series)
     for name in list(ZONES) + ["IT"]:
         compact.dump(build_output(name, series), os.path.join(BALANCING_DIR, f"{name}.json"))
     if os.path.exists(LEGACY_PATH):

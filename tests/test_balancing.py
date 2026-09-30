@@ -140,8 +140,7 @@ def test_zone_files_hold_the_zone_and_its_areas():
                                                      "Continente+Sicilia|fcr_price_up", "SUD|imbalance_volume"])
     assert fb.file_groups("SARD", groups) == sorted(["SUD|imbalance_volume", "Sardegna|fcr_price_up",
                                                      "Sardinia|afrr_requirement"])
-    assert fb.file_groups("IT", groups) == sorted(groups - {"NORD|imbalance_price", "SUD|price_rr_up",
-                                                            "CNOR|price_rr_up"})
+    assert fb.file_groups("IT", groups) == sorted(groups - {"SUD|price_rr_up", "CNOR|price_rr_up"})
 
 
 def test_msd_results_by_period_or_by_hour():
@@ -200,3 +199,14 @@ def test_standard_aFRR_before_local_selection_comes_from_the_aFRR_document(monke
     monkeypatch.setattr(fb, "entsoe_get", lambda token, params: doc)
     assert [(r["group"], r["value"]) for r in fb.activated_volumes("t", "NORD", "eic", "A51", "", "")] == [
         ("NORD|activated_picasso_up", 73.0)]
+
+
+def test_national_sums_add_the_zones_activations():
+    rows = lambda value: [{"date": "2026-09-28", "time": "11:00", "value": value}]  # noqa: E731
+    series = {"quarter_hourly": {"NORD|activated_picasso_down": rows(45.825), "SUD|activated_picasso_down": rows(14.27)},
+              "hourly": {}, "daily": {"NORD|activated_rr_up": [{"date": "2026-09-28", "value": 100.0}]}}
+    fb.national_sums(series)
+    assert series["quarter_hourly"]["IT|sum_activated_picasso_down"] == [
+        {"date": "2026-09-28", "time": "11:00", "value": round(45.825 + 14.27, 2)}]
+    assert series["daily"]["IT|sum_activated_rr_up"] == [{"date": "2026-09-28", "value": 100.0}]
+    assert series["hourly"]["IT|sum_activated_afrr_up"] == []
