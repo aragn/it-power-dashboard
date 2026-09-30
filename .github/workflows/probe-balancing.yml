@@ -9,7 +9,7 @@ on:
       parts:
         description: "Sources to probe (entsoe terna gme)"
         required: false
-        default: "entsoe terna gme"
+        default: ""
 
 permissions:
   contents: read
@@ -32,7 +32,7 @@ jobs:
           TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
           GME_API_LOGIN: ${{ secrets.GME_API_LOGIN }}
           GME_API_PASSWORD: ${{ secrets.GME_API_PASSWORD }}
-        run: cd etl && (python probe_balancing.py ${{ inputs.parts || 'entsoe terna gme' }}; mv probe ..)
+        run: cd etl && (python probe_balancing.py ${{ inputs.parts }}; mv probe ..)
       - uses: actions/upload-artifact@v4
         if: always()
         with:

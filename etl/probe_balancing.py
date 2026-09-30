@@ -224,11 +224,82 @@ def run_gme():
         time.sleep(20)
 
 
+def run_bids():
+    """All bid pages of one day, per zone and product, to size the market depth data."""
+    token = os.environ["ENTSOE_API_KEY"]
+    for process, product in (("A51", "aFRR"), ("A46", "RR")):
+        for zone, eic in ZONES.items():
+            started, pages, bids = time.time(), 0, 0
+            for offset in range(0, 20000, 100):
+                response = requests.get(API_URL, timeout=180, params={
+                    "documentType": "A37", "businessType": "B74", "processType": process,
+                    "connecting_Domain": eic, "periodStart": DAY_START, "periodEnd": DAY_END,
+                    "offset": offset, "securityToken": token})
+                if response.status_code != 200:
+                    summary.append({"source": "bids", "name": f"{product}_{zone}", "offset": offset,
+                                    "status": response.status_code, "text": response.text[:300]})
+                    break
+                save("bids", f"{product}_{zone}_{offset:05d}.zip", response.content)
+                pages += 1
+                count = len(parse_response(response.content).findall(".//{*}Bid_TimeSeries"))
+                bids += count
+                if count < 100:
+                    break
+            summary.append({"source": "bids", "name": f"{product}_{zone}", "pages": pages, "bids": bids,
+                            "seconds": round(time.time() - started)})
+
+
+def run_terna2():
+    client = Client(os.environ["TERNA_KEY"], os.environ["TERNA_SECRET"])
+    day = {"dateFrom": "22/09/2026", "dateTo": "22/09/2026"}
+    week = {"dateFrom": "22/09/2026", "dateTo": "29/09/2026"}
+    calls = []
+    for name in ("preliminary-prices", "daily-prices", "daily-macrozonal-imbalance", "preliminary-macrozonal-imbalance"):
+        for path in (f"/fees/v1.0/{name}", f"/ifees/v1.0/market/{name}", f"/fees/v1.0/market/{name}"):
+            for params in ({**day, "dataType": "Quarto Orario"}, day, {**week, "dataType": "Orario"}):
+                calls.append((f"{name}|{path}|{sorted(params.items())}", path, params))
+    calls.append(("aste_fcr", "/market/v1.0/aste-fcr", {"marketDate": "22/09/2026"}))
+    calls.append(("aste_fcr_range", "/market/v1.0/aste-fcr", {"dateFrom": "22/09/2026", "dateTo": "29/09/2026"}))
+    for req in ("afrr-requirement", "rr-requirement", "total-reserve-requirement", "rotating-reserve-requirement",
+                "tertiary-requirement", "total-requirement", "rotating-requirement"):
+        for session in ("MSD1", "MSD2"):
+            calls.append((f"{req}_{session}", f"/market/v1.0/input/{req}", {**week, "sessionType": session}))
+    for session in ("MSD3", "MSD4", "MSD5", "MSD6"):
+        calls.append((f"market_prices_{session}", "/market/v1.0/output/prices", {**week, "sessionType": session}))
+    for name, path, params in calls:
+        try:
+            data = client.get(path, params)
+        except Exception as error:
+            body = getattr(getattr(error, "response", None), "text", "")[:300]
+            summary.append({"source": "terna2", "name": name, "error": repr(error)[:200], "body": body})
+            continue
+        lists = {k: (len(v), v[:2]) for k, v in data.items() if isinstance(v, list)}
+        summary.append({"source": "terna2", "name": name, "keys": list(data), "result": data.get("result"),
+                        "lists": lists})
+        if lists:
+            save("terna2", name.split("|")[0].replace("/", "_") + ".json", json.dumps(data).encode())
+
+
+def run_gme2():
+    token = get_token(os.environ["GME_API_LOGIN"], os.environ["GME_API_PASSWORD"])
+    for segment in ("AFRR", "AFRE", "MRR", "MB"):
+        for day in ("20260915", "20260921"):
+            name = f"Offers_PublicDomain_{segment}_{day}"
+            try:
+                raw = gme_raw(token, segment, "Offers_PublicDomain", day, day)
+                save("gme2", f"{name}.zip", raw)
+                summary.append({"source": "gme2", "name": name, "bytes": len(raw)})
+            except Exception as error:
+                summary.append({"source": "gme2", "name": name, "error": repr(error)[:300]})
+            time.sleep(20)
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
-    for part in sys.argv[1:] or ("entsoe", "terna", "gme"):
+    for part in sys.argv[1:] or ("terna2", "gme2", "bids"):
         try:
-            {"entsoe": run_entsoe, "terna": run_terna, "gme": run_gme}[part]()
+            {"entsoe": run_entsoe, "terna": run_terna, "gme": run_gme,
+             "bids": run_bids, "terna2": run_terna2, "gme2": run_gme2}[part]()
         except Exception:
             summary.append({"source": part, "fatal": traceback.format_exc()[-1500:]})
         with open(os.path.join(OUT, "summary.json"), "w") as f:
