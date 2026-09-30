@@ -7028,7 +7028,7 @@
    */
   const BALANCING_ZONE_CODES = {
     north: "NORD", "center-north": "CNOR", "center-south": "CSUD", south: "SUD",
-    calabria: "CALA", sicily: "SICI", sardinia: "SARD"
+    calabria: "CALA", sicily: "SICI", sardinia: "SARD", italy: "IT"
   };
 
   // Sardinia offers no standard aFRR product, so it takes no part in PICASSO.
@@ -7083,14 +7083,31 @@
     return balancingCache[cacheKey];
   }
 
-  /* The zone's day-ahead (MGP) price, bucket key -> EUR/MWh. */
+  /* The zone's day-ahead (MGP) price, or Italy's PUN Index: bucket key -> EUR/MWh. */
   function mgpPriceMap(zone) {
     const resolution = timelineResolutionKey();
     const cacheKey = `mgp|${zone}|${resolution}`;
-    if (!rawZonalData || !rawZonalData.zones) return new Map();
     if (!balancingCache[cacheKey]) {
-      const rows = ((rawZonalData.zones[zone] || {})[resolution]) || [];
-      balancingCache[cacheKey] = new Map(rows.map(row => [timelineBucketKey(row), Number(row.price)]));
+      if (zone === "IT") {
+        balancingCache[cacheKey] = new Map(getSeriesData().map(row => [timelineBucketKey(row), Number(row.pun)]));
+      } else {
+        const rows = (((rawZonalData || {}).zones || {})[zone] || {})[resolution] || [];
+        balancingCache[cacheKey] = new Map(rows.map(row => [timelineBucketKey(row), Number(row.price)]));
+      }
+    }
+    return balancingCache[cacheKey];
+  }
+
+  /* Several series summed (e.g. the two FCR areas): bucket key -> value. */
+  function summedMap(groups) {
+    const resolution = timelineResolutionKey();
+    const cacheKey = `sum|${groups.join("+")}|${resolution}`;
+    if (!balancingCache[cacheKey]) {
+      const total = new Map();
+      groups.forEach(group => balancingMap(group).forEach((value, key) => {
+        total.set(key, (total.get(key) || 0) + value);
+      }));
+      balancingCache[cacheKey] = total;
     }
     return balancingCache[cacheKey];
   }
@@ -7108,6 +7125,7 @@
   };
 
   const dayAheadSeries = { name: "Day-ahead (MGP)", color: "--bal-reference", map: mgpPriceMap, unit: "price", width: 1.2 };
+  const punSeries = { ...dayAheadSeries, name: "PUN Index" };
 
   /*
    * Chart specs.  Series: group (balancing.json key) or map(zone); axis 1 =
@@ -7195,8 +7213,48 @@
         currentGranularity !== "daily" &&
           { name: "RR requirement", color: "--bal-rr", group: `${zone}|rr_requirement`, unit: "capacity", line: "dotted", width: 1.8 }
       ]
+    },
+
+    /* Italy as a whole. */
+    {
+      id: "it-imbalance", italy: true, title: "Imbalance", wide: true, right: "energy",
+      help: () => "Bars: Italy's total imbalance (ENTSO-E 17.1.H), published in MWh per quarter-hour and shown as MW; above zero = surplus (A01), below = deficit. Lines: the imbalance prices of the two macrozones (17.1.G; North, and South for all the other zones) and the PUN Index. Drag horizontally across the chart to select a narrower range.",
+      series: () => [
+        { name: "Imbalance price North", color: "--bal-imbalance", group: "NORD|imbalance_price", unit: "price", width: 1.6 },
+        { name: "Imbalance price South", color: "--bal-imbalance", group: "SUD|imbalance_price", unit: "price", line: "dashed", width: 1.6 },
+        punSeries,
+        { name: "Total imbalance", color: "--bal-volume", group: "IT|imbalance_volume_total", unit: "energy", axis: 1, type: "bar" }
+      ]
+    },
+    {
+      id: "it-energy", italy: true, title: "Balancing Energy Volumes", wide: true, left: "energy",
+      help: () => "Balancing energy activated in Italy, the zones' volumes summed (ENTSO-E 12.3.E): aFRR standard product (the bids offered to PICASSO), aFRR specific product (local) and RR (the balancing market MB); up above zero, down below. Drag horizontally across the chart to select a narrower range.",
+      series: () => [
+        { name: "aFRR (PICASSO) up", color: "--bal-picasso", group: "IT|sum_activated_picasso_up", unit: "energy", type: "bar" },
+        { name: "aFRR (PICASSO) down", color: "--bal-picasso", group: "IT|sum_activated_picasso_down", unit: "energy", type: "bar", sign: -1 },
+        { name: "aFRR (local) up", color: "--bal-afrr", group: "IT|sum_activated_afrr_up", unit: "energy", type: "bar" },
+        { name: "aFRR (local) down", color: "--bal-afrr", group: "IT|sum_activated_afrr_down", unit: "energy", type: "bar", sign: -1 },
+        { name: "RR up", color: "--bal-rr", group: "IT|sum_activated_rr_up", unit: "energy", type: "bar" },
+        { name: "RR down", color: "--bal-rr", group: "IT|sum_activated_rr_down", unit: "energy", type: "bar", sign: -1 }
+      ]
+    },
+    {
+      id: "it-fcr", italy: true, title: "FCR Capacity Demand", wide: true, left: "capacity",
+      help: () => "Terna's FCR auctions, the Continent + Sicily and Sardinia areas summed: capacity required (dotted) and procured (band), up above zero, down below (auctions since 3 June 2026). Daily: averages.",
+      series: () => {
+        const areas = ["Continente+Sicilia", "Sardegna"];
+        const of = name => areas.map(area => `${area}|fcr_${name}`);
+        return [
+          { name: "Procured up", color: "--bal-fcr", groups: of("procured_up"), unit: "capacity", area: true, width: 0.8 },
+          { name: "Procured down", color: "--bal-fcr", groups: of("procured_down"), unit: "capacity", area: true, width: 0.8, sign: -1 },
+          { name: "Demand up", color: "--bal-reference", groups: of("requirement_up"), unit: "capacity", line: "dotted", width: 1.6 },
+          { name: "Demand down", color: "--bal-reference", groups: of("requirement_down"), unit: "capacity", line: "dotted", width: 1.6, sign: -1 }
+        ];
+      }
     }
   ];
+
+  const balancingChartsFor = zone => BALANCING_CHARTS.filter(spec => !!spec.italy === (zone === "IT"));
 
   function balancingPanel(id, title, wide, extraClass = "") {
     const section = document.createElement("section");
@@ -7318,7 +7376,7 @@
     resetTimeline(timeline);
     const items = spec.series(zone).filter(Boolean);
     const data = items.map(item => {
-      const map = item.map ? item.map(zone) : balancingMap(item.group);
+      const map = item.map ? item.map(zone) : item.groups ? summedMap(item.groups) : balancingMap(item.group);
       return timeline.rows.map(row => {
         const value = lookupValue(map, row.key);
         return value === null ? null : value * (item.sign || 1);
@@ -7347,7 +7405,9 @@
       return;
     }
     const leftUnit = spec.left || (items.find(item => !item.axis) || {}).unit || "price";
-    const measure = leftUnit === "energy" ? timelineMeasure() : priceMeasure();
+    const measure = leftUnit === "energy" ? timelineMeasure()
+      : leftUnit === "capacity" ? { daily: "Daily average capacity", hourly: "Hourly average capacity", quarter: "15-minute capacity" }[currentGranularity]
+        : priceMeasure();
     setChartSubtitle(subtitleId, `${measure} · ${ZONE_LABELS[currentZone]}`);
 
     const names = items.map(item => item.name);
@@ -7414,29 +7474,30 @@
 
 
   /* ------------------------------------------------------------
-     MARKET DEPTH: the zone's bids of one quarter-hour in merit order
+     MERIT ORDER: the bids of one quarter-hour sorted by price, for a
+     zone or (all zones stacked) for Italy
      ------------------------------------------------------------ */
 
   const DEPTH_PRODUCTS = [
-    { key: "afrr_picasso_up", title: "aFRR up (PICASSO) market depth", color: "--bal-picasso", picasso: true,
+    { key: "afrr_picasso_up", title: "aFRR up (PICASSO) merit order", color: "--bal-picasso", picasso: true,
       price: "price_picasso_up", activated: "activated_picasso_up" },
-    { key: "afrr_up", title: "aFRR up market depth", color: "--bal-afrr",
+    { key: "afrr_up", title: "aFRR up (local) merit order", color: "--bal-afrr",
       price: "price_afrr_up", activated: "activated_afrr_up" },
-    { key: "afrr_picasso_down", title: "aFRR down (PICASSO) market depth", color: "--bal-picasso", picasso: true,
+    { key: "afrr_picasso_down", title: "aFRR down (PICASSO) merit order", color: "--bal-picasso", picasso: true,
       price: "price_picasso_down", activated: "activated_picasso_down" },
-    { key: "afrr_down", title: "aFRR down market depth", color: "--bal-afrr",
+    { key: "afrr_down", title: "aFRR down (local) merit order", color: "--bal-afrr",
       price: "price_afrr_down", activated: "activated_afrr_down" },
-    { key: "rr_up", title: "RR up market depth", color: "--bal-rr", price: "price_rr_up", activated: "activated_rr_up" },
-    { key: "rr_down", title: "RR down market depth", color: "--bal-rr", price: "price_rr_down", activated: "activated_rr_down" }
+    { key: "rr_up", title: "RR up merit order", color: "--bal-rr", price: "price_rr_up", activated: "activated_rr_up" },
+    { key: "rr_down", title: "RR down merit order", color: "--bal-rr", price: "price_rr_down", activated: "activated_rr_down" }
   ];
 
   const depthPanel = document.createElement("section");
   depthPanel.className = "panel depth-panel";
   depthPanel.innerHTML =
-    `<div class="chart-title">Market depth</div>` +
+    `<div class="chart-title">Merit order</div>` +
     `<div class="depth-controls">` +
     `<button id="depth-prev" type="button" aria-label="Previous quarter-hour">‹</button>` +
-    `<div class="depth-track"><input id="depth-slider" type="range" min="0" max="0" value="0" step="1" aria-label="Quarter-hour shown in the market depth charts">` +
+    `<div class="depth-track"><input id="depth-slider" type="range" min="0" max="0" value="0" step="1" aria-label="Quarter-hour shown in the merit order charts">` +
     `<div id="depth-availability" class="depth-availability"></div></div>` +
     `<button id="depth-next" type="button" aria-label="Next quarter-hour">›</button>` +
     `<div id="depth-label" class="depth-label"></div></div>` +
@@ -7471,6 +7532,28 @@
 
   function bidDays(zone) {
     return (balancingZones[zone] || {}).bidDays || new Set();
+  }
+
+  const BID_ZONES = ["NORD", "CNOR", "CSUD", "SUD", "CALA", "SICI", "SARD"];
+
+  /* Bid files of a day: the zone's, or every zone's for Italy. */
+  async function loadBids(zone, day) {
+    if (zone !== "IT") return [await loadBidFile(zone, day)].filter(Boolean);
+    return (await Promise.all(BID_ZONES.map(code => loadBidFile(code, day)))).filter(Boolean);
+  }
+
+  /* One product's [price, MW, ...] merit order of a quarter-hour, the
+     zones' bids stacked (down: highest price first). */
+  function meritOrder(files, product, time) {
+    const byPrice = new Map();
+    files.forEach(file => {
+      const flat = ((file.products || {})[product] || {})[time] || [];
+      for (let index = 0; index < flat.length; index += 2) {
+        byPrice.set(flat[index], (byPrice.get(flat[index]) || 0) + flat[index + 1]);
+      }
+    });
+    const prices = [...byPrice.keys()].sort((a, b) => product.endsWith("_down") ? b - a : a - b);
+    return prices.flatMap(price => [price, byPrice.get(price)]);
   }
 
   /* Prices span several decades and both signs: a symmetric log scale,
@@ -7540,9 +7623,13 @@
     const start = lastDay ? depthSlots.findIndex(slot => slot.date === lastDay && slot.time === "12:00") : depthSlots.length - 1;
     depthSlider.value = String(Math.max(0, start));
     const shown = days.filter(date => available.has(date));
+    const italy = zone === "IT";
     document.getElementById("depth-note").textContent = shown.length
-      ? `Bids of the zone (ENTSO-E 12.3.B&C) in merit order for the quarter-hour chosen: cumulative MW against the bid price, up cheapest first, down highest price first; log price scale. Bids are kept for the last ${35} days; the strip under the slider marks the days with bids in the date range (${shown.length} of ${days.length}). Horizontal line: the activation price of that quarter-hour; vertical line: the MW activated in the zone.`
-      : "No bids for this zone in the date range: bids are kept for the last 35 days.";
+      ? (italy
+        ? "All zones' bids (ENTSO-E 12.3.B&C) stacked in merit order for the quarter-hour chosen: cumulative MW against the bid price, up cheapest first, down highest price first; log price scale. PICASSO selects Italy's standard aFRR bids nationally (one cross-border marginal price, the horizontal line); local aFRR is activated per area (Continent, Sicily, Sardinia) and RR zone by zone within the transmission limits, so those curves show the combined offer rather than one auction. Vertical line: the MW activated in Italy. "
+        : "The zone's bids (ENTSO-E 12.3.B&C) in merit order for the quarter-hour chosen: cumulative MW against the bid price, up cheapest first, down highest price first; log price scale. Horizontal line: the activation price of that quarter-hour; vertical line: the MW activated in the zone. ") +
+        `Bids are kept for the last 35 days; the strip under the slider marks the days with bids in the date range (${shown.length} of ${days.length}).`
+      : "No bids in the date range: bids are kept for the last 35 days.";
   }
 
   function depthProductsFor(zone) {
@@ -7556,11 +7643,11 @@
     const slot = depthSlots[Number(depthSlider.value)];
     document.getElementById("depth-label").textContent = slot ? depthSlotLabel(slot) : "";
     const products = depthProductsFor(zone);
-    const file = slot && bidDays(zone).has(slot.date) ? await loadBidFile(zone, slot.date) : null;
+    const files = slot && bidDays(zone).has(slot.date) ? await loadBids(zone, slot.date) : [];
     if (token !== depthRenderToken) return; // the slider moved on meanwhile
 
     products.forEach(product => {
-      const flat = file && slot ? ((file.products || {})[product.key] || {})[slot.time] : null;
+      const flat = slot ? meritOrder(files, product.key, slot.time) : null;
       if (!flat || !flat.length) {
         product.chart.clear();
         product.subtitle.textContent = slot ? "No bids for this quarter-hour" : "";
@@ -7572,9 +7659,15 @@
       product.subtitle.textContent = `${formatChartNumber(total)} MW offered at ${bidCount} price${bidCount === 1 ? "" : "s"} · ${ZONE_LABELS[currentZone]}`;
 
       const quarterKey = `${slot.date}|${slot.time}`;
-      const price = lookupValue(balancingMap(`${zone}|${product.price}`, "quarter_hourly"), quarterKey);
-      const activated = product.activated
-        ? lookupValue(balancingMap(`${zone}|${product.activated}`, "quarter_hourly"), quarterKey) : null;
+      // Italy: PICASSO's cross-border marginal price (the other products
+      // have no single national price) and the zones' activations summed.
+      const direction = product.key.endsWith("_down") ? "down" : "up";
+      const priceGroup = zone === "IT"
+        ? (product.picasso ? `IT|picasso_price_${direction}` : null)
+        : `${zone}|${product.price}`;
+      const price = priceGroup ? lookupValue(balancingMap(priceGroup, "quarter_hourly"), quarterKey) : null;
+      const activatedGroup = zone === "IT" ? `IT|sum_${product.activated}` : `${zone}|${product.activated}`;
+      const activated = lookupValue(balancingMap(activatedGroup, "quarter_hourly"), quarterKey);
       const color = cssVar(product.color);
       const prices = points.map(point => point[1]).concat(price !== null ? [price] : []);
       const low = Math.floor(Math.min(0, ...prices.map(symlog)));
@@ -7650,14 +7743,15 @@
     if (!zone) return;
     loadBalancingZone(zone);
 
-    // Layout: the six time series charts, then the depth pairs (PICASSO
+    // Layout: the time series charts, then the merit order pairs (PICASSO
     // next to local; without PICASSO, up next to down).
-    BALANCING_CHARTS.forEach(spec => balancingMount.appendChild(spec.section));
+    BALANCING_CHARTS.forEach(spec => spec.section.remove());
+    balancingChartsFor(zone).forEach(spec => balancingMount.appendChild(spec.section));
     balancingMount.appendChild(depthPanel);
     DEPTH_PRODUCTS.forEach(product => product.section.remove());
     depthProductsFor(zone).forEach(product => balancingMount.appendChild(product.section));
 
-    BALANCING_CHARTS.forEach(spec => renderBalancingChart(spec, zone));
+    balancingChartsFor(zone).forEach(spec => renderBalancingChart(spec, zone));
     if (zone !== depthZone) depthRangeKey = null;
     depthZone = zone;
     syncDepthSlots(zone);
@@ -7777,10 +7871,8 @@
       currentZone === "italy" &&
       currentSubTab === "interconnection";
 
-    // Balancing data is published per bidding zone, not for Italy.
     const showBalancing =
-      currentSubTab === "balancing" &&
-      currentZone !== "italy";
+      currentSubTab === "balancing";
 
     const zonePlaceholder =
       document.getElementById("zone-placeholder");
