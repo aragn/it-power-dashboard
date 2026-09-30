@@ -60,7 +60,7 @@ jobs:
           GME_API_PASSWORD: ${{ secrets.GME_API_PASSWORD }}
           START: ${{ inputs.start || (github.event_name == 'push' && '2025-01-01' || '') }}
           END: ${{ inputs.end }}
-          SOURCES: ${{ inputs.sources || 'entsoe,terna,gme,bids' }}
+          SOURCES: ${{ inputs.sources || (github.event_name == 'push' && 'entsoe,terna,gme' || 'entsoe,terna,gme,bids') }}
         run: |
           ARGS=(--sources "$SOURCES")
           if [ -n "$START" ]; then ARGS+=(--start "$START"); fi

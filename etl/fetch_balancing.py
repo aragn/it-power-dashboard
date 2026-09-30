@@ -70,6 +70,7 @@ from entsoe_api import (
     MARKET_TZ,
     day_chunks,
     label_minutes,
+    local_midnight_utc,
     market_today,
     merge_resolutions,
     minutes_label,
@@ -100,6 +101,10 @@ REQUIREMENT_CHUNK_DAYS = 30
 GME_CHUNK_DAYS = 31
 # ENTSO-E allows 400 requests a minute per token.
 PARALLEL_REQUESTS = 4
+
+# Terna answers 403 when a request quota is used up: wait, then stop.
+TERNA_REFUSAL_RETRIES = 3
+TERNA_REFUSAL_WAIT_SECONDS = 120
 
 # Terna's FCR auctions started on 3 June 2026 (Allegato A.83 of the grid
 # code); earlier days return zeros.
@@ -282,13 +287,23 @@ def activated_volumes(token, area, eic, process, start, end):
 
 
 def picasso_prices(token, day):
-    """IF aFRR 3.16: 15-minute mean of Italy's 4-second cross-border marginal prices."""
-    start, end = to_api_datetime(day), to_api_datetime(day, end_of_day=True)
-    root = entsoe_get(token, {"documentType": "A84", "processType": "A67", "businessType": "A96",
-                              "Standard_MarketProduct": "A01", "controlArea_Domain": IT_DOMAIN,
-                              "periodStart": start, "periodEnd": end})
+    """
+    IF aFRR 3.16: 15-minute mean of Italy's 4-second cross-border marginal
+    prices.  At most 24 hours per request, so the 25-hour day of the
+    autumn clock change takes two.
+    """
+    start = local_midnight_utc(day)
+    end = local_midnight_utc(day + timedelta(days=1))
+    roots = []
+    while start < end:
+        stop = min(start + timedelta(hours=24), end)
+        roots.append(entsoe_get(token, {"documentType": "A84", "processType": "A67", "businessType": "A96",
+                                        "Standard_MarketProduct": "A01", "controlArea_Domain": IT_DOMAIN,
+                                        "periodStart": start.strftime("%Y%m%d%H%M"),
+                                        "periodEnd": stop.strftime("%Y%m%d%H%M")}))
+        start = stop
     records = []
-    for ts in _series(root):
+    for ts in (ts for root in roots for ts in _series(root)):
         direction = DIRECTIONS.get(_text(ts, "flowDirection.direction"))
         sums = defaultdict(lambda: [0.0, 0])
         for instant, _, value in expand_points(ts, lambda p: number(p, "activation_Price.amount")):
@@ -319,6 +334,16 @@ def zone_entsoe(token, zone, eic, start, end):
     return records
 
 
+def logged(what, fetch, *args):
+    """fetch(*args), or no records (with a log line) if it fails: one bad
+    request must not lose the rest of a long download."""
+    try:
+        return fetch(*args)
+    except Exception as error:
+        print(f"    {what} failed: {error!r}")
+        return []
+
+
 def fetch_entsoe(start_day, end_day):
     token = os.environ["ENTSOE_API_KEY"]
     records = []
@@ -326,13 +351,16 @@ def fetch_entsoe(start_day, end_day):
         for chunk_start, chunk_end in day_chunks(start_day, end_day, ENTSOE_CHUNK_DAYS):
             print(f"  ENTSO-E {chunk_start} -> {chunk_end}")
             start, end = to_api_datetime(chunk_start), to_api_datetime(chunk_end, end_of_day=True)
-            for zone_records in pool.map(lambda item: zone_entsoe(token, item[0], item[1], start, end),
-                                         ZONES.items()):
+            for zone_records in pool.map(
+                    lambda item: logged(f"{item[0]} {chunk_start}", zone_entsoe, token, item[0], item[1], start, end),
+                    ZONES.items()):
                 records += zone_records
-            records += activated_volumes(token, "IT", IT_DOMAIN, "A67", start, end)
-            records += igcc_netting(token, start, end)
+            records += logged(f"IT central selection {chunk_start}", activated_volumes,
+                              token, "IT", IT_DOMAIN, "A67", start, end)
+            records += logged(f"IGCC {chunk_start}", igcc_netting, token, start, end)
         print("  ENTSO-E PICASSO cross-border marginal prices, one day per request")
-        for day_records in pool.map(lambda day: picasso_prices(token, day), market_days(start_day, end_day)):
+        for day_records in pool.map(lambda day: logged(f"PICASSO prices {day}", picasso_prices, token, day),
+                                    market_days(start_day, end_day)):
             records += day_records
     return drop_idle_prices(records)
 
@@ -488,24 +516,68 @@ def imbalance_records(rows):
     return local_records(hourly, "reference_date", group_of, value_of, minutes=60)
 
 
+class TernaRefused(Exception):
+    """Terna keeps answering 403 (a request quota, not the per-second limit)."""
+
+
+def terna_get(client, path, params):
+    """client.get, waiting out a 403 a few times before giving up."""
+    for attempt in range(TERNA_REFUSAL_RETRIES + 1):
+        try:
+            return client.get(path, params)
+        except requests.HTTPError as error:
+            if error.response is None or error.response.status_code != 403:
+                raise
+            if attempt == TERNA_REFUSAL_RETRIES:
+                raise TernaRefused(f"{path} {params}") from error
+            print(f"    Terna refused ({path}), waiting {TERNA_REFUSAL_WAIT_SECONDS}s")
+            time.sleep(TERNA_REFUSAL_WAIT_SECONDS)
+
+
+def terna_rows(client, path, key, first, last):
+    stamps = {"dateFrom": first.strftime("%d/%m/%Y"), "dateTo": last.strftime("%d/%m/%Y")}
+    return terna_get(client, path, stamps).get(key) or []
+
+
+def imbalance_rows(client, first, last):
+    """
+    Macrozonal imbalance rows of a week: one request for the whole range
+    when Terna answers it, else day by day (final, from D+1 17:00, else
+    preliminary).
+    """
+    final = ("/fees/v1.0/daily-macrozonal-imbalance", "daily_macrozonal_imbalance")
+    preliminary = ("/fees/v1.0/preliminary-macrozonal-imbalance", "preliminary_macrozonal_imbalance")
+    try:
+        rows = terna_rows(client, *final, first, last)
+    except requests.HTTPError:
+        rows = []
+    covered = {row.get("reference_date", "")[:10] for row in rows}
+    for day in market_days(first, last):
+        if day.isoformat() in covered:
+            continue
+        day_rows = terna_rows(client, *final, day, day) or terna_rows(client, *preliminary, day, day)
+        rows += day_rows
+    return rows
+
+
 def fetch_terna(start_day, end_day):
     client = Client(os.environ["TERNA_KEY"], os.environ["TERNA_SECRET"])
     records = []
-    for day in market_days(start_day, end_day):
-        print(f"  Terna {day}")
-        # Macrozonal imbalance: final (D+1 17:00), else preliminary.
-        rows = terna_day(client, "/fees/v1.0/daily-macrozonal-imbalance", "daily_macrozonal_imbalance", day)
-        if not rows:
-            rows = terna_day(client, "/fees/v1.0/preliminary-macrozonal-imbalance",
-                             "preliminary_macrozonal_imbalance", day)
-        records += imbalance_records(rows)
-
-        if day >= FCR_START:
-            fcr = client.get("/market/v1.0/aste-fcr", {"marketDate": day.strftime("%d/%m/%Y")}).get("aste_fcr") or []
-            for field, name in (("price", "price"), ("quantity", "procured"), ("requirement", "requirement")):
-                records += local_records(
-                    fcr, "date", lambda r, n=name: f"{r['zone']}|fcr_{n}_{r['direction'].lower()}",
-                    lambda r, f=field: r.get(f))
+    try:
+        for first, last in day_chunks(start_day, end_day, 7):
+            print(f"  Terna {first} -> {last}")
+            records += imbalance_records(imbalance_rows(client, first, last))
+            for day in market_days(max(first, FCR_START), last):
+                fcr = terna_get(client, "/market/v1.0/aste-fcr",
+                                {"marketDate": day.strftime("%d/%m/%Y")}).get("aste_fcr") or []
+                for field, name in (("price", "price"), ("quantity", "procured"), ("requirement", "requirement")):
+                    records += local_records(
+                        fcr, "date", lambda r, n=name: f"{r['zone']}|fcr_{n}_{r['direction'].lower()}",
+                        lambda r, f=field: r.get(f))
+    except TernaRefused as error:
+        # Keep what came in; a later run fills the rest.
+        print(f"  Terna stopped refusing requests at the week of {first}: rerun from {first} ({error})")
+        return records
 
     # Reserve requirements: one request per MSD session and chunk; each
     # session restates the hours still ahead.
@@ -520,8 +592,8 @@ def fetch_terna(start_day, end_day):
             dates = {"dateFrom": chunk_start.strftime("%d/%m/%Y"), "dateTo": chunk_end.strftime("%d/%m/%Y")}
             for session in ("MSD1", "MSD2", "MSD3", "MSD4", "MSD5", "MSD6"):
                 try:
-                    rows = client.get(path, {**dates, "sessionType": session}).get(key) or []
-                except requests.HTTPError as error:
+                    rows = terna_get(client, path, {**dates, "sessionType": session}).get(key) or []
+                except (requests.HTTPError, TernaRefused) as error:
                     print(f"    {name} {session}: {error}")
                     continue
                 session_records += local_records(
@@ -571,11 +643,17 @@ def msd_records(rows):
 
 
 def fetch_gme(start_day, end_day):
-    token = get_token(os.environ["GME_API_LOGIN"], os.environ["GME_API_PASSWORD"])
+    login = (os.environ["GME_API_LOGIN"], os.environ["GME_API_PASSWORD"])
+    token = get_token(*login)
     rows = []
     for chunk_start, chunk_end in day_chunks(start_day, end_day, GME_CHUNK_DAYS):
         print(f"  GME MSD ex-ante {chunk_start} -> {chunk_end}")
-        rows += request_chunk(token, chunk_start, chunk_end, None, "MSD", "ME_MSDExAnteResults")
+        try:
+            rows += request_chunk(token, chunk_start, chunk_end, None, "MSD", "ME_MSDExAnteResults")
+        except PermissionError:
+            # The token expires during long downloads: log in again.
+            token = get_token(*login)
+            rows += request_chunk(token, chunk_start, chunk_end, None, "MSD", "ME_MSDExAnteResults")
         time.sleep(REQUEST_PAUSE_SECONDS)
     return msd_records(rows)
 

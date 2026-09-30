@@ -168,3 +168,15 @@ def test_macrozonal_imbalance_falls_back_to_hourly_values():
                          "zonal_aggregate_unbalance_MWh": "-20"}]
     assert [(r["minutes"], r["value"]) for r in fb.imbalance_records(hourly)] == [(60, -80.0)]
     assert [(r["minutes"], r["value"]) for r in fb.imbalance_records(quarter)] == [(15, -80.0)]
+
+
+def test_picasso_prices_split_the_25_hour_day(monkeypatch):
+    from datetime import date
+    windows = []
+    monkeypatch.setattr(fb, "entsoe_get", lambda token, params: windows.append(
+        (params["periodStart"], params["periodEnd"])))
+    fb.picasso_prices("t", date(2025, 10, 26))
+    assert windows == [("202510252200", "202510262200"), ("202510262200", "202510262300")]
+    windows.clear()
+    fb.picasso_prices("t", date(2026, 9, 28))
+    assert windows == [("202609272200", "202609282200")]
