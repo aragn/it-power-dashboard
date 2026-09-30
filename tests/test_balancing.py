@@ -112,3 +112,17 @@ def test_standard_aFRR_activations_come_from_local_selection(monkeypatch):
               for r in fb.aggregated_bids("t", "NORD", "eic", process, "", "")}
     assert values == {"NORD|offered_picasso_down": 560, "NORD|offered_afrr_down": 1765.75,
                       "NORD|activated_afrr_down": 0, "NORD|activated_picasso_down": 45.825}
+
+
+def test_hourly_activation_prices_are_weighted_by_energy():
+    def rows(values):
+        return [{"date": "2026-09-28", "time": time, "value": value}
+                for time, value in zip(("08:30", "08:45", "09:00", "09:15"), values)]
+    series = {"quarter_hourly": {"NORD|price_picasso_up": rows([433, 514237, 191, 200]),
+                                 "NORD|activated_picasso_up": rows([10, 0.001, 30, 0])},
+              "hourly": {}, "daily": {}}
+    fb.weight_activation_prices(series)
+    hourly = {row["time"]: row["value"] for row in series["hourly"]["NORD|price_picasso_up"]}
+    assert hourly == {"08:00": round((433 * 10 + 514237 * 0.001) / 10.001, 2), "09:00": 191.0}
+    assert series["daily"]["NORD|price_picasso_up"] == [
+        {"date": "2026-09-28", "value": round((433 * 10 + 514237 * 0.001 + 191 * 30) / 40.001, 2)}]

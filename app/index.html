@@ -7109,7 +7109,7 @@
     },
     {
       id: "energy", title: "Balancing Energy", wide: true, right: "energy",
-      help: zone => `Lines: prices of the balancing energy activated in the zone (ENTSO-E 17.1.F)${hasPicasso(zone) ? ": aFRR standard product (the bids offered to PICASSO; published under 'local selection', A68), aFRR specific product (local only)" : ": aFRR (Sardinia offers only the specific product, outside PICASSO)"} and RR (the balancing market MB), against the zone's day-ahead price. Bars: the energy activated in the zone (12.3.E), up above zero, down below. Drag horizontally across the chart to select a narrower range.`,
+      help: zone => `Lines: prices of the balancing energy activated in the zone (ENTSO-E 17.1.F)${hasPicasso(zone) ? ": aFRR standard product (the bids offered to PICASSO; published under 'local selection', A68), aFRR specific product (local only)" : ": aFRR (Sardinia offers only the specific product, outside PICASSO)"} and RR (the balancing market MB), against the zone's day-ahead price. Bars: the energy activated in the zone (12.3.E), up above zero, down below. A quarter-hour with less than 1 MW activated can carry an extreme price (up to hundreds of thousands of €/MWh): it is left off the scale, with its value in the tooltip; hourly and daily prices are averages weighted by the energy activated. Drag horizontally across the chart to select a narrower range.`,
       series: zone => [
         hasPicasso(zone) && { name: "aFRR up (PICASSO)", color: "--bal-picasso", group: `${zone}|price_picasso_up`, unit: "price", sparse: true },
         hasPicasso(zone) && { name: "aFRR down (PICASSO)", color: "--bal-picasso", group: `${zone}|price_picasso_down`, unit: "price", line: "dashed", sparse: true },
@@ -7305,6 +7305,18 @@
       });
     });
 
+    // Activation prices of quarter-hours with (almost) nothing activated can
+    // be extreme (hundreds of thousands of EUR/MWh on 0.001 MW): they stay
+    // in the tooltip but do not set the scale.
+    const scaleData = items.map((item, index) => {
+      if (!item.group || !item.group.includes("|price_")) return data[index];
+      const volumes = balancingMap(item.group.replace("|price_", "|activated_"));
+      return data[index].map((value, slot) => {
+        const volume = lookupValue(volumes, timeline.rows[slot].key);
+        return volume !== null && Math.abs(volume) < 1 ? null : value;
+      });
+    });
+
     const subtitleId = `bal-${spec.id}-subtitle`;
     document.getElementById(`bal-${spec.id}-help`).textContent = spec.help(zone);
     const own = items.map((item, index) => item.map ? [] : data[index]).flat();
@@ -7324,7 +7336,7 @@
     const axisFormat = { ...timelineAxisTextStyle(),
       formatter: value => Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 }) };
     const yAxisFor = selected => {
-      const ranges = zeroAlignedAxes(balancingExtents(items, data, selected, hasRight ? 2 : 1));
+      const ranges = zeroAlignedAxes(balancingExtents(items, scaleData, selected, hasRight ? 2 : 1));
       const axes = [timelineYAxis(axisName(leftUnit), { nameGap: 44, axisLabel: axisFormat, ...ranges[0] })];
       if (hasRight) {
         axes.push(timelineYAxis(axisName(spec.right), {

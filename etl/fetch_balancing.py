@@ -67,8 +67,10 @@ from entsoe_api import (
     API_URL,
     MARKET_TZ,
     day_chunks,
+    label_minutes,
     market_today,
     merge_resolutions,
+    minutes_label,
     parse_date,
     parse_response,
     point_label,
@@ -554,6 +556,43 @@ def merge(existing, records):
     return merged
 
 
+def weight_activation_prices(series):
+    """
+    Hourly and daily activation prices as averages weighted by the energy
+    activated in each quarter-hour (a quarter-hour with 0.001 MW activated
+    can publish hundreds of thousands of EUR/MWh); a plain average where
+    nothing was activated.
+    """
+    quarter = series["quarter_hourly"]
+    buckets = {
+        "hourly": lambda row: (row["date"], minutes_label(label_minutes(row["time"]) // 60 * 60)),
+        "daily": lambda row: (row["date"], None),
+    }
+    for group, rows in quarter.items():
+        if "|price_" not in group:
+            continue
+        volumes = {(row["date"], row["time"]): abs(row["value"])
+                   for row in quarter.get(group.replace("|price_", "|activated_"), [])}
+        for resolution, bucket_of in buckets.items():
+            sums = defaultdict(lambda: [0.0, 0.0, 0.0, 0])  # weighted sum, weight, sum, count
+            for row in rows:
+                weight = volumes.get((row["date"], row["time"]), 0.0)
+                total = sums[bucket_of(row)]
+                total[0] += row["value"] * weight
+                total[1] += weight
+                total[2] += row["value"]
+                total[3] += 1
+            output = []
+            for (day, label), (weighted, weight, plain, count) in sorted(
+                    sums.items(), key=lambda item: (item[0][0], label_minutes(item[0][1]) if item[0][1] else 0)):
+                row = {"date": day, "value": round(weighted / weight if weight else plain / count, 2)}
+                if label is not None:
+                    row["time"] = label
+                output.append(row)
+            series[resolution][group] = output
+    return series
+
+
 def build_output(series):
     return {
         "source": "ENTSO-E Transparency Platform, Terna public API, GME API",
@@ -605,7 +644,7 @@ def main():
         update_bids(bid_start, min(end_day, today))
         prune_bids(today)
 
-    series = merge(load_existing(), records)
+    series = weight_activation_prices(merge(load_existing(), records))
     compact.dump(build_output(series), OUTPUT_PATH)
     groups = sorted(series["quarter_hourly"])
     print(f"Wrote {OUTPUT_PATH}: {len(groups)} series, bids for {sum(len(v) for v in bid_days().values())} zone-days")
