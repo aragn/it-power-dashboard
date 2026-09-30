@@ -1,0 +1,80 @@
+"""Checks for fetch_balancing.  Run: python -m pytest tests"""
+
+import os
+import sys
+import xml.etree.ElementTree as ET
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "etl"))
+
+import fetch_balancing as fb  # noqa: E402
+
+NS = "urn:iec62325.351:tc57wg16:451-6:balancingdocument:4:4"
+
+
+def timeseries(points, curve="A03", resolution="PT15M", start="2026-09-21T22:00Z", end="2026-09-21T23:00Z",
+               extra=""):
+    body = "".join(f"<Point><position>{pos}</position>{value}</Point>" for pos, value in points)
+    return ET.fromstring(
+        f'<TimeSeries xmlns="{NS}"><curveType>{curve}</curveType>{extra}<Period><timeInterval>'
+        f"<start>{start}</start><end>{end}</end></timeInterval><resolution>{resolution}</resolution>"
+        f"{body}</Period></TimeSeries>")
+
+
+def test_a03_values_hold_until_the_next_listed_position():
+    ts = timeseries([(1, "<quantity>5</quantity>"), (3, "<quantity>7</quantity>")])
+    values = [value for _, _, value in fb.expand_points(ts, lambda p: fb.number(p, "quantity"))]
+    assert values == [5, 5, 7, 7]
+
+
+def test_a03_point_without_value_ends_the_previous_one():
+    # CBMP: a point without a price means no price from there on.
+    ts = timeseries([(1, ""), (2, "<activation_Price.amount>177</activation_Price.amount>"), (4, "")],
+                    resolution="PT15M")
+    values = [(i.minute, v) for i, _, v in fb.expand_points(ts, lambda p: fb.number(p, "activation_Price.amount"))]
+    assert values == [(15, 177), (30, 177)]
+
+
+def test_quarter_records_use_italian_market_time():
+    from datetime import datetime, timezone
+    records = fb.quarter_records("NORD|x", {datetime(2026, 9, 21, 22, 15, tzinfo=timezone.utc): 2.0}, scale=4)
+    assert records == [{"group": "NORD|x", "date": "2026-09-22", "time": "00:15", "minutes": 15, "value": 8.0}]
+
+
+def test_merit_curves_merge_prices_and_sort_by_direction():
+    bids = {"rr_up": {"12:00": [(250, 10), (217, 5), (250, 2.5)]},
+            "rr_down": {"12:00": [(120, 1), (160, 4), (-5, 3)]}}
+    curves = fb.merit_curves(bids)
+    assert curves["rr_up"]["12:00"] == [217, 5, 250, 12.5]
+    assert curves["rr_down"]["12:00"] == [160, 4, 120, 1, -5, 3]
+
+
+def test_bid_products_split_picasso_standard_bids():
+    standard = ET.fromstring(f'<Bid_TimeSeries xmlns="{NS}"><flowDirection.direction>A01</flowDirection.direction>'
+                             "<standard_MarketProduct.marketProductType>A01</standard_MarketProduct.marketProductType>"
+                             "</Bid_TimeSeries>")
+    local = ET.fromstring(f'<Bid_TimeSeries xmlns="{NS}"><flowDirection.direction>A02</flowDirection.direction>'
+                          "</Bid_TimeSeries>")
+    assert fb.bid_product(standard, "afrr") == "afrr_picasso_up"
+    assert fb.bid_product(local, "afrr") == "afrr_down"
+    assert fb.bid_product(local, "rr") == "rr_down"
+
+
+def test_terna_local_times_repeat_on_the_autumn_dst_day():
+    rows = [{"reference_date": "2026-10-25 02:00:00", "macrozone": "NORD", "v": "1"},
+            {"reference_date": "2026-10-25 02:00:00", "macrozone": "NORD", "v": "2"},
+            {"reference_date": "2026-10-25 03:00:00", "macrozone": "NORD", "v": "3"}]
+    records = fb.local_records(rows, "reference_date", lambda r: "NORD|x", lambda r: r["v"])
+    assert [(r["time"], r["value"]) for r in records] == [("02:00", 1.0), ("03:00", 2.0), ("04:00", 3.0)]
+
+
+def test_requirements_keep_the_latest_session():
+    records = [{"group": "NORD|rr_requirement", "date": "2026-09-22", "time": "12:00", "value": 100},
+               {"group": "NORD|rr_requirement", "date": "2026-09-22", "time": "12:00", "value": 80}]
+    assert [r["value"] for r in fb.latest_session(records)] == [80]
+
+
+def test_daily_rule_per_series():
+    assert fb.is_mean("NORD|imbalance_price") and fb.is_mean("Sardegna|fcr_price_up")
+    assert fb.is_mean("NORD|offered_rr_up") and fb.is_mean("NORD|rr_requirement")
+    assert not fb.is_mean("NORD|activated_rr_up") and not fb.is_mean("SUD|imbalance_volume")
+    assert not fb.is_mean("IT|igcc_import") and not fb.is_mean("NORD|msd_volume_up")
