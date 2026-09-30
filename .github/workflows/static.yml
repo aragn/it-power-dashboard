@@ -24,6 +24,7 @@ on:
       - "Update Terna Geothermal & Total Load"
       - "Update Installed Capacity & Unavailability"
       - "Monthly Data Checks"
+      - "Update Balancing (ENTSO-E, Terna, GME)"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab

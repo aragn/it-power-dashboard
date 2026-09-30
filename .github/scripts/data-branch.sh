@@ -4,7 +4,11 @@
 # branch always holds a single commit, replaced on every update.
 #
 #   data-branch.sh restore             copy the data files into app/data/
-#   data-branch.sh publish FILE...     replace FILE(s) on the data branch
+#   data-branch.sh publish FILE...     replace FILE(s) on the data branch;
+#                                      a directory replaces everything under
+#                                      it (files deleted locally go too), and
+#                                      a path that no longer exists locally
+#                                      is removed
 #
 # "restore" also works locally (Git Bash) to get the data for a preview.
 
@@ -43,9 +47,21 @@ publish() {
     # from the other workflows are kept.
     index=$(mktemp -u)
     GIT_INDEX_FILE=$index git read-tree "$head"
-    for file in "$@"; do
-      GIT_INDEX_FILE=$index git update-index --add \
-        --cacheinfo "100644,$(git hash-object -w "$file"),$file"
+    for path in "$@"; do
+      if [ -d "$path" ]; then
+        GIT_INDEX_FILE=$index git ls-files -z -- "$path" |
+          GIT_INDEX_FILE=$index xargs -0 -r git update-index --force-remove --
+        while IFS= read -r file; do
+          GIT_INDEX_FILE=$index git update-index --add \
+            --cacheinfo "100644,$(git hash-object -w "$file"),$file"
+        done < <(find "$path" -type f | sort)
+      elif [ ! -e "$path" ]; then
+        GIT_INDEX_FILE=$index git ls-files -z -- "$path" |
+          GIT_INDEX_FILE=$index xargs -0 -r git update-index --force-remove --
+      else
+        GIT_INDEX_FILE=$index git update-index --add \
+          --cacheinfo "100644,$(git hash-object -w "$path"),$path"
+      fi
     done
     tree=$(GIT_INDEX_FILE=$index git write-tree)
     rm -f "$index"
