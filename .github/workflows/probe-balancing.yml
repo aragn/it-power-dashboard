@@ -1,6 +1,9 @@
 name: TEMPORARY probe balancing data
 
 on:
+  push:
+    branches: [balancing]
+    paths: [etl/probe_balancing.py, .github/workflows/probe-balancing.yml]
   workflow_dispatch:
     inputs:
       parts:
@@ -29,7 +32,7 @@ jobs:
           TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
           GME_API_LOGIN: ${{ secrets.GME_API_LOGIN }}
           GME_API_PASSWORD: ${{ secrets.GME_API_PASSWORD }}
-        run: cd etl && (python probe_balancing.py ${{ inputs.parts }}; mv probe ..)
+        run: cd etl && (python probe_balancing.py ${{ inputs.parts || 'entsoe terna gme' }}; mv probe ..)
       - uses: actions/upload-artifact@v4
         if: always()
         with:
