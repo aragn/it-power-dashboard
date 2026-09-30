@@ -31,6 +31,7 @@
       --border-1:#3987e5; --border-2:#d95926; --border-3:#199e70; --border-4:#c98500; --border-5:#d55181; --border-6:#008300; --border-7:#9085e9;
       --flow-physical:#3987e5; --flow-scheduled:#d95926;
       --coupling-flow:#199e70; --coupling-limit:#d9dde2; --coupling-price-italy:#e66767; --coupling-price-sud:#d55181; --coupling-price-neighbour:#9085e9;
+      --bal-imbalance:#c783ff; --bal-picasso:#5ecb8a; --bal-afrr:#5b9cff; --bal-rr:#e7a84b; --bal-fcr:#ef6fae; --bal-msd:#ef6fae; --bal-reference:#d9dde2; --bal-volume:rgba(140,148,158,.5);
     }
     :root[data-theme="light"] {
       color-scheme:light;
@@ -47,6 +48,7 @@
       --border-1:#2a78d6; --border-2:#eb6834; --border-3:#1baf7a; --border-4:#eda100; --border-5:#e87ba4; --border-6:#008300; --border-7:#4a3aa7;
       --flow-physical:#2a78d6; --flow-scheduled:#eb6834;
       --coupling-flow:#12805f; --coupling-limit:#1f2429; --coupling-price-italy:#e34948; --coupling-price-sud:#c93d74; --coupling-price-neighbour:#4a3aa7;
+      --bal-imbalance:#8a4fd6; --bal-picasso:#1f9d57; --bal-afrr:#2f6fdb; --bal-rr:#c27a0e; --bal-fcr:#d23f84; --bal-msd:#d23f84; --bal-reference:#1f2429; --bal-volume:rgba(91,100,112,.4);
     }
     #theme-toggle { position:fixed; left:16px; bottom:16px; z-index:150; display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 14px 8px 11px; font-size:12px; cursor:pointer; box-shadow:0 6px 18px var(--shadow); }
     #theme-toggle:hover { background:var(--hover); }
@@ -114,6 +116,19 @@
     .intraday-chart-wrap { height:320px; }
     .xbid-grid { grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { .xbid-grid { grid-template-columns:1fr; } }
+    #chart-mount-balancing { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
+    @media (max-width: 1050px) { #chart-mount-balancing { grid-template-columns:1fr; } }
+    .depth-panel { grid-column:1 / -1; padding:14px 18px; }
+    .depth-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-top:8px; }
+    .depth-controls button { width:30px; height:30px; flex-shrink:0; border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:6px; cursor:pointer; font-size:14px; }
+    .depth-controls button:hover { background:var(--hover); }
+    .depth-track { position:relative; flex:1; min-width:180px; padding-bottom:8px; }
+    .depth-track input { width:100%; margin:0; accent-color:var(--blue); cursor:pointer; }
+    .depth-availability { position:absolute; left:0; right:0; bottom:0; height:4px; border-radius:2px; background:var(--chart-grid); overflow:hidden; }
+    .depth-availability span { position:absolute; top:0; bottom:0; background:var(--blue); opacity:.7; }
+    .depth-label { min-width:170px; font-size:13px; font-weight:600; font-variant-numeric:tabular-nums; }
+    .depth-note { margin-top:6px; color:var(--muted-2); font-size:11px; }
+    .depth-chart-wrap { position:relative; width:100%; height:300px; }
     #chart-mount-interconnection { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { #chart-mount-interconnection { grid-template-columns:1fr; } }
     .crossborder-legend { grid-column:1 / -1; display:flex; flex-wrap:wrap; align-items:center; gap:4px 10px; padding:10px 14px; }
@@ -239,7 +254,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range. <span class="info-hover" tabindex="0" aria-describedby="outages-info">Read here for more info<span id="outages-info" class="info-pop" role="tooltip"></span></span></div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="balancing" type="button">Balancing</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range. <span class="info-hover" tabindex="0" aria-describedby="outages-info">Read here for more info<span id="outages-info" class="info-pop" role="tooltip"></span></span></div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -257,7 +272,7 @@
           <section id="intraday-mia2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A2 Zonal Prices</div><div id="intraday-mia2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="intraday-mia2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia2-chart" class="timeline-chart"></div><div id="intraday-mia2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (evening); covers the whole day.</div></section>
           <section id="intraday-mia3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A3 Zonal Prices</div><div id="intraday-mia3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="intraday-mia3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia3-chart" class="timeline-chart"></div><div id="intraday-mia3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held on the day (morning); covers only the afternoon and evening, so its daily average is for those hours.</div></section>
           <div class="xbid-grid"><section id="intraday-xbid60-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-XBID 60 min Zonal Prices</div><div id="intraday-xbid60-subtitle" class="chart-subtitle">Continuous trading</div></div></div><div id="intraday-xbid60-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-xbid60-chart" class="timeline-chart"></div><div id="intraday-xbid60-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Reference price: the volume-weighted average price of all trades of each hourly product (all trading phases), published the day after delivery. In the 15-minute view each hour's price is repeated over its quarter-hours. Hours without trades have no price; the line joins the traded ones.</div></section><section id="intraday-xbid15-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-XBID 15 min Zonal Prices</div><div id="intraday-xbid15-subtitle" class="chart-subtitle">Continuous trading</div></div></div><div id="intraday-xbid15-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-xbid15-chart" class="timeline-chart"></div><div id="intraday-xbid15-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Reference price: the volume-weighted average price of all trades of each 15-minute product (all trading phases), published the day after delivery. Hourly and daily views average the traded quarter-hours. Quarter-hours without trades have no price; the line joins the traded ones.</div></section></div>
-        </div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div></div></div>
+        </div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
       </main>
@@ -7001,6 +7016,623 @@
 
 
   /* ============================================================
+     BALANCING (PER BIDDING ZONE)
+     ============================================================ */
+
+  /*
+   * ENTSO-E, Terna and GME balancing data of one bidding zone
+   * (data/balancing.json, see etl/fetch_balancing.py).  Colour follows the
+   * product (PICASSO aFRR, local aFRR, RR, FCR, MSD); solid lines and bars
+   * above zero are upward, dashed lines and bars below zero downward.
+   * Prices on the left axis, volumes on the right.
+   */
+  const BALANCING_ZONE_CODES = {
+    north: "NORD", "center-north": "CNOR", "center-south": "CSUD", south: "SUD",
+    calabria: "CALA", sicily: "SICI", sardinia: "SARD"
+  };
+
+  // Sardinia offers no standard aFRR product, so it takes no part in PICASSO.
+  const hasPicasso = zone => zone !== "SARD";
+
+  const balancingMount = document.getElementById("chart-mount-balancing");
+  let rawBalancingData = null;
+  let balancingStatus = "loading"; // "loading" | "ready" | "missing"
+  const balancingCache = {};
+
+  async function loadBalancingData() {
+    try {
+      const response = await fetch("./data/balancing.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawBalancingData = decodeCompactPayload(await response.json());
+      balancingStatus = "ready";
+    } catch (error) {
+      console.warn("Balancing data unavailable:", error);
+      balancingStatus = "missing";
+    }
+    Object.keys(balancingCache).forEach(key => delete balancingCache[key]);
+    updateView();
+  }
+
+  /* One balancing series at the current resolution: bucket key -> value. */
+  function balancingMap(group, resolution = timelineResolutionKey()) {
+    const cacheKey = `${group}|${resolution}`;
+    if (!rawBalancingData) return new Map();
+    if (!balancingCache[cacheKey]) {
+      const rows = (((rawBalancingData.series || {})[resolution]) || {})[group] || [];
+      balancingCache[cacheKey] = new Map(rows.map(row => [
+        resolution === "daily" ? row.date : `${row.date}|${row.time}`, Number(row.value)
+      ]));
+    }
+    return balancingCache[cacheKey];
+  }
+
+  /* The zone's day-ahead (MGP) price, bucket key -> EUR/MWh. */
+  function mgpPriceMap(zone) {
+    const resolution = timelineResolutionKey();
+    const cacheKey = `mgp|${zone}|${resolution}`;
+    if (!rawZonalData || !rawZonalData.zones) return new Map();
+    if (!balancingCache[cacheKey]) {
+      const rows = ((rawZonalData.zones[zone] || {})[resolution]) || [];
+      balancingCache[cacheKey] = new Map(rows.map(row => [timelineBucketKey(row), Number(row.price)]));
+    }
+    return balancingCache[cacheKey];
+  }
+
+  function balancingArea(kind, zone) {
+    return (((rawBalancingData || {}).areas || {})[kind] || {})[zone] || zone;
+  }
+
+  const BALANCING_UNITS = {
+    price: () => "€/MWh",
+    fcr: () => "€/MW",
+    energy: () => timelineUnit(),
+    capacity: () => "MW"
+  };
+
+  const dayAheadSeries = { name: "Day-ahead (MGP)", color: "--bal-reference", map: mgpPriceMap, unit: "price", width: 1.2 };
+
+  /*
+   * Chart specs.  Series: group (balancing.json key) or map(zone); axis 1 =
+   * right; sign -1 draws a positive volume below zero; line "dashed" for
+   * downward prices.
+   */
+  const BALANCING_CHARTS = [
+    {
+      id: "imbalance", title: "Imbalance", wide: true, right: "energy",
+      help: zone => `Single imbalance price of the zone (ENTSO-E 17.1.G; North has its own price, the other zones share one) and the zone's day-ahead price (GME). Bars: Terna's aggregate imbalance of the ${balancingArea("macrozone", zone) === "NORD" ? "North" : "South"} macrozone (final, else preliminary), above zero = the macrozone was long. Drag horizontally across the chart to select a narrower range.`,
+      series: zone => [
+        { name: "Imbalance price", color: "--bal-imbalance", group: `${zone}|imbalance_price`, unit: "price", width: 1.8 },
+        dayAheadSeries,
+        { name: `Macrozone imbalance (${balancingArea("macrozone", zone) === "NORD" ? "North" : "South"})`, color: "--bal-volume",
+          group: `${balancingArea("macrozone", zone)}|imbalance_volume`, unit: "energy", axis: 1, type: "bar" }
+      ]
+    },
+    {
+      id: "energy", title: "Balancing Energy", wide: true, right: "energy",
+      help: zone => `Lines: prices of the activated balancing energy (ENTSO-E 17.1.F: local aFRR and RR, i.e. the balancing market MB)${hasPicasso(zone) ? " and PICASSO's cross-border marginal price for Italy (15-minute mean of the 4-second prices, IF aFRR 3.16)" : ""}, against the zone's day-ahead price. Bars: energy activated in the zone (12.3.E), up above zero, down below. Drag horizontally across the chart to select a narrower range.`,
+      series: zone => [
+        hasPicasso(zone) && { name: "aFRR up (PICASSO)", color: "--bal-picasso", group: "IT|picasso_price_up", unit: "price", sparse: true },
+        hasPicasso(zone) && { name: "aFRR down (PICASSO)", color: "--bal-picasso", group: "IT|picasso_price_down", unit: "price", line: "dashed", sparse: true },
+        { name: "aFRR up (local)", color: "--bal-afrr", group: `${zone}|price_afrr_up`, unit: "price", sparse: true },
+        { name: "aFRR down (local)", color: "--bal-afrr", group: `${zone}|price_afrr_down`, unit: "price", line: "dashed", sparse: true },
+        { name: "RR up", color: "--bal-rr", group: `${zone}|price_rr_up`, unit: "price", sparse: true },
+        { name: "RR down", color: "--bal-rr", group: `${zone}|price_rr_down`, unit: "price", line: "dashed", sparse: true },
+        dayAheadSeries,
+        { name: "aFRR activated up", color: "--bal-afrr", group: `${zone}|activated_afrr_up`, unit: "energy", axis: 1, type: "bar" },
+        { name: "aFRR activated down", color: "--bal-afrr", group: `${zone}|activated_afrr_down`, unit: "energy", axis: 1, type: "bar", sign: -1 },
+        { name: "RR activated up", color: "--bal-rr", group: `${zone}|activated_rr_up`, unit: "energy", axis: 1, type: "bar" },
+        { name: "RR activated down", color: "--bal-rr", group: `${zone}|activated_rr_down`, unit: "energy", axis: 1, type: "bar", sign: -1 }
+      ]
+    },
+    {
+      id: "capacity", title: "Balancing Capacity (FCR)", right: "capacity",
+      help: zone => `ENTSO-E publishes no procured balancing capacity for Italy (12.3.F): aFRR and RR capacity is procured inside MSD (their requirements are in the charts below). FCR is auctioned by Terna for ${balancingArea("fcr", zone) === "Sardegna" ? "Sardinia" : "the Continent and Sicily together"}: marginal price (left), procured MW (bars) and requirement (dotted). Daily: averages.`,
+      series: zone => {
+        const fcr = balancingArea("fcr", zone);
+        return [
+          { name: "FCR price up", color: "--bal-fcr", group: `${fcr}|fcr_price_up`, unit: "fcr" },
+          { name: "FCR price down", color: "--bal-fcr", group: `${fcr}|fcr_price_down`, unit: "fcr", line: "dashed" },
+          { name: "FCR procured up", color: "--bal-fcr", group: `${fcr}|fcr_procured_up`, unit: "capacity", axis: 1, area: true, width: 0.8 },
+          { name: "FCR procured down", color: "--bal-fcr", group: `${fcr}|fcr_procured_down`, unit: "capacity", axis: 1, area: true, width: 0.8, sign: -1 },
+          { name: "FCR requirement up", color: "--bal-reference", group: `${fcr}|fcr_requirement_up`, unit: "capacity", axis: 1, line: "dotted" },
+          { name: "FCR requirement down", color: "--bal-reference", group: `${fcr}|fcr_requirement_down`, unit: "capacity", axis: 1, line: "dotted", sign: -1 }
+        ];
+      }
+    },
+    {
+      id: "msd", title: "MSD ex-ante", right: "energy",
+      help: () => "GME: the scheduling phase of the dispatching services market (congestions, reserve margins), run the day before; the balancing market MB is in the energy chart above. Lines: average price of the accepted offers (pay-as-bid) to sell (up) and buy back (down). Bars: accepted volumes.",
+      series: zone => [
+        { name: "MSD up price", color: "--bal-msd", group: `${zone}|msd_price_up`, unit: "price", sparse: true },
+        { name: "MSD down price", color: "--bal-msd", group: `${zone}|msd_price_down`, unit: "price", line: "dashed", sparse: true },
+        dayAheadSeries,
+        { name: "MSD up", color: "--bal-msd", group: `${zone}|msd_volume_up`, unit: "energy", axis: 1, type: "bar" },
+        { name: "MSD down", color: "--bal-msd", group: `${zone}|msd_volume_down`, unit: "energy", axis: 1, type: "bar", sign: -1 }
+      ]
+    },
+    {
+      id: "afrr-sources", title: "aFRR Activated", left: "energy",
+      help: zone => hasPicasso(zone)
+        ? "Bars: local aFRR activated from the zone's own bids (12.3.E, specific product). Lines, all Italy (not split by zone): standard aFRR bids activated through PICASSO (12.3.E) and the imbalance netted with the IGCC partners instead of being activated (IF 3.10, import above zero). Dotted blue: the aFRR half band Terna requires in MSD for the area (MW; not in the daily view)."
+        : "Local aFRR activated from Sardinia's own bids (12.3.E); Sardinia does not take part in PICASSO or IGCC netting. Dotted: the aFRR half band Terna requires in MSD for Sardinia (MW; not in the daily view).",
+      series: zone => [
+        { name: "Local aFRR up", color: "--bal-afrr", group: `${zone}|activated_afrr_up`, unit: "energy", type: "bar" },
+        { name: "Local aFRR down", color: "--bal-afrr", group: `${zone}|activated_afrr_down`, unit: "energy", type: "bar", sign: -1 },
+        hasPicasso(zone) && { name: "PICASSO up (Italy)", color: "--bal-picasso", group: "IT|activated_picasso_up", unit: "energy" },
+        hasPicasso(zone) && { name: "PICASSO down (Italy)", color: "--bal-picasso", group: "IT|activated_picasso_down", unit: "energy", line: "dashed", sign: -1 },
+        hasPicasso(zone) && { name: "IGCC import (Italy)", color: "--bal-reference", group: "IT|igcc_import", unit: "energy", line: "dotted" },
+        hasPicasso(zone) && { name: "IGCC export (Italy)", color: "--bal-reference", group: "IT|igcc_export", unit: "energy", line: "dotted", sign: -1 },
+        // MW; the daily view sums energy (MWh/day), so it is left out there.
+        currentGranularity !== "daily" &&
+          { name: `aFRR requirement (${balancingArea("afrr", zone)})`, color: "--bal-afrr", group: `${balancingArea("afrr", zone)}|afrr_requirement`, unit: "capacity", line: "dotted", width: 1.8 }
+      ]
+    },
+    {
+      id: "rr-sources", title: "RR Activated", left: "energy",
+      help: () => "Replacement reserve activated in the zone (12.3.E; in Italy the balancing market MB), up above zero and down below, against the RR requirement Terna set for the zone in MSD (MW; not in the daily view).",
+      series: zone => [
+        { name: "RR up", color: "--bal-rr", group: `${zone}|activated_rr_up`, unit: "energy", type: "bar" },
+        { name: "RR down", color: "--bal-rr", group: `${zone}|activated_rr_down`, unit: "energy", type: "bar", sign: -1 },
+        // MW; the daily view sums energy (MWh/day), so it is left out there.
+        currentGranularity !== "daily" &&
+          { name: "RR requirement", color: "--bal-rr", group: `${zone}|rr_requirement`, unit: "capacity", line: "dotted", width: 1.8 }
+      ]
+    }
+  ];
+
+  function balancingPanel(id, title, wide, extraClass = "") {
+    const section = document.createElement("section");
+    section.className = `panel chart-panel${wide ? " chart-panel-wide" : ""}${extraClass}`;
+    section.innerHTML =
+      `<div class="chart-header"><div><div class="chart-title">${title}</div>` +
+      `<div id="bal-${id}-subtitle" class="chart-subtitle"></div></div></div>` +
+      `<div id="bal-${id}-wrap" class="timeline-chart-wrap"><div id="bal-${id}-chart" class="timeline-chart"></div>` +
+      `<div id="bal-${id}-drag" class="timeline-drag-selection"></div></div>` +
+      `<div id="bal-${id}-help" class="chart-help"></div>`;
+    return section;
+  }
+
+  BALANCING_CHARTS.forEach(spec => {
+    spec.section = balancingPanel(spec.id, spec.title, spec.wide);
+    balancingMount.appendChild(spec.section);
+    spec.chart = echarts.init(spec.section.querySelector(".timeline-chart"));
+    spec.timeline = createTimeline(spec.chart);
+    spec.selected = {};
+    spec.chart.on("legendselectchanged", event => {
+      spec.selected = { ...event.selected };
+      if (spec.rescale) spec.rescale();
+    });
+    attachDragZoom(spec.chart, `bal-${spec.id}-wrap`, `bal-${spec.id}-drag`);
+  });
+
+  function niceStep(raw) {
+    if (!(raw > 0)) return 1;
+    const power = 10 ** Math.floor(Math.log10(raw));
+    return [1, 2, 2.5, 5, 10].find(step => raw / power <= step + 1e-9) * power;
+  }
+
+  /* Ranges for the value axes with zero on the same gridline on both sides
+     (extents: [min, max] per axis, each including 0). */
+  function zeroAlignedAxes(extents) {
+    let best = null;
+    for (let total = 4; total <= 6; total++) {
+      for (let below = 0; below <= total; below++) {
+        const above = total - below;
+        if (extents.some(([low, high]) => (low < 0 && !below) || (high > 0 && !above))) continue;
+        const steps = extents.map(([low, high]) =>
+          niceStep(Math.max(below ? -low / below : 0, above ? high / above : 0)));
+        const waste = extents.reduce((sum, [low, high], index) =>
+          sum + 1 - (high - low) / (total * steps[index]), 0);
+        if (!best || waste < best.waste - 1e-9) best = { below, above, steps, waste };
+      }
+    }
+    return best.steps.map(step => ({ min: -best.below * step, max: best.above * step, interval: step }));
+  }
+
+  /* [min, max] of the shown series per axis; bars stack up and down. */
+  function balancingExtents(items, data, selected, axisCount) {
+    const extents = Array.from({ length: axisCount }, () => [0, 0]);
+    const stacks = Array.from({ length: axisCount }, () => ({ up: [], down: [] }));
+    items.forEach((item, index) => {
+      if (selected[item.name] === false) return;
+      const axis = item.axis || 0;
+      data[index].forEach((value, slot) => {
+        if (value === null) return;
+        if (item.type === "bar") {
+          const side = value < 0 ? "down" : "up";
+          stacks[axis][side][slot] = (stacks[axis][side][slot] || 0) + value;
+        } else {
+          extents[axis][0] = Math.min(extents[axis][0], value);
+          extents[axis][1] = Math.max(extents[axis][1], value);
+        }
+      });
+    });
+    stacks.forEach((stack, axis) => {
+      stack.up.forEach(value => { if (value !== undefined) extents[axis][1] = Math.max(extents[axis][1], value); });
+      stack.down.forEach(value => { if (value !== undefined) extents[axis][0] = Math.min(extents[axis][0], value); });
+    });
+    return extents;
+  }
+
+  function formatBalancingValue(value, unit) {
+    const digits = unit === "price" || unit === "fcr" ? 2 : 0;
+    return `${Number(value).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${BALANCING_UNITS[unit]()}`;
+  }
+
+  function balancingSeriesOption(item, data) {
+    const color = cssVar(item.color);
+    if (item.type === "bar") {
+      return {
+        name: item.name,
+        type: "bar",
+        yAxisIndex: item.axis || 0,
+        // Up and down volumes stack separately on either side of zero.
+        stack: (item.sign || 1) < 0 ? "down" : "up",
+        data,
+        barCategoryGap: "15%",
+        itemStyle: { color, opacity: item.color === "--bal-volume" ? 1 : 0.4 },
+        emphasis: { disabled: true },
+        z: 2
+      };
+    }
+    return {
+      name: item.name,
+      type: "line",
+      yAxisIndex: item.axis || 0,
+      data,
+      // Activations are intermittent: isolated quarter-hours need a dot.
+      showSymbol: !!item.sparse,
+      symbol: "circle",
+      symbolSize: 3,
+      connectNulls: false,
+      lineStyle: { color, width: item.width || 1.5, type: item.line || "solid" },
+      itemStyle: { color },
+      // Capacities are bands rather than bars.
+      areaStyle: item.area ? { color, opacity: 0.25 } : undefined,
+      z: item.area ? 2 : 5
+    };
+  }
+
+  function renderBalancingChart(spec, zone) {
+    const { chart, timeline } = spec;
+    resetTimeline(timeline);
+    const items = spec.series(zone).filter(Boolean);
+    const data = items.map(item => {
+      const map = item.map ? item.map(zone) : balancingMap(item.group);
+      return timeline.rows.map(row => {
+        const value = lookupValue(map, row.key);
+        return value === null ? null : value * (item.sign || 1);
+      });
+    });
+
+    const subtitleId = `bal-${spec.id}-subtitle`;
+    document.getElementById(`bal-${spec.id}-help`).textContent = spec.help(zone);
+    const own = items.map((item, index) => item.map ? [] : data[index]).flat();
+    if (!own.some(value => value !== null)) {
+      chart.clear();
+      setChartSubtitle(subtitleId, balancingStatus === "loading"
+        ? "Loading balancing data…" : `No balancing data for these dates · ${ZONE_LABELS[currentZone]}`);
+      return;
+    }
+    const leftUnit = spec.left || (items.find(item => !item.axis) || {}).unit || "price";
+    const measure = leftUnit === "energy" ? timelineMeasure() : priceMeasure();
+    setChartSubtitle(subtitleId, `${measure} · ${ZONE_LABELS[currentZone]}`);
+
+    const names = items.map(item => item.name);
+    const hasRight = items.some(item => item.axis === 1);
+    const axisName = unit => BALANCING_UNITS[unit]();
+    const axisFormat = { ...timelineAxisTextStyle(),
+      formatter: value => Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 }) };
+    const yAxisFor = selected => {
+      const ranges = zeroAlignedAxes(balancingExtents(items, data, selected, hasRight ? 2 : 1));
+      const axes = [timelineYAxis(axisName(leftUnit), { nameGap: 44, axisLabel: axisFormat, ...ranges[0] })];
+      if (hasRight) {
+        axes.push(timelineYAxis(axisName(spec.right), {
+          position: "right", nameRotate: -90, nameGap: 48, axisLabel: axisFormat, ...ranges[1],
+          splitLine: { show: false }
+        }));
+      }
+      return axes;
+    };
+    const yAxis = yAxisFor(spec.selected);
+    // Hiding a series rescales both axes, keeping their zeros aligned.
+    spec.rescale = () => chart.setOption({ yAxis: yAxisFor(spec.selected) });
+
+    const tooltip = params => {
+      if (!params || !params.length) return "";
+      const index = params[0].dataIndex;
+      const row = timeline.rows[index];
+      if (!row) return "";
+      let body = "";
+      items.forEach((item, i) => {
+        const value = data[i][index];
+        if (spec.selected[item.name] === false || value === null) return;
+        const shape = item.type === "bar" || item.area ? "area" : ({ dashed: "dashed", dotted: "dotted" }[item.line] || "line");
+        body += tooltipRow(cssVar(item.color), item.name, formatBalancingValue(value * (item.sign || 1), item.unit), shape);
+      });
+      return tooltipHeader(row) + (body || "No data");
+    };
+
+    chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      legend: {
+        top: 4,
+        left: 56,
+        right: 16,
+        itemWidth: 18,
+        itemHeight: 8,
+        itemGap: 12,
+        textStyle: { color: cssVar("--chart-legend"), fontSize: 10 },
+        data: names,
+        selected: { ...spec.selected }
+      },
+      tooltip: timelineTooltip(tooltip),
+      grid: {
+        left: 60, right: hasRight ? 60 : 16,
+        top: legendGridTop(chart, names, 18, 12), bottom: CHART_GRID.bottom, containLabel: false
+      },
+      xAxis: timelineXAxis(timeline, { onZero: false }),
+      yAxis,
+      series: items.map((item, index) => balancingSeriesOption(item, data[index])),
+      dataZoom: timelineDataZoom(0, hasRight ? 60 : 16, 60)
+    }, true);
+    chart.resize();
+  }
+
+
+  /* ------------------------------------------------------------
+     MARKET DEPTH: the zone's bids of one quarter-hour in merit order
+     ------------------------------------------------------------ */
+
+  const DEPTH_PRODUCTS = [
+    { key: "afrr_picasso_up", title: "aFRR up (PICASSO) market depth", color: "--bal-picasso", picasso: true,
+      price: "IT|picasso_price_up", priceName: "PICASSO price (Italy)" },
+    { key: "afrr_up", title: "aFRR up market depth", color: "--bal-afrr",
+      price: "price_afrr_up", activated: "activated_afrr_up" },
+    { key: "afrr_picasso_down", title: "aFRR down (PICASSO) market depth", color: "--bal-picasso", picasso: true,
+      price: "IT|picasso_price_down", priceName: "PICASSO price (Italy)" },
+    { key: "afrr_down", title: "aFRR down market depth", color: "--bal-afrr",
+      price: "price_afrr_down", activated: "activated_afrr_down" },
+    { key: "rr_up", title: "RR up market depth", color: "--bal-rr", price: "price_rr_up", activated: "activated_rr_up" },
+    { key: "rr_down", title: "RR down market depth", color: "--bal-rr", price: "price_rr_down", activated: "activated_rr_down" }
+  ];
+
+  const depthPanel = document.createElement("section");
+  depthPanel.className = "panel depth-panel";
+  depthPanel.innerHTML =
+    `<div class="chart-title">Market depth</div>` +
+    `<div class="depth-controls">` +
+    `<button id="depth-prev" type="button" aria-label="Previous quarter-hour">‹</button>` +
+    `<div class="depth-track"><input id="depth-slider" type="range" min="0" max="0" value="0" step="1" aria-label="Quarter-hour shown in the market depth charts">` +
+    `<div id="depth-availability" class="depth-availability"></div></div>` +
+    `<button id="depth-next" type="button" aria-label="Next quarter-hour">›</button>` +
+    `<div id="depth-label" class="depth-label"></div></div>` +
+    `<div id="depth-note" class="depth-note"></div>`;
+  balancingMount.appendChild(depthPanel);
+
+  DEPTH_PRODUCTS.forEach(product => {
+    product.section = document.createElement("section");
+    product.section.className = "panel chart-panel";
+    product.section.innerHTML =
+      `<div class="chart-header"><div><div class="chart-title">${product.title}</div>` +
+      `<div class="chart-subtitle"></div></div></div><div class="depth-chart-wrap"><div class="timeline-chart"></div></div>`;
+    product.subtitle = product.section.querySelector(".chart-subtitle");
+    product.chart = echarts.init(product.section.querySelector(".timeline-chart"));
+  });
+
+  const depthSlider = document.getElementById("depth-slider");
+  const depthFiles = {};   // "ZONE|date" -> Promise of the bid file (null if none)
+  let depthSlots = [];     // quarter-hours of the calendar range
+  let depthRangeKey = null;
+  let depthZone = null;
+
+  function loadBidFile(zone, day) {
+    const key = `${zone}|${day}`;
+    if (!depthFiles[key]) {
+      depthFiles[key] = fetch(`./data/balancing_bids/${zone}/${day}.json`, { cache: "no-store" })
+        .then(response => (response.ok ? response.json() : null))
+        .catch(() => null);
+    }
+    return depthFiles[key];
+  }
+
+  function bidDays(zone) {
+    return new Set((((rawBalancingData || {}).bid_days) || {})[zone] || []);
+  }
+
+  /* Prices span several decades and both signs: a symmetric log scale,
+     linear between -10 and 10 (y = p / 10), log10 beyond. */
+  function symlog(price) {
+    const size = Math.abs(price);
+    return size <= 10 ? price / 10 : Math.sign(price) * Math.log10(size);
+  }
+
+  function symlogInverse(value) {
+    const size = Math.abs(value);
+    return size <= 1 ? value * 10 : Math.sign(value) * 10 ** size;
+  }
+
+  function formatSymlogTick(value) {
+    const price = Math.round(symlogInverse(value));
+    return Math.abs(price) >= 1000 ? `${price / 1000}k` : String(price);
+  }
+
+  /* Staircase of the merit order: [cumulative MW, price] corners. */
+  function depthCurve(flat) {
+    const points = [];
+    let total = 0;
+    for (let index = 0; index < flat.length; index += 2) {
+      const price = flat[index];
+      points.push([total, price]);
+      total += flat[index + 1];
+      points.push([total, price]);
+    }
+    return points;
+  }
+
+  function depthSlotLabel(slot) {
+    const day = parseDate(slot.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    const end = minutesToLabel(labelMinutes(slot.time) + 15);
+    return `${day} · ${slot.time}–${end}`;
+  }
+
+  function minutesToLabel(total) {
+    return `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+  }
+
+  /* Quarter-hours of the calendar range and where bids are available. */
+  function syncDepthSlots(zone) {
+    if (!currentStart || !currentEnd) return;
+    const rangeKey = `${zone}|${dateKey(currentStart)}|${dateKey(currentEnd)}`;
+    if (rangeKey === depthRangeKey) return;
+    depthRangeKey = rangeKey;
+    depthSlots = [];
+    const days = [];
+    for (let day = new Date(currentStart); day <= currentEnd; day.setDate(day.getDate() + 1)) {
+      days.push(dateKey(day));
+    }
+    days.forEach(date => {
+      for (let minutes = 0; minutes < 1440; minutes += 15) depthSlots.push({ date, time: minutesToLabel(minutes) });
+    });
+    depthSlider.max = String(Math.max(0, depthSlots.length - 1));
+
+    const available = bidDays(zone);
+    const strip = document.getElementById("depth-availability");
+    strip.innerHTML = days.map((date, index) => available.has(date)
+      ? `<span style="left:${(index / days.length) * 100}%;width:${100 / days.length}%"></span>` : "").join("");
+
+    // Start at the latest day with bids; the midday quarter-hour of it.
+    const lastDay = days.filter(date => available.has(date)).pop();
+    const start = lastDay ? depthSlots.findIndex(slot => slot.date === lastDay && slot.time === "12:00") : depthSlots.length - 1;
+    depthSlider.value = String(Math.max(0, start));
+    const shown = days.filter(date => available.has(date));
+    document.getElementById("depth-note").textContent = shown.length
+      ? `Bids of the zone (ENTSO-E 12.3.B&C) in merit order for the quarter-hour chosen: cumulative MW against the bid price, up cheapest first, down highest price first; log price scale. Bids are kept for the last ${35} days; the strip under the slider marks the days with bids in the date range (${shown.length} of ${days.length}). Horizontal line: the activation price of that quarter-hour; vertical line: the MW activated in the zone.`
+      : "No bids for this zone in the date range: bids are kept for the last 35 days.";
+  }
+
+  function depthProductsFor(zone) {
+    return DEPTH_PRODUCTS.filter(product => !product.picasso || hasPicasso(zone));
+  }
+
+  let depthRenderToken = 0;
+
+  async function renderDepthCharts(zone) {
+    const token = ++depthRenderToken;
+    const slot = depthSlots[Number(depthSlider.value)];
+    document.getElementById("depth-label").textContent = slot ? depthSlotLabel(slot) : "";
+    const products = depthProductsFor(zone);
+    const file = slot && bidDays(zone).has(slot.date) ? await loadBidFile(zone, slot.date) : null;
+    if (token !== depthRenderToken) return; // the slider moved on meanwhile
+
+    products.forEach(product => {
+      const flat = file && slot ? ((file.products || {})[product.key] || {})[slot.time] : null;
+      if (!flat || !flat.length) {
+        product.chart.clear();
+        product.subtitle.textContent = slot ? "No bids for this quarter-hour" : "";
+        return;
+      }
+      const points = depthCurve(flat);
+      const total = points[points.length - 1][0];
+      const bidCount = flat.length / 2;
+      product.subtitle.textContent = `${formatChartNumber(total)} MW offered at ${bidCount} price${bidCount === 1 ? "" : "s"} · ${ZONE_LABELS[currentZone]}`;
+
+      const quarterKey = `${slot.date}|${slot.time}`;
+      const priceGroup = product.price.includes("|") ? product.price : `${zone}|${product.price}`;
+      const price = lookupValue(balancingMap(priceGroup, "quarter_hourly"), quarterKey);
+      const activated = product.activated
+        ? lookupValue(balancingMap(`${zone}|${product.activated}`, "quarter_hourly"), quarterKey) : null;
+      const color = cssVar(product.color);
+      const prices = points.map(point => point[1]).concat(price !== null ? [price] : []);
+      const low = Math.floor(Math.min(0, ...prices.map(symlog)));
+      const high = Math.max(low + 1, Math.ceil(Math.max(0, ...prices.map(symlog))));
+      const markLines = [];
+      if (price !== null) {
+        markLines.push({ yAxis: symlog(price), name: product.priceName || "Activation price",
+          label: { formatter: `${product.priceName || "Activated at"} ${formatPrice(price)}` } });
+      }
+      if (activated) {
+        markLines.push({ xAxis: activated, name: "Activated",
+          label: { formatter: `${formatChartNumber(activated)} MW activated`, position: "end" } });
+      }
+
+      product.chart.setOption({
+        animation: false,
+        backgroundColor: "transparent",
+        tooltip: {
+          trigger: "axis",
+          confine: true,
+          backgroundColor: cssVar("--chart-tooltip-bg"),
+          borderColor: cssVar("--chart-tooltip-border"),
+          borderWidth: 1,
+          textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
+          axisPointer: { type: "line", lineStyle: { color: cssVar("--chart-pointer"), width: 1 } },
+          formatter: params => {
+            const point = params && params[0] && params[0].data;
+            if (!point) return "";
+            return tooltipRow(color, "Cumulative", `${formatChartNumber(point[0])} MW`, "line") +
+              tooltipRow(color, "Bid price", formatPrice(point[2]), "line");
+          }
+        },
+        grid: { left: 60, right: 20, top: 28, bottom: 40, containLabel: false },
+        xAxis: {
+          type: "value", min: 0, name: "MW", nameLocation: "middle", nameGap: 26,
+          nameTextStyle: timelineAxisTextStyle(), axisLabel: timelineAxisTextStyle(),
+          axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, splitLine: { show: false }
+        },
+        yAxis: timelineYAxis("€/MWh", {
+          min: low, max: high, interval: 1, nameGap: 44,
+          axisLabel: { ...timelineAxisTextStyle(), formatter: formatSymlogTick }
+        }),
+        series: [{
+          type: "line",
+          data: points.map(([mw, p]) => [mw, symlog(p), p]),
+          showSymbol: false,
+          lineStyle: { color, width: 2 },
+          itemStyle: { color },
+          markLine: markLines.length ? {
+            silent: true, symbol: "none",
+            lineStyle: { color: cssVar("--bal-reference"), type: "dashed", width: 1 },
+            label: { color: cssVar("--chart-legend"), fontSize: 10, position: "insideEndTop" },
+            data: markLines
+          } : undefined
+        }]
+      }, true);
+      product.chart.resize();
+    });
+  }
+
+  function stepDepth(delta) {
+    depthSlider.value = String(clamp(Number(depthSlider.value) + delta, 0, depthSlots.length - 1));
+    renderDepthCharts(depthZone);
+  }
+
+  depthSlider.addEventListener("input", () => renderDepthCharts(depthZone));
+  document.getElementById("depth-prev").addEventListener("click", () => stepDepth(-1));
+  document.getElementById("depth-next").addEventListener("click", () => stepDepth(1));
+
+  function renderBalancing() {
+    if (balancingMount.style.display === "none") return;
+    const zone = BALANCING_ZONE_CODES[currentZone];
+    if (!zone) return;
+
+    // Layout: the six time series charts, then the depth pairs (PICASSO
+    // next to local; without PICASSO, up next to down).
+    BALANCING_CHARTS.forEach(spec => balancingMount.appendChild(spec.section));
+    balancingMount.appendChild(depthPanel);
+    DEPTH_PRODUCTS.forEach(product => product.section.remove());
+    depthProductsFor(zone).forEach(product => balancingMount.appendChild(product.section));
+
+    BALANCING_CHARTS.forEach(spec => renderBalancingChart(spec, zone));
+    if (zone !== depthZone) depthRangeKey = null;
+    depthZone = zone;
+    syncDepthSlots(zone);
+    renderDepthCharts(zone);
+  }
+
+
+  /* ============================================================
      REDESIGN NAVIGATION / TOP-BAR CALENDAR
      ============================================================ */
 
@@ -7112,11 +7744,16 @@
       currentZone === "italy" &&
       currentSubTab === "interconnection";
 
+    // Balancing data is published per bidding zone, not for Italy.
+    const showBalancing =
+      currentSubTab === "balancing" &&
+      currentZone !== "italy";
+
     const zonePlaceholder =
       document.getElementById("zone-placeholder");
 
     zonePlaceholder.style.display =
-      showPunChart || showZonalChart || showInterconnection
+      showPunChart || showZonalChart || showInterconnection || showBalancing
         ? "none"
         : "flex";
 
@@ -7187,11 +7824,19 @@
       setTimeout(renderInterconnectionCharts, 0);
     }
 
-    if (!showPunChart && !showZonalChart && !showInterconnection) {
+    balancingMount.style.display =
+      showBalancing ? "grid" : "none";
+
+    if (showBalancing) {
+      setTimeout(renderBalancing, 0);
+    }
+
+    if (!showPunChart && !showZonalChart && !showInterconnection && !showBalancing) {
       document.getElementById(
         "zone-placeholder-text"
-      ).textContent =
-        `${currentSubTab.charAt(0).toUpperCase()}${currentSubTab.slice(1)} data for ${ZONE_LABELS[currentZone]} is not yet available.`;
+      ).textContent = currentSubTab === "balancing"
+        ? "Balancing data is published per bidding zone: choose a zone in the menu at the top."
+        : `${currentSubTab.charAt(0).toUpperCase()}${currentSubTab.slice(1)} data for ${ZONE_LABELS[currentZone]} is not yet available.`;
     }
   }
 
@@ -7352,6 +7997,7 @@
     loadCapacityData();
     loadOutageData();
     loadDataChecks();
+    loadBalancingData();
   };
 
   window.addEventListener("resize", () => {
@@ -7368,6 +8014,8 @@
     crossBorderNetChart.resize();
     INTRADAY_MARKETS.forEach(market => market.chart.resize());
     XBID_MARKETS.forEach(market => market.chart.resize());
+    BALANCING_CHARTS.forEach(spec => spec.chart.resize());
+    DEPTH_PRODUCTS.forEach(product => product.chart.resize());
   });
 
   /* ============================================================

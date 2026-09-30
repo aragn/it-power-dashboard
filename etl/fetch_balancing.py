@@ -562,7 +562,10 @@ def main():
         except Exception as error:  # one source failing must not lose the others
             print(f"  {name} failed: {error!r}")
     if "bids" in sources:
-        update_bids(start_day, min(end_day, today))
+        # Bids are not revised once published: routine runs fetch only
+        # yesterday (its last hours) and today.
+        bid_start = start_day if args.start else today - timedelta(days=1)
+        update_bids(bid_start, min(end_day, today))
         prune_bids(today)
 
     series = merge(load_existing(), records)
