@@ -34,10 +34,15 @@ def test_a03_point_without_value_ends_the_previous_one():
     assert values == [(15, 177), (30, 177)]
 
 
-def test_quarter_records_use_italian_market_time():
+def test_point_records_use_italian_market_time_and_slot_length():
     from datetime import datetime, timezone
-    records = fb.quarter_records("NORD|x", {datetime(2026, 9, 21, 22, 15, tzinfo=timezone.utc): 2.0}, scale=4)
-    assert records == [{"group": "NORD|x", "date": "2026-09-22", "time": "00:15", "minutes": 15, "value": 8.0}]
+    quarter = fb.point_records("NORD|x", [(datetime(2026, 9, 21, 22, 15, tzinfo=timezone.utc), 900, 2.0)])
+    assert quarter == [{"group": "NORD|x", "date": "2026-09-22", "time": "00:15", "minutes": 15, "value": 2.0}]
+    # An hourly slot covers its quarter-hours; energy per slot becomes MW.
+    hourly = fb.point_records("IT|y", [(datetime(2025, 1, 5, 11, 0, tzinfo=timezone.utc), 3600, 30.0)], energy=True)
+    assert hourly == [{"group": "IT|y", "date": "2025-01-05", "time": "12:00", "minutes": 60, "value": 30.0}]
+    energy = fb.point_records("IT|y", [(datetime(2026, 9, 21, 22, 0, tzinfo=timezone.utc), 900, 30.0)], energy=True)
+    assert energy[0]["value"] == 120.0
 
 
 def test_merit_curves_merge_prices_and_sort_by_direction():
@@ -75,7 +80,7 @@ def test_requirements_keep_the_latest_session():
 
 def test_daily_rule_per_series():
     assert fb.is_mean("NORD|imbalance_price") and fb.is_mean("Sardegna|fcr_price_up")
-    assert fb.is_mean("NORD|offered_rr_up") and fb.is_mean("NORD|rr_requirement")
+    assert fb.is_mean("NORD|price_picasso_up") and fb.is_mean("NORD|rr_requirement")
     assert not fb.is_mean("NORD|activated_rr_up") and not fb.is_mean("SUD|imbalance_volume")
     assert not fb.is_mean("IT|igcc_import") and not fb.is_mean("NORD|msd_volume_up")
 
@@ -109,9 +114,8 @@ def test_standard_aFRR_activations_come_from_local_selection(monkeypatch):
     responses = {"A51": document((standard, 560, 0), (specific, 1765.75, 0)), "A68": document((standard, 0, 45.825))}
     monkeypatch.setattr(fb, "entsoe_get", lambda token, params: responses[params["processType"]])
     values = {r["group"]: r["value"] for process in ("A51", "A68")
-              for r in fb.aggregated_bids("t", "NORD", "eic", process, "", "")}
-    assert values == {"NORD|offered_picasso_down": 560, "NORD|offered_afrr_down": 1765.75,
-                      "NORD|activated_afrr_down": 0, "NORD|activated_picasso_down": 45.825}
+              for r in fb.activated_volumes("t", "NORD", "eic", process, "", "")}
+    assert values == {"NORD|activated_afrr_down": 0, "NORD|activated_picasso_down": 45.825}
 
 
 def test_hourly_activation_prices_are_weighted_by_energy():
@@ -126,3 +130,41 @@ def test_hourly_activation_prices_are_weighted_by_energy():
     assert hourly == {"08:00": round((433 * 10 + 514237 * 0.001) / 10.001, 2), "09:00": 191.0}
     assert series["daily"]["NORD|price_picasso_up"] == [
         {"date": "2026-09-28", "value": round((433 * 10 + 514237 * 0.001 + 191 * 30) / 40.001, 2)}]
+
+
+def test_zone_files_hold_the_zone_and_its_areas():
+    groups = {"NORD|imbalance_price", "NORD|imbalance_volume", "SUD|imbalance_volume", "SUD|price_rr_up",
+              "CNOR|price_rr_up", "Continente+Sicilia|fcr_price_up", "Sardegna|fcr_price_up",
+              "Continent|afrr_requirement", "Sardinia|afrr_requirement", "IT|picasso_price_up"}
+    assert fb.file_groups("CNOR", groups) == sorted(["CNOR|price_rr_up", "Continent|afrr_requirement",
+                                                     "Continente+Sicilia|fcr_price_up", "SUD|imbalance_volume"])
+    assert fb.file_groups("SARD", groups) == sorted(["SUD|imbalance_volume", "Sardegna|fcr_price_up",
+                                                     "Sardinia|afrr_requirement"])
+    assert fb.file_groups("IT", groups) == sorted(groups - {"NORD|imbalance_price", "SUD|price_rr_up",
+                                                            "CNOR|price_rr_up"})
+
+
+def test_msd_results_by_period_or_by_hour():
+    rows = [{"FlowDate": "20260922", "Hour": "12", "Period": "45", "Zone": "NORD", "VolumesSold": "4",
+             "VolumesPurchased": "140", "AverageSellingPrice": "370", "AveragePurchasingPrice": "0"},
+            {"FlowDate": "20250105", "Hour": "12", "Period": None, "Zone": "NORD", "VolumesSold": "30",
+             "VolumesPurchased": "0", "AverageSellingPrice": "300", "AveragePurchasingPrice": "null"},
+            {"FlowDate": "20260922", "Hour": "12", "Period": "45", "Zone": "FRAN", "VolumesSold": "1"}]
+    records = {(r["group"], r["date"], r["time"], r["minutes"]): r["value"] for r in fb.msd_records(rows)}
+    assert records == {
+        ("NORD|msd_volume_up", "2026-09-22", "11:00", 15): 16.0,
+        ("NORD|msd_volume_down", "2026-09-22", "11:00", 15): 560.0,
+        ("NORD|msd_price_up", "2026-09-22", "11:00", 15): 370.0,
+        ("NORD|msd_volume_up", "2025-01-05", "11:00", 60): 30.0,
+        ("NORD|msd_volume_down", "2025-01-05", "11:00", 60): 0.0,
+        ("NORD|msd_price_up", "2025-01-05", "11:00", 60): 300.0,
+    }
+
+
+def test_macrozonal_imbalance_falls_back_to_hourly_values():
+    hourly = [{"reference_date": "2025-01-05 12:00:00", "data_type": "Orario", "macrozone": "NORD",
+               "zonal_aggregate_unbalance_MWh": "-80"}]
+    quarter = hourly + [{"reference_date": "2025-01-05 12:00:00", "data_type": "Quarto Orario", "macrozone": "NORD",
+                         "zonal_aggregate_unbalance_MWh": "-20"}]
+    assert [(r["minutes"], r["value"]) for r in fb.imbalance_records(hourly)] == [(60, -80.0)]
+    assert [(r["minutes"], r["value"]) for r in fb.imbalance_records(quarter)] == [(15, -80.0)]

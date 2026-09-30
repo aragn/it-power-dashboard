@@ -1,28 +1,29 @@
 """
-Fetch the balancing data of the Italian bidding zones and write
-app/data/balancing.json plus one bid file per zone and day under
-app/data/balancing_bids/<ZONE>/<YYYY-MM-DD>.json.
+Fetch the balancing data of the Italian bidding zones and write one file
+per zone, app/data/balancing/<ZONE>.json (the zone's series and those of
+its Terna areas; the dashboard loads it when the zone is opened), one for
+Italy as a whole (IT.json, with the area series), and one bid file per
+zone and day under app/data/balancing_bids/<ZONE>/<YYYY-MM-DD>.json.
 
 Time series (15-minute; hourly = average of the quarter-hours; daily =
-average for prices and capacities, sum of the hours for energy):
+average for prices and capacities, sum of the hours for energy; hourly and
+daily activation prices are weighted by the energy activated):
 
   ENTSO-E (zone = bidding zone, Italy = the Italian LFC area)
-    imbalance_price        17.1.G  A85        zone   EUR/MWh (NORD has its own
-                                                     price, the other zones share one)
+    imbalance_price        17.1.G  A85          zone  EUR/MWh (NORD has its own
+                                                      price, the other zones share one)
     price_afrr_up/_down    17.1.F  A84 A16 A96  zone  EUR/MWh, specific (local) aFRR product
     price_picasso_up/_down 17.1.F  A84 A68 A96  zone  EUR/MWh, standard aFRR product
                                                       (the bids offered to PICASSO)
     price_rr_up/_down      17.1.F  A84 A16 A98  zone  EUR/MWh, RR (MB) activation
-    activated_* offered_*  12.3.E  A24          zone  MW activated / offered bids: afrr
-                                                      (specific, A51), picasso (standard:
-                                                      offered A51, activated A68), rr (A46)
+    activated_*            12.3.E  A24          zone  MW activated: afrr (specific, A51),
+                                                      picasso (standard, A68), rr (A46)
     picasso_price_up/_down IF aFRR 3.16 A84 A67 Italy  EUR/MWh, 15-minute mean of the
                                                       4-second cross-border marginal price
-    *_central_up/_down     12.3.E  A24 A67    Italy  PICASSO central selection for the
-                                                     Italian area: offered = the zones'
-                                                     standard bids, "activated" can exceed
-                                                     them (not Italian bids alone); kept,
-                                                     not shown
+    activated_central_*    12.3.E  A24 A67    Italy  PICASSO central selection for the
+                                                     Italian area ("activated" can exceed
+                                                     the Italian standard bids offered:
+                                                     not Italian bids alone); not shown
     igcc_import/_export    IF 3.10 B17 A63    Italy  MW netted with the IGCC partners
 
     Italy publishes each zone's standard-product (PICASSO) activations under
@@ -58,6 +59,7 @@ import json
 import os
 import time
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta, timezone
 
 import requests
@@ -81,7 +83,8 @@ from fetch_terna import Client
 from fetch_zonal import REQUEST_PAUSE_SECONDS, get_token, market_time_from_period, request_chunk
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "data")
-OUTPUT_PATH = os.path.join(DATA_DIR, "balancing.json")
+BALANCING_DIR = os.path.join(DATA_DIR, "balancing")
+LEGACY_PATH = os.path.join(DATA_DIR, "balancing.json")  # before the split into zone files
 BIDS_DIR = os.path.join(DATA_DIR, "balancing_bids")
 
 RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
@@ -89,6 +92,18 @@ RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
 # Incremental runs re-read this many days (corrections, final Terna values).
 LOOKBACK_DAYS = 3
 BID_RETENTION_DAYS = 35
+
+# Request sizes: ENTSO-E allows a year per request (the PICASSO prices one
+# day), Terna 60 days, GME is paced per request.
+ENTSOE_CHUNK_DAYS = 90
+REQUIREMENT_CHUNK_DAYS = 30
+GME_CHUNK_DAYS = 31
+# ENTSO-E allows 400 requests a minute per token.
+PARALLEL_REQUESTS = 4
+
+# Terna's FCR auctions started on 3 June 2026 (Allegato A.83 of the grid
+# code); earlier days return zeros.
+FCR_START = date(2026, 6, 1)
 
 TERNA_ZONES = {
     "North": "NORD", "Centre-North": "CNOR", "Centre-South": "CSUD", "South": "SUD",
@@ -102,9 +117,20 @@ DIRECTIONS = {"A01": "up", "A02": "down"}
 # Series whose daily value is the average (prices, capacities); the others
 # are energy (daily sum of the hours, MWh/day).
 MEAN_PREFIXES = ("imbalance_price", "price_", "picasso_price", "msd_price", "fcr_", "afrr_requirement",
-                 "rr_requirement", "offered_")
+                 "rr_requirement")
+
+# Series no longer written: Italy's central selection used to be stored as
+# *_picasso_* (now *_central_*), and the offered volumes are not shown.
+RETIRED_GROUPS = ("IT|activated_picasso_", "IT|offered_picasso_")
 
 ENTSOE_PAUSE_SECONDS = 0.5
+
+
+def market_days(start_day, end_day):
+    day = start_day
+    while day <= end_day:
+        yield day
+        day += timedelta(days=1)
 
 
 # ============================================================================
@@ -141,6 +167,10 @@ def _instant(text):
     return datetime.strptime(text, "%Y-%m-%dT%H:%MZ").replace(tzinfo=timezone.utc)
 
 
+def _series(root, tag="TimeSeries"):
+    return root.findall(f".//{{*}}{tag}") if root is not None else []
+
+
 RESOLUTION_SECONDS = {"PT4S": 4, "PT1M": 60, "PT15M": 900, "PT30M": 1800, "PT60M": 3600}
 
 
@@ -165,13 +195,18 @@ def expand_points(ts, value_of):
                 yield start + timedelta(seconds=step * (pos - 1)), step, value
 
 
-def quarter_records(group, slots, scale=1.0):
-    """Point records for merge_resolutions from {UTC quarter start: value}."""
+def point_records(group, points, scale=1.0, energy=False):
+    """
+    Records for merge_resolutions from (UTC slot start, slot seconds, value)
+    points; an hourly slot covers its four quarter-hours.  energy: the value
+    is MWh per slot, stored as MW.
+    """
     records = []
-    for instant, value in slots.items():
+    for instant, seconds, value in points:
         market_date, label = point_label(instant)
-        records.append({"group": group, "date": market_date, "time": label, "minutes": 15,
-                        "value": round(value * scale, 3)})
+        factor = scale * (3600 / seconds if energy else 1)
+        records.append({"group": group, "date": market_date, "time": label,
+                        "minutes": max(15, seconds // 60), "value": round(value * factor, 3)})
     return records
 
 
@@ -184,17 +219,17 @@ def imbalance_prices(token, zone, eic, start, end):
     """17.1.G: the zone's single imbalance price (category A04; A05 only fills gaps)."""
     root = entsoe_get(token, {"documentType": "A85", "controlArea_Domain": eic, "periodStart": start, "periodEnd": end})
     by_category = defaultdict(dict)
-    for ts in (root.findall(".//{*}TimeSeries") if root is not None else []):
-        for instant, _, value in expand_points(ts, lambda p: (_text(p, "imbalance_Price.category"),
-                                                               number(p, "imbalance_Price.amount"))):
-            category, price = value
+    for ts in _series(root):
+        for instant, seconds, (category, price) in expand_points(
+                ts, lambda p: (_text(p, "imbalance_Price.category"), number(p, "imbalance_Price.amount"))):
             if price is not None:
-                by_category[category][instant] = price
+                by_category[category][instant] = (seconds, price)
     prices = dict(by_category.get("A04", {}))
-    for instant, price in by_category.get("A05", {}).items():
+    for instant, (seconds, price) in by_category.get("A05", {}).items():
         if instant not in prices and price:
-            prices[instant] = price
-    return quarter_records(f"{zone}|imbalance_price", prices)
+            prices[instant] = (seconds, price)
+    return point_records(f"{zone}|imbalance_price",
+                         ((instant, seconds, price) for instant, (seconds, price) in prices.items()))
 
 
 # (processType, businessType, product) of the zone activation prices.
@@ -207,10 +242,10 @@ def activation_prices(token, zone, eic, start, end):
     for process, business, product in ACTIVATION_PRICES:
         root = entsoe_get(token, {"documentType": "A84", "processType": process, "businessType": business,
                                   "controlArea_Domain": eic, "periodStart": start, "periodEnd": end})
-        for ts in (root.findall(".//{*}TimeSeries") if root is not None else []):
+        for ts in _series(root):
             direction = DIRECTIONS.get(_text(ts, "flowDirection.direction"))
-            slots = {instant: value for instant, _, value in expand_points(ts, lambda p: number(p, "activation_Price.amount"))}
-            records += quarter_records(f"{zone}|price_{product}_{direction}", slots)
+            records += point_records(f"{zone}|price_{product}_{direction}",
+                                     expand_points(ts, lambda p: number(p, "activation_Price.amount")))
     return records
 
 
@@ -227,25 +262,22 @@ def drop_idle_prices(records):
                     and (record["group"], record["date"], record["time"]) not in active)]
 
 
-def aggregated_bids(token, area, eic, process, start, end):
+def activated_volumes(token, area, eic, process, start, end):
     """
-    12.3.E: offered (quantity) and activated (secondaryQuantity) MW per
-    product and direction.  aFRR (A51) splits the standard product (offered
-    to PICASSO) from the specific one, but its standard activations are
-    always 0: they are published under A68 (which has no offers).
+    12.3.E: activated MW (secondaryQuantity) per product and direction.  In
+    the aFRR document (A51) the standard product's activations are always
+    0: they are published under A68.
     """
     root = entsoe_get(token, {"documentType": "A24", "processType": process, "area_Domain": eic,
                               "curveType": "A03", "periodStart": start, "periodEnd": end})
     records = []
-    for ts in (root.findall(".//{*}TimeSeries") if root is not None else []):
+    for ts in _series(root):
+        if process == "A51" and _text(ts, "standard_MarketProduct.marketProductType") == "A01":
+            continue
         direction = DIRECTIONS.get(_text(ts, "flowDirection.direction"))
-        standard = _text(ts, "standard_MarketProduct.marketProductType") == "A01"
-        product = {"A51": "picasso" if standard else "afrr", "A68": "picasso", "A46": "rr", "A67": "central"}[process]
-        for kind, tag in (("offered", "quantity"), ("activated", "secondaryQuantity")):
-            if (process == "A51" and standard and kind == "activated") or (process == "A68" and kind == "offered"):
-                continue
-            slots = {instant: value for instant, _, value in expand_points(ts, lambda p, t=tag: number(p, t))}
-            records += quarter_records(f"{area}|{kind}_{product}_{direction}", slots)
+        product = {"A51": "afrr", "A68": "picasso", "A46": "rr", "A67": "central"}[process]
+        records += point_records(f"{area}|activated_{product}_{direction}",
+                                 expand_points(ts, lambda p: number(p, "secondaryQuantity")))
     return records
 
 
@@ -256,47 +288,52 @@ def picasso_prices(token, day):
                               "Standard_MarketProduct": "A01", "controlArea_Domain": IT_DOMAIN,
                               "periodStart": start, "periodEnd": end})
     records = []
-    for ts in (root.findall(".//{*}TimeSeries") if root is not None else []):
+    for ts in _series(root):
         direction = DIRECTIONS.get(_text(ts, "flowDirection.direction"))
         sums = defaultdict(lambda: [0.0, 0])
         for instant, _, value in expand_points(ts, lambda p: number(p, "activation_Price.amount")):
             quarter = instant.replace(minute=instant.minute // 15 * 15, second=0)
             sums[quarter][0] += value
             sums[quarter][1] += 1
-        records += quarter_records(f"IT|picasso_price_{direction}", {q: s / n for q, (s, n) in sums.items()})
+        records += point_records(f"IT|picasso_price_{direction}",
+                                 ((quarter, 900, total / count) for quarter, (total, count) in sums.items()))
     return records
 
 
-def igcc_netting(token, day):
-    """IF 3.10: MWh per quarter-hour netted between Italy and the IGCC partners, as MW."""
-    start, end = to_api_datetime(day), to_api_datetime(day, end_of_day=True)
+def igcc_netting(token, start, end):
+    """IF 3.10: energy netted between Italy and the IGCC partners, as MW."""
     root = entsoe_get(token, {"documentType": "B17", "processType": "A63", "Acquiring_Domain": IT_DOMAIN,
                               "Connecting_Domain": IT_DOMAIN, "periodStart": start, "periodEnd": end})
     records = []
-    for ts in (root.findall(".//{*}TimeSeries") if root is not None else []):
+    for ts in _series(root):
         name = "igcc_import" if _text(ts, "acquiring_Domain.mRID") == IT_DOMAIN else "igcc_export"
-        slots = {instant: value for instant, _, value in expand_points(ts, lambda p: number(p, "quantity"))}
-        records += quarter_records(f"IT|{name}", slots, scale=4)
+        records += point_records(f"IT|{name}", expand_points(ts, lambda p: number(p, "quantity")), energy=True)
+    return records
+
+
+def zone_entsoe(token, zone, eic, start, end):
+    records = imbalance_prices(token, zone, eic, start, end)
+    records += activation_prices(token, zone, eic, start, end)
+    for process in ("A51", "A68", "A46"):
+        records += activated_volumes(token, zone, eic, process, start, end)
     return records
 
 
 def fetch_entsoe(start_day, end_day):
     token = os.environ["ENTSOE_API_KEY"]
-    start, end = to_api_datetime(start_day), to_api_datetime(end_day, end_of_day=True)
     records = []
-    for zone, eic in ZONES.items():
-        print(f"  ENTSO-E {zone}")
-        records += imbalance_prices(token, zone, eic, start, end)
-        records += activation_prices(token, zone, eic, start, end)
-        for process in ("A51", "A68", "A46"):
-            records += aggregated_bids(token, zone, eic, process, start, end)
-    print("  ENTSO-E Italy: PICASSO and IGCC")
-    records += aggregated_bids(token, "IT", IT_DOMAIN, "A67", start, end)
-    day = start_day
-    while day <= end_day:
-        records += picasso_prices(token, day)
-        records += igcc_netting(token, day)
-        day += timedelta(days=1)
+    with ThreadPoolExecutor(PARALLEL_REQUESTS) as pool:
+        for chunk_start, chunk_end in day_chunks(start_day, end_day, ENTSOE_CHUNK_DAYS):
+            print(f"  ENTSO-E {chunk_start} -> {chunk_end}")
+            start, end = to_api_datetime(chunk_start), to_api_datetime(chunk_end, end_of_day=True)
+            for zone_records in pool.map(lambda item: zone_entsoe(token, item[0], item[1], start, end),
+                                         ZONES.items()):
+                records += zone_records
+            records += activated_volumes(token, "IT", IT_DOMAIN, "A67", start, end)
+            records += igcc_netting(token, start, end)
+        print("  ENTSO-E PICASSO cross-border marginal prices, one day per request")
+        for day_records in pool.map(lambda day: picasso_prices(token, day), market_days(start_day, end_day)):
+            records += day_records
     return drop_idle_prices(records)
 
 
@@ -341,7 +378,7 @@ def fetch_bids(token, zone, eic, day):
             root = entsoe_get(token, {"documentType": "A37", "businessType": "B74", "processType": process,
                                       "connecting_Domain": eic, "periodStart": start, "periodEnd": end,
                                       "offset": offset})
-            series = root.findall(".//{*}Bid_TimeSeries") if root is not None else []
+            series = _series(root, "Bid_TimeSeries")
             for ts in series:
                 key = bid_product(ts, product)
                 for instant, _, (quantity, price) in expand_points(
@@ -362,19 +399,22 @@ def bid_path(zone, day):
 
 def update_bids(start_day, end_day):
     token = os.environ["ENTSOE_API_KEY"]
-    day = start_day
-    while day <= end_day:
-        for zone, eic in ZONES.items():
-            curves = fetch_bids(token, zone, eic, day)
-            count = sum(len(v) // 2 for by_time in curves.values() for v in by_time.values())
-            print(f"  bids {zone} {day}: {count} price steps")
-            if not count:
-                continue
+
+    def run(task):
+        zone, eic, day = task
+        curves = fetch_bids(token, zone, eic, day)
+        count = sum(len(v) // 2 for by_time in curves.values() for v in by_time.values())
+        if count:
             path = bid_path(zone, day)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "w", encoding="utf-8") as f:
                 json.dump({"zone": zone, "date": day.isoformat(), "products": curves}, f, separators=(",", ":"))
-        day += timedelta(days=1)
+        return zone, day, count
+
+    tasks = [(zone, eic, day) for day in market_days(start_day, end_day) for zone, eic in ZONES.items()]
+    with ThreadPoolExecutor(PARALLEL_REQUESTS) as pool:
+        for zone, day, count in pool.map(run, tasks):
+            print(f"  bids {zone} {day}: {count} price steps")
 
 
 def prune_bids(today):
@@ -396,7 +436,7 @@ def bid_days():
 # ============================================================================
 
 
-def local_records(rows, time_field, group_of, value_of, scale=1.0):
+def local_records(rows, time_field, group_of, value_of, scale=1.0, minutes=15):
     """
     Point records from Terna rows labelled in local time.  Rows with an
     "offset" field are exact; without it the second occurrence of a local
@@ -411,14 +451,14 @@ def local_records(rows, time_field, group_of, value_of, scale=1.0):
         local = datetime.strptime(row[time_field][:19], "%Y-%m-%d %H:%M:%S")
         if row.get("offset"):
             sign = 1 if row["offset"].startswith("+") else -1
-            hours, minutes = (int(part) for part in row["offset"][1:].split(":"))
-            instant = (local - sign * timedelta(hours=hours, minutes=minutes)).replace(tzinfo=timezone.utc)
+            hours, offset_minutes = (int(part) for part in row["offset"][1:].split(":"))
+            instant = (local - sign * timedelta(hours=hours, minutes=offset_minutes)).replace(tzinfo=timezone.utc)
         else:
             fold = int((group, local) in seen)
             seen.add((group, local))
             instant = local.replace(tzinfo=MARKET_TZ, fold=fold).astimezone(timezone.utc)
         market_date, label = point_label(instant)
-        records.append({"group": group, "date": market_date, "time": label, "minutes": 15,
+        records.append({"group": group, "date": market_date, "time": label, "minutes": minutes,
                         "value": round(float(value) * scale, 3)})
     return records
 
@@ -437,45 +477,57 @@ def terna_day(client, path, key, day, params=None):
     return payload.get(key) or []
 
 
+def imbalance_records(rows):
+    """Macrozonal imbalance in MW: 15-minute values, or the hourly ones where only those exist."""
+    quarter = [row for row in rows if row.get("data_type", "Quarto Orario") == "Quarto Orario"]
+    hourly = [row for row in rows if row.get("data_type") == "Orario"]
+    group_of = lambda row: f"{row['macrozone']}|imbalance_volume"  # noqa: E731
+    value_of = lambda row: row.get("zonal_aggregate_unbalance_MWh")  # noqa: E731
+    if quarter:
+        return local_records(quarter, "reference_date", group_of, value_of, scale=4)
+    return local_records(hourly, "reference_date", group_of, value_of, minutes=60)
+
+
 def fetch_terna(start_day, end_day):
     client = Client(os.environ["TERNA_KEY"], os.environ["TERNA_SECRET"])
     records = []
-    day = start_day
-    while day <= end_day:
+    for day in market_days(start_day, end_day):
         print(f"  Terna {day}")
         # Macrozonal imbalance: final (D+1 17:00), else preliminary.
         rows = terna_day(client, "/fees/v1.0/daily-macrozonal-imbalance", "daily_macrozonal_imbalance", day)
         if not rows:
             rows = terna_day(client, "/fees/v1.0/preliminary-macrozonal-imbalance",
                              "preliminary_macrozonal_imbalance", day)
-        rows = [row for row in rows if row.get("data_type", "Quarto Orario") == "Quarto Orario"]
-        records += local_records(rows, "reference_date", lambda r: f"{r['macrozone']}|imbalance_volume",
-                                 lambda r: r.get("zonal_aggregate_unbalance_MWh"), scale=4)
+        records += imbalance_records(rows)
 
-        fcr = client.get("/market/v1.0/aste-fcr", {"marketDate": day.strftime("%d/%m/%Y")}).get("aste_fcr") or []
-        for field, name in (("price", "price"), ("quantity", "procured"), ("requirement", "requirement")):
-            records += local_records(
-                fcr, "date", lambda r, n=name: f"{r['zone']}|fcr_{n}_{r['direction'].lower()}",
-                lambda r, f=field: r.get(f))
-        day += timedelta(days=1)
+        if day >= FCR_START:
+            fcr = client.get("/market/v1.0/aste-fcr", {"marketDate": day.strftime("%d/%m/%Y")}).get("aste_fcr") or []
+            for field, name in (("price", "price"), ("quantity", "procured"), ("requirement", "requirement")):
+                records += local_records(
+                    fcr, "date", lambda r, n=name: f"{r['zone']}|fcr_{n}_{r['direction'].lower()}",
+                    lambda r, f=field: r.get(f))
 
-    # Reserve requirements: one request per MSD session for the whole range.
-    dates = {"dateFrom": start_day.strftime("%d/%m/%Y"), "dateTo": end_day.strftime("%d/%m/%Y")}
+    # Reserve requirements: one request per MSD session and chunk; each
+    # session restates the hours still ahead.
     for path, key, name, zone_of in (
             ("/market/v1.0/input/afrr-requirement", "secondary_reserve_requirement", "afrr_requirement",
              lambda z: z),
             ("/market/v1.0/input/rr-requirement", "replacement_reserve_requirement", "rr_requirement",
              lambda z: TERNA_ZONES.get(z))):
         session_records = []
-        for session in ("MSD1", "MSD2", "MSD3", "MSD4", "MSD5", "MSD6"):
-            try:
-                rows = client.get(path, {**dates, "sessionType": session}).get(key) or []
-            except requests.HTTPError as error:
-                print(f"    {name} {session}: {error}")
-                continue
-            session_records += local_records(
-                rows, "reference_date", lambda r, n=name, zo=zone_of: (f"{zo(r['zone'])}|{n}" if zo(r["zone"]) else None),
-                lambda r: r.get("requirement_MW"))
+        for chunk_start, chunk_end in day_chunks(start_day, end_day, REQUIREMENT_CHUNK_DAYS):
+            print(f"  Terna {name} {chunk_start} -> {chunk_end}")
+            dates = {"dateFrom": chunk_start.strftime("%d/%m/%Y"), "dateTo": chunk_end.strftime("%d/%m/%Y")}
+            for session in ("MSD1", "MSD2", "MSD3", "MSD4", "MSD5", "MSD6"):
+                try:
+                    rows = client.get(path, {**dates, "sessionType": session}).get(key) or []
+                except requests.HTTPError as error:
+                    print(f"    {name} {session}: {error}")
+                    continue
+                session_records += local_records(
+                    rows, "reference_date",
+                    lambda r, n=name, zo=zone_of: (f"{zo(r['zone'])}|{n}" if zo(r["zone"]) else None),
+                    lambda r: r.get("requirement_MW"))
         records += latest_session(session_records)
     return records
 
@@ -491,30 +543,41 @@ def gme_number(value):
     return float(value)
 
 
-def fetch_gme(start_day, end_day):
-    token = get_token(os.environ["GME_API_LOGIN"], os.environ["GME_API_PASSWORD"])
-    rows = []
-    for chunk_start, chunk_end in day_chunks(start_day, end_day, 7):
-        print(f"  GME MSD ex-ante {chunk_start} -> {chunk_end}")
-        rows += request_chunk(token, chunk_start, chunk_end, None, "MSD", "ME_MSDExAnteResults")
-        time.sleep(REQUEST_PAUSE_SECONDS)
+def msd_records(rows):
+    """MSD ex-ante results per zone: 15-minute periods, or hours where there are no periods."""
     records = []
     for row in rows:
         zone = str(row.get("Zone") or "").upper()
         if zone not in ZONES:
             continue
         flow_date = datetime.strptime(str(row["FlowDate"]), "%Y%m%d").date().isoformat()
-        label = market_time_from_period(int(row["Period"]), 15)
-        for field, name, scale in (("VolumesSold", "msd_volume_up", 4), ("VolumesPurchased", "msd_volume_down", 4),
-                                   ("AverageSellingPrice", "msd_price_up", 1),
-                                   ("AveragePurchasingPrice", "msd_price_down", 1)):
+        period = str(row.get("Period") or "").strip()
+        if period and period.lower() != "null":
+            label, minutes = market_time_from_period(int(period), 15), 15
+        else:
+            label, minutes = market_time_from_period(int(row["Hour"]), 60), 60
+        for field, name in (("VolumesSold", "msd_volume_up"), ("VolumesPurchased", "msd_volume_down"),
+                            ("AverageSellingPrice", "msd_price_up"),
+                            ("AveragePurchasingPrice", "msd_price_down")):
             value = gme_number(row.get(field))
             # No accepted offers: no price.
             if value is None or (name.startswith("msd_price") and not value):
                 continue
-            records.append({"group": f"{zone}|{name}", "date": flow_date, "time": label, "minutes": 15,
+            # Volumes are MWh per period: MW = MWh x periods per hour.
+            scale = 60 / minutes if name.startswith("msd_volume") else 1
+            records.append({"group": f"{zone}|{name}", "date": flow_date, "time": label, "minutes": minutes,
                             "value": round(value * scale, 3)})
     return records
+
+
+def fetch_gme(start_day, end_day):
+    token = get_token(os.environ["GME_API_LOGIN"], os.environ["GME_API_PASSWORD"])
+    rows = []
+    for chunk_start, chunk_end in day_chunks(start_day, end_day, GME_CHUNK_DAYS):
+        print(f"  GME MSD ex-ante {chunk_start} -> {chunk_end}")
+        rows += request_chunk(token, chunk_start, chunk_end, None, "MSD", "ME_MSDExAnteResults")
+        time.sleep(REQUEST_PAUSE_SECONDS)
+    return msd_records(rows)
 
 
 # ============================================================================
@@ -526,18 +589,19 @@ def is_mean(group):
     return group.split("|", 1)[1].startswith(MEAN_PREFIXES)
 
 
-# Series no longer written: Italy's central selection used to be stored as
-# *_picasso_* (now *_central_*).
-RETIRED_GROUPS = ("IT|activated_picasso_", "IT|offered_picasso_")
-
-
 def load_existing():
-    if not os.path.exists(OUTPUT_PATH):
-        return {resolution: {} for resolution in RESOLUTIONS}
-    payload = compact.load(OUTPUT_PATH)
-    return {resolution: {group: rows for group, rows in payload.get("series", {}).get(resolution, {}).items()
-                         if not group.startswith(RETIRED_GROUPS)}
-            for resolution in RESOLUTIONS}
+    """All series from the zone files (or the single file they replaced)."""
+    paths = sorted(glob.glob(os.path.join(BALANCING_DIR, "*.json")))
+    if not paths and os.path.exists(LEGACY_PATH):
+        paths = [LEGACY_PATH]
+    series = {resolution: {} for resolution in RESOLUTIONS}
+    for path in paths:
+        payload = compact.load(path)
+        for resolution in RESOLUTIONS:
+            for group, rows in payload.get("series", {}).get(resolution, {}).items():
+                if not group.startswith(RETIRED_GROUPS) and "|offered_" not in group:
+                    series[resolution][group] = rows
+    return series
 
 
 def merge(existing, records):
@@ -593,24 +657,48 @@ def weight_activation_prices(series):
     return series
 
 
-def build_output(series):
+def area_prefixes(zone):
+    """The Terna area series a zone's charts use."""
+    return (f"{MACROZONE[zone]}|imbalance_volume", f"{FCR_AREA[zone]}|fcr_", f"{AFRR_AREA[zone]}|afrr_requirement")
+
+
+def file_groups(name, groups):
+    """Series of one file: a zone's own and its areas', or Italy's and all areas'."""
+    if name == "IT":
+        prefixes = ("IT|",) + tuple({prefix for zone in ZONES for prefix in area_prefixes(zone)})
+    else:
+        prefixes = (f"{name}|",) + area_prefixes(name)
+    return sorted(group for group in groups if group.startswith(prefixes))
+
+
+def build_output(name, series):
+    groups = file_groups(name, {group for resolution in RESOLUTIONS for group in series[resolution]})
     return {
         "source": "ENTSO-E Transparency Platform, Terna public API, GME API",
         "description": (
-            "Balancing data per Italian bidding zone ('ZONE|series'; 'IT|' = Italy as a whole, "
-            "'NORD|'/'SUD|' imbalance volume = macrozone, FCR and aFRR requirement = Terna area). "
-            "Prices EUR/MWh (FCR EUR/MW), volumes MW; hourly = average of the quarter-hours, "
-            "daily = average for prices and capacities, sum of the hours (MWh/day) for energy. "
-            "Italian market time, labelled by elapsed time since local midnight."
+            f"Balancing data of {'Italy as a whole and the Terna areas' if name == 'IT' else 'bidding zone ' + name} "
+            "('ZONE|series'; 'NORD|'/'SUD|' imbalance volume = macrozone, FCR and aFRR requirement = Terna area). "
+            "Prices EUR/MWh (FCR EUR/MW), volumes MW; hourly = average of the quarter-hours (activation prices "
+            "weighted by the energy activated), daily = average for prices and capacities, sum of the hours "
+            "(MWh/day) for energy. Italian market time, labelled by elapsed time since local midnight."
         ),
-        "areas": {"macrozone": MACROZONE, "afrr": AFRR_AREA, "fcr": FCR_AREA},
-        "bid_days": bid_days(),
+        "zone": name,
+        "areas": ({"macrozone": MACROZONE, "afrr": AFRR_AREA, "fcr": FCR_AREA} if name == "IT" else
+                  {"macrozone": MACROZONE[name], "afrr": AFRR_AREA[name], "fcr": FCR_AREA[name]}),
+        "bid_days": bid_days().get(name, []),
         "series": {
-            resolution: {group: compact.encode_series(rows, resolution)
-                         for group, rows in sorted(series[resolution].items())}
+            resolution: {group: compact.encode_series(series[resolution][group], resolution)
+                         for group in groups if group in series[resolution]}
             for resolution in RESOLUTIONS
         },
     }
+
+
+def write_outputs(series):
+    for name in list(ZONES) + ["IT"]:
+        compact.dump(build_output(name, series), os.path.join(BALANCING_DIR, f"{name}.json"))
+    if os.path.exists(LEGACY_PATH):
+        os.remove(LEGACY_PATH)
 
 
 def main():
@@ -627,27 +715,32 @@ def main():
     sources = set(args.sources.split(","))
     print(f"Balancing data {start_day} -> {end_day} ({', '.join(sorted(sources))})")
 
-    records = []
+    # Merged source by source, so a long backfill never holds every
+    # source's point records at once.
+    series = load_existing()
     for name, fetch, last in (("entsoe", fetch_entsoe, min(end_day, today)),
                               ("terna", fetch_terna, end_day),
                               ("gme", fetch_gme, end_day)):
         if name not in sources:
             continue
         try:
-            records += fetch(start_day, last)
+            series = merge(series, fetch(start_day, last))
         except Exception as error:  # one source failing must not lose the others
             print(f"  {name} failed: {error!r}")
     if "bids" in sources:
         # Bids are not revised once published: routine runs fetch only
-        # yesterday (its last hours) and today.
-        bid_start = start_day if args.start else today - timedelta(days=1)
+        # yesterday (its last hours) and today, and none are kept beyond
+        # BID_RETENTION_DAYS.
+        bid_start = max(start_day if args.start else today - timedelta(days=1),
+                        today - timedelta(days=BID_RETENTION_DAYS))
         update_bids(bid_start, min(end_day, today))
         prune_bids(today)
 
-    series = weight_activation_prices(merge(load_existing(), records))
-    compact.dump(build_output(series), OUTPUT_PATH)
-    groups = sorted(series["quarter_hourly"])
-    print(f"Wrote {OUTPUT_PATH}: {len(groups)} series, bids for {sum(len(v) for v in bid_days().values())} zone-days")
+    series = weight_activation_prices(series)
+    write_outputs(series)
+    sizes = {name: os.path.getsize(os.path.join(BALANCING_DIR, f"{name}.json")) // 1024 for name in list(ZONES) + ["IT"]}
+    print(f"Wrote {BALANCING_DIR}: {len(series['quarter_hourly'])} series; KB per file {sizes}; "
+          f"bids for {sum(len(v) for v in bid_days().values())} zone-days")
 
 
 if __name__ == "__main__":

@@ -6,7 +6,9 @@
 #   data-branch.sh restore             copy the data files into app/data/
 #   data-branch.sh publish FILE...     replace FILE(s) on the data branch;
 #                                      a directory replaces everything under
-#                                      it (files deleted locally go too)
+#                                      it (files deleted locally go too), and
+#                                      a path that no longer exists locally
+#                                      is removed
 #
 # "restore" also works locally (Git Bash) to get the data for a preview.
 
@@ -53,6 +55,9 @@ publish() {
           GIT_INDEX_FILE=$index git update-index --add \
             --cacheinfo "100644,$(git hash-object -w "$file"),$file"
         done < <(find "$path" -type f | sort)
+      elif [ ! -e "$path" ]; then
+        GIT_INDEX_FILE=$index git ls-files -z -- "$path" |
+          GIT_INDEX_FILE=$index xargs -0 -r git update-index --force-remove --
       else
         GIT_INDEX_FILE=$index git update-index --add \
           --cacheinfo "100644,$(git hash-object -w "$path"),$path"

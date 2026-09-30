@@ -6,6 +6,10 @@ on:
     # the hour; Terna's final macrozonal imbalance at 17:00 on D+1; GME's
     # MSD ex-ante results for D+1 by 21:45 Italian time.
     - cron: "40 1,7,13,19 * * *"
+  push:
+    # TEMPORARY: backfill from 2025-01-01 from the feature branch.
+    branches: [balancing]
+    paths: [etl/fetch_balancing.py, .github/workflows/update-balancing.yml]
   workflow_dispatch:
     inputs:
       start:
@@ -29,7 +33,7 @@ concurrency:
 jobs:
   update-balancing:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: ${{ github.event_name == 'push' && 330 || 90 }}
 
     steps:
       - name: Checkout repository
@@ -54,7 +58,7 @@ jobs:
           TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
           GME_API_LOGIN: ${{ secrets.GME_API_LOGIN }}
           GME_API_PASSWORD: ${{ secrets.GME_API_PASSWORD }}
-          START: ${{ inputs.start }}
+          START: ${{ inputs.start || (github.event_name == 'push' && '2025-01-01' || '') }}
           END: ${{ inputs.end }}
           SOURCES: ${{ inputs.sources || 'entsoe,terna,gme,bids' }}
         run: |
@@ -65,6 +69,7 @@ jobs:
           python etl/fetch_balancing.py "${ARGS[@]}"
 
       - name: Publish updated data to the data branch
+        # balancing.json: the single file the zone files replaced (removed).
         run: |
-          mkdir -p app/data/balancing_bids
-          bash .github/scripts/data-branch.sh publish app/data/balancing.json app/data/balancing_bids
+          mkdir -p app/data/balancing app/data/balancing_bids
+          bash .github/scripts/data-branch.sh publish app/data/balancing app/data/balancing_bids app/data/balancing.json

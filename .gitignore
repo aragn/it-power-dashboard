@@ -16,7 +16,7 @@ app/data/capacity.json
 app/data/outages.json
 app/data/outage_units.json
 app/data/data_checks.json
-app/data/balancing.json
+app/data/balancing/
 app/data/balancing_bids/
 app/data/neighbour_prices.json
 app/data/coupling.json

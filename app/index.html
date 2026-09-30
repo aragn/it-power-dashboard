@@ -7035,30 +7035,47 @@
   const hasPicasso = zone => zone !== "SARD";
 
   const balancingMount = document.getElementById("chart-mount-balancing");
-  let rawBalancingData = null;
-  let balancingStatus = "loading"; // "loading" | "ready" | "missing"
+
+  /* One file per zone (data/balancing/<ZONE>.json, the zone's series and
+     those of its Terna areas), loaded the first time the zone is opened;
+     the series of every loaded file go into one store. */
+  const balancingSeries = { quarter_hourly: {}, hourly: {}, daily: {} };
+  const balancingZones = {}; // zone -> { status: "loading" | "ready" | "missing", areas, bidDays }
   const balancingCache = {};
 
-  async function loadBalancingData() {
-    try {
-      const response = await fetch("./data/balancing.json", { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      rawBalancingData = decodeCompactPayload(await response.json());
-      balancingStatus = "ready";
-    } catch (error) {
-      console.warn("Balancing data unavailable:", error);
-      balancingStatus = "missing";
-    }
-    Object.keys(balancingCache).forEach(key => delete balancingCache[key]);
-    updateView();
+  function loadBalancingZone(zone) {
+    if (balancingZones[zone]) return;
+    balancingZones[zone] = { status: "loading", areas: {}, bidDays: new Set() };
+    fetch(`./data/balancing/${zone}.json`, { cache: "no-store" })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then(payload => {
+        const data = decodeCompactPayload(payload);
+        Object.entries(data.series || {}).forEach(([resolution, groups]) =>
+          Object.assign(balancingSeries[resolution], groups));
+        balancingZones[zone] = { status: "ready", areas: data.areas || {}, bidDays: new Set(data.bid_days || []) };
+      })
+      .catch(error => {
+        console.warn(`Balancing data for ${zone} unavailable:`, error);
+        balancingZones[zone] = { status: "missing", areas: {}, bidDays: new Set() };
+      })
+      .finally(() => {
+        Object.keys(balancingCache).forEach(key => delete balancingCache[key]);
+        updateView();
+      });
+  }
+
+  function balancingStatus(zone) {
+    return (balancingZones[zone] || {}).status || "loading";
   }
 
   /* One balancing series at the current resolution: bucket key -> value. */
   function balancingMap(group, resolution = timelineResolutionKey()) {
     const cacheKey = `${group}|${resolution}`;
-    if (!rawBalancingData) return new Map();
     if (!balancingCache[cacheKey]) {
-      const rows = (((rawBalancingData.series || {})[resolution]) || {})[group] || [];
+      const rows = balancingSeries[resolution][group] || [];
       balancingCache[cacheKey] = new Map(rows.map(row => [
         resolution === "daily" ? row.date : `${row.date}|${row.time}`, Number(row.value)
       ]));
@@ -7078,8 +7095,9 @@
     return balancingCache[cacheKey];
   }
 
+  /* The zone's Terna area of a kind: macrozone, afrr, fcr. */
   function balancingArea(kind, zone) {
-    return (((rawBalancingData || {}).areas || {})[kind] || {})[zone] || zone;
+    return ((balancingZones[zone] || {}).areas || {})[kind] || zone;
   }
 
   const BALANCING_UNITS = {
@@ -7266,8 +7284,10 @@
         name: item.name,
         type: "bar",
         yAxisIndex: item.axis || 0,
-        // Up and down volumes stack separately on either side of zero.
-        stack: (item.sign || 1) < 0 ? "down" : "up",
+        // One stack, so up and down share the quarter-hour's column; each
+        // sign stacks on its own side of zero.
+        stack: "volume",
+        stackStrategy: "samesign",
         data,
         barCategoryGap: "15%",
         itemStyle: { color, opacity: item.color === "--bal-volume" ? 1 : 0.4 },
@@ -7322,7 +7342,7 @@
     const own = items.map((item, index) => item.map ? [] : data[index]).flat();
     if (!own.some(value => value !== null)) {
       chart.clear();
-      setChartSubtitle(subtitleId, balancingStatus === "loading"
+      setChartSubtitle(subtitleId, balancingStatus(zone) === "loading"
         ? "Loading balancing data…" : `No balancing data for these dates · ${ZONE_LABELS[currentZone]}`);
       return;
     }
@@ -7450,7 +7470,7 @@
   }
 
   function bidDays(zone) {
-    return new Set((((rawBalancingData || {}).bid_days) || {})[zone] || []);
+    return (balancingZones[zone] || {}).bidDays || new Set();
   }
 
   /* Prices span several decades and both signs: a symmetric log scale,
@@ -7496,7 +7516,8 @@
   /* Quarter-hours of the calendar range and where bids are available. */
   function syncDepthSlots(zone) {
     if (!currentStart || !currentEnd) return;
-    const rangeKey = `${zone}|${dateKey(currentStart)}|${dateKey(currentEnd)}`;
+    // Again once the zone's file (with its bid days) is in.
+    const rangeKey = `${zone}|${balancingStatus(zone)}|${dateKey(currentStart)}|${dateKey(currentEnd)}`;
     if (rangeKey === depthRangeKey) return;
     depthRangeKey = rangeKey;
     depthSlots = [];
@@ -7627,6 +7648,7 @@
     if (balancingMount.style.display === "none") return;
     const zone = BALANCING_ZONE_CODES[currentZone];
     if (!zone) return;
+    loadBalancingZone(zone);
 
     // Layout: the six time series charts, then the depth pairs (PICASSO
     // next to local; without PICASSO, up next to down).
@@ -8008,7 +8030,6 @@
     loadCapacityData();
     loadOutageData();
     loadDataChecks();
-    loadBalancingData();
   };
 
   window.addEventListener("resize", () => {
