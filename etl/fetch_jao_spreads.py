@@ -17,6 +17,13 @@ spreads are hourly until the 15-minute day-ahead market time unit
 Hourly = average of the quarter-hours; daily = average of the hours (IDA 3
 covers only the afternoon and evening, so its daily average is for those
 hours).  Output: app/data/jao_spreads.json, EUR/MWh, Italian market time.
+
+The same file holds the congestion income of each border and market
+(JAO's gross congestion income per direction), signed like the spreads:
+the income earned on exports from Italy (IT->X, the neighbour dearer)
+above zero, on imports into Italy (X->IT, Italy dearer) below.  It is kept
+as EUR per hour, so the hourly value is the hour's income and the daily
+value (the sum of the hours) the day's; quarter-hours from 1 October 2025.
 """
 
 import argparse
@@ -76,6 +83,10 @@ REQUEST_INTERVAL_SECONDS = 0.7
 MAX_RETRIES = 3
 TOO_MANY_REQUESTS_RETRIES = 6
 TOO_MANY_REQUESTS_WAIT_SECONDS = 30
+
+# Congestion income: quarter-hours kept from here (hourly before), to keep
+# the file small.
+INCOME_QUARTER_HOURLY_FROM = "2025-10-01"
 
 # Incremental runs re-download this many days.
 LOOKBACK_DAYS = 3
@@ -176,18 +187,39 @@ def spread_records(market, rows):
     return records
 
 
-def download(start_day, end_day):
-    session = requests.Session()
+def income_records(market, rows):
+    """
+    Congestion income in EUR per hour, group "<market>|<country>|income":
+    exports from Italy (IT->X) above zero, imports into Italy (X->IT) below.
+    """
+    quarter_days = quarter_hour_days(rows)
     records = []
+    for row in rows:
+        market_date, label = market_time(row)
+        minutes = 15 if market_date in quarter_days else 60
+        for country in COUNTRIES:
+            exports, imports = row.get(f"grossBorder_IT_{country}"), row.get(f"grossBorder_{country}_IT")
+            if exports is None and imports is None:
+                continue
+            records.append({"group": f"{market}|{country}|income", "date": market_date, "time": label,
+                            "minutes": minutes, "value": ((exports or 0) - (imports or 0)) * 60 / minutes})
+    return records
+
+
+def download(start_day, end_day):
+    """Spread records and congestion income records."""
+    session = requests.Session()
+    spreads, income = [], []
     for market, (jao_market, label) in MARKETS.items():
         count = 0
         for first, last in request_chunks(start_day, end_day):
             rows = jao_get(session, f"{jao_market}_priceSpread", first, last)
             count += len(rows)
-            records += spread_records(market, rows)
+            spreads += spread_records(market, rows)
+            income += income_records(market, jao_get(session, f"{jao_market}_congestionIncome", first, last))
             time.sleep(PAUSE_SECONDS)
         print(f"  {label}: {count:,} market time units {start_day} -> {end_day}")
-    return records
+    return spreads, income
 
 
 # ============================================================================
@@ -196,32 +228,41 @@ def download(start_day, end_day):
 
 
 def load_existing():
-    """{resolution: {"<market>|<country>": rows}}."""
-    existing = {resolution: {} for resolution in RESOLUTIONS}
+    """Spreads and income as {resolution: {"<market>|<country>[|income]": rows}}."""
+    spreads = {resolution: {} for resolution in RESOLUTIONS}
+    income = {resolution: {} for resolution in RESOLUTIONS}
     if not os.path.exists(OUTPUT_PATH):
-        return existing
+        return spreads, income
     payload = compact.load(OUTPUT_PATH)
-    for market, by_country in payload.get("markets", {}).items():
-        for country, series in by_country.items():
-            for resolution in RESOLUTIONS:
-                existing[resolution][f"{market}|{country}"] = series.get(resolution, [])
-    return existing
+    for target, key, suffix in ((spreads, "markets", ""), (income, "income", "|income")):
+        for market, by_country in payload.get(key, {}).items():
+            for country, series in by_country.items():
+                for resolution in RESOLUTIONS:
+                    target[resolution][f"{market}|{country}{suffix}"] = series.get(resolution, [])
+    return spreads, income
 
 
-def build_output(spreads):
+def encode_markets(series, suffix, quarter_hourly_from, rounding=None):
+    """{market: {country: {resolution: compact series}}} of the groups present."""
     markets = {}
     for market in MARKETS:
         markets[market] = {}
         for country in COUNTRIES:
-            group = f"{market}|{country}"
-            if not spreads["daily"].get(group):
+            group = f"{market}|{country}{suffix}"
+            if not series["daily"].get(group):
                 continue
-            markets[market][country] = {
-                resolution: compact.encode_series(
-                    spreads[resolution].get(group, []), resolution,
-                    skip_before=QUARTER_HOURLY_NATIVE_FROM[market] if resolution == "quarter_hourly" else None)
-                for resolution in RESOLUTIONS
-            }
+            markets[market][country] = {}
+            for resolution in RESOLUTIONS:
+                rows = series[resolution].get(group, [])
+                if rounding is not None:
+                    rows = [{**row, "value": round(row["value"], rounding)} for row in rows]
+                markets[market][country][resolution] = compact.encode_series(
+                    rows, resolution,
+                    skip_before=quarter_hourly_from(market) if resolution == "quarter_hourly" else None)
+    return markets
+
+
+def build_output(spreads, income):
     return {
         "source": "JAO Publication Tool, Italy North CCR & IBWT (publicationtool.jao.eu/ibwt)",
         "description": (
@@ -230,12 +271,16 @@ def build_output(spreads):
             "auctions IDA 1-3. Hourly = average of the quarter-hours; daily = average of the hours. "
             "Italian market time (Europe/Rome), labelled by elapsed time since local midnight. "
             "Quarter-hourly series start at quarter_hourly_native_from (per market); earlier "
-            "quarter-hours repeat the hourly value."
+            "quarter-hours repeat the hourly value. income: congestion income, EUR per hour, exports "
+            "from Italy (IT->X) above zero and imports into Italy (X->IT) below; daily = the day's total; "
+            "quarter-hourly from income_quarter_hourly_from."
         ),
         "quarter_hourly_native_from": QUARTER_HOURLY_NATIVE_FROM,
         "market_labels": {market: label for market, (_, label) in MARKETS.items()},
         "countries": {country: label for country, (_, label) in COUNTRIES.items()},
-        "markets": markets,
+        "markets": encode_markets(spreads, "", QUARTER_HOURLY_NATIVE_FROM.get),
+        "income_quarter_hourly_from": INCOME_QUARTER_HOURLY_FROM,
+        "income": encode_markets(income, "|income", lambda market: INCOME_QUARTER_HOURLY_FROM, rounding=0),
     }
 
 
@@ -264,17 +309,22 @@ def main():
         raise ValueError("End date must not be before start date.")
 
     print(f"JAO price spreads {start_day} -> {end_day}")
-    existing = {resolution: {} for resolution in RESOLUTIONS} if args.full_history else load_existing()
-    records = download(start_day, end_day)
-    if not records and not any(existing["daily"].values()):
+    if args.full_history:
+        old_spreads, old_income = ({resolution: {} for resolution in RESOLUTIONS} for _ in range(2))
+    else:
+        old_spreads, old_income = load_existing()
+    spread_rows, income_rows = download(start_day, end_day)
+    if not spread_rows and not any(old_spreads["daily"].values()):
         raise RuntimeError("No price spreads downloaded; not writing output.")
 
-    spreads = merge_resolutions(existing, records, RESOLUTIONS, daily="mean")
-    for group in sorted(spreads["daily"]):
-        days = spreads["daily"][group]
-        print(f"  {group}: {len(days):,} days, {days[0]['date']} -> {days[-1]['date']}")
+    spreads = merge_resolutions(old_spreads, spread_rows, RESOLUTIONS, daily="mean")
+    income = merge_resolutions(old_income, income_rows, RESOLUTIONS, daily="sum")
+    for series in (spreads, income):
+        for group in sorted(series["daily"]):
+            days = series["daily"][group]
+            print(f"  {group}: {len(days):,} days, {days[0]['date']} -> {days[-1]['date']}")
 
-    compact.dump(build_output(spreads), OUTPUT_PATH)
+    compact.dump(build_output(spreads, income), OUTPUT_PATH)
     print(f"Wrote {OUTPUT_PATH} ({os.path.getsize(OUTPUT_PATH) // 1024:,} KB)")
 
 
