@@ -210,3 +210,89 @@ def test_national_sums_add_the_zones_activations():
         {"date": "2026-09-28", "time": "11:00", "value": round(45.825 + 14.27, 2)}]
     assert series["daily"]["IT|sum_activated_rr_up"] == [{"date": "2026-09-28", "value": 100.0}]
     assert series["hourly"]["IT|sum_activated_afrr_up"] == []
+
+
+class FakeTernaClient:
+    def __init__(self, *responses):
+        self.responses = list(responses)
+        self.calls = 0
+
+    def get(self, path, params):
+        import requests
+        status, text = self.responses.pop(0)
+        if status == 200:
+            return {"rows": text}
+        response = requests.Response()
+        response.status_code, response._content = status, text.encode()
+        raise requests.HTTPError(response=response)
+
+
+def test_terna_stops_at_once_when_the_daily_quota_is_used_up(monkeypatch):
+    import pytest
+    monkeypatch.setattr(fb.time, "sleep", lambda seconds: pytest.fail("waited"))
+    client = FakeTernaClient((403, '{"message": "Developer Over Rate"}'))
+    with pytest.raises(fb.TernaRefused):
+        fb.terna_get(client, "/x", {})
+    assert client.calls == 1
+
+
+def test_terna_waits_out_other_refusals(monkeypatch):
+    waits = []
+    monkeypatch.setattr(fb.time, "sleep", waits.append)
+    client = FakeTernaClient((403, "Forbidden"), (200, [1]))
+    assert fb.terna_get(client, "/x", {}) == {"rows": [1]}
+    assert waits == [fb.TERNA_REFUSAL_WAIT_SECONDS] and client.calls == 2
+
+
+def catch_up_fixture(monkeypatch, calls_per_block, refuse_at=None, published=lambda day: True):
+    from datetime import timedelta
+    blocks = []
+    client = FakeTernaClient()
+
+    def fetch(first, last, client):
+        blocks.append((first, last))
+        client.calls += calls_per_block
+        client.refused = refuse_at is not None and len(blocks) >= refuse_at
+        days = [first + timedelta(days=n) for n in range((last - first).days + 1)]
+        return [{"group": "NORD|imbalance_volume", "date": day.isoformat(), "time": "00:00", "minutes": 15,
+                 "value": 1.0} for day in days if published(day)]
+
+    monkeypatch.setenv("TERNA_KEY_2", "k")
+    monkeypatch.setenv("TERNA_SECRET_2", "s")
+    monkeypatch.setattr(fb, "terna_client", lambda keys: client)
+    monkeypatch.setattr(fb, "fetch_terna", fetch)
+    return blocks
+
+
+def empty_series():
+    return {resolution: {} for resolution in fb.RESOLUTIONS}
+
+
+def test_catch_up_goes_on_block_after_block_until_the_call_budget(monkeypatch):
+    from datetime import date
+    monkeypatch.setattr(fb, "HISTORY_START", date(2025, 1, 1))
+    monkeypatch.setattr(fb, "TERNA_CATCH_UP_CALLS", 100)
+    blocks = catch_up_fixture(monkeypatch, calls_per_block=40)
+    series = fb.terna_catch_up(empty_series(), date(2025, 6, 1))
+    assert blocks == [(date(2025, 5, 4), date(2025, 5, 31)), (date(2025, 4, 6), date(2025, 5, 3)),
+                      (date(2025, 3, 9), date(2025, 4, 5))]
+    assert fb.terna_gap(series, date(2025, 6, 1))[-1] == date(2025, 3, 8)
+
+
+def test_catch_up_stops_when_terna_refuses_or_the_history_is_complete(monkeypatch):
+    from datetime import date
+    monkeypatch.setattr(fb, "HISTORY_START", date(2025, 1, 1))
+    blocks = catch_up_fixture(monkeypatch, calls_per_block=1, refuse_at=2)
+    fb.terna_catch_up(empty_series(), date(2025, 6, 1))
+    assert len(blocks) == 2
+    blocks = catch_up_fixture(monkeypatch, calls_per_block=1)
+    fb.terna_catch_up(empty_series(), date(2025, 2, 1))
+    assert blocks == [(date(2025, 1, 4), date(2025, 1, 31)), (date(2025, 1, 1), date(2025, 1, 3))]
+
+
+def test_catch_up_does_not_ask_again_for_a_day_terna_never_published(monkeypatch):
+    from datetime import date
+    monkeypatch.setattr(fb, "HISTORY_START", date(2025, 1, 1))
+    blocks = catch_up_fixture(monkeypatch, calls_per_block=1, published=lambda day: day != date(2025, 1, 20))
+    fb.terna_catch_up(empty_series(), date(2025, 2, 1))
+    assert blocks == [(date(2025, 1, 4), date(2025, 1, 31)), (date(2025, 1, 1), date(2025, 1, 3))]

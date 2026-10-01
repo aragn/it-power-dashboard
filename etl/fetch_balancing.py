@@ -94,11 +94,15 @@ RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
 LOOKBACK_DAYS = 3
 
 # The history starts here; routine runs fill Terna's gaps before the
-# lookback window a few weeks at a time (see main): Terna allows 300 calls
-# a day per key, which the routine runs share with the catch-up unless a
-# second key is set.
+# lookback window (see main): Terna allows 300 calls a day per key (reset
+# at midnight UTC), which the routine runs share with the catch-up unless a
+# second key is set. With the second key a run goes on, block after block,
+# until it has used TERNA_CATCH_UP_CALLS (a block costs up to ~70 calls),
+# so the first run of each UTC day uses that day's quota however many of
+# the scheduled runs GitHub starts.
 HISTORY_START = date(2025, 1, 1)
 TERNA_CATCH_UP_DAYS = 28
+TERNA_CATCH_UP_CALLS = 220
 TERNA_CATCH_UP_DAYS_SHARED_KEY = 7
 BID_RETENTION_DAYS = 35
 
@@ -110,7 +114,9 @@ GME_CHUNK_DAYS = 31
 # ENTSO-E allows 400 requests a minute per token.
 PARALLEL_REQUESTS = 4
 
-# Terna answers 403 when a request quota is used up: wait, then stop.
+# Terna answers 403 "Developer Over Rate" when the day's quota is used up
+# (stop at once), other 403s now and then (wait, then stop).
+TERNA_QUOTA_MESSAGE = "Over Rate"
 TERNA_REFUSAL_RETRIES = 3
 TERNA_REFUSAL_WAIT_SECONDS = 120
 
@@ -556,13 +562,19 @@ class TernaRefused(Exception):
 
 
 def terna_get(client, path, params):
-    """client.get, waiting out a 403 a few times before giving up."""
+    """
+    client.get, counting the calls in client.calls; a 403 is waited out a
+    few times before giving up, except the one for a used-up daily quota.
+    """
     for attempt in range(TERNA_REFUSAL_RETRIES + 1):
+        client.calls = getattr(client, "calls", 0) + 1
         try:
             return client.get(path, params)
         except requests.HTTPError as error:
             if error.response is None or error.response.status_code != 403:
                 raise
+            if TERNA_QUOTA_MESSAGE in error.response.text:
+                raise TernaRefused(f"daily quota used up: {path} {params}") from error
             if attempt == TERNA_REFUSAL_RETRIES:
                 raise TernaRefused(f"{path} {params}") from error
             print(f"    Terna refused ({path}), waiting {TERNA_REFUSAL_WAIT_SECONDS}s")
@@ -601,8 +613,17 @@ def terna_gap(series, before):
     return [day for day in market_days(HISTORY_START, before - timedelta(days=1)) if day.isoformat() not in have]
 
 
-def fetch_terna(start_day, end_day, keys=("TERNA_KEY", "TERNA_SECRET")):
-    client = Client(os.environ[keys[0]], os.environ[keys[1]])
+def terna_client(keys=("TERNA_KEY", "TERNA_SECRET")):
+    return Client(os.environ[keys[0]], os.environ[keys[1]])
+
+
+def fetch_terna(start_day, end_day, client=None):
+    """
+    Terna's records for the days; when Terna stops answering (quota) it
+    returns what came in and sets client.refused.
+    """
+    client = client or terna_client()
+    client.refused = False
     records = []
     try:
         for first, last in day_chunks(start_day, end_day, 7):
@@ -615,34 +636,67 @@ def fetch_terna(start_day, end_day, keys=("TERNA_KEY", "TERNA_SECRET")):
                     records += local_records(
                         fcr, "date", lambda r, n=name: f"{r['zone']}|fcr_{n}_{r['direction'].lower()}",
                         lambda r, f=field: r.get(f))
-    except TernaRefused as error:
-        # Keep what came in; a later run fills the rest.
-        print(f"  Terna kept refusing requests at the week of {first}: stopped, to go on from there later ({error})")
-        return records
 
-    # Reserve requirements: one request per MSD session and chunk; each
-    # session restates the hours still ahead.
-    for path, key, name, zone_of in (
-            ("/market/v1.0/input/afrr-requirement", "secondary_reserve_requirement", "afrr_requirement",
-             lambda z: z),
-            ("/market/v1.0/input/rr-requirement", "replacement_reserve_requirement", "rr_requirement",
-             lambda z: TERNA_ZONES.get(z))):
-        session_records = []
-        for chunk_start, chunk_end in day_chunks(start_day, end_day, REQUIREMENT_CHUNK_DAYS):
-            print(f"  Terna {name} {chunk_start} -> {chunk_end}")
-            dates = {"dateFrom": chunk_start.strftime("%d/%m/%Y"), "dateTo": chunk_end.strftime("%d/%m/%Y")}
-            for session in ("MSD1", "MSD2", "MSD3", "MSD4", "MSD5", "MSD6"):
-                try:
-                    rows = terna_get(client, path, {**dates, "sessionType": session}).get(key) or []
-                except (requests.HTTPError, TernaRefused) as error:
-                    print(f"    {name} {session}: {error}")
-                    continue
-                session_records += local_records(
-                    rows, "reference_date",
-                    lambda r, n=name, zo=zone_of: (f"{zo(r['zone'])}|{n}" if zo(r["zone"]) else None),
-                    lambda r: r.get("requirement_MW"))
-        records += latest_session(session_records)
+        # Reserve requirements: one request per MSD session and chunk; each
+        # session restates the hours still ahead.
+        for path, key, name, zone_of in (
+                ("/market/v1.0/input/afrr-requirement", "secondary_reserve_requirement", "afrr_requirement",
+                 lambda z: z),
+                ("/market/v1.0/input/rr-requirement", "replacement_reserve_requirement", "rr_requirement",
+                 lambda z: TERNA_ZONES.get(z))):
+            session_records = []
+            for chunk_start, chunk_end in day_chunks(start_day, end_day, REQUIREMENT_CHUNK_DAYS):
+                print(f"  Terna {name} {chunk_start} -> {chunk_end}")
+                dates = {"dateFrom": chunk_start.strftime("%d/%m/%Y"), "dateTo": chunk_end.strftime("%d/%m/%Y")}
+                for session in ("MSD1", "MSD2", "MSD3", "MSD4", "MSD5", "MSD6"):
+                    try:
+                        rows = terna_get(client, path, {**dates, "sessionType": session}).get(key) or []
+                    except requests.HTTPError as error:
+                        print(f"    {name} {session}: {error}")
+                        continue
+                    session_records += local_records(
+                        rows, "reference_date",
+                        lambda r, n=name, zo=zone_of: (f"{zo(r['zone'])}|{n}" if zo(r["zone"]) else None),
+                        lambda r: r.get("requirement_MW"))
+            records += latest_session(session_records)
+    except TernaRefused as error:
+        # Keep what came in; a later run fills the rest (the gap is found
+        # from the imbalance volume, so a block cut short is fetched again).
+        print(f"  Terna stopped answering: {error}; going on from there in a later run")
+        client.refused = True
     return records
+
+
+def terna_catch_up(series, before):
+    """
+    Terna's history before the lookback window, newest gap first: one block
+    of TERNA_CATCH_UP_DAYS after the other with the second key, until
+    TERNA_CATCH_UP_CALLS are used or Terna refuses; a single short block with
+    the main key, which the routine runs need too.
+    """
+    second_key = bool(os.environ.get("TERNA_KEY_2") and os.environ.get("TERNA_SECRET_2"))
+    client = terna_client(("TERNA_KEY_2", "TERNA_SECRET_2") if second_key else ("TERNA_KEY", "TERNA_SECRET"))
+    client.calls = 0
+    days = TERNA_CATCH_UP_DAYS if second_key else TERNA_CATCH_UP_DAYS_SHARED_KEY
+    while True:
+        # Each block ends before the previous one, so a day Terna never
+        # publishes is not asked for again within the run.
+        missing = terna_gap(series, before)
+        if not missing:
+            print(f"  Terna catch-up: nothing missing before {before}")
+            return series
+        first = max(missing[-1] - timedelta(days=days - 1), HISTORY_START)
+        print(f"  Terna catch-up {first} -> {missing[-1]} ({len(missing)} days missing, "
+              f"{'second' if second_key else 'main'} key, {client.calls} calls so far)")
+        records = fetch_terna(first, missing[-1], client)
+        series = merge(series, records)
+        if client.refused or not second_key or client.calls >= TERNA_CATCH_UP_CALLS:
+            return series
+        if not any(r["group"] == "NORD|imbalance_volume" for r in records):
+            # Terna has nothing for these days: stop rather than ask again.
+            print(f"  Terna catch-up: no imbalance volume for {first} -> {missing[-1]}; stopping")
+            return series
+        before = first
 
 
 # ============================================================================
@@ -872,21 +926,10 @@ def main():
         except Exception as error:  # one source failing must not lose the others
             print(f"  {name} failed: {error!r}")
     if "terna" in sources and not args.start:
-        # Terna allows 300 calls a day per key, so its history is filled a
-        # few weeks per routine run, newest gap first; with a second key
-        # (TERNA_KEY_2 / TERNA_SECRET_2) the catch-up has its own quota.
-        missing = terna_gap(series, start_day)
-        if missing:
-            second_key = bool(os.environ.get("TERNA_KEY_2") and os.environ.get("TERNA_SECRET_2"))
-            days = TERNA_CATCH_UP_DAYS if second_key else TERNA_CATCH_UP_DAYS_SHARED_KEY
-            first = max(missing[-1] - timedelta(days=days - 1), HISTORY_START)
-            print(f"  Terna catch-up {first} -> {missing[-1]} ({len(missing)} days missing, "
-                  f"{'second' if second_key else 'main'} key)")
-            try:
-                keys = ("TERNA_KEY_2", "TERNA_SECRET_2") if second_key else ("TERNA_KEY", "TERNA_SECRET")
-                series = merge(series, fetch_terna(first, missing[-1], keys))
-            except Exception as error:
-                print(f"  Terna catch-up failed: {error!r}")
+        try:
+            series = terna_catch_up(series, start_day)
+        except Exception as error:
+            print(f"  Terna catch-up failed: {error!r}")
     if "bids" in sources:
         # Bids are not revised once published: routine runs fetch only
         # yesterday (its last hours) and today, and none are kept beyond
