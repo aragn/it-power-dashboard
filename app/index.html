@@ -262,7 +262,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="balancing" type="button">Balancing</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range. <span class="info-hover" tabindex="0" aria-describedby="outages-info">Read here for more info<span id="outages-info" class="info-pop" role="tooltip"></span></span></div></section><section id="available-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Available Capacity</div><div id="available-subtitle" class="chart-subtitle"></div></div></div><div id="available-wrap" class="timeline-chart-wrap"><div id="available-chart" class="timeline-chart"></div><div id="available-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, available capacity of the generating units of 100 MW or more. Solid: the effective capacity, final the day after; lighter: the capacity the operators expect, for the days not final yet (up to 14 days ahead when the selected dates reach the latest one). Dashed: the expected total over the whole period, to compare with what was then available. Click a source in the legend to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="balancing" type="button">Balancing</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range. <span class="info-hover" tabindex="0" aria-describedby="outages-info">Read here for more info<span id="outages-info" class="info-pop" role="tooltip"></span></span></div></section><section id="available-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Available Capacity</div><div id="available-subtitle" class="chart-subtitle"></div></div></div><div id="available-wrap" class="timeline-chart-wrap"><div id="available-chart" class="timeline-chart"></div><div id="available-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, available capacity of the generating units of 100 MW or more. Solid: the effective capacity, final the day after; shaded and marked "Expected": the capacity the operators expect, where the effective one is not published (the days ahead, up to 14 when the selected dates reach the latest one, and the odd missing day). Dashed: the expected total over the whole period, to compare with what was then available. Click a source in the legend to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -5707,24 +5707,33 @@
     });
 
     const surface = cssVar("--panel");
-    const layer = (source, index, kind) => ({
+    // One stack: the effective capacity where it is final, else the expected one.
+    const series = AVAILABLE_SOURCES.map((source, index) => ({
       name: source.name,
       type: "line",
       stack: "available",
-      // The other kind's slots count as 0, so the stack carries on across the switch.
-      data: availableRows.map(row => {
-        if (kind === "effective") return row.final ? row.effective[index] || 0 : 0;
-        return row.final ? 0 : row.expected[index];
-      }),
+      data: availableRows.map(row => (row.final ? row.effective[index] || 0 : row.expected[index])),
       showSymbol: false,
+      connectNulls: false,
       lineStyle: { width: 0.5, color: surface },
-      areaStyle: { color: cssVar(source.color), opacity: kind === "effective" ? 0.9 : 0.4 },
+      areaStyle: { color: cssVar(source.color), opacity: 0.9 },
       itemStyle: { color: cssVar(source.color) },
       emphasis: { focus: "series" }
+    }));
+    // Stretches with expected values only, washed out by a band of the surface colour.
+    // From 0 to the highest value shown (the bands need a y range of their own).
+    const top = Math.max(0, ...availableRows.flatMap(row => [
+      (row.final ? row.effective : row.expected).reduce((sum, item) => sum + (item || 0), 0),
+      row.expected.reduce((sum, item) => sum + (item || 0), 0)
+    ]));
+    const expectedBands = [];
+    availableRows.forEach((row, index) => {
+      if (row.final || !row.expected.some(item => item !== null)) return;
+      const band = expectedBands[expectedBands.length - 1];
+      if (band && band[1].xAxis === availableRows[index - 1].key) band[1].xAxis = row.key;
+      else expectedBands.push([{ xAxis: row.key, yAxis: 0 }, { xAxis: row.key, yAxis: top }]);
     });
-    const series = [
-      ...AVAILABLE_SOURCES.map((source, index) => layer(source, index, "effective")),
-      ...AVAILABLE_SOURCES.map((source, index) => layer(source, index, "expected")),
+    series.push(
       {
         name: AVAILABLE_EXPECTED_TOTAL,
         type: "line",
@@ -5734,9 +5743,32 @@
         connectNulls: false,
         lineStyle: { color: cssVar("--chart-pun"), width: 1.4, type: "dashed" },
         itemStyle: { color: cssVar("--chart-pun") },
-        z: 5
+        // On a layer above the areas, with the bands that wash out the
+        // stretches of expected values.
+        zlevel: 1,
+        z: 5,
+        markArea: {
+          silent: true,
+          // Only the label: the wash is the bar series below.
+          itemStyle: { color: "transparent" },
+          label: { show: true, position: "insideTop", color: cssVar("--chart-legend"), fontSize: 10, formatter: "Expected" },
+          data: expectedBands
+        }
+      },
+      {
+        // Washes out the stretches of expected values: full-height bars in
+        // the surface colour, on the layer above the areas.
+        name: "Expected periods",
+        type: "bar",
+        data: availableRows.map(row => (!row.final && row.expected.some(item => item !== null) ? top : null)),
+        barWidth: "100%",
+        barGap: "-100%",
+        silent: true,
+        itemStyle: { color: surface, opacity: 0.5 },
+        zlevel: 1,
+        z: 4
       }
-    ];
+    );
     const legendNames = [...AVAILABLE_SOURCES.map(source => source.name), AVAILABLE_EXPECTED_TOTAL];
 
     availableChart.setOption({
