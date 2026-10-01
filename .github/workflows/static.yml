@@ -25,6 +25,7 @@ on:
       - "Update Installed Capacity & Unavailability"
       - "Monthly Data Checks"
       - "Update Balancing (ENTSO-E, Terna, GME)"
+      - "Update Price Spreads (JAO)"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab
