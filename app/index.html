@@ -30,6 +30,7 @@
       --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
       --border-1:#3987e5; --border-2:#d95926; --border-3:#199e70; --border-4:#c98500; --border-5:#d55181; --border-6:#008300; --border-7:#9085e9;
       --flow-physical:#3987e5; --flow-scheduled:#d95926;
+      --cap-ntc:#d9dde2; --cap-ac:#d95926; --cap-atc:#3987e5; --cap-scheduled:#199e70;
       --coupling-flow:#199e70; --coupling-limit:#d9dde2; --coupling-price-italy:#e66767; --coupling-price-sud:#d55181; --coupling-price-neighbour:#9085e9;
       --bal-imbalance:#c783ff; --bal-picasso:#5ecb8a; --bal-afrr:#5b9cff; --bal-rr:#e7a84b; --bal-fcr:#ef6fae; --bal-msd:#ef6fae; --bal-reference:#d9dde2; --bal-volume:rgba(140,148,158,.5);
     }
@@ -47,6 +48,7 @@
       --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
       --border-1:#2a78d6; --border-2:#eb6834; --border-3:#1baf7a; --border-4:#eda100; --border-5:#e87ba4; --border-6:#008300; --border-7:#4a3aa7;
       --flow-physical:#2a78d6; --flow-scheduled:#eb6834;
+      --cap-ntc:#1f2429; --cap-ac:#eb6834; --cap-atc:#2a78d6; --cap-scheduled:#1baf7a;
       --coupling-flow:#12805f; --coupling-limit:#1f2429; --coupling-price-italy:#e34948; --coupling-price-sud:#c93d74; --coupling-price-neighbour:#4a3aa7;
       --bal-imbalance:#8a4fd6; --bal-picasso:#1f9d57; --bal-afrr:#2f6fdb; --bal-rr:#c27a0e; --bal-fcr:#d23f84; --bal-msd:#d23f84; --bal-reference:#1f2429; --bal-volume:rgba(91,100,112,.4);
     }
@@ -142,6 +144,12 @@
     @media (max-width: 700px) { .coupling-grid { grid-template-columns:1fr; } }
     .timeline-chart-wrap.coupling-chart-wrap { height:320px; }
     .coupling-grid .chart-help { margin-left:56px; }
+    .capacity-intro { grid-column:1 / -1; padding:16px 18px; }
+    .capacity-intro p { margin:8px 0 0; color:var(--muted); font-size:12px; line-height:1.6; max-width:1100px; }
+    .capacity-intro b { color:var(--text); font-weight:600; }
+    .capacity-heading { grid-column:1 / -1; margin:12px 4px 0; font-size:14px; font-weight:600; color:var(--text); }
+    #chart-mount-interconnection .capacity-wide { grid-column:1 / -1; }
+    .capacity-ranking-wrap { position:relative; height:420px; }
     .coupling-note { grid-column:1 / -1; margin:0; padding:0 4px; color:var(--muted-2); font-size:11px; line-height:1.5; }
     .legend-chip.off { color:var(--muted-2); }
     .legend-chip.off .legend-swatch { opacity:.25; }
@@ -277,7 +285,7 @@
           <section id="spread-ida1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 1 Price Spreads</div><div id="spread-ida1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="spread-ida1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="spread-ida1-chart" class="timeline-chart"></div><div id="spread-ida1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (afternoon, with MI-A1); covers the whole day.</div></section>
           <section id="spread-ida2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 2 Price Spreads</div><div id="spread-ida2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="spread-ida2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="spread-ida2-chart" class="timeline-chart"></div><div id="spread-ida2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (evening, with MI-A2); covers the whole day.</div></section>
           <section id="spread-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Price Spreads</div><div id="spread-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="spread-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="spread-ida3-chart" class="timeline-chart"></div><div id="spread-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held on the day (morning, with MI-A3); covers only the afternoon and evening, so its daily average is for those hours.</div></section>
-        </div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div></div></div>
+        </div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
       </main>
@@ -6203,6 +6211,7 @@
     syncCrossBorderDirectionAxes();
     renderCrossBorderNetChart();
     renderCouplingCharts();
+    renderCapacityCharts();
   }
 
   /* ============================================================
@@ -6686,7 +6695,8 @@
         button.classList.toggle("off", !visible);
         button.setAttribute("aria-pressed", String(visible));
 
-        [neighbourPricesChart, ...CROSS_BORDER_DIRECTION_CHARTS.map(item => item.chart)].forEach(chart => {
+        [neighbourPricesChart, ...CROSS_BORDER_DIRECTION_CHARTS.map(item => item.chart),
+         capCharts.use.chart, capCharts.income.chart].forEach(chart => {
           chart.dispatchAction({
             type: visible ? "legendSelect" : "legendUnSelect",
             name: country.name
@@ -6701,6 +6711,509 @@
   })();
 
   attachDragZoom(crossBorderNetChart, "crossborder-net-wrap", "crossborder-net-drag");
+
+
+  /* ============================================================
+     CROSS-ZONAL CAPACITY, ITALY NORTH CCR (JAO)
+     ============================================================ */
+
+  /*
+   * JAO's Italy North CCR publications: final NTC, ATC, day-ahead schedules,
+   * congestion income, the allocation constraint on imports with its
+   * inputs, what limited the NTC, and the day-ahead limiting element of
+   * every market time unit.  Colours: the reference palette's first slots
+   * (blue, orange, aqua) for the capacity charts with the NTC as the
+   * neutral reference line, the country colours where the series are
+   * borders, and slots 1-6 for the "limited by" reasons.
+   */
+  const CAP_COLORS = { ntc: "--cap-ntc", ac: "--cap-ac", atc: "--cap-atc", scheduled: "--cap-scheduled",
+    load: "--cap-atc", nondisp: "--cap-scheduled" };
+  const CAP_COUPLED = ["FR", "AT", "SI"];
+  const CAP_INCOME = ["FR", "AT", "SI", "GR"];
+  const CAP_LIMIT_REASONS = [
+    { key: "critical_element", name: "Critical network element", color: "--border-1" },
+    { key: "validation", name: "TSO validation", color: "--border-2" },
+    { key: "long_term", name: "Long-term or scheduled TTC", color: "--border-3" },
+    { key: "ramp", name: "Ramp smoothing", color: "--border-4" },
+    { key: "schedules", name: "Previous allocations", color: "--border-5" },
+    { key: "minimum", name: "Minimum capacity rules / other", color: "--border-6" }
+  ];
+  const capLimitSelected = {};
+  // Series kept only hourly in the file (repeated over the quarter-hours here).
+  const CAP_HOURLY_ONLY = ["ac_", "limit_"];
+
+  const capCharts = {};
+  ["overview", "use", "income", "ac", "inputs", "limit-da", "limit-id"].forEach(id => {
+    const chart = echarts.init(document.getElementById(`cap-${id}-chart`));
+    capCharts[id] = { id, chart, timeline: createTimeline(chart) };
+    attachDragZoom(chart, `cap-${id}-wrap`, `cap-${id}-drag`);
+  });
+  const capElementsChart = echarts.init(document.getElementById("cap-elements-chart"));
+
+  let rawJaoCapacity = null;
+  let jaoCapacityStatus = "loading"; // "loading" | "ready" | "missing"
+  const jaoCapacityCache = {};
+
+  async function loadJaoCapacityData() {
+    try {
+      const response = await fetch("./data/jao_capacity.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawJaoCapacity = decodeCompactPayload(await response.json());
+      jaoCapacityStatus = "ready";
+    } catch (error) {
+      console.warn("JAO capacity data unavailable:", error);
+      jaoCapacityStatus = "missing";
+    }
+    updateView();
+  }
+
+  function jaoCapacityRows(group) {
+    const resolution = timelineResolutionKey();
+    const series = (rawJaoCapacity.series || {})[group] || {};
+    if (resolution !== "quarter_hourly") return series[resolution] || [];
+    const nativeFrom = CAP_HOURLY_ONLY.some(prefix => group.startsWith(prefix))
+      ? "9999-12-31"
+      : rawJaoCapacity.quarter_hourly_native_from;
+    return quarterHourlyWithHistory(series.quarter_hourly || [], series.hourly || [], nativeFrom);
+  }
+
+  /* Per resolution: group -> (bucket key -> value). */
+  function getJaoCapacityLookups() {
+    if (!rawJaoCapacity) return null;
+    const resolution = timelineResolutionKey();
+    if (jaoCapacityCache[resolution]) return jaoCapacityCache[resolution];
+    const lookups = {};
+    Object.keys(rawJaoCapacity.series || {}).forEach(group => {
+      lookups[group] = new Map(jaoCapacityRows(group).map(row => [timelineBucketKey(row), Number(row.value)]));
+    });
+    jaoCapacityCache[resolution] = lookups;
+    return lookups;
+  }
+
+  function capValue(lookups, group, key) {
+    return lookups[group] ? lookupValue(lookups[group], key) : null;
+  }
+
+  /* Sum of the groups present for the key; null when none is. */
+  function capSum(lookups, groups, key) {
+    const values = groups.map(group => capValue(lookups, group, key)).filter(value => value !== null);
+    return values.length ? values.reduce((sum, value) => sum + value, 0) : null;
+  }
+
+  function capMeasure() {
+    return { daily: "Daily average", hourly: "Hourly average", quarter: "15-minute values" }[currentGranularity];
+  }
+
+  function formatMw(value) {
+    return value === null ? "—" : `${formatChartNumber(value)} MW`;
+  }
+
+  function formatEuro(value) {
+    const abs = Math.abs(value);
+    if (abs >= 1e6) return `€${(value / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })} M`;
+    if (abs >= 1e3) return `€${(value / 1e3).toLocaleString(undefined, { maximumFractionDigits: 1 })} k`;
+    return `€${formatChartNumber(value)}`;
+  }
+
+  function capLine(name, color, data, extra = {}) {
+    return {
+      name, type: "line", data, showSymbol: false, connectNulls: false,
+      lineStyle: { color: cssVar(color), width: 1.6, ...(extra.lineStyle || {}) },
+      itemStyle: { color: cssVar(color) },
+      emphasis: { focus: "series" },
+      ...Object.fromEntries(Object.entries(extra).filter(([key]) => key !== "lineStyle"))
+    };
+  }
+
+  function capBaseOption(item, series, tooltip, yAxis, legend) {
+    return {
+      animation: false,
+      backgroundColor: "transparent",
+      legend: legend || { show: false },
+      tooltip: timelineTooltip(tooltip),
+      grid: { left: CHART_GRID.left, right: 24, top: 20, bottom: CHART_GRID.bottom, containLabel: false },
+      xAxis: timelineXAxis(item.timeline, { onZero: false }),
+      yAxis,
+      series,
+      dataZoom: timelineDataZoom(0)
+    };
+  }
+
+  /* An ECharts legend drawn inside the chart, for charts without an HTML one. */
+  function capInlineLegend(names) {
+    return {
+      show: true, top: 0, right: 16, itemWidth: 14, itemHeight: 2, icon: "rect",
+      textStyle: { color: cssVar("--chart-legend"), fontSize: 11 }, data: names
+    };
+  }
+
+  function renderCapOverview(lookups) {
+    const item = capCharts.overview;
+    const rows = item.timeline.rows;
+    const ntc = rows.map(row => capValue(lookups, "ntc_da|import", row.key));
+    const ac = rows.map(row => capValue(lookups, "ac_da|import", row.key));
+    const atc = rows.map(row => capSum(lookups, CAP_COUPLED.map(code => `atc_da|${code}`), row.key));
+    const scheduled = rows.map(row => capSum(lookups, CAP_COUPLED.map(code => `sched_da|${code}`), row.key));
+
+    // Hours in the selected dates where the allocation constraint was below the NTC.
+    const first = rows.length ? rows[0].date : null;
+    const last = rows.length ? rows[rows.length - 1].date : null;
+    const hourly = name => new Map(((rawJaoCapacity.series[name] || {}).hourly || [])
+      .filter(row => row.date >= first && row.date <= last)
+      .map(row => [`${row.date}|${row.time}`, Number(row.value)]));
+    const ntcHours = hourly("ntc_da|import");
+    const acHours = hourly("ac_da|import");
+    let binding = 0;
+    let compared = 0;
+    ntcHours.forEach((value, key) => {
+      if (!acHours.has(key)) return;
+      compared += 1;
+      if (acHours.get(key) < value) binding += 1;
+    });
+    const share = compared ? `allocation constraint below the NTC in ${Math.round(100 * binding / compared)}% of hours` : "";
+    setChartSubtitle("cap-overview-subtitle", `${capMeasure()} · MW${share ? " · " + share : ""}`);
+
+    const names = ["Import NTC (4 borders)", "Allocation constraint", "Day-ahead ATC (coupled)", "Day-ahead imports (coupled)"];
+    const series = [
+      capLine(names[0], CAP_COLORS.ntc, ntc, { lineStyle: { width: 2 }, z: 3 }),
+      capLine(names[1], CAP_COLORS.ac, ac, { z: 4 }),
+      capLine(names[2], CAP_COLORS.atc, atc),
+      capLine(names[3], CAP_COLORS.scheduled, scheduled,
+        { areaStyle: { color: cssVar(CAP_COLORS.scheduled), opacity: 0.18 } })
+    ];
+    const colors = [CAP_COLORS.ntc, CAP_COLORS.ac, CAP_COLORS.atc, CAP_COLORS.scheduled];
+    const tooltip = params => {
+      const row = rows[params && params.length ? params[0].dataIndex : -1];
+      if (!row) return "";
+      const i = params[0].dataIndex;
+      const values = [ntc[i], ac[i], atc[i], scheduled[i]];
+      let body = names.map((name, n) => tooltipRow(cssVar(colors[n]), name, formatMw(values[n]), "line")).join("");
+      if (ntc[i] !== null && ac[i] !== null && ac[i] < ntc[i]) {
+        body += `<div style="margin-top:6px;color:${cssVar("--chart-tooltip-muted")};">Allocation constraint ${formatChartNumber(ntc[i] - ac[i])} MW below the NTC</div>`;
+      }
+      return tooltipHeader(row) + body;
+    };
+    item.chart.setOption(capBaseOption(item, series, tooltip, timelineYAxis("MW"), capInlineLegend(names)), true);
+  }
+
+  function renderCapUse(lookups) {
+    const item = capCharts.use;
+    const rows = item.timeline.rows;
+    const countries = CAP_COUPLED.map(code => CROSS_BORDER_COUNTRIES.find(country => country.code === code));
+    setChartSubtitle("cap-use-subtitle", `${capMeasure()} · scheduled imports ÷ ATC`);
+    const share = (code, key) => {
+      const atc = capValue(lookups, `atc_da|${code}`, key);
+      const scheduled = capValue(lookups, `sched_da|${code}`, key);
+      return atc && scheduled !== null ? Math.min(100, 100 * scheduled / atc) : null;
+    };
+    const series = countries.map(country =>
+      capLine(country.name, country.color, rows.map(row => share(country.code, row.key)), { lineStyle: { width: 1.4 } }));
+    const tooltip = params => {
+      const row = rows[params && params.length ? params[0].dataIndex : -1];
+      if (!row) return "";
+      const lines = countries
+        .filter(country => crossBorderCountrySelected[country.name] !== false)
+        .map(country => {
+          const atc = capValue(lookups, `atc_da|${country.code}`, row.key);
+          const scheduled = capValue(lookups, `sched_da|${country.code}`, row.key);
+          const value = share(country.code, row.key);
+          const text = value === null ? "—"
+            : `${Math.round(value)}% <span style="font-weight:400;color:${cssVar("--chart-tooltip-muted")}">(${formatChartNumber(scheduled)} of ${formatChartNumber(atc)} MW)</span>`;
+          return tooltipRow(cssVar(country.color), country.name, text, "line");
+        });
+      return tooltipHeader(row) + (lines.join("") || "No country selected");
+    };
+    item.chart.setOption(capBaseOption(item, series, tooltip,
+      timelineYAxis("% of ATC", { min: 0, max: 100 }),
+      { show: false, data: series.map(s => s.name), selected: { ...crossBorderCountrySelected } }), true);
+  }
+
+  function renderCapIncome(lookups) {
+    const item = capCharts.income;
+    const rows = item.timeline.rows;
+    const countries = CAP_INCOME.map(code => CROSS_BORDER_COUNTRIES.find(country => country.code === code));
+    const income = (code, key) => capSum(lookups, [`ci_da|${code}`, `ci_ida|${code}`], key);
+
+    // Total over the selected dates from the daily values.
+    const first = rows.length ? rows[0].date : null;
+    const last = rows.length ? rows[rows.length - 1].date : null;
+    let total = 0;
+    countries.forEach(country => ["ci_da", "ci_ida"].forEach(prefix => {
+      ((rawJaoCapacity.series[`${prefix}|${country.code}`] || {}).daily || [])
+        .filter(row => row.date >= first && row.date <= last)
+        .forEach(row => { total += Number(row.value) || 0; });
+    }));
+    const unit = currentGranularity === "daily" ? "€ per day" : "€ per hour";
+    setChartSubtitle("cap-income-subtitle", `${unit} · ${formatEuro(total)} in the selected dates`);
+
+    const surface = cssVar("--panel");
+    const series = countries.map(country => ({
+      name: country.name,
+      type: "bar",
+      stack: "income",
+      data: rows.map(row => income(country.code, row.key)),
+      barCategoryGap: "20%",
+      itemStyle: { color: cssVar(country.color), borderColor: surface, borderWidth: 0.5 },
+      emphasis: { focus: "series" }
+    }));
+    const tooltip = params => {
+      const row = rows[params && params.length ? params[0].dataIndex : -1];
+      if (!row) return "";
+      const lines = countries
+        .filter(country => crossBorderCountrySelected[country.name] !== false)
+        .map(country => {
+          const da = capValue(lookups, `ci_da|${country.code}`, row.key);
+          const ida = capValue(lookups, `ci_ida|${country.code}`, row.key);
+          if (da === null && ida === null) return tooltipRow(cssVar(country.color), country.name, "—");
+          return tooltipRow(cssVar(country.color), country.name,
+            `${formatEuro((da || 0) + (ida || 0))} <span style="font-weight:400;color:${cssVar("--chart-tooltip-muted")}">(DA ${formatEuro(da || 0)}, IDA ${formatEuro(ida || 0)})</span>`);
+        });
+      return tooltipHeader(row) + (lines.join("") || "No country selected");
+    };
+    const option = capBaseOption(item, series, tooltip,
+      timelineYAxis(unit, { axisLabel: { ...timelineAxisTextStyle(), formatter: value => formatEuro(value) } }),
+      { show: false, data: series.map(s => s.name), selected: { ...crossBorderCountrySelected } });
+    option.xAxis.boundaryGap = true;
+    option.tooltip.axisPointer = { type: "shadow", shadowStyle: { color: cssVar("--chart-zoom-filler") } };
+    item.chart.setOption(option, true);
+  }
+
+  function renderCapConstraint(lookups) {
+    const item = capCharts.ac;
+    const rows = item.timeline.rows;
+    setChartSubtitle("cap-ac-subtitle", `${capMeasure()} · MW · northern border imports`);
+    const names = ["Day-ahead", "Intraday", "Import NTC (4 borders)"];
+    const da = rows.map(row => capValue(lookups, "ac_da|import", row.key));
+    const id = rows.map(row => capValue(lookups, "ac_id|import", row.key));
+    const ntc = rows.map(row => capValue(lookups, "ntc_da|import", row.key));
+    const series = [
+      capLine(names[0], CAP_COLORS.ac, da, { z: 3 }),
+      capLine(names[1], CAP_COLORS.ac, id, { lineStyle: { type: "dashed", width: 1.6 }, z: 4 }),
+      capLine(names[2], CAP_COLORS.ntc, ntc, { lineStyle: { width: 2 } })
+    ];
+    const tooltip = params => {
+      const row = rows[params && params.length ? params[0].dataIndex : -1];
+      if (!row) return "";
+      const i = params[0].dataIndex;
+      return tooltipHeader(row) +
+        tooltipRow(cssVar(CAP_COLORS.ac), "Allocation constraint, day-ahead", formatMw(da[i]), "line") +
+        tooltipRow(cssVar(CAP_COLORS.ac), "Allocation constraint, intraday", formatMw(id[i]), "dashed") +
+        tooltipRow(cssVar(CAP_COLORS.ntc), "Import NTC (4 borders)", formatMw(ntc[i]), "line");
+    };
+    item.chart.setOption(capBaseOption(item, series, tooltip, timelineYAxis("MW"), capInlineLegend(names)), true);
+  }
+
+  function renderCapInputs(lookups) {
+    const item = capCharts.inputs;
+    const rows = item.timeline.rows;
+    setChartSubtitle("cap-inputs-subtitle", `${capMeasure()} · MW · D-2 forecasts`);
+    const names = ["Load", "Non-dispatchable infeed", "Allocation constraint"];
+    const load = rows.map(row => capValue(lookups, "ac_da|load", row.key));
+    const nondisp = rows.map(row => capValue(lookups, "ac_da|nondisp", row.key));
+    const ac = rows.map(row => capValue(lookups, "ac_da|import", row.key));
+    const series = [
+      capLine(names[0], CAP_COLORS.load, load),
+      capLine(names[1], CAP_COLORS.nondisp, nondisp),
+      capLine(names[2], CAP_COLORS.ac, ac, { z: 3 })
+    ];
+    const tooltip = params => {
+      const row = rows[params && params.length ? params[0].dataIndex : -1];
+      if (!row) return "";
+      const i = params[0].dataIndex;
+      const minimum = capValue(lookups, "ac_da|mindisp", row.key);
+      const room = load[i] !== null && nondisp[i] !== null && minimum !== null
+        ? load[i] - nondisp[i] - minimum : null;
+      const muted = cssVar("--chart-tooltip-muted");
+      return tooltipHeader(row) +
+        tooltipRow(cssVar(CAP_COLORS.load), "Load forecast", formatMw(load[i]), "line") +
+        tooltipRow(cssVar(CAP_COLORS.nondisp), "Non-dispatchable infeed", formatMw(nondisp[i]), "line") +
+        tooltipRow("transparent", "Minimum dispatchable needed", formatMw(minimum), "line") +
+        tooltipRow(cssVar(CAP_COLORS.ac), "Allocation constraint", formatMw(ac[i]), "line") +
+        (room !== null ? `<div style="margin-top:6px;color:${muted};">Load − non-dispatchable − minimum dispatchable: ${formatMw(room)}<br>(the cap adds pumping and subtracts reserve)</div>` : "");
+    };
+    item.chart.setOption(capBaseOption(item, series, tooltip, timelineYAxis("MW"), capInlineLegend(names)), true);
+  }
+
+  function renderCapLimits(lookups, id, prefix) {
+    const item = capCharts[id];
+    const rows = item.timeline.rows;
+    setChartSubtitle(`cap-${id}-subtitle`, `${capMeasure()} · share of the market time units`);
+    const surface = cssVar("--panel");
+    const share = (reason, key) => {
+      if (reason.key === "minimum") {
+        const values = ["minimum", "other"].map(name => capValue(lookups, `${prefix}|${name}`, key));
+        return values.every(value => value === null) ? null : 100 * values.reduce((sum, value) => sum + (value || 0), 0);
+      }
+      const value = capValue(lookups, `${prefix}|${reason.key}`, key);
+      return value === null ? null : 100 * value;
+    };
+    const series = CAP_LIMIT_REASONS.map(reason => ({
+      name: reason.name,
+      type: "bar",
+      stack: "reasons",
+      data: rows.map(row => share(reason, row.key)),
+      barCategoryGap: "15%",
+      itemStyle: { color: cssVar(reason.color), borderColor: surface, borderWidth: 0.5 },
+      emphasis: { focus: "series" }
+    }));
+    const tooltip = params => {
+      const row = rows[params && params.length ? params[0].dataIndex : -1];
+      if (!row) return "";
+      const lines = CAP_LIMIT_REASONS
+        .filter(reason => capLimitSelected[reason.name] !== false)
+        .map(reason => ({ reason, value: share(reason, row.key) }))
+        .filter(entry => entry.value)
+        .map(entry => tooltipRow(cssVar(entry.reason.color), entry.reason.name, `${Math.round(entry.value)}%`));
+      return tooltipHeader(row) + (lines.join("") || "No data");
+    };
+    const option = capBaseOption(item, series, tooltip, timelineYAxis("%", { min: 0, max: 100 }),
+      { show: false, data: series.map(s => s.name), selected: { ...capLimitSelected } });
+    option.xAxis.boundaryGap = true;
+    option.tooltip.axisPointer = { type: "shadow", shadowStyle: { color: cssVar("--chart-zoom-filler") } };
+    item.chart.setOption(option, true);
+  }
+
+  /* Limiting elements over the selected dates, most hours first. */
+  function renderCapElements() {
+    const table = rawJaoCapacity.limiting;
+    const rows = capCharts.overview.timeline.rows;
+    if (!table || !rows.length) {
+      capElementsChart.clear();
+      setChartSubtitle("cap-elements-subtitle", "No limiting elements published for these dates");
+      return;
+    }
+    const startDay = parseDate(table.start);
+    const dayIndex = date => Math.round((parseDate(date) - startDay) / 86400000);
+    const from = dayIndex(rows[0].date);
+    const to = dayIndex(rows[rows.length - 1].date);
+
+    const hours = new Map();
+    const contingencies = new Map();
+    let totalHours = 0;
+    table.rows.forEach(([day, , minutes, element, contingency]) => {
+      if (day < from || day > to) return;
+      const h = minutes / 60;
+      totalHours += h;
+      hours.set(element, (hours.get(element) || 0) + h);
+      const byContingency = contingencies.get(element) || new Map();
+      byContingency.set(contingency, (byContingency.get(contingency) || 0) + h);
+      contingencies.set(element, byContingency);
+    });
+    const top = [...hours.entries()].sort((a, b) => b[1] - a[1]).slice(0, 12).reverse();
+    if (!top.length) {
+      capElementsChart.clear();
+      setChartSubtitle("cap-elements-subtitle", "No limiting elements published for these dates");
+      return;
+    }
+    setChartSubtitle("cap-elements-subtitle",
+      `Hours as the limiting element · top ${top.length} of ${hours.size} elements · ${formatChartNumber(totalHours)} hours with a named element`);
+
+    const areaName = area => {
+      const country = CROSS_BORDER_COUNTRIES.find(item => item.code === area);
+      return country ? country.name : area === "IT" ? "Italy" : "Unknown";
+    };
+    const shortName = name => (name.length > 46 ? `${name.slice(0, 44)}…` : name);
+    const muted = cssVar("--chart-tooltip-muted");
+
+    capElementsChart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      grid: { left: 16, right: 56, top: 8, bottom: 28, containLabel: true },
+      tooltip: {
+        trigger: "item",
+        confine: true,
+        backgroundColor: cssVar("--chart-tooltip-bg"),
+        borderColor: cssVar("--chart-tooltip-border"),
+        borderWidth: 1,
+        textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
+        formatter: params => {
+          const [element, value] = top[params.dataIndex];
+          const area = table.areas[element];
+          const list = [...contingencies.get(element).entries()].sort((a, b) => b[1] - a[1]).slice(0, 3)
+            .map(([contingency, h]) => `<div style="color:${muted};">${table.contingencies[contingency]}: ${formatChartNumber(h)} h</div>`)
+            .join("");
+          return `<div style="margin-bottom:4px;"><b>${table.elements[element]}</b></div>` +
+            tooltipRow(cssVar(CAP_LIMIT_REASONS[0].color), areaName(area), `${formatChartNumber(value)} h · ${Math.round(100 * value / totalHours)}%`) +
+            `<div style="margin-top:6px;">Most frequent contingencies</div>${list}`;
+        }
+      },
+      xAxis: {
+        type: "value",
+        name: "hours",
+        nameLocation: "end",
+        nameTextStyle: timelineAxisTextStyle(),
+        axisLabel: timelineAxisTextStyle(),
+        splitLine: { lineStyle: { color: cssVar("--chart-grid") } }
+      },
+      yAxis: {
+        type: "category",
+        data: top.map(([element]) => shortName(table.elements[element])),
+        axisLabel: { ...timelineAxisTextStyle(), fontSize: 11, color: cssVar("--chart-legend") },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisTick: { show: false }
+      },
+      series: [{
+        type: "bar",
+        data: top.map(([element, value]) => ({
+          value: Math.round(value * 10) / 10,
+          itemStyle: { color: cssVar(CAP_LIMIT_REASONS[0].color), borderRadius: [0, 4, 4, 0] }
+        })),
+        barMaxWidth: 18,
+        label: { show: true, position: "right", color: cssVar("--chart-legend"), fontSize: 10,
+          formatter: params => `${formatChartNumber(params.value)} h` }
+      }]
+    }, true);
+    capElementsChart.resize();
+  }
+
+  function renderCapacityCharts() {
+    const lookups = getJaoCapacityLookups();
+    if (!lookups || !rawData) {
+      Object.values(capCharts).forEach(item => {
+        item.chart.clear();
+        setChartSubtitle(`cap-${item.id}-subtitle`, jaoCapacityStatus === "loading"
+          ? "Loading JAO capacity data…"
+          : "JAO capacity data not available yet");
+      });
+      capElementsChart.clear();
+      return;
+    }
+    Object.values(capCharts).forEach(item => resetTimeline(item.timeline));
+    renderCapOverview(lookups);
+    renderCapUse(lookups);
+    renderCapIncome(lookups);
+    renderCapConstraint(lookups);
+    renderCapInputs(lookups);
+    renderCapLimits(lookups, "limit-da", "limit_da");
+    renderCapLimits(lookups, "limit-id", "limit_id");
+    renderCapElements();
+    resizeCapacityCharts();
+  }
+
+  function resizeCapacityCharts() {
+    Object.values(capCharts).forEach(item => item.chart.resize());
+    capElementsChart.resize();
+  }
+
+  (function buildCapLimitLegend() {
+    const legend = document.getElementById("cap-limit-legend");
+    CAP_LIMIT_REASONS.forEach(reason => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "legend-chip";
+      button.setAttribute("aria-pressed", "true");
+      button.innerHTML = `<span class="legend-swatch" style="background:var(${reason.color})"></span>${reason.name}`;
+      button.addEventListener("click", () => {
+        const visible = capLimitSelected[reason.name] === false;
+        capLimitSelected[reason.name] = visible;
+        button.classList.toggle("off", !visible);
+        button.setAttribute("aria-pressed", String(visible));
+        [capCharts["limit-da"], capCharts["limit-id"]].forEach(item => item.chart.dispatchAction({
+          type: visible ? "legendSelect" : "legendUnSelect", name: reason.name }));
+      });
+      legend.appendChild(button);
+    });
+  })();
 
 
   /* ============================================================
@@ -8297,6 +8810,7 @@
     loadIntradayData();
     loadXbidData();
     loadSpreadData();
+    loadJaoCapacityData();
     loadNeighbourPrices();
     loadCouplingData();
     loadForecastData();
@@ -8323,6 +8837,7 @@
     INTRADAY_MARKETS.forEach(market => market.chart.resize());
     XBID_MARKETS.forEach(market => market.chart.resize());
     SPREAD_MARKETS.forEach(market => market.chart.resize());
+    resizeCapacityCharts();
     BALANCING_CHARTS.forEach(spec => spec.chart.resize());
     DEPTH_PRODUCTS.forEach(product => product.chart.resize());
   });

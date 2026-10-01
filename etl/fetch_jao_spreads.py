@@ -21,6 +21,7 @@ hours).  Output: app/data/jao_spreads.json, EUR/MWh, Italian market time.
 
 import argparse
 import os
+import threading
 import time
 from datetime import datetime, timedelta
 
@@ -42,7 +43,7 @@ from entsoe_api import (
 
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "data", "jao_spreads.json")
 
-API_URL = "https://publicationtool.jao.eu/ibwt/api/data/{market}_priceSpread"
+API_BASE = "https://publicationtool.jao.eu/ibwt/api/data/"
 
 # market code in the output -> JAO's prefix, label
 MARKETS = {
@@ -65,10 +66,16 @@ HISTORY_START = parse_date("2025-01-01")
 # auctions were 15-minute from the start of the history.
 QUARTER_HOURLY_NATIVE_FROM = {"DA": "2025-10-01", "IDA1": "2025-01-01", "IDA2": "2025-01-01", "IDA3": "2025-01-01"}
 
-# The API answers at most 2 days per request.
+# The API answers at most 2 days per request, and "Too many requests"
+# (429) beyond roughly 90 requests in half a minute: requests start at
+# least REQUEST_INTERVAL_SECONDS apart (across threads), and a 429 is
+# waited out.
 CHUNK_DAYS = 2
 PAUSE_SECONDS = 0.2
+REQUEST_INTERVAL_SECONDS = 0.7
 MAX_RETRIES = 3
+TOO_MANY_REQUESTS_RETRIES = 6
+TOO_MANY_REQUESTS_WAIT_SECONDS = 30
 
 # Incremental runs re-download this many days.
 LOOKBACK_DAYS = 3
@@ -95,26 +102,59 @@ def request_chunks(start_day, end_day):
                 day += timedelta(days=1)
 
 
-def get_rows(session, market, first, last):
-    """JAO rows for the market days first..last (Italian market time)."""
+def jao_get(session, endpoint, first, last, extra=None):
+    """Rows of a JAO IBWT endpoint for the market days first..last (Italian market time)."""
     params = {
         "FromUtc": local_midnight_utc(first).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         # Inclusive upper bound: the last market time unit of the last day.
         "ToUtc": (local_midnight_utc(last + timedelta(days=1)) - timedelta(minutes=15)).strftime(
             "%Y-%m-%dT%H:%M:%S.000Z"),
         "Skip": 0,
-        "Take": 1000,
+        "Take": 5000,
+        **(extra or {}),
     }
-    for attempt in range(MAX_RETRIES + 1):
+    failures = throttled = 0
+    while True:
+        pace()
         try:
-            response = session.get(API_URL.format(market=market), params=params, timeout=60)
+            response = session.get(API_BASE + endpoint, params=params, timeout=120)
+            if response.status_code == 429 and throttled < TOO_MANY_REQUESTS_RETRIES:
+                throttled += 1
+                print(f"    {endpoint} {first}: too many requests, waiting {TOO_MANY_REQUESTS_WAIT_SECONDS}s")
+                time.sleep(TOO_MANY_REQUESTS_WAIT_SECONDS)
+                continue
             response.raise_for_status()
             return response.json().get("data") or []
         except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as error:
             status = getattr(getattr(error, "response", None), "status_code", None)
-            if attempt == MAX_RETRIES or (status is not None and status < 500 and status != 429):
+            if failures == MAX_RETRIES or (status is not None and status < 500):
                 raise
-            time.sleep(5 * 2 ** attempt)
+            failures += 1
+            print(f"    {endpoint} {first}: {error.__class__.__name__} {status or ''}, retrying")
+            time.sleep(5 * 2 ** failures)
+
+
+_pace_lock = threading.Lock()
+_next_request = [0.0]
+
+
+def pace():
+    """Wait for this request's turn: REQUEST_INTERVAL_SECONDS after the previous one started."""
+    with _pace_lock:
+        now = time.monotonic()
+        start = max(now, _next_request[0])
+        _next_request[0] = start + REQUEST_INTERVAL_SECONDS
+    time.sleep(max(0.0, start - now))
+
+
+def market_time(row):
+    """(market date, "HH:MM" label) of a JAO row's dateTimeUtc."""
+    return point_label(datetime.fromisoformat(row["dateTimeUtc"].replace("Z", "+00:00")))
+
+
+def quarter_hour_days(rows):
+    """Market days with a row off the whole hour, i.e. in 15-minute steps."""
+    return {day for day, label in map(market_time, rows) if not label.endswith(":00")}
 
 
 def spread_records(market, rows):
@@ -122,15 +162,10 @@ def spread_records(market, rows):
     Point records {"group", "date", "time", "minutes", "value"}, group
     "<market>|<country>".  A day whose rows are all on the hour is hourly.
     """
-    parsed = []
-    for row in rows:
-        instant = datetime.fromisoformat(row["dateTimeUtc"].replace("Z", "+00:00"))
-        market_date, label = point_label(instant)
-        parsed.append((market_date, label, row))
-
-    quarter_days = {market_date for market_date, label, _ in parsed if not label.endswith(":00")}
+    quarter_days = quarter_hour_days(rows)
     records = []
-    for market_date, label, row in parsed:
+    for row in rows:
+        market_date, label = market_time(row)
         minutes = 15 if market_date in quarter_days else 60
         for country, (field, _) in COUNTRIES.items():
             value = row.get(field)
@@ -147,7 +182,7 @@ def download(start_day, end_day):
     for market, (jao_market, label) in MARKETS.items():
         count = 0
         for first, last in request_chunks(start_day, end_day):
-            rows = get_rows(session, jao_market, first, last)
+            rows = jao_get(session, f"{jao_market}_priceSpread", first, last)
             count += len(rows)
             records += spread_records(market, rows)
             time.sleep(PAUSE_SECONDS)
