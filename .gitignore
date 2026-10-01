@@ -24,3 +24,4 @@ app/data/forecasts.json
 app/data/res_forecasts.json
 app/data/eua.json
 app/data/jao_spreads.json
+app/data/jao_capacity.json

@@ -26,6 +26,7 @@ on:
       - "Monthly Data Checks"
       - "Update Balancing (ENTSO-E, Terna, GME)"
       - "Update Price Spreads (JAO)"
+      - "Update Cross-Zonal Capacity (JAO)"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab
