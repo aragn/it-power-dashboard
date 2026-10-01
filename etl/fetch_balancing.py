@@ -694,6 +694,11 @@ def terna_catch_up(series, before):
         print(f"  Terna catch-up {first} -> {missing[-1]} ({len(missing)} days missing, "
               f"{'second' if second_key else 'main'} key, {client.calls} calls so far)")
         records = fetch_terna(first, missing[-1], client)
+        if client.refused:
+            # Cut short: keep the block's days in the gap (found from the
+            # imbalance volume) so a later run fetches all of it again,
+            # requirements and FCR included.
+            records = [record for record in records if not record["group"].endswith("|imbalance_volume")]
         series = merge(series, records)
         if client.refused or not second_key or client.calls >= TERNA_CATCH_UP_CALLS:
             return series
