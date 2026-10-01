@@ -285,7 +285,7 @@
           <section id="spread-ida1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 1 Price Spreads</div><div id="spread-ida1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="spread-ida1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="spread-ida1-chart" class="timeline-chart"></div><div id="spread-ida1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (afternoon, with MI-A1); covers the whole day.</div></section>
           <section id="spread-ida2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 2 Price Spreads</div><div id="spread-ida2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="spread-ida2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="spread-ida2-chart" class="timeline-chart"></div><div id="spread-ida2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (evening, with MI-A2); covers the whole day.</div></section>
           <section id="spread-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Price Spreads</div><div id="spread-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="spread-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="spread-ida3-chart" class="timeline-chart"></div><div id="spread-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held on the day (morning, with MI-A3); covers only the afternoon and evening, so its daily average is for those hours.</div></section>
-          <section id="income-da-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Day-Ahead Congestion Income</div><div id="income-da-subtitle" class="chart-subtitle">Day-ahead market</div></div></div><div id="income-da-wrap" class="timeline-chart-wrap"><div id="income-da-chart" class="timeline-chart"></div><div id="income-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of each border, from JAO: the exchange times the price spread, collected by the TSOs. Signed like the spreads above: above zero the income on exports from Italy (the neighbour dearer, JAO's IT►AT, IT►FR, IT►SI, IT►GR), below zero on imports into Italy (Italy dearer, AT►IT, FR►IT, SI►IT, GR►IT). Daily view: the day's total; hourly and 15-minute views: euros per hour. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section>
+          <section id="income-da-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Day-Ahead Congestion Income</div><div id="income-da-subtitle" class="chart-subtitle">Day-ahead market</div></div></div><div id="income-da-wrap" class="timeline-chart-wrap"><div id="income-da-chart" class="timeline-chart"></div><div id="income-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of each border, from JAO: the exchange times the price spread, collected by the TSOs. Signed like the spreads above: above zero the income on exports from Italy (the neighbour dearer, JAO's IT►AT, IT►FR, IT►SI, IT►GR), below zero on imports into Italy (Italy dearer, AT►IT, FR►IT, SI►IT, GR►IT). Each point is the income of its day, hour or quarter-hour. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section>
           <section id="income-ida1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 1 Congestion Income</div><div id="income-ida1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="income-ida1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida1-chart" class="timeline-chart"></div><div id="income-ida1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 1, signed like the spreads.</div></section>
           <section id="income-ida2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 2 Congestion Income</div><div id="income-ida2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="income-ida2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida2-chart" class="timeline-chart"></div><div id="income-ida2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 2, signed like the spreads.</div></section>
           <section id="income-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Congestion Income</div><div id="income-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="income-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida3-chart" class="timeline-chart"></div><div id="income-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 3 (afternoon and evening), signed like the spreads.</div></section>
@@ -4487,7 +4487,10 @@
     const dayOffset = Math.round(
       (parseDate(row.date) - parseDate(first.date)) / 86400000
     );
-    const dayStep = Math.max(1, Math.ceil(daySpan / 10));
+    // About one label per 70 px, so narrow charts get fewer.
+    const width = timeline.chart && timeline.chart.getWidth ? timeline.chart.getWidth() : 0;
+    const maxLabels = width ? clamp(Math.floor((width - CHART_GRID.left - 24) / 70), 3, 10) : 10;
+    const dayStep = Math.max(1, Math.ceil(daySpan / maxLabels));
 
     if (currentGranularity === "daily") {
       return dayOffset % dayStep === 0 ? dayLabel : "";
@@ -6788,7 +6791,9 @@
     if (jaoCapacityCache[resolution]) return jaoCapacityCache[resolution];
     const lookups = {};
     Object.keys(rawJaoCapacity.series || {}).forEach(group => {
-      lookups[group] = new Map(jaoCapacityRows(group).map(row => [timelineBucketKey(row), Number(row.value)]));
+      // Congestion income is stored in EUR per hour: a quarter-hour earns a quarter of it.
+      const scale = group.startsWith("ci_") && resolution === "quarter_hourly" ? 0.25 : 1;
+      lookups[group] = new Map(jaoCapacityRows(group).map(row => [timelineBucketKey(row), Number(row.value) * scale]));
     });
     jaoCapacityCache[resolution] = lookups;
     return lookups;
@@ -6947,8 +6952,9 @@
         .filter(row => row.date >= first && row.date <= last)
         .forEach(row => { total += Number(row.value) || 0; });
     }));
-    const unit = currentGranularity === "daily" ? "€ per day" : "€ per hour";
-    setChartSubtitle("cap-income-subtitle", `${unit} · ${formatEuro(total)} in the selected dates`);
+    const unit = "€";
+    const measure = { daily: "Daily", hourly: "Hourly", quarter: "15-minute" }[currentGranularity];
+    setChartSubtitle("cap-income-subtitle", `${measure} congestion income · ${formatEuro(total)} in the selected dates`);
 
     const surface = cssVar("--panel");
     const series = countries.map(country => ({
@@ -7571,9 +7577,9 @@
     income: {
       key: "income",
       nativeFrom: () => (rawSpreadData || {}).income_quarter_hourly_from || "0000-01-01",
-      measure: () => ({ daily: "Daily congestion income", hourly: "Congestion income per hour",
-        quarter: "Congestion income per hour (15-minute)" })[currentGranularity],
-      unit: () => (currentGranularity === "daily" ? "€ per day" : "€ per hour"),
+      measure: () => ({ daily: "Daily congestion income", hourly: "Hourly congestion income",
+        quarter: "15-minute congestion income" })[currentGranularity],
+      unit: () => "€",
       label: country => country.name,
       format: value => `${formatSignedEuro(value)} <span style="font-weight:400;color:${cssVar("--chart-tooltip-muted")}">${value > 0 ? "exports" : value < 0 ? "imports" : ""}</span>`,
       axisFormat: value => formatSignedEuro(value)
@@ -7629,8 +7635,10 @@
       SPREAD_MARKET_LIST.forEach(market => {
         lookups[kind][market.code] = {};
         SPREAD_COUNTRIES.forEach(country => {
+          // Income is stored in EUR per hour: a quarter-hour earns a quarter of it.
+          const scale = kind === "income" && resolution === "quarter_hourly" ? 0.25 : 1;
           lookups[kind][market.code][country.code] = new Map(
-            spreadRows(kind, market.code, country.code).map(row => [timelineBucketKey(row), Number(row.value)]));
+            spreadRows(kind, market.code, country.code).map(row => [timelineBucketKey(row), Number(row.value) * scale]));
         });
       });
     });
