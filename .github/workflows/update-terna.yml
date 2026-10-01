@@ -1,5 +1,7 @@
 name: Update Terna Geothermal & Total Load
 
+# Also Terna's effective and expected available capacity (units >= 100 MW).
+
 on:
   schedule:
     # Terna publishes the load of a day by the next morning and the
@@ -18,6 +20,12 @@ on:
         description: "Rebuild from 2025-01-01"
         type: boolean
         default: false
+      capacity_start:
+        description: "Available capacity: first day to refetch YYYY-MM-DD (default: routine window + history catch-up)"
+        required: false
+      capacity_end:
+        description: "Available capacity: last day for capacity_start (default: yesterday)"
+        required: false
 
 permissions:
   contents: write
@@ -61,5 +69,25 @@ jobs:
           echo "Running: python etl/fetch_terna.py ${ARGS[*]}"
           python etl/fetch_terna.py "${ARGS[@]}"
 
+      - name: Fetch available capacity
+        # Its own failure must not keep the load and geothermal data back.
+        continue-on-error: true
+        env:
+          TERNA_KEY: ${{ secrets.TERNA_KEY }}
+          TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
+          # A third key, used first once Terna has accepted it.
+          TERNA_KEY_3: ${{ secrets.TERNA_TERZO }}
+          TERNA_SECRET_3: ${{ secrets.TERNA_SEGRETO_TERZO }}
+          START: ${{ inputs.capacity_start }}
+          END: ${{ inputs.capacity_end }}
+        run: |
+          ARGS=()
+          if [ -n "$START" ]; then ARGS+=(--start "$START"); fi
+          if [ -n "$END" ]; then ARGS+=(--end "$END"); fi
+          python etl/fetch_available_capacity.py "${ARGS[@]}"
+
       - name: Publish updated data to the data branch
-        run: bash .github/scripts/data-branch.sh publish app/data/terna.json
+        run: |
+          files=(app/data/terna.json)
+          if [ -f app/data/available_capacity.json ]; then files+=(app/data/available_capacity.json); fi
+          bash .github/scripts/data-branch.sh publish "${files[@]}"
