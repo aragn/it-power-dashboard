@@ -21,6 +21,7 @@ hours).  Output: app/data/jao_spreads.json, EUR/MWh, Italian market time.
 
 import argparse
 import os
+import threading
 import time
 from datetime import datetime, timedelta
 
@@ -65,10 +66,16 @@ HISTORY_START = parse_date("2025-01-01")
 # auctions were 15-minute from the start of the history.
 QUARTER_HOURLY_NATIVE_FROM = {"DA": "2025-10-01", "IDA1": "2025-01-01", "IDA2": "2025-01-01", "IDA3": "2025-01-01"}
 
-# The API answers at most 2 days per request.
+# The API answers at most 2 days per request, and "Too many requests"
+# (429) beyond roughly 90 requests in half a minute: requests start at
+# least REQUEST_INTERVAL_SECONDS apart (across threads), and a 429 is
+# waited out.
 CHUNK_DAYS = 2
 PAUSE_SECONDS = 0.2
+REQUEST_INTERVAL_SECONDS = 0.7
 MAX_RETRIES = 3
+TOO_MANY_REQUESTS_RETRIES = 6
+TOO_MANY_REQUESTS_WAIT_SECONDS = 30
 
 # Incremental runs re-download this many days.
 LOOKBACK_DAYS = 3
@@ -106,17 +113,38 @@ def jao_get(session, endpoint, first, last, extra=None):
         "Take": 5000,
         **(extra or {}),
     }
-    for attempt in range(MAX_RETRIES + 1):
+    failures = throttled = 0
+    while True:
+        pace()
         try:
             response = session.get(API_BASE + endpoint, params=params, timeout=120)
+            if response.status_code == 429 and throttled < TOO_MANY_REQUESTS_RETRIES:
+                throttled += 1
+                print(f"    {endpoint} {first}: too many requests, waiting {TOO_MANY_REQUESTS_WAIT_SECONDS}s")
+                time.sleep(TOO_MANY_REQUESTS_WAIT_SECONDS)
+                continue
             response.raise_for_status()
             return response.json().get("data") or []
         except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as error:
             status = getattr(getattr(error, "response", None), "status_code", None)
-            if attempt == MAX_RETRIES or (status is not None and status < 500 and status != 429):
+            if failures == MAX_RETRIES or (status is not None and status < 500):
                 raise
+            failures += 1
             print(f"    {endpoint} {first}: {error.__class__.__name__} {status or ''}, retrying")
-            time.sleep(5 * 2 ** attempt)
+            time.sleep(5 * 2 ** failures)
+
+
+_pace_lock = threading.Lock()
+_next_request = [0.0]
+
+
+def pace():
+    """Wait for this request's turn: REQUEST_INTERVAL_SECONDS after the previous one started."""
+    with _pace_lock:
+        now = time.monotonic()
+        start = max(now, _next_request[0])
+        _next_request[0] = start + REQUEST_INTERVAL_SECONDS
+    time.sleep(max(0.0, start - now))
 
 
 def market_time(row):
