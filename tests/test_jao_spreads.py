@@ -32,3 +32,12 @@ def test_requests_stay_within_two_days_across_the_clock_change():
     chunks = list(fj.request_chunks(date(2025, 10, 24), date(2025, 10, 29)))
     assert chunks == [(date(2025, 10, 24), date(2025, 10, 25)), (date(2025, 10, 26), date(2025, 10, 26)),
                       (date(2025, 10, 27), date(2025, 10, 27)), (date(2025, 10, 28), date(2025, 10, 29))]
+
+
+def test_congestion_income_is_signed_like_the_spreads_in_eur_per_hour():
+    rows = [{"dateTimeUtc": "2026-09-27T22:00:00Z", "grossBorder_FR_IT": 17522.2, "grossBorder_IT_FR": 0.0,
+             "grossBorder_IT_AT": 501.05, "grossBorder_AT_IT": 0.0},
+            {"dateTimeUtc": "2026-09-27T22:15:00Z"}]
+    records = {r["group"]: r["value"] for r in fj.income_records("DA", rows)}
+    # Imports from France (Italy dearer) below zero, exports to Austria above.
+    assert records == {"DA|FR|income": -70088.8, "DA|AT|income": 2004.2}
