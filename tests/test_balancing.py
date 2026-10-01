@@ -302,3 +302,11 @@ def test_terna_rows_off_the_slot_grid_are_skipped():
     rows = [{"reference_date": "2026-03-10 02:00:00", "v": 1}, {"reference_date": "2026-03-10 02:01:00", "v": 2}]
     records = fb.local_records(rows, "reference_date", lambda r: "NORD|imbalance_volume", lambda r: r["v"])
     assert [(r["time"], r["value"]) for r in records] == [("02:00", 1.0)]
+
+
+def test_a_catch_up_block_cut_short_stays_in_the_gap(monkeypatch):
+    from datetime import date
+    monkeypatch.setattr(fb, "HISTORY_START", date(2025, 1, 1))
+    catch_up_fixture(monkeypatch, calls_per_block=1, refuse_at=1)
+    series = fb.terna_catch_up(empty_series(), date(2025, 2, 1))
+    assert fb.terna_gap(series, date(2025, 2, 1))[-1] == date(2025, 1, 31)
