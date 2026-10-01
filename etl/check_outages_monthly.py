@@ -15,7 +15,8 @@ a summary for the GitHub Actions run page.
    which ENTSO-E has a unit out, compared with Terna's available capacity
    for that unit.  ENTSO-E available = installed (14.1.B) - unavailable.
 
-Credentials: ENTSOE_API_KEY, TERNA_KEY, TERNA_SECRET.
+Credentials: ENTSOE_API_KEY, TERNA_KEY / TERNA_SECRET (then TERNA_KEY_3 /
+TERNA_SECRET_3 when used up).
 """
 
 import argparse
@@ -27,7 +28,7 @@ from datetime import date, datetime, timedelta, timezone
 import compact
 from entsoe_api import market_today, point_label, request_entsoe
 from fetch_outages import OUTPUT_PATH as OUTAGES_PATH, STEP, UNITS_PATH
-from fetch_terna import Client
+from fetch_terna import MAIN_KEY, THIRD_KEY, Client
 
 REPORT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "data", "data_checks.json")
 
@@ -314,7 +315,7 @@ def main():
         previous = {**previous, "checked_at": reports[0]["checked_at"]}
 
     token = os.environ["ENTSOE_API_KEY"]
-    client = Client(os.environ["TERNA_KEY"], os.environ["TERNA_SECRET"])
+    client = Client(MAIN_KEY, THIRD_KEY)
     installed = installed_by_unit(token, first.year)
     terna = rename_terna(terna_hourly(client, first, last), set(units) | set(installed))
     print(f"Terna: {len(terna):,} unit-hours for {month}; ENTSO-E 14.1.B: {len(installed)} units")

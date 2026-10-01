@@ -49,8 +49,9 @@ aFRR product, offered to PICASSO), afrr_* (specific aFRR product, local),
 rr_*.  Kept for BID_RETENTION_DAYS.
 
 Italian market time, labelled by elapsed time since local midnight like the
-other series.  Credentials: ENTSOE_API_KEY, TERNA_KEY / TERNA_SECRET,
-GME_API_LOGIN / GME_API_PASSWORD.
+other series.  Credentials: ENTSOE_API_KEY, TERNA_KEY / TERNA_SECRET (then
+TERNA_KEY_3 / TERNA_SECRET_3 when used up; TERNA_KEY_2 / TERNA_SECRET_2
+for the history), GME_API_LOGIN / GME_API_PASSWORD.
 """
 
 import argparse
@@ -80,7 +81,7 @@ from entsoe_api import (
     to_api_datetime,
 )
 from fetch_outages import IT_DOMAIN, ZONES
-from fetch_terna import Client
+from fetch_terna import MAIN_KEY, SECOND_KEY, THIRD_KEY, Client, quota_used_up
 from fetch_zonal import REQUEST_PAUSE_SECONDS, get_token, market_time_from_period, request_chunk
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "data")
@@ -115,8 +116,8 @@ GME_CHUNK_DAYS = 31
 PARALLEL_REQUESTS = 4
 
 # Terna answers 403 "Developer Over Rate" when the day's quota is used up
-# (stop at once), other 403s now and then (wait, then stop).
-TERNA_QUOTA_MESSAGE = "Over Rate"
+# (stop at once, once the client has no other key), other 403s now and then
+# (wait, then stop).
 TERNA_REFUSAL_RETRIES = 3
 TERNA_REFUSAL_WAIT_SECONDS = 120
 
@@ -578,7 +579,7 @@ def terna_get(client, path, params):
         except requests.HTTPError as error:
             if error.response is None or error.response.status_code != 403:
                 raise
-            if TERNA_QUOTA_MESSAGE in error.response.text:
+            if quota_used_up(error.response):
                 raise TernaRefused(f"daily quota used up: {path} {params}") from error
             if attempt == TERNA_REFUSAL_RETRIES:
                 raise TernaRefused(f"{path} {params}") from error
@@ -618,8 +619,9 @@ def terna_gap(series, before):
     return [day for day in market_days(HISTORY_START, before - timedelta(days=1)) if day.isoformat() not in have]
 
 
-def terna_client(keys=("TERNA_KEY", "TERNA_SECRET")):
-    return Client(os.environ[keys[0]], os.environ[keys[1]])
+def terna_client(keys=(MAIN_KEY, THIRD_KEY)):
+    """The routine runs: the main key, then the third one (update-terna's) when it is used up."""
+    return Client(*keys)
 
 
 def fetch_terna(start_day, end_day, client=None):
@@ -680,7 +682,7 @@ def terna_catch_up(series, before):
     the main key, which the routine runs need too.
     """
     second_key = bool(os.environ.get("TERNA_KEY_2") and os.environ.get("TERNA_SECRET_2"))
-    client = terna_client(("TERNA_KEY_2", "TERNA_SECRET_2") if second_key else ("TERNA_KEY", "TERNA_SECRET"))
+    client = terna_client((SECOND_KEY,) if second_key else (MAIN_KEY,))
     client.calls = 0
     days = TERNA_CATCH_UP_DAYS if second_key else TERNA_CATCH_UP_DAYS_SHARED_KEY
     while True:

@@ -55,6 +55,9 @@ jobs:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
           TERNA_KEY: ${{ secrets.TERNA_KEY }}
           TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
+          # The third key when the main one's 300 calls of the day are used up.
+          TERNA_KEY_3: ${{ secrets.TERNA_TERZO }}
+          TERNA_SECRET_3: ${{ secrets.TERNA_SEGRETO_TERZO }}
           # A second Terna key, only for filling the history (300 calls a day per key).
           TERNA_KEY_2: ${{ secrets.SECOND_NAME_TERNA }}
           TERNA_SECRET_2: ${{ secrets.SECRET_SECOND_TERNA }}

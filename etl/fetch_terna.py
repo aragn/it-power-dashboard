@@ -18,9 +18,10 @@ series are stored in MW; hourly = average of the quarter-hours, daily =
 sum of the hours (MWh/day), like the ENTSO-E series.  Italian market time,
 labelled by elapsed time since local midnight like GME periods.
 
-Credentials: TERNA_KEY / TERNA_SECRET (OAuth2 client credentials; a token
-lasts 300 s).  The API allows at most 60 days per request and few requests
-per second.
+Credentials: TERNA_KEY_3 / TERNA_SECRET_3, else TERNA_KEY / TERNA_SECRET
+(OAuth2 client credentials; a token lasts 300 s).  The API allows at most
+60 days per request, few requests per second and 300 requests a day per
+key.
 """
 
 import argparse
@@ -51,6 +52,16 @@ LOOKBACK_DAYS = 10
 PAUSE_SECONDS = 3
 MAX_RETRIES = 6
 
+# Terna allows 300 calls a day per key (reset at midnight UTC). The keys,
+# as the environment variables of the key and its secret; each script
+# names them in the order it uses them.
+MAIN_KEY = ("TERNA_KEY", "TERNA_SECRET")
+SECOND_KEY = ("TERNA_KEY_2", "TERNA_SECRET_2")
+THIRD_KEY = ("TERNA_KEY_3", "TERNA_SECRET_3")
+# 403 "Developer Over Rate": the key's quota for the day is used up
+# ("Over Qps": too many calls a second).
+QUOTA_MESSAGE = "Over Rate"
+
 RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
 
 SERIES = {
@@ -78,20 +89,56 @@ SERIES = {
 # ============================================================================
 
 
+def says(response, message):
+    """Terna puts the reason of a refusal in the status line or the body."""
+    return message in (response.reason or "") or message in (response.text or "")
+
+
+def quota_used_up(response):
+    return response.status_code == 403 and says(response, QUOTA_MESSAGE)
+
+
 class Client:
-    def __init__(self, key, secret):
-        self.key, self.secret = key, secret
+    """
+    Terna's API with the first of the keys (MAIN_KEY etc.) set in the
+    environment; when Terna refuses it (401: not accepted, 403: the day's
+    quota used up) the client goes on with the next one.
+    """
+
+    def __init__(self, *keys):
+        self.keys = [(key, secret) for key, secret in keys if os.environ.get(key) and os.environ.get(secret)]
+        if not self.keys:
+            raise RuntimeError(f"Terna credentials missing: {' or '.join(' / '.join(key) for key in keys)}.")
+        self.first_key = self.keys[0][0]
         self.token, self.token_time = None, 0.0
+
+    @property
+    def key_name(self):
+        return self.keys[0][0]
+
+    def next_key(self, response):
+        """Go on with the next key when Terna refuses this one; False if there is none."""
+        if len(self.keys) == 1 or not (response.status_code == 401 or quota_used_up(response)):
+            return False
+        print(f"    Terna refused {self.keys[0][0]} ({response.status_code} {response.reason}), "
+              f"using {self.keys[1][0]}")
+        self.keys.pop(0)
+        self.token = None
+        return True
 
     def access_token(self):
         # Tokens last 300 s; renew well before.
         if self.token and time.time() - self.token_time < 240:
             return self.token
-        response = requests.post(TOKEN_URL, data={
-            "client_id": self.key,
-            "client_secret": self.secret,
-            "grant_type": "client_credentials",
-        }, timeout=60)
+        while True:
+            key, secret = self.keys[0]
+            response = requests.post(TOKEN_URL, data={
+                "client_id": os.environ[key],
+                "client_secret": os.environ[secret],
+                "grant_type": "client_credentials",
+            }, timeout=60)
+            if response.ok or not self.next_key(response):
+                break
         response.raise_for_status()
         self.token, self.token_time = response.json()["access_token"], time.time()
         time.sleep(PAUSE_SECONDS)  # the token call counts towards the rate limit
@@ -103,8 +150,10 @@ class Client:
                 "Authorization": f"Bearer {self.access_token()}",
                 "Accept": "application/json",
             })
+            if quota_used_up(response) and self.next_key(response):
+                continue
             over_limit = response.status_code == 429 or (
-                response.status_code == 403 and "Over Qps" in response.text)
+                response.status_code == 403 and says(response, "Over Qps"))
             if over_limit and attempt < MAX_RETRIES:
                 wait = PAUSE_SECONDS * 2 ** attempt
                 print(f"    rate limited, waiting {wait}s")
@@ -228,10 +277,6 @@ def main():
     if end_date < start_date:
         raise ValueError("End date must not be before start date.")
 
-    key, secret = os.environ.get("TERNA_KEY"), os.environ.get("TERNA_SECRET")
-    if not key or not secret:
-        raise RuntimeError("TERNA_KEY and TERNA_SECRET environment variables must be set.")
-
     print()
     print("=" * 70)
     print("TERNA GEOTHERMAL GENERATION AND TOTAL LOAD")
@@ -239,7 +284,7 @@ def main():
     print(f"Date range: {start_date} -> {end_date}")
     print()
 
-    client = Client(key, secret)
+    client = Client(THIRD_KEY, MAIN_KEY)
     existing = {name: empty() for name in SERIES} if args.full_history else load_existing()
     series = {}
     for name in SERIES:
