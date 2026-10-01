@@ -296,3 +296,9 @@ def test_catch_up_does_not_ask_again_for_a_day_terna_never_published(monkeypatch
     blocks = catch_up_fixture(monkeypatch, calls_per_block=1, published=lambda day: day != date(2025, 1, 20))
     fb.terna_catch_up(empty_series(), date(2025, 2, 1))
     assert blocks == [(date(2025, 1, 4), date(2025, 1, 31)), (date(2025, 1, 1), date(2025, 1, 3))]
+
+
+def test_terna_rows_off_the_slot_grid_are_skipped():
+    rows = [{"reference_date": "2026-03-10 02:00:00", "v": 1}, {"reference_date": "2026-03-10 02:01:00", "v": 2}]
+    records = fb.local_records(rows, "reference_date", lambda r: "NORD|imbalance_volume", lambda r: r["v"])
+    assert [(r["time"], r["value"]) for r in records] == [("02:00", 1.0)]

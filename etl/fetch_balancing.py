@@ -527,6 +527,11 @@ def local_records(rows, time_field, group_of, value_of, scale=1.0, minutes=15):
             seen.add((group, local))
             instant = local.replace(tzinfo=MARKET_TZ, fold=fold).astimezone(timezone.utc)
         market_date, label = point_label(instant)
+        if label_minutes(label) % minutes:
+            # A few historical rows sit off the slot grid (e.g. 02:01).
+            print(f"    skipped a Terna row off the {minutes}-minute grid: {group} {row[time_field]} "
+                  f"{row.get('offset', '')} -> {market_date} {label}")
+            continue
         records.append({"group": group, "date": market_date, "time": label, "minutes": minutes,
                         "value": round(float(value) * scale, 3)})
     return records
