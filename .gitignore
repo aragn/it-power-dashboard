@@ -23,3 +23,4 @@ app/data/coupling.json
 app/data/forecasts.json
 app/data/res_forecasts.json
 app/data/eua.json
+app/data/jao_spreads.json

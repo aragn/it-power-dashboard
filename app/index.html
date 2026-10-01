@@ -111,7 +111,7 @@
     #chart-mount-overview { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { #chart-mount-overview { grid-template-columns:1fr; } }
     #chart-mount-prices { width:100%; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; align-items:stretch; }
-    #chart-mount-prices .zonal-chart-panel { grid-column:1 / -1; }
+    #chart-mount-prices .zonal-chart-panel, #chart-mount-prices .spread-wide { grid-column:1 / -1; }
     @media (max-width: 1050px) { #chart-mount-prices { grid-template-columns:1fr; } }
     .intraday-chart-wrap { height:320px; }
     .xbid-grid { grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
@@ -272,6 +272,11 @@
           <section id="intraday-mia2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A2 Zonal Prices</div><div id="intraday-mia2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="intraday-mia2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia2-chart" class="timeline-chart"></div><div id="intraday-mia2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (evening); covers the whole day.</div></section>
           <section id="intraday-mia3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A3 Zonal Prices</div><div id="intraday-mia3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="intraday-mia3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-mia3-chart" class="timeline-chart"></div><div id="intraday-mia3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held on the day (morning); covers only the afternoon and evening, so its daily average is for those hours.</div></section>
           <div class="xbid-grid"><section id="intraday-xbid60-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-XBID 60 min Zonal Prices</div><div id="intraday-xbid60-subtitle" class="chart-subtitle">Continuous trading</div></div></div><div id="intraday-xbid60-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-xbid60-chart" class="timeline-chart"></div><div id="intraday-xbid60-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Reference price: the volume-weighted average price of all trades of each hourly product (all trading phases), published the day after delivery. In the 15-minute view each hour's price is repeated over its quarter-hours. Hours without trades have no price; the line joins the traded ones.</div></section><section id="intraday-xbid15-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-XBID 15 min Zonal Prices</div><div id="intraday-xbid15-subtitle" class="chart-subtitle">Continuous trading</div></div></div><div id="intraday-xbid15-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="intraday-xbid15-chart" class="timeline-chart"></div><div id="intraday-xbid15-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Reference price: the volume-weighted average price of all trades of each 15-minute product (all trading phases), published the day after delivery. Hourly and daily views average the traded quarter-hours. Quarter-hours without trades have no price; the line joins the traded ones.</div></section></div>
+          <div id="spread-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the price spread charts"><span class="legend-title">Spread vs Italy</span></div>
+          <section id="spread-da-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Day-Ahead Price Spreads</div><div id="spread-da-subtitle" class="chart-subtitle">Day-ahead market</div></div></div><div id="spread-da-wrap" class="timeline-chart-wrap"><div id="spread-da-chart" class="timeline-chart"></div><div id="spread-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Neighbour's price minus Italy's, from JAO (Italy North CCR &amp; IBWT): Austria, France and Slovenia against Italy North, Greece against Italy South. Above zero the neighbour was dearer. JAO's own table shows the opposite sign in its AT►IT, FR►IT, SI►IT and GR►IT columns. Before October 2025 the day-ahead market was hourly. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section>
+          <section id="spread-ida1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 1 Price Spreads</div><div id="spread-ida1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="spread-ida1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="spread-ida1-chart" class="timeline-chart"></div><div id="spread-ida1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (afternoon, with MI-A1); covers the whole day.</div></section>
+          <section id="spread-ida2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 2 Price Spreads</div><div id="spread-ida2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="spread-ida2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="spread-ida2-chart" class="timeline-chart"></div><div id="spread-ida2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held the day before (evening, with MI-A2); covers the whole day.</div></section>
+          <section id="spread-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Price Spreads</div><div id="spread-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="spread-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="spread-ida3-chart" class="timeline-chart"></div><div id="spread-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Held on the day (morning, with MI-A3); covers only the afternoon and evening, so its daily average is for those hours.</div></section>
         </div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E.</footer>
@@ -7016,6 +7021,183 @@
 
 
   /* ============================================================
+     PRICE SPREADS WITH THE NEIGHBOURS (JAO, DA AND IDA 1-3)
+     ============================================================ */
+
+  /*
+   * JAO's price spreads (Italy North CCR & IBWT), stored as the neighbour's
+   * price minus Italy's: Austria, France and Slovenia against Italy North,
+   * Greece against Italy South.  One line per country in the interconnection
+   * colours, with its own country legend; the three intraday auction charts
+   * share one y-axis range like the MI-A charts.
+   */
+  const SPREAD_COUNTRIES = ["FR", "AT", "SI", "GR"]
+    .map(code => CROSS_BORDER_COUNTRIES.find(country => country.code === code));
+  const SPREAD_ITALIAN_SIDE = { AT: "Italy North", FR: "Italy North", SI: "Italy North", GR: "Italy South" };
+  const spreadCountrySelected = {};
+
+  const SPREAD_MARKETS = [
+    { code: "DA", id: "da", coverage: "day-ahead market" },
+    { code: "IDA1", id: "ida1", coverage: "held D-1 afternoon" },
+    { code: "IDA2", id: "ida2", coverage: "held D-1 evening" },
+    { code: "IDA3", id: "ida3", coverage: "held on the day, afternoon/evening only" }
+  ].map(market => {
+    const chart = echarts.init(document.getElementById(`spread-${market.id}-chart`));
+    return { ...market, chart, timeline: createTimeline(chart) };
+  });
+  const SPREAD_IDA_MARKETS = SPREAD_MARKETS.filter(market => market.code !== "DA");
+
+  let rawSpreadData = null;
+  let spreadStatus = "loading"; // "loading" | "ready" | "missing"
+  const spreadCache = {};
+
+  async function loadSpreadData() {
+    try {
+      const response = await fetch("./data/jao_spreads.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawSpreadData = decodeCompactPayload(await response.json());
+      spreadStatus = "ready";
+    } catch (error) {
+      console.warn("JAO price spreads unavailable:", error);
+      spreadStatus = "missing";
+    }
+    updateView();
+  }
+
+  function spreadRows(market, country) {
+    const resolution = timelineResolutionKey();
+    const series = ((rawSpreadData.markets || {})[market] || {})[country] || {};
+    const rows = series[resolution] || [];
+    if (resolution !== "quarter_hourly") return rows;
+    const nativeFrom = (rawSpreadData.quarter_hourly_native_from || {})[market] || "0000-01-01";
+    return quarterHourlyWithHistory(rows, series.hourly || [], nativeFrom);
+  }
+
+  /* Per resolution: market -> country -> (bucket key -> EUR/MWh). */
+  function getSpreadLookups() {
+    if (!rawSpreadData) return null;
+    const resolution = timelineResolutionKey();
+    if (spreadCache[resolution]) return spreadCache[resolution];
+
+    const lookups = {};
+    SPREAD_MARKETS.forEach(market => {
+      lookups[market.code] = {};
+      SPREAD_COUNTRIES.forEach(country => {
+        lookups[market.code][country.code] = new Map(
+          spreadRows(market.code, country.code).map(row => [timelineBucketKey(row), Number(row.value)]));
+      });
+    });
+    spreadCache[resolution] = lookups;
+    return lookups;
+  }
+
+  function spreadMeasure() {
+    return { daily: "Daily average spread", hourly: "Hourly spread", quarter: "15-minute spread" }[currentGranularity];
+  }
+
+  function formatSpread(value) {
+    return `${value > 0 ? "+" : ""}${formatPrice(value)}`;
+  }
+
+  function spreadTooltip(market, countryMaps) {
+    return params => {
+      if (!params || !params.length) return "";
+      const row = market.timeline.rows[params[0].dataIndex];
+      if (!row) return "";
+      const lines = SPREAD_COUNTRIES
+        .filter(country => spreadCountrySelected[country.name] !== false)
+        .map(country => {
+          const value = lookupValue(countryMaps[country.code], row.key);
+          return tooltipRow(cssVar(country.color), `${country.name} − ${SPREAD_ITALIAN_SIDE[country.code]}`,
+            value === null ? "—" : formatSpread(value), "line");
+        });
+      return tooltipHeader(row) + (lines.length ? lines.join("") : "No country selected");
+    };
+  }
+
+  function renderSpreadChart(market, lookups) {
+    const subtitleId = `spread-${market.id}-subtitle`;
+    if (!lookups || !rawData) {
+      market.chart.clear();
+      setChartSubtitle(subtitleId, spreadStatus === "loading"
+        ? "Loading price spreads…"
+        : "Price spreads not available yet");
+      return;
+    }
+
+    resetTimeline(market.timeline);
+    const countryMaps = lookups[market.code];
+    setChartSubtitle(subtitleId, `${spreadMeasure()} · neighbour − Italy · ${market.coverage}`);
+
+    const series = SPREAD_COUNTRIES.map(country => ({
+      name: country.name,
+      type: "line",
+      data: market.timeline.rows.map(row => lookupValue(countryMaps[country.code], row.key)),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: cssVar(country.color), width: 1.4 },
+      itemStyle: { color: cssVar(country.color) },
+      emphasis: { focus: "series" }
+    }));
+
+    market.chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      legend: { show: false, data: series.map(item => item.name), selected: { ...spreadCountrySelected } },
+      tooltip: timelineTooltip(spreadTooltip(market, countryMaps)),
+      grid: { left: CHART_GRID.left, right: 16, top: 20, bottom: CHART_GRID.bottom, containLabel: false },
+      // Keep the date labels at the bottom: spreads go both ways.
+      xAxis: timelineXAxis(market.timeline, { onZero: false }),
+      yAxis: timelineYAxis("€/MWh"),
+      series,
+      dataZoom: timelineDataZoom(0, 16)
+    }, true);
+
+    market.chart.resize();
+  }
+
+  function syncSpreadAxes() {
+    if (!getSpreadLookups()) return;
+    shareValueAxis(SPREAD_IDA_MARKETS.map(market => market.chart));
+  }
+
+  function renderSpreadCharts() {
+    const lookups = getSpreadLookups();
+    SPREAD_MARKETS.forEach(market => renderSpreadChart(market, lookups));
+    syncSpreadAxes();
+  }
+
+  SPREAD_MARKETS.forEach(market => {
+    if (market.code !== "DA") market.chart.on("datazoom", syncSpreadAxes);
+    attachDragZoom(market.chart, `spread-${market.id}-wrap`, `spread-${market.id}-drag`);
+  });
+
+  (function buildSpreadLegend() {
+    const legend = document.getElementById("spread-legend");
+    SPREAD_COUNTRIES.forEach(country => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "legend-chip";
+      button.setAttribute("aria-pressed", "true");
+      button.innerHTML =
+        `<span class="legend-swatch" style="background:var(${country.color})"></span>${country.name}`;
+
+      button.addEventListener("click", () => {
+        const visible = spreadCountrySelected[country.name] === false;
+        spreadCountrySelected[country.name] = visible;
+        button.classList.toggle("off", !visible);
+        button.setAttribute("aria-pressed", String(visible));
+        SPREAD_MARKETS.forEach(market => market.chart.dispatchAction({
+          type: visible ? "legendSelect" : "legendUnSelect", name: country.name }));
+        syncSpreadAxes();
+      });
+
+      legend.appendChild(button);
+    });
+  })();
+
+
+  /* ============================================================
      BALANCING (PER BIDDING ZONE)
      ============================================================ */
 
@@ -7929,6 +8111,7 @@
         if (!zonalChartSection.isConnected) return;
         renderIntradayCharts();
         renderXbidCharts();
+        renderSpreadCharts();
       }, 0);
 
       setTimeout(() => {
@@ -8113,6 +8296,7 @@
     loadCrossBorderData();
     loadIntradayData();
     loadXbidData();
+    loadSpreadData();
     loadNeighbourPrices();
     loadCouplingData();
     loadForecastData();
@@ -8138,6 +8322,7 @@
     crossBorderNetChart.resize();
     INTRADAY_MARKETS.forEach(market => market.chart.resize());
     XBID_MARKETS.forEach(market => market.chart.resize());
+    SPREAD_MARKETS.forEach(market => market.chart.resize());
     BALANCING_CHARTS.forEach(spec => spec.chart.resize());
     DEPTH_PRODUCTS.forEach(product => product.chart.resize());
   });
