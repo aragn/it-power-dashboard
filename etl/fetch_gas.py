@@ -10,7 +10,10 @@ Europe) and write app/data/gas.json:
          (FSRU Toscana), Panigaglia (GNL Italia's until 28 February 2025,
          Snam LNG's since), Piombino and Ravenna (Snam LNG FSRUs)
   IIP    REMIT urgent market messages (UMM) on Italy's balancing zone: the
-         latest version of each event, unavailable capacity in GWh/d
+         latest version of each event (dismissed ones left out),
+         unavailable capacity in GWh/d, and per facility and gas day
+         (06:00 to 06:00 Italian time) the average unavailable capacity,
+         "UMM|<facility>|planned" / "|unplanned"
 
 Series "<entity>|<field>", daily (gas day start):
   storage   gas_in_storage, working_gas_volume, contracted, available (TWh),
@@ -30,7 +33,9 @@ Credentials: GIE_KEY (the AGSI/ALSI/IIP API key).
 import argparse
 import os
 import time
-from datetime import date, datetime, timedelta
+from collections import defaultdict
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import requests
 
@@ -83,13 +88,13 @@ LNG_FIELDS = {
 
 # IIP units -> factor to GWh/d (OLT reports its daily send-out limit as "GWh").
 UNIT_TO_GWH_DAY = {"GWh/d": 1, "GWh": 1, "GWh/h": 24, "kWh/d": 1e-6, "kWh/h": 24e-6, "MWh/d": 1e-3, "MWh/h": 24e-3}
-# Facilities named by the reporting entity (the asset names vary).
+# The facility (an entity above) of a reporting entity: the asset names vary.
 UMM_FACILITIES = {
-    "21X000000001360B": "Adriatic LNG (Rovigo)",
-    "21X000000001109G": "OLT Toscana",
-    "59X4-IGSTORAGE-T": "IGS Cornegliano",
-    "59XFSRUITALIASTY": "Snam LNG",
+    "21X000000001360B": "ROVIGO",
+    "21X000000001109G": "OLT",
+    "59X4-IGSTORAGE-T": "CORNEGLIANO",
 }
+ROME = ZoneInfo("Europe/Rome")
 
 
 class Gie:
@@ -169,7 +174,22 @@ def fetch_entity(gie, code, first, last):
 
 
 def parse_time(text):
-    return datetime.strptime(text[:19], "%Y-%m-%d %H:%M:%S") if text else None
+    """IIP times are UTC."""
+    return datetime.strptime(text[:16], "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc) if text else None
+
+
+def gas_day_start(day):
+    return datetime(day.year, day.month, day.day, 6, tzinfo=ROME).astimezone(timezone.utc)
+
+
+def umm_facility(row):
+    entity = row.get("reportingEntity") or {}
+    asset = (row.get("asset") or {}).get("name") or ""
+    if entity.get("code") in UMM_FACILITIES:
+        return UMM_FACILITIES[entity["code"]]
+    if "Collalto" in asset or "Adriatica" in asset:
+        return "HUB2"
+    return "OTHER"
 
 
 def umm_events(rows):
@@ -198,7 +218,8 @@ def umm_events(rows):
         events.append({
             "id": event,
             "version": int(version) if version.isdigit() else version,
-            "facility": UMM_FACILITIES.get(entity.get("code")) or (row.get("asset") or {}).get("name") or entity.get("name"),
+            "facility": umm_facility(row),
+            "asset": ((row.get("asset") or {}).get("name") or "").strip(),
             "operator": entity.get("name"),
             "operator_type": entity.get("type"),
             "message_type": message.get("messageType"),
@@ -212,11 +233,26 @@ def umm_events(rows):
             "reason": (row.get("unavailabilityReason") or "").strip(),
             "published": (row.get("published") or row.get("submitted") or "")[:16],
         })
-    # IGS and Snam storage: the asset names are fine; Snam's Collalto plant is HUB2.
-    for item in events:
-        if item["facility"] and "Collalto" in item["facility"]:
-            item["facility"] = "Stogit HUB2 (Collalto)"
     return events
+
+
+def umm_daily(events):
+    """{"UMM|<facility>|planned|unplanned": {gas day: average unavailable GWh/d}}."""
+    out = defaultdict(lambda: defaultdict(float))
+    for event in events:
+        start, end = parse_time(event["from"]), parse_time(event["to"])
+        if event["unavailable"] is None or not start or not end or end <= start:
+            continue
+        group = f"UMM|{event['facility']}|{'planned' if event['planned'] else 'unplanned'}"
+        day = (start - timedelta(days=1)).date()
+        while gas_day_start(day) < end:
+            first, last = gas_day_start(day), gas_day_start(day + timedelta(days=1))
+            overlap = (min(end, last) - max(start, first)).total_seconds()
+            if overlap > 0:
+                # A gas day of 23 or 25 hours on the clock changes.
+                out[group][day.isoformat()] += event["unavailable"] * overlap / (last - first).total_seconds()
+            day += timedelta(days=1)
+    return {group: {day: round(value, 2) for day, value in values.items()} for group, values in out.items()}
 
 
 def fetch_umms(gie):
@@ -282,6 +318,8 @@ def main():
             group.update(values)
 
     events = fetch_umms(gie)
+    series = {group: values for group, values in series.items() if not group.startswith("UMM|")}
+    series.update(umm_daily(events))
     latest_day = max((day for day in series.get("IT|full", {})), default=None)
     compact.dump(build_output(series, events, latest_day), OUTPUT_PATH)
     print(f"Wrote {OUTPUT_PATH} ({os.path.getsize(OUTPUT_PATH) // 1024:,} KB), {gie.calls} GIE calls, "

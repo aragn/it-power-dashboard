@@ -75,8 +75,25 @@ def test_umm_events_keep_the_latest_version_and_convert_units():
     assert [event["id"] for event in events] == ["26050421X000000001360B001", "26091921X000000001360B001"]
     storage, lng = events
     assert lng["version"] == 2 and lng["status"] == "Inactive" and lng["planned"] is False
-    assert lng["facility"] == "Adriatic LNG (Rovigo)" and lng["reason"] == "Unplanned unscheduled event"
+    assert lng["facility"] == "ROVIGO" and lng["reason"] == "Unplanned unscheduled event"
     assert lng["message_type"] == "Regasification plant unavailability"
     assert lng["unavailable"] == 29.96 and lng["from"] == "2026-09-19 12:00"
-    assert storage["facility"] == "IGS Cornegliano" and storage["planned"] is True
+    assert storage["facility"] == "CORNEGLIANO" and storage["planned"] is True
     assert storage["unavailable"] == round(1914000 * 24e-6, 3)
+
+
+def test_outages_are_spread_over_the_gas_days_they_cover():
+    # 12:00 UTC on 19 Sep to 04:00 UTC on 20 Sep: 16 h of the gas day of the 19th
+    # (04:00 UTC = 06:00 in Rome), so two thirds of 24 GWh/d.
+    events = [{"facility": "ROVIGO", "planned": False, "unavailable": 24.0,
+               "from": "2026-09-19 12:00", "to": "2026-09-20 04:00"},
+              {"facility": "OLT", "planned": True, "unavailable": 48.0,
+               "from": "2026-09-19 04:00", "to": "2026-09-21 04:00"},
+              {"facility": "OLT", "planned": True, "unavailable": None, "from": "2026-09-19 04:00", "to": "2026-09-20 04:00"}]
+    daily = fg.umm_daily(events)
+    assert daily["UMM|ROVIGO|unplanned"] == {"2026-09-19": 16.0}
+    assert daily["UMM|OLT|planned"] == {"2026-09-19": 48.0, "2026-09-20": 48.0}
+    # The autumn clock change: the gas day of 24 Oct 2026 lasts 25 hours (04:00 UTC to 05:00 UTC).
+    autumn = fg.umm_daily([{"facility": "OLT", "planned": True, "unavailable": 25.0,
+                            "from": "2026-10-24 04:00", "to": "2026-10-25 05:00"}])
+    assert autumn["UMM|OLT|planned"] == {"2026-10-24": 25.0}
