@@ -25,7 +25,8 @@ included.
 
 Output: app/data/picasso.json.  Routine runs fetch yesterday and today (so
 far), then up to CATCH_UP_DAYS missing days back to HISTORY_START, the day
-Italy joined PICASSO.
+Terna reconnected to PICASSO (it first joined on 19 July 2023 and suspended
+its participation in March 2024).
 """
 
 import argparse

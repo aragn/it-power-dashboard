@@ -8133,8 +8133,43 @@
     price: () => "€/MWh",
     fcr: () => "€/MW",
     energy: () => timelineUnit(),
-    capacity: () => "MW"
+    capacity: () => "MW",
+    euro: () => "€"
   };
+
+  /*
+   * What accepted MSD/MB offers earned over the zone's day-ahead price:
+   * up, price − MGP; down, MGP − price (positive = a cost to the system).
+   */
+  function premiumMap(group, sign) {
+    return zone => {
+      const resolution = timelineResolutionKey();
+      const cacheKey = `premium|${group}|${zone}|${resolution}`;
+      if (!balancingCache[cacheKey]) {
+        const reference = mgpPriceMap(zone);
+        const premium = new Map();
+        balancingMap(`${zone}|${group}`).forEach((value, key) => {
+          const mgp = lookupValue(reference, key);
+          if (mgp !== null) premium.set(key, sign * (value - mgp));
+        });
+        balancingCache[cacheKey] = premium;
+      }
+      return balancingCache[cacheKey];
+    };
+  }
+
+  /* The dispatching cost estimate over the selected dates, from the daily values. */
+  function dispatchCostSummary() {
+    const first = currentStart ? isoDay(currentStart) : "0000";
+    const last = currentEnd ? isoDay(currentEnd) : "9999";
+    const total = market => ["up", "down"].reduce((sum, direction) =>
+      sum + (balancingSeries.daily[`IT|cost_${market}_${direction}`] || [])
+        .filter(row => row.date >= first && row.date <= last)
+        .reduce((part, row) => part + Number(row.value), 0), 0);
+    const msd = total("msd");
+    const mb = total("mb");
+    return msd || mb ? `${formatEuro(msd + mb)} in the selected dates (MSD ${formatEuro(msd)}, MB ${formatEuro(mb)})` : "";
+  }
 
   const dayAheadSeries = { name: "Day-ahead (MGP)", color: "--bal-reference", map: mgpPriceMap, unit: "price", width: 1.2 };
   const punSeries = { ...dayAheadSeries, name: "PUN Index" };
@@ -8190,17 +8225,6 @@
       }
     },
     {
-      id: "msd", title: "MSD ex-ante", right: "energy",
-      help: () => "GME: the scheduling phase of the dispatching services market (congestions, reserve margins), run the day before; the balancing market MB is in the energy chart above. Lines: average price of the accepted offers (pay-as-bid) to sell (up) and buy back (down). Bars: accepted volumes.",
-      series: zone => [
-        { name: "MSD up price", color: "--bal-msd", group: `${zone}|msd_price_up`, unit: "price", sparse: true },
-        { name: "MSD down price", color: "--bal-msd", group: `${zone}|msd_price_down`, unit: "price", line: "dashed", sparse: true },
-        dayAheadSeries,
-        { name: "MSD up", color: "--bal-msd", group: `${zone}|msd_volume_up`, unit: "energy", axis: 1, type: "bar" },
-        { name: "MSD down", color: "--bal-msd", group: `${zone}|msd_volume_down`, unit: "energy", axis: 1, type: "bar", sign: -1 }
-      ]
-    },
-    {
       id: "afrr-sources", title: "aFRR Activated", left: "energy",
       help: zone => hasPicasso(zone)
         ? "aFRR energy activated in the zone (12.3.E), up above zero and down below: bids of the standard product, offered to PICASSO (green), and of the specific product, local only (blue). Dotted: the aFRR half band Terna requires in MSD for the area (MW; not in the daily view). Imports through PICASSO and IGCC netting are published for Italy as a whole only."
@@ -8226,6 +8250,64 @@
           { name: "RR requirement", color: "--bal-rr", group: `${zone}|rr_requirement`, unit: "capacity", line: "dotted", width: 1.8 }
       ]
     },
+    {
+      id: "msd", title: "MSD ex-ante", right: "energy",
+      help: () => "GME: the scheduling phase of the dispatching services market (congestions, reserve margins), run the day before; the balancing market MB, in real time, is in the charts below. Lines: average price of the accepted offers (pay-as-bid) to sell (up) and buy back (down); hourly and daily averages weighted by the volume accepted. Bars: accepted volumes. In the legend, off by default: the highest accepted offer to sell and the lowest to buy back (dotted).",
+      series: zone => [
+        { name: "MSD up price", color: "--bal-msd", group: `${zone}|msd_price_up`, unit: "price", sparse: true },
+        { name: "MSD down price", color: "--bal-msd", group: `${zone}|msd_price_down`, unit: "price", line: "dashed", sparse: true },
+        dayAheadSeries,
+        { name: "Highest up offer", color: "--bal-msd", group: `${zone}|msd_price_up_max`, unit: "price", line: "dotted", width: 1, sparse: true, hidden: true },
+        { name: "Lowest down offer", color: "--bal-msd", group: `${zone}|msd_price_down_min`, unit: "price", line: "dotted", width: 1, sparse: true, hidden: true },
+        { name: "MSD up", color: "--bal-msd", group: `${zone}|msd_volume_up`, unit: "energy", axis: 1, type: "bar" },
+        { name: "MSD down", color: "--bal-msd", group: `${zone}|msd_volume_down`, unit: "energy", axis: 1, type: "bar", sign: -1 }
+      ]
+    },
+    {
+      id: "mb-volumes", title: "Balancing Market (MB) Volumes", left: "energy",
+      help: () => "GME: the offers Terna accepted in the balancing market (MB), in real time, up above zero and down below: secondary reserve (blue) and other services, i.e. replacement reserve and balancing (orange). Grey: accepted, then revoked by Terna. Click a name in the legend to hide or show it. Drag horizontally across the chart to select a narrower range.",
+      series: zone => [
+        { name: "Secondary reserve up", color: "--bal-afrr", group: `${zone}|mb_volume_up_rs`, unit: "energy", type: "bar", opacity: 0.75 },
+        { name: "Other services up", color: "--bal-rr", group: `${zone}|mb_volume_up_as`, unit: "energy", type: "bar", opacity: 0.75 },
+        { name: "Secondary reserve down", color: "--bal-afrr", group: `${zone}|mb_volume_down_rs`, unit: "energy", type: "bar", sign: -1, opacity: 0.75 },
+        { name: "Other services down", color: "--bal-rr", group: `${zone}|mb_volume_down_as`, unit: "energy", type: "bar", sign: -1, opacity: 0.75 },
+        { name: "Revoked up", color: "--bal-volume", group: `${zone}|mb_volume_up_revoked`, unit: "energy", type: "bar" },
+        { name: "Revoked down", color: "--bal-volume", group: `${zone}|mb_volume_down_revoked`, unit: "energy", type: "bar", sign: -1 }
+      ]
+    },
+    {
+      id: "mb-prices", title: "Balancing Market (MB) Prices",
+      help: () => "GME: average price of the offers accepted in MB (pay-as-bid), to sell (up, solid) and to buy back (down, dashed), secondary reserve (blue) and other services (orange), against the zone's day-ahead price; hourly and daily averages weighted by the volume accepted. In the legend, off by default: the highest accepted offer to sell and the lowest to buy back (dotted). Drag horizontally across the chart to select a narrower range.",
+      series: zone => [
+        { name: "Secondary reserve up", color: "--bal-afrr", group: `${zone}|mb_price_up_rs`, unit: "price", sparse: true },
+        { name: "Secondary reserve down", color: "--bal-afrr", group: `${zone}|mb_price_down_rs`, unit: "price", line: "dashed", sparse: true },
+        { name: "Other services up", color: "--bal-rr", group: `${zone}|mb_price_up_as`, unit: "price", sparse: true },
+        { name: "Other services down", color: "--bal-rr", group: `${zone}|mb_price_down_as`, unit: "price", line: "dashed", sparse: true },
+        dayAheadSeries,
+        { name: "Highest up offer", color: "--bal-rr", group: `${zone}|mb_price_up_max`, unit: "price", line: "dotted", width: 1, sparse: true, hidden: true },
+        { name: "Lowest down offer", color: "--bal-rr", group: `${zone}|mb_price_down_min`, unit: "price", line: "dotted", width: 1, sparse: true, hidden: true }
+      ]
+    },
+    {
+      id: "msd-vs-mb", title: "MSD Ex-Ante and MB Volumes", left: "energy",
+      help: () => "The volumes accepted the day before in MSD ex-ante (pink, left bar) and in real time in MB (orange, right bar, both services), up above zero and down below: how much of the zone's dispatching is planned and how much is left to the day itself. Drag horizontally across the chart to select a narrower range.",
+      series: zone => [
+        { name: "MSD up", color: "--bal-msd", group: `${zone}|msd_volume_up`, unit: "energy", type: "bar", stack: "msd", opacity: 0.75 },
+        { name: "MSD down", color: "--bal-msd", group: `${zone}|msd_volume_down`, unit: "energy", type: "bar", stack: "msd", sign: -1, opacity: 0.75 },
+        { name: "MB up", color: "--bal-rr", groups: [`${zone}|mb_volume_up_rs`, `${zone}|mb_volume_up_as`], unit: "energy", type: "bar", stack: "mb", opacity: 0.75 },
+        { name: "MB down", color: "--bal-rr", groups: [`${zone}|mb_volume_down_rs`, `${zone}|mb_volume_down_as`], unit: "energy", type: "bar", stack: "mb", sign: -1, opacity: 0.75 }
+      ]
+    },
+    {
+      id: "premium", title: "Premium over the Day-Ahead Price",
+      help: () => "What the accepted offers earned over the zone's day-ahead price: up, the average price paid minus the day-ahead price; down, the day-ahead price minus the average price at which the energy was bought back. Above zero the system paid more than the day-ahead value (MSD ex-ante pink, MB orange). Drag horizontally across the chart to select a narrower range.",
+      series: () => [
+        { name: "MSD up", color: "--bal-msd", map: premiumMap("msd_price_up", 1), own: true, unit: "price", sparse: true },
+        { name: "MSD down", color: "--bal-msd", map: premiumMap("msd_price_down", -1), own: true, unit: "price", line: "dashed", sparse: true },
+        { name: "MB up", color: "--bal-rr", map: premiumMap("mb_price_up", 1), own: true, unit: "price", sparse: true },
+        { name: "MB down", color: "--bal-rr", map: premiumMap("mb_price_down", -1), own: true, unit: "price", line: "dashed", sparse: true }
+      ]
+    },
 
     /* Italy as a whole. */
     {
@@ -8248,6 +8330,29 @@
         { name: "aFRR (local) down", color: "--bal-afrr", group: "IT|sum_activated_afrr_down", unit: "energy", type: "bar", sign: -1 },
         { name: "RR up", color: "--bal-rr", group: "IT|sum_activated_rr_up", unit: "energy", type: "bar" },
         { name: "RR down", color: "--bal-rr", group: "IT|sum_activated_rr_down", unit: "energy", type: "bar", sign: -1 }
+      ]
+    },
+    {
+      id: "it-msd-mb", italy: true, title: "MSD Ex-Ante and MB Volumes", left: "energy",
+      help: () => "The zones' accepted volumes summed: MSD ex-ante, the day before (pink, left bar), and the balancing market MB in real time (right bar: secondary reserve blue, other services orange), up above zero and down below. Drag horizontally across the chart to select a narrower range.",
+      series: () => [
+        { name: "MSD up", color: "--bal-msd", group: "IT|sum_msd_volume_up", unit: "energy", type: "bar", stack: "msd", opacity: 0.75 },
+        { name: "MSD down", color: "--bal-msd", group: "IT|sum_msd_volume_down", unit: "energy", type: "bar", stack: "msd", sign: -1, opacity: 0.75 },
+        { name: "MB secondary reserve up", color: "--bal-afrr", group: "IT|sum_mb_volume_up_rs", unit: "energy", type: "bar", stack: "mb", opacity: 0.75 },
+        { name: "MB other services up", color: "--bal-rr", group: "IT|sum_mb_volume_up_as", unit: "energy", type: "bar", stack: "mb", opacity: 0.75 },
+        { name: "MB secondary reserve down", color: "--bal-afrr", group: "IT|sum_mb_volume_down_rs", unit: "energy", type: "bar", stack: "mb", sign: -1, opacity: 0.75 },
+        { name: "MB other services down", color: "--bal-rr", group: "IT|sum_mb_volume_down_as", unit: "energy", type: "bar", stack: "mb", sign: -1, opacity: 0.75 }
+      ]
+    },
+    {
+      id: "it-dispatch-cost", italy: true, title: "Estimated Dispatching Cost", left: "euro",
+      summary: dispatchCostSummary,
+      help: () => "An estimate, not a published figure: zone by zone and quarter-hour by quarter-hour, the volume accepted in MSD ex-ante and in MB times the price premium over the zone's day-ahead price (up: price − day-ahead; down: day-ahead − price), summed over the zones. From GME's average prices, so close to, not equal to, what Terna pays; it recovers the cost from consumers through the dispatching charge (uplift). Solid: up; light: down. Drag horizontally across the chart to select a narrower range.",
+      series: () => [
+        { name: "MSD up", color: "--bal-msd", group: "IT|cost_msd_up", unit: "euro", type: "bar", stack: "cost", opacity: 0.85, quarterScale: 0.25 },
+        { name: "MSD down", color: "--bal-msd", group: "IT|cost_msd_down", unit: "euro", type: "bar", stack: "cost", opacity: 0.4, quarterScale: 0.25 },
+        { name: "MB up", color: "--bal-rr", group: "IT|cost_mb_up", unit: "euro", type: "bar", stack: "cost", opacity: 0.85, quarterScale: 0.25 },
+        { name: "MB down", color: "--bal-rr", group: "IT|cost_mb_down", unit: "euro", type: "bar", stack: "cost", opacity: 0.4, quarterScale: 0.25 }
       ]
     },
     {
@@ -8320,29 +8425,32 @@
   /* [min, max] of the shown series per axis; bars stack up and down. */
   function balancingExtents(items, data, selected, axisCount) {
     const extents = Array.from({ length: axisCount }, () => [0, 0]);
-    const stacks = Array.from({ length: axisCount }, () => ({ up: [], down: [] }));
+    // Per axis and bar stack (markets side by side have one each).
+    const stacks = Array.from({ length: axisCount }, () => ({}));
     items.forEach((item, index) => {
       if (selected[item.name] === false) return;
       const axis = item.axis || 0;
+      const stack = stacks[axis][item.stack || "volume"] || (stacks[axis][item.stack || "volume"] = { up: [], down: [] });
       data[index].forEach((value, slot) => {
         if (value === null) return;
         if (item.type === "bar") {
           const side = value < 0 ? "down" : "up";
-          stacks[axis][side][slot] = (stacks[axis][side][slot] || 0) + value;
+          stack[side][slot] = (stack[side][slot] || 0) + value;
         } else {
           extents[axis][0] = Math.min(extents[axis][0], value);
           extents[axis][1] = Math.max(extents[axis][1], value);
         }
       });
     });
-    stacks.forEach((stack, axis) => {
+    stacks.forEach((byStack, axis) => Object.values(byStack).forEach(stack => {
       stack.up.forEach(value => { if (value !== undefined) extents[axis][1] = Math.max(extents[axis][1], value); });
       stack.down.forEach(value => { if (value !== undefined) extents[axis][0] = Math.min(extents[axis][0], value); });
-    });
+    }));
     return extents;
   }
 
   function formatBalancingValue(value, unit) {
+    if (unit === "euro") return formatSignedEuro(value);
     const digits = unit === "price" || unit === "fcr" ? 2 : 0;
     return `${Number(value).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits })} ${BALANCING_UNITS[unit]()}`;
   }
@@ -8355,12 +8463,13 @@
         type: "bar",
         yAxisIndex: item.axis || 0,
         // One stack, so up and down share the quarter-hour's column; each
-        // sign stacks on its own side of zero.
-        stack: "volume",
+        // sign stacks on its own side of zero.  Charts comparing two
+        // markets give each its own stack, side by side.
+        stack: item.stack || "volume",
         stackStrategy: "samesign",
         data,
         barCategoryGap: "15%",
-        itemStyle: { color, opacity: item.color === "--bal-volume" ? 1 : 0.4 },
+        itemStyle: { color, opacity: item.opacity ?? (item.color === "--bal-volume" ? 1 : 0.4) },
         emphasis: { disabled: true },
         z: 2
       };
@@ -8387,11 +8496,15 @@
     const { chart, timeline } = spec;
     resetTimeline(timeline);
     const items = spec.series(zone).filter(Boolean);
+    // Off until the legend turns them on (e.g. the extreme prices).
+    items.forEach(item => { if (item.hidden && spec.selected[item.name] === undefined) spec.selected[item.name] = false; });
     const data = items.map(item => {
       const map = item.map ? item.map(zone) : item.groups ? summedMap(item.groups) : balancingMap(item.group);
+      // Rates per hour (EUR/h) shown per quarter-hour in the 15-minute view.
+      const scale = item.quarterScale && currentGranularity === "quarter" ? item.quarterScale : 1;
       return timeline.rows.map(row => {
         const value = lookupValue(map, row.key);
-        return value === null ? null : value * (item.sign || 1);
+        return value === null ? null : value * (item.sign || 1) * scale;
       });
     });
 
@@ -8409,7 +8522,7 @@
 
     const subtitleId = `bal-${spec.id}-subtitle`;
     document.getElementById(`bal-${spec.id}-help`).textContent = spec.help(zone);
-    const own = items.map((item, index) => item.map ? [] : data[index]).flat();
+    const own = items.map((item, index) => item.map && !item.own ? [] : data[index]).flat();
     if (!own.some(value => value !== null)) {
       chart.clear();
       setChartSubtitle(subtitleId, balancingStatus(zone) === "loading"
@@ -8419,14 +8532,17 @@
     const leftUnit = spec.left || (items.find(item => !item.axis) || {}).unit || "price";
     const measure = leftUnit === "energy" ? timelineMeasure()
       : leftUnit === "capacity" ? { daily: "Daily average capacity", hourly: "Hourly average capacity", quarter: "15-minute capacity" }[currentGranularity]
-        : priceMeasure();
-    setChartSubtitle(subtitleId, `${measure} · ${ZONE_LABELS[currentZone]}`);
+        : leftUnit === "euro" ? { daily: "Daily cost", hourly: "Hourly cost", quarter: "15-minute cost" }[currentGranularity]
+          : priceMeasure();
+    const summary = spec.summary ? spec.summary(zone) : "";
+    setChartSubtitle(subtitleId, `${measure} · ${ZONE_LABELS[currentZone]}${summary ? ` · ${summary}` : ""}`);
 
     const names = items.map(item => item.name);
     const hasRight = items.some(item => item.axis === 1);
     const axisName = unit => BALANCING_UNITS[unit]();
     const axisFormat = { ...timelineAxisTextStyle(),
-      formatter: value => Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 }) };
+      formatter: leftUnit === "euro" ? value => formatEuro(value)
+        : value => Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 }) };
     const yAxisFor = selected => {
       const ranges = zeroAlignedAxes(balancingExtents(items, scaleData, selected, hasRight ? 2 : 1));
       const axes = [timelineYAxis(axisName(leftUnit), { nameGap: 44, axisLabel: axisFormat, ...ranges[0] })];
@@ -8834,7 +8950,7 @@
     `<p><b>PICASSO</b> is the European platform for aFRR balancing energy (automatic frequency restoration reserve). ` +
     `Every 4 seconds it collects the TSOs' aFRR needs, nets opposite needs across borders and activates the cheapest bids of a common merit order, as far as the cross-border capacity allows. ` +
     `The result is a <b>cross-border marginal price</b> (CBMP) per TSO and cycle: countries without congestion between them share it. ` +
-    `Terna joined on 25 November 2025. Prices from TransnetBW, which publishes them for the platform, for Italy and its neighbours on it: Austria, Slovenia, France and Greece (Switzerland has no prices).</p>`;
+    `Terna first joined on 19 July 2023, suspended its participation in March 2024 and reconnected on 25 November 2025, where these charts start. Prices from TransnetBW, which publishes them for the platform, for Italy and its neighbours on it: Austria, Slovenia, France and Greece (Switzerland has no prices).</p>`;
 
   const picassoLegend = document.createElement("div");
   picassoLegend.className = "panel crossborder-legend";
