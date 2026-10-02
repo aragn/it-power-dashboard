@@ -1,0 +1,58 @@
+name: Update Map References (ISTAT, Wikidata)
+
+on:
+  schedule:
+    # Yearly, on 15 January: municipality mergers usually take effect on 1 January.
+    - cron: "0 5 15 1 *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-reference
+  cancel-in-progress: false
+
+jobs:
+  update-reference:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Rebuild the region map and the municipality coordinates
+        run: python -u etl/build_reference.py
+
+      # The files live on main, so changes come as a pull request to review
+      # and merge rather than a direct push.
+      - name: Open a pull request if anything changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git diff --quiet -- app/geo/italy_regions.json etl/municipalities.json; then
+            echo "No changes."
+            exit 0
+          fi
+          branch="reference-$(date -u +%Y-%m-%d)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add app/geo/italy_regions.json etl/municipalities.json
+          git commit -m "Map references: yearly refresh (ISTAT regions, Wikidata municipalities) [automated]"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "Map references: yearly refresh" \
+            --body "Rebuilt by the Update Map References workflow: Italy's regions (ISTAT via openpolis) and municipality coordinates (Wikidata). Review the diff and merge; the next MASE run then re-places every project." \
+            || echo "Could not open the pull request (repository setting?): the branch $branch is pushed, open it by hand."
