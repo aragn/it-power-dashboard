@@ -33,6 +33,7 @@
       --cap-ntc:#d9dde2; --cap-ac:#d95926; --cap-atc:#3987e5; --cap-scheduled:#199e70;
       --coupling-flow:#199e70; --coupling-limit:#d9dde2; --coupling-price-italy:#e66767; --coupling-price-sud:#d55181; --coupling-price-neighbour:#9085e9;
       --bal-imbalance:#c783ff; --bal-picasso:#5ecb8a; --bal-afrr:#5b9cff; --bal-rr:#e7a84b; --bal-fcr:#ef6fae; --bal-msd:#ef6fae; --bal-reference:#d9dde2; --bal-volume:rgba(140,148,158,.5);
+      --picasso-up:#e66767; --picasso-down:#3987e5; --picasso-none:#4a5058;
     }
     :root[data-theme="light"] {
       color-scheme:light;
@@ -51,6 +52,7 @@
       --cap-ntc:#1f2429; --cap-ac:#eb6834; --cap-atc:#2a78d6; --cap-scheduled:#1baf7a;
       --coupling-flow:#12805f; --coupling-limit:#1f2429; --coupling-price-italy:#e34948; --coupling-price-sud:#c93d74; --coupling-price-neighbour:#4a3aa7;
       --bal-imbalance:#8a4fd6; --bal-picasso:#1f9d57; --bal-afrr:#2f6fdb; --bal-rr:#c27a0e; --bal-fcr:#d23f84; --bal-msd:#d23f84; --bal-reference:#1f2429; --bal-volume:rgba(91,100,112,.4);
+      --picasso-up:#e34948; --picasso-down:#2a78d6; --picasso-none:#c3c8ce;
     }
     #theme-toggle { position:fixed; left:16px; bottom:16px; z-index:150; display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 14px 8px 11px; font-size:12px; cursor:pointer; box-shadow:0 6px 18px var(--shadow); }
     #theme-toggle:hover { background:var(--hover); }
@@ -291,7 +293,7 @@
           <section id="income-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Congestion Income</div><div id="income-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="income-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida3-chart" class="timeline-chart"></div><div id="income-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 3 (afternoon and evening), signed like the spreads.</div></section>
         </div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net scheduled commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Scheduled commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Scheduled commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
-        <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO.</footer>
+        <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO).</footer>
       </main>
     </div>
   </div>
@@ -8719,6 +8721,300 @@
   document.getElementById("depth-prev").addEventListener("click", () => stepDepth(-1));
   document.getElementById("depth-next").addEventListener("click", () => stepDepth(1));
 
+  /* ============================================================
+     PICASSO: ITALY AND ITS NEIGHBOURS (TRANSNETBW, 4-SECOND PRICES)
+     ============================================================ */
+
+  /*
+   * Aggregates of PICASSO's cross-border marginal prices (data/picasso.json,
+   * see etl/fetch_picasso.py), in the Italy view: the average price of the
+   * upward and of the downward cycles for Italy and its neighbours on the
+   * platform, the share of cycles by direction (one country at a time), and
+   * how often each neighbour had Italy's price.  Italy in the reference ink,
+   * the neighbours in the interconnection colours; Switzerland has no
+   * prices in the feed.
+   */
+  const PICASSO_ITALY = { code: "IT", name: "Italy", color: "--chart-pun" };
+  const PICASSO_NEIGHBOURS = ["AT", "SI", "FR", "GR"]
+    .map(code => CROSS_BORDER_COUNTRIES.find(country => country.code === code));
+  const PICASSO_COUNTRIES = [PICASSO_ITALY, ...PICASSO_NEIGHBOURS];
+  const PICASSO_DIRECTIONS = [
+    { key: "up", name: "Upward activation", color: "--picasso-up" },
+    { key: "none", name: "No activation", color: "--picasso-none" },
+    { key: "down", name: "Downward activation", color: "--picasso-down" }
+  ];
+  const picassoCountrySelected = {};
+  let picassoDirectionCountry = "IT";
+
+  let rawPicassoData = null;
+  let picassoStatus = null; // null (not asked for yet) | "loading" | "ready" | "missing"
+  const picassoCache = {};
+
+  async function loadPicassoData() {
+    if (picassoStatus) return;
+    picassoStatus = "loading";
+    try {
+      const response = await fetch("./data/picasso.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawPicassoData = decodeCompactPayload(await response.json());
+      picassoStatus = "ready";
+    } catch (error) {
+      console.warn("PICASSO prices unavailable:", error);
+      picassoStatus = "missing";
+    }
+    updateView();
+  }
+
+  /* One series at the current resolution: bucket key -> value. */
+  function picassoMap(group) {
+    const resolution = timelineResolutionKey();
+    const cacheKey = `${group}|${resolution}`;
+    if (!picassoCache[cacheKey]) {
+      const rows = (((rawPicassoData || {}).series || {})[group] || {})[resolution] || [];
+      picassoCache[cacheKey] = new Map(rows.map(row => [timelineBucketKey(row), Number(row.value)]));
+    }
+    return picassoCache[cacheKey];
+  }
+
+  const picassoValue = (group, key) => lookupValue(picassoMap(group), key);
+  const formatShare = value => `${Math.round(value)}%`;
+  const PICASSO_LEGEND_NOTE = "Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.";
+
+  const PICASSO_CHARTS = {
+    up: {
+      title: "PICASSO price, upward activation",
+      help: `Average cross-border marginal price of the 4-second cycles in which the country activated aFRR upward only (every activated bid is paid it), per quarter-hour, hour or day. ENTSO-E's average for Italy, in the merit order charts below, also counts the cycles without activation. ${PICASSO_LEGEND_NOTE}`
+    },
+    down: {
+      title: "PICASSO price, downward activation",
+      help: `The same for the cycles with downward activation only. With overlapping up and down merit orders, the average down price can end up above the average up price of the same quarter-hour. ${PICASSO_LEGEND_NOTE}`
+    },
+    direction: {
+      title: "Direction of activation",
+      help: "Share of PICASSO's 4-second optimisation cycles (225 a quarter-hour) in which the country activated aFRR upward only (short), downward only (long), or not at all (the same price is then published both ways). Choose the country above the chart. Drag horizontally across the chart to select a narrower range."
+    },
+    coupled: {
+      title: "Same PICASSO price as Italy",
+      help: `Share of the 4-second cycles in which the neighbour had exactly Italy's prices, among those with a price for both: no congestion between them, so they settle aFRR at one price. 0% means Italy's price always differed. ${PICASSO_LEGEND_NOTE}`
+    }
+  };
+
+  const picassoIntro = document.createElement("div");
+  picassoIntro.className = "panel capacity-intro";
+  picassoIntro.innerHTML =
+    `<div class="chart-title">PICASSO: Italy and its neighbours</div>` +
+    `<p><b>PICASSO</b> is the European platform for aFRR balancing energy (automatic frequency restoration reserve). ` +
+    `Every 4 seconds it collects the TSOs' aFRR needs, nets opposite needs across borders and activates the cheapest bids of a common merit order, as far as the cross-border capacity allows. ` +
+    `The result is a <b>cross-border marginal price</b> (CBMP) per TSO and cycle: countries without congestion between them share it. ` +
+    `Terna joined on 25 November 2025. Prices from TransnetBW, which publishes them for the platform, for Italy and its neighbours on it: Austria, Slovenia, France and Greece (Switzerland has no prices).</p>`;
+
+  const picassoLegend = document.createElement("div");
+  picassoLegend.className = "panel crossborder-legend";
+  picassoLegend.setAttribute("role", "group");
+  picassoLegend.setAttribute("aria-label", "Countries shown in the PICASSO charts");
+  picassoLegend.innerHTML = `<span class="legend-title">Countries</span>`;
+
+  Object.entries(PICASSO_CHARTS).forEach(([id, item]) => {
+    item.id = id;
+    item.section = balancingPanel(`picasso-${id}`, item.title, false);
+    balancingMount.appendChild(item.section);
+    item.chart = echarts.init(item.section.querySelector(".timeline-chart"));
+    item.timeline = createTimeline(item.chart);
+    item.section.querySelector(".chart-help").textContent = item.help;
+    attachDragZoom(item.chart, `bal-picasso-${id}-wrap`, `bal-picasso-${id}-drag`);
+  });
+  const picassoSections = [picassoIntro, picassoLegend, ...Object.values(PICASSO_CHARTS).map(item => item.section)];
+
+  /* The country of the direction chart. */
+  (function buildPicassoCountryChoice() {
+    const choice = document.createElement("div");
+    choice.className = "granularity";
+    choice.setAttribute("role", "group");
+    choice.setAttribute("aria-label", "Country shown in the direction chart");
+    PICASSO_COUNTRIES.forEach(country => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = country.name;
+      button.classList.toggle("active", country.code === picassoDirectionCountry);
+      button.setAttribute("aria-pressed", String(country.code === picassoDirectionCountry));
+      button.addEventListener("click", () => {
+        picassoDirectionCountry = country.code;
+        choice.querySelectorAll("button").forEach(item => {
+          item.classList.toggle("active", item === button);
+          item.setAttribute("aria-pressed", String(item === button));
+        });
+        renderPicassoDirection();
+      });
+      choice.appendChild(button);
+    });
+    PICASSO_CHARTS.direction.section.querySelector(".chart-header").appendChild(choice);
+  })();
+
+  (function buildPicassoLegend() {
+    PICASSO_COUNTRIES.forEach(country => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "legend-chip";
+      button.setAttribute("aria-pressed", "true");
+      button.innerHTML = `<span class="legend-swatch" style="background:var(${country.color})"></span>${country.name}`;
+      button.addEventListener("click", () => {
+        const visible = picassoCountrySelected[country.name] === false;
+        picassoCountrySelected[country.name] = visible;
+        button.classList.toggle("off", !visible);
+        button.setAttribute("aria-pressed", String(visible));
+        [PICASSO_CHARTS.up, PICASSO_CHARTS.down, PICASSO_CHARTS.coupled].forEach(item => item.chart.dispatchAction({
+          type: visible ? "legendSelect" : "legendUnSelect", name: country.name }));
+      });
+      picassoLegend.appendChild(button);
+    });
+  })();
+
+  function picassoBaseOption(item, series, tooltip, yAxis, legend) {
+    return {
+      animation: false,
+      backgroundColor: "transparent",
+      legend: legend || { show: false, data: series.map(entry => entry.name), selected: { ...picassoCountrySelected } },
+      tooltip: timelineTooltip(tooltip),
+      grid: { left: CHART_GRID.left, right: 16, top: legend ? 30 : 20, bottom: CHART_GRID.bottom, containLabel: false },
+      xAxis: timelineXAxis(item.timeline, { onZero: false }),
+      yAxis,
+      series,
+      dataZoom: timelineDataZoom(0, 16)
+    };
+  }
+
+  /* False (and the chart cleared) while there is nothing to draw. */
+  function picassoReady(item) {
+    if (rawPicassoData && rawData) return true;
+    item.chart.clear();
+    setChartSubtitle(`bal-picasso-${item.id}-subtitle`, picassoStatus === "missing"
+      ? "PICASSO prices not available yet" : "Loading PICASSO prices…");
+    return false;
+  }
+
+  function renderPicassoPrice(item, direction) {
+    if (!picassoReady(item)) return;
+    resetTimeline(item.timeline);
+    const rows = item.timeline.rows;
+    setChartSubtitle(`bal-picasso-${item.id}-subtitle`, `${priceMeasure()} · ${direction === "up" ? "upward" : "downward"} cycles`);
+    const series = PICASSO_COUNTRIES.map(country => {
+      const italy = country === PICASSO_ITALY;
+      return {
+        name: country.name,
+        type: "line",
+        data: rows.map(row => picassoValue(`${country.code}|price_${direction}`, row.key)),
+        showSymbol: false,
+        connectNulls: false,
+        lineStyle: { color: cssVar(country.color), width: italy ? 1.8 : 1.2 },
+        itemStyle: { color: cssVar(country.color) },
+        emphasis: { focus: "series" },
+        z: italy ? 5 : 3
+      };
+    });
+    const tooltip = params => {
+      const row = rows[params && params.length ? params[0].dataIndex : -1];
+      if (!row) return "";
+      const muted = cssVar("--chart-tooltip-muted");
+      const lines = PICASSO_COUNTRIES
+        .filter(country => picassoCountrySelected[country.name] !== false)
+        .map(country => {
+          const price = picassoValue(`${country.code}|price_${direction}`, row.key);
+          const share = picassoValue(`${country.code}|share_${direction}`, row.key);
+          const value = price === null ? "—"
+            : `${formatPrice(price)}${share === null ? "" : ` <span style="font-weight:400;color:${muted}">${formatShare(share)} of cycles</span>`}`;
+          return tooltipRow(cssVar(country.color), country.name, value, "line");
+        });
+      return tooltipHeader(row) + (lines.join("") || "No country selected");
+    };
+    item.chart.setOption(picassoBaseOption(item, series, tooltip, timelineYAxis("€/MWh")), true);
+    item.chart.resize();
+  }
+
+  function renderPicassoDirection() {
+    const item = PICASSO_CHARTS.direction;
+    if (!picassoReady(item)) return;
+    resetTimeline(item.timeline);
+    const rows = item.timeline.rows;
+    const country = PICASSO_COUNTRIES.find(entry => entry.code === picassoDirectionCountry);
+    const measure = { daily: "Daily", hourly: "Hourly", quarter: "15-minute" }[currentGranularity];
+    setChartSubtitle(`bal-picasso-${item.id}-subtitle`, `${measure} share of cycles · ${country.name}`);
+    const surface = cssVar("--panel");
+    const share = (direction, key) => picassoValue(`${country.code}|share_${direction.key}`, key);
+    // Hundreds of slim bars: no gap or edge, which would wash the colours out.
+    const dense = rows.length > 200;
+    const series = PICASSO_DIRECTIONS.map(direction => ({
+      name: direction.name,
+      type: "bar",
+      stack: "direction",
+      data: rows.map(row => share(direction, row.key)),
+      barCategoryGap: dense ? "0%" : "10%",
+      itemStyle: { color: cssVar(direction.color), borderColor: surface, borderWidth: dense ? 0 : 0.5 },
+      emphasis: { focus: "series" }
+    }));
+    const tooltip = params => {
+      const row = rows[params && params.length ? params[0].dataIndex : -1];
+      if (!row) return "";
+      const muted = cssVar("--chart-tooltip-muted");
+      const lines = PICASSO_DIRECTIONS.map(direction => {
+        const value = share(direction, row.key);
+        if (value === null) return "";
+        const price = direction.key === "none" ? null : picassoValue(`${country.code}|price_${direction.key}`, row.key);
+        return tooltipRow(cssVar(direction.color), direction.name, formatShare(value) +
+          (price === null ? "" : ` <span style="font-weight:400;color:${muted}">at ${formatPrice(price)}</span>`));
+      }).join("");
+      return tooltipHeader(row) + (lines || "No data");
+    };
+    const legend = {
+      show: true, top: 0, left: CHART_GRID.left, itemWidth: 12, itemHeight: 8, itemGap: 12,
+      textStyle: { color: cssVar("--chart-legend"), fontSize: 10 }, data: series.map(entry => entry.name)
+    };
+    const option = picassoBaseOption(item, series, tooltip, timelineYAxis("%", { min: 0, max: 100 }), legend);
+    option.xAxis.boundaryGap = true;
+    option.tooltip.axisPointer = { type: "shadow", shadowStyle: { color: cssVar("--chart-zoom-filler") } };
+    item.chart.setOption(option, true);
+    item.chart.resize();
+  }
+
+  function renderPicassoCoupled() {
+    const item = PICASSO_CHARTS.coupled;
+    if (!picassoReady(item)) return;
+    resetTimeline(item.timeline);
+    const rows = item.timeline.rows;
+    const measure = { daily: "Daily", hourly: "Hourly", quarter: "15-minute" }[currentGranularity];
+    setChartSubtitle(`bal-picasso-${item.id}-subtitle`, `${measure} share of cycles with Italy's price`);
+    const series = PICASSO_NEIGHBOURS.map(country => ({
+      name: country.name,
+      type: "line",
+      data: rows.map(row => picassoValue(`${country.code}|coupled`, row.key)),
+      showSymbol: false,
+      connectNulls: false,
+      lineStyle: { color: cssVar(country.color), width: currentGranularity === "daily" ? 1.4 : 1 },
+      itemStyle: { color: cssVar(country.color) },
+      emphasis: { focus: "series" }
+    }));
+    const tooltip = params => {
+      const row = rows[params && params.length ? params[0].dataIndex : -1];
+      if (!row) return "";
+      const lines = PICASSO_NEIGHBOURS
+        .filter(country => picassoCountrySelected[country.name] !== false)
+        .map(country => {
+          const value = picassoValue(`${country.code}|coupled`, row.key);
+          return tooltipRow(cssVar(country.color), country.name, value === null ? "—" : formatShare(value), "line");
+        });
+      return tooltipHeader(row) + (lines.join("") || "No country selected");
+    };
+    item.chart.setOption(picassoBaseOption(item, series, tooltip, timelineYAxis("%", { min: 0, max: 100 })), true);
+    item.chart.resize();
+  }
+
+  function renderPicassoCharts() {
+    loadPicassoData();
+    renderPicassoPrice(PICASSO_CHARTS.up, "up");
+    renderPicassoPrice(PICASSO_CHARTS.down, "down");
+    renderPicassoDirection();
+    renderPicassoCoupled();
+  }
+
   function renderBalancing() {
     if (balancingMount.style.display === "none") return;
     const zone = BALANCING_ZONE_CODES[currentZone];
@@ -8728,12 +9024,16 @@
     // Layout: the time series charts, then the merit order pairs (PICASSO
     // next to local; without PICASSO, up next to down).
     BALANCING_CHARTS.forEach(spec => spec.section.remove());
+    picassoSections.forEach(section => section.remove());
     balancingChartsFor(zone).forEach(spec => balancingMount.appendChild(spec.section));
+    // Italy: PICASSO with the neighbours, before the merit orders.
+    if (zone === "IT") picassoSections.forEach(section => balancingMount.appendChild(section));
     balancingMount.appendChild(depthPanel);
     DEPTH_PRODUCTS.forEach(product => product.section.remove());
     depthProductsFor(zone).forEach(product => balancingMount.appendChild(product.section));
 
     balancingChartsFor(zone).forEach(spec => renderBalancingChart(spec, zone));
+    if (zone === "IT") renderPicassoCharts();
     if (zone !== depthZone) depthRangeKey = null;
     depthZone = zone;
     syncDepthSlots(zone);
@@ -9131,6 +9431,7 @@
     SPREAD_MARKETS.forEach(market => market.chart.resize());
     resizeCapacityCharts();
     BALANCING_CHARTS.forEach(spec => spec.chart.resize());
+    Object.values(PICASSO_CHARTS).forEach(item => item.chart.resize());
     DEPTH_PRODUCTS.forEach(product => product.chart.resize());
   });
 
