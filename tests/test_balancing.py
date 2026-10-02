@@ -154,6 +154,8 @@ def test_msd_results_by_period_or_by_hour():
         ("NORD|msd_volume_up", "2026-09-22", "11:00", 15): 16.0,
         ("NORD|msd_volume_down", "2026-09-22", "11:00", 15): 560.0,
         ("NORD|msd_price_up", "2026-09-22", "11:00", 15): 370.0,
+        # Offers to buy back accepted at 0 EUR/MWh: a price of 0, not "none".
+        ("NORD|msd_price_down", "2026-09-22", "11:00", 15): 0.0,
         ("NORD|msd_volume_up", "2025-01-05", "11:00", 60): 30.0,
         ("NORD|msd_volume_down", "2025-01-05", "11:00", 60): 0.0,
         ("NORD|msd_price_up", "2025-01-05", "11:00", 60): 300.0,
@@ -322,3 +324,46 @@ def test_a_catch_up_block_cut_short_stays_in_the_gap(monkeypatch):
     catch_up_fixture(monkeypatch, calls_per_block=1, refuse_at=1)
     series = fb.terna_catch_up(empty_series(), date(2025, 2, 1))
     assert fb.terna_gap(series, date(2025, 2, 1))[-1] == date(2025, 1, 31)
+
+
+def mb_row(service, sold, bought, avg_sell, avg_buy, max_sell="0", min_buy="0", revoked_sold="0", period="1"):
+    return {"FlowDate": "20260928", "Hour": "1", "Period": period, "Zone": "NORD", "ServiceType": service,
+            "VolumesSoldNotRevoked": sold, "VolumesSoldRevoked": revoked_sold, "VolumesPurchasedNotRevoked": bought,
+            "VolumesPurchasedRevoked": "0", "AverageSellingPrice": avg_sell, "AveragePurchasingPrice": avg_buy,
+            "MaximumSellingPrice": max_sell, "MinimumPurchasingPrice": min_buy}
+
+
+def test_mb_results_split_services_and_weight_the_prices():
+    rows = [mb_row("RS", "10", "0", "200", "0", max_sell="300", revoked_sold="2"),
+            mb_row("AS", "30", "5", "100", "50", max_sell="150", min_buy="20"),
+            mb_row("TT", "40", "5", "null", "null")]
+    records = {r["group"]: r["value"] for r in fb.mb_records(rows)}
+    # MWh per quarter-hour as MW.
+    assert records["NORD|mb_volume_up_rs"] == 40.0 and records["NORD|mb_volume_up_as"] == 120.0
+    assert records["NORD|mb_volume_down_as"] == 20.0 and records["NORD|mb_volume_up_revoked"] == 8.0
+    assert records["NORD|mb_price_up_rs"] == 200.0 and records["NORD|mb_price_up_as"] == 100.0
+    assert records["NORD|mb_price_up"] == 125.0  # (10 x 200 + 30 x 100) / 40
+    assert records["NORD|mb_price_up_max"] == 300.0 and records["NORD|mb_price_down_min"] == 20.0
+    # No secondary reserve bought back: no price for it.
+    assert "NORD|mb_price_down_rs" not in records
+
+
+def test_extreme_prices_keep_the_extreme_and_cost_is_against_the_day_ahead_price():
+    rows = lambda values: [{"date": "2026-09-28", "time": t, "value": v} for t, v in values]  # noqa: E731
+    series = {resolution: {} for resolution in fb.RESOLUTIONS}
+    series["quarter_hourly"] = {
+        "NORD|msd_price_up_max": rows([("00:00", 300.0), ("00:15", 500.0)]),
+        "NORD|msd_volume_up": rows([("00:00", 40.0), ("00:15", 0.0)]),
+        "NORD|msd_price_up": rows([("00:00", 200.0)]),
+        "NORD|msd_volume_down": rows([("00:00", 20.0)]),
+        "NORD|msd_price_down": rows([("00:00", 50.0)]),
+    }
+    fb.weight_activation_prices(series)
+    assert series["hourly"]["NORD|msd_price_up_max"] == [{"date": "2026-09-28", "time": "00:00", "value": 500.0}]
+    prices = ({("NORD", "2026-09-28", "00:00"): 120.0}, {})
+    fb.dispatch_costs(series, prices)
+    # Up: 40 MW x (200 - 120) EUR/MWh = 3,200 EUR/h, a quarter-hour of it in the day.
+    assert series["quarter_hourly"]["IT|cost_msd_up"] == [{"date": "2026-09-28", "time": "00:00", "value": 3200}]
+    assert series["daily"]["IT|cost_msd_up"] == [{"date": "2026-09-28", "value": 800}]
+    # Down: 20 MW x (120 - 50) = 1,400 EUR/h.
+    assert series["hourly"]["IT|cost_msd_down"] == [{"date": "2026-09-28", "time": "00:00", "value": 350}]

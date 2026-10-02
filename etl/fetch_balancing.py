@@ -41,6 +41,25 @@ daily activation prices are weighted by the energy activated):
   GME (api.mercatoelettrico.org)
     msd_price_up/_down     ME_MSDExAnteResults  zone  average price of the accepted
     msd_volume_up/_down                         offers to sell (up) / buy (down), MW
+    msd_price_up_max                                  highest accepted offer to sell,
+    msd_price_down_min                                lowest accepted offer to buy
+    mb_volume_<dir>_rs/_as ME_MBResults         zone  balancing market (MB): accepted,
+                                                      not revoked, secondary reserve
+                                                      (rs) and other services (as), MW
+    mb_volume_<dir>_revoked                           accepted then revoked, MW
+    mb_price_<dir>_rs/_as                             average prices, and over both
+    mb_price_<dir>                                    services (weighted)
+    mb_price_up_max / mb_price_down_min               extreme accepted prices
+    IT|cost_<msd|mb>_<dir>                            estimated cost of the accepted
+                                                      offers against the zone's
+                                                      day-ahead price (GME MGP), summed
+                                                      over the zones: up volume x
+                                                      (price - MGP), down volume x
+                                                      (MGP - price); EUR per hour
+                                                      (daily: EUR per day)
+
+    Hourly and daily MSD and MB prices are weighted by the volume accepted;
+    the extreme prices are the highest / lowest of the period.
 
 Bids (ENTSO-E 12.3.B&C, A37 B74): every balancing energy bid of a zone for
 each quarter-hour, merged by price and sorted in merit order (up: cheapest
@@ -136,8 +155,10 @@ DIRECTIONS = {"A01": "up", "A02": "down"}
 
 # Series whose daily value is the average (prices, capacities); the others
 # are energy (daily sum of the hours, MWh/day).
-MEAN_PREFIXES = ("imbalance_price", "price_", "picasso_price", "msd_price", "fcr_", "afrr_requirement",
+MEAN_PREFIXES = ("imbalance_price", "price_", "picasso_price", "msd_price", "mb_price", "fcr_", "afrr_requirement",
                  "rr_requirement")
+MB_SERVICES = {"RS": "rs", "AS": "as"}  # secondary reserve, other services (TT: their total)
+ZONAL_PRICES_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "data", "zonal_prices.json")
 
 # Series no longer written: Italy's central selection used to be stored as
 # *_picasso_* (now *_central_*), and the offered volumes are not shown.
@@ -722,25 +743,33 @@ def gme_number(value):
     return float(value)
 
 
+def gme_slot(row):
+    """(market date, label, minutes) of a GME row: 15-minute periods, or hours where there are none."""
+    flow_date = datetime.strptime(str(row["FlowDate"]), "%Y%m%d").date().isoformat()
+    period = str(row.get("Period") or "").strip()
+    if period and period.lower() != "null":
+        return flow_date, market_time_from_period(int(period), 15), 15
+    return flow_date, market_time_from_period(int(row["Hour"]), 60), 60
+
+
 def msd_records(rows):
-    """MSD ex-ante results per zone: 15-minute periods, or hours where there are no periods."""
+    """MSD ex-ante results per zone; a price only where offers were accepted in its direction."""
     records = []
     for row in rows:
         zone = str(row.get("Zone") or "").upper()
         if zone not in ZONES:
             continue
-        flow_date = datetime.strptime(str(row["FlowDate"]), "%Y%m%d").date().isoformat()
-        period = str(row.get("Period") or "").strip()
-        if period and period.lower() != "null":
-            label, minutes = market_time_from_period(int(period), 15), 15
-        else:
-            label, minutes = market_time_from_period(int(row["Hour"]), 60), 60
-        for field, name in (("VolumesSold", "msd_volume_up"), ("VolumesPurchased", "msd_volume_down"),
-                            ("AverageSellingPrice", "msd_price_up"),
-                            ("AveragePurchasingPrice", "msd_price_down")):
-            value = gme_number(row.get(field))
-            # No accepted offers: no price.
-            if value is None or (name.startswith("msd_price") and not value):
+        flow_date, label, minutes = gme_slot(row)
+        sold, bought = gme_number(row.get("VolumesSold")) or 0.0, gme_number(row.get("VolumesPurchased")) or 0.0
+        values = {"msd_volume_up": sold, "msd_volume_down": bought}
+        if sold:
+            values.update(msd_price_up=gme_number(row.get("AverageSellingPrice")),
+                          msd_price_up_max=gme_number(row.get("MaximumSellingPrice")))
+        if bought:
+            values.update(msd_price_down=gme_number(row.get("AveragePurchasingPrice")),
+                          msd_price_down_min=gme_number(row.get("MinimumPurchasingPrice")))
+        for name, value in values.items():
+            if value is None:
                 continue
             # Volumes are MWh per period: MW = MWh x periods per hour.
             scale = 60 / minutes if name.startswith("msd_volume") else 1
@@ -749,20 +778,72 @@ def msd_records(rows):
     return records
 
 
+def mb_records(rows):
+    """
+    Balancing market (MB) results per zone, secondary reserve and other
+    services apart: volumes accepted and not revoked, those revoked (both
+    services), average prices per service and over both (weighted), and the
+    extreme prices, where offers were accepted in that direction.
+    """
+    slots = defaultdict(lambda: defaultdict(float))
+    extremes = {}
+    for row in rows:
+        zone = str(row.get("Zone") or "").upper()
+        service = MB_SERVICES.get(str(row.get("ServiceType") or "").upper())
+        if zone not in ZONES or service is None:
+            continue
+        flow_date, label, minutes = gme_slot(row)
+        key = (zone, flow_date, label, minutes)
+        slot = slots[key]
+        for direction, kept, revoked, average, extreme, pick in (
+                ("up", "VolumesSoldNotRevoked", "VolumesSoldRevoked", "AverageSellingPrice", "MaximumSellingPrice", max),
+                ("down", "VolumesPurchasedNotRevoked", "VolumesPurchasedRevoked", "AveragePurchasingPrice",
+                 "MinimumPurchasingPrice", min)):
+            volume = gme_number(row.get(kept)) or 0.0
+            slot[f"mb_volume_{direction}_{service}"] += volume
+            slot[f"mb_volume_{direction}_revoked"] += gme_number(row.get(revoked)) or 0.0
+            price = gme_number(row.get(average))
+            if volume and price is not None:
+                slot[f"mb_price_{direction}_{service}"] = price
+                slot[f"weighted_{direction}"] += price * volume
+                slot[f"weight_{direction}"] += volume
+                bound = gme_number(row.get(extreme))
+                if bound is not None:
+                    name = f"mb_price_{direction}_{'max' if direction == 'up' else 'min'}"
+                    extremes[(key, name)] = pick(extremes.get((key, name), bound), bound)
+    records = []
+    for key, slot in slots.items():
+        zone, flow_date, label, minutes = key
+        values = {name: value for name, value in slot.items() if name.startswith(("mb_volume", "mb_price"))}
+        for direction in ("up", "down"):
+            if slot[f"weight_{direction}"]:
+                values[f"mb_price_{direction}"] = slot[f"weighted_{direction}"] / slot[f"weight_{direction}"]
+        values.update({name: value for (slot_key, name), value in extremes.items() if slot_key == key})
+        for name, value in values.items():
+            scale = 60 / minutes if name.startswith("mb_volume") else 1
+            records.append({"group": f"{zone}|{name}", "date": flow_date, "time": label, "minutes": minutes,
+                            "value": round(value * scale, 3)})
+    return records
+
+
 def fetch_gme(start_day, end_day):
+    """MSD ex-ante and balancing market (MB) results."""
     login = (os.environ["GME_API_LOGIN"], os.environ["GME_API_PASSWORD"])
     token = get_token(*login)
-    rows = []
-    for chunk_start, chunk_end in day_chunks(start_day, end_day, GME_CHUNK_DAYS):
-        print(f"  GME MSD ex-ante {chunk_start} -> {chunk_end}")
-        try:
-            rows += request_chunk(token, chunk_start, chunk_end, None, "MSD", "ME_MSDExAnteResults")
-        except PermissionError:
-            # The token expires during long downloads: log in again.
-            token = get_token(*login)
-            rows += request_chunk(token, chunk_start, chunk_end, None, "MSD", "ME_MSDExAnteResults")
-        time.sleep(REQUEST_PAUSE_SECONDS)
-    return msd_records(rows)
+    records = []
+    for segment, data_name, to_records in (("MSD", "ME_MSDExAnteResults", msd_records),
+                                           ("MB", "ME_MBResults", mb_records)):
+        for chunk_start, chunk_end in day_chunks(start_day, end_day, GME_CHUNK_DAYS):
+            print(f"  GME {data_name} {chunk_start} -> {chunk_end}")
+            try:
+                rows = request_chunk(token, chunk_start, chunk_end, None, segment, data_name)
+            except PermissionError:
+                # The token expires during long downloads: log in again.
+                token = get_token(*login)
+                rows = request_chunk(token, chunk_start, chunk_end, None, segment, data_name)
+            records += to_records(rows)
+            time.sleep(REQUEST_PAUSE_SECONDS)
+    return records
 
 
 # ============================================================================
@@ -805,12 +886,25 @@ def merge(existing, records):
     return merged
 
 
+def price_weights(group):
+    """The volume series weighting a price series, or None."""
+    if "|price_" in group:
+        return group.replace("|price_", "|activated_")
+    if group.endswith(("_max", "_min")):
+        return None
+    for prefix in ("|msd_price_", "|mb_price_"):
+        if prefix in group:
+            return group.replace(prefix, prefix.replace("price", "volume"))
+    return None
+
+
 def weight_activation_prices(series):
     """
-    Hourly and daily activation prices as averages weighted by the energy
-    activated in each quarter-hour (a quarter-hour with 0.001 MW activated
-    can publish hundreds of thousands of EUR/MWh); a plain average where
-    nothing was activated.
+    Hourly and daily activation, MSD and MB prices as averages weighted by
+    the energy activated or accepted in each quarter-hour (a quarter-hour
+    with 0.001 MW activated can publish hundreds of thousands of EUR/MWh); a
+    plain average where nothing was.  Extreme prices: the highest (_max) or
+    lowest (_min) of the period.
     """
     quarter = series["quarter_hourly"]
     buckets = {
@@ -818,10 +912,22 @@ def weight_activation_prices(series):
         "daily": lambda row: (row["date"], None),
     }
     for group, rows in quarter.items():
-        if "|price_" not in group:
+        if group.endswith(("_max", "_min")) and ("|msd_price_" in group or "|mb_price_" in group):
+            pick = max if group.endswith("_max") else min
+            for resolution, bucket_of in buckets.items():
+                best = {}
+                for row in rows:
+                    bucket = bucket_of(row)
+                    best[bucket] = pick(best.get(bucket, row["value"]), row["value"])
+                series[resolution][group] = [
+                    {"date": day, **({"time": label} if label is not None else {}), "value": value}
+                    for (day, label), value in sorted(
+                        best.items(), key=lambda item: (item[0][0], label_minutes(item[0][1]) if item[0][1] else 0))]
             continue
-        volumes = {(row["date"], row["time"]): abs(row["value"])
-                   for row in quarter.get(group.replace("|price_", "|activated_"), [])}
+        weights = price_weights(group)
+        if weights is None:
+            continue
+        volumes = {(row["date"], row["time"]): abs(row["value"]) for row in quarter.get(weights, [])}
         for resolution, bucket_of in buckets.items():
             sums = defaultdict(lambda: [0.0, 0.0, 0.0, 0])  # weighted sum, weight, sum, count
             for row in rows:
@@ -851,22 +957,95 @@ def area_prefixes(zone):
 MACROZONE_PRICES = ("NORD|imbalance_price", "SUD|imbalance_price")
 
 
+# Volumes summed over the zones into IT|sum_<name>.
+NATIONAL_SUMS = tuple(f"activated_{product}_{direction}" for product in ("picasso", "afrr", "rr")
+                      for direction in ("up", "down")) + (
+    "msd_volume_up", "msd_volume_down", "mb_volume_up_rs", "mb_volume_up_as", "mb_volume_down_rs",
+    "mb_volume_down_as", "mb_volume_up_revoked", "mb_volume_down_revoked")
+
+
+def sorted_rows(totals, digits=2):
+    return [{"date": day, **({"time": label} if label else {}), "value": round(value, digits)}
+            for (day, label), value in sorted(
+                totals.items(), key=lambda item: (item[0][0], label_minutes(item[0][1]) if item[0][1] else 0))]
+
+
 def national_sums(series):
     """
-    IT|sum_activated_<product>_<direction>: the activated volumes summed over
-    the zones, at every resolution (energy: the sum of the zones' sums).
+    IT|sum_<volume>: the zones' activated or accepted volumes summed, at
+    every resolution (energy: the sum of the zones' sums).
     """
     for resolution in RESOLUTIONS:
-        for product in ("picasso", "afrr", "rr"):
-            for direction in ("up", "down"):
-                totals = defaultdict(float)
-                for zone in ZONES:
-                    for row in series[resolution].get(f"{zone}|activated_{product}_{direction}", []):
-                        totals[(row["date"], row.get("time"))] += row["value"]
-                series[resolution][f"IT|sum_activated_{product}_{direction}"] = [
-                    {"date": day, **({"time": label} if label else {}), "value": round(value, 2)}
-                    for (day, label), value in sorted(
-                        totals.items(), key=lambda item: (item[0][0], label_minutes(item[0][1]) if item[0][1] else 0))]
+        for name in NATIONAL_SUMS:
+            totals = defaultdict(float)
+            for zone in ZONES:
+                for row in series[resolution].get(f"{zone}|{name}", []):
+                    totals[(row["date"], row.get("time"))] += row["value"]
+            series[resolution][f"IT|sum_{name}"] = sorted_rows(totals)
+    return series
+
+
+def zonal_mgp_prices():
+    """(zone, date, label) -> MGP price: quarter-hourly where GME has it, else the hour's."""
+    if not os.path.exists(ZONAL_PRICES_PATH):
+        return {}, {}
+    zones = compact.load(ZONAL_PRICES_PATH).get("zones", {})
+    quarter = {(zone, row["date"], row["time"]): row["price"] for zone, data in zones.items()
+               for row in data.get("quarter_hourly", []) if row.get("price") is not None}
+    hourly = {(zone, row["date"], row["time"]): row["price"] for zone, data in zones.items()
+              for row in data.get("hourly", []) if row.get("price") is not None}
+    return quarter, hourly
+
+
+# Accepted volume and price series of each market and direction, for the cost estimate.
+COST_LEGS = {
+    ("msd", "up"): [("msd_volume_up", "msd_price_up")],
+    ("msd", "down"): [("msd_volume_down", "msd_price_down")],
+    ("mb", "up"): [("mb_volume_up_rs", "mb_price_up_rs"), ("mb_volume_up_as", "mb_price_up_as")],
+    ("mb", "down"): [("mb_volume_down_rs", "mb_price_down_rs"), ("mb_volume_down_as", "mb_price_down_as")],
+}
+
+
+def dispatch_costs(series, prices=None):
+    """
+    IT|cost_<market>_<direction>: what the accepted MSD ex-ante and MB
+    offers cost against the zone's day-ahead price, summed over the zones,
+    quarter-hour by quarter-hour: up, volume x (price - MGP); down, volume x
+    (MGP - price).  EUR per hour (the quarter-hour's at that rate); hourly
+    the average, daily the sum over the day (EUR).
+    """
+    quarter_prices, hourly_prices = prices if prices is not None else zonal_mgp_prices()
+    if not quarter_prices and not hourly_prices:
+        print("  dispatch cost: no zonal prices, skipped")
+        return series
+    quarter = series["quarter_hourly"]
+
+    def mgp(zone, day, label):
+        price = quarter_prices.get((zone, day, label))
+        if price is None:
+            price = hourly_prices.get((zone, day, minutes_label(label_minutes(label) // 60 * 60)))
+        return price
+
+    for (market, direction), legs in COST_LEGS.items():
+        totals = defaultdict(float)
+        for zone in ZONES:
+            for volume_name, price_name in legs:
+                price_rows = {(row["date"], row["time"]): row["value"] for row in quarter.get(f"{zone}|{price_name}", [])}
+                for row in quarter.get(f"{zone}|{volume_name}", []):
+                    price = price_rows.get((row["date"], row["time"]))
+                    reference = mgp(zone, row["date"], row["time"])
+                    if not row["value"] or price is None or reference is None:
+                        continue
+                    premium = price - reference if direction == "up" else reference - price
+                    totals[(row["date"], row["time"])] += row["value"] * premium
+        group = f"IT|cost_{market}_{direction}"
+        series["quarter_hourly"][group] = sorted_rows(totals, 0)
+        hourly, daily = defaultdict(float), defaultdict(float)
+        for (day, label), value in totals.items():
+            hourly[(day, minutes_label(label_minutes(label) // 60 * 60))] += value / 4
+            daily[(day, None)] += value / 4
+        series["hourly"][group] = sorted_rows(hourly, 0)
+        series["daily"][group] = sorted_rows(daily, 0)
     return series
 
 
@@ -952,6 +1131,7 @@ def main():
         prune_bids(today)
 
     series = weight_activation_prices(series)
+    series = dispatch_costs(series)
     write_outputs(series)
     sizes = {name: os.path.getsize(os.path.join(BALANCING_DIR, f"{name}.json")) // 1024 for name in list(ZONES) + ["IT"]}
     print(f"Wrote {BALANCING_DIR}: {len(series['quarter_hourly'])} series; KB per file {sizes}; "
