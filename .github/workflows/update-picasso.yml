@@ -1,0 +1,62 @@
+name: Update PICASSO Prices (TransnetBW)
+
+on:
+  schedule:
+    # TransnetBW publishes PICASSO's 4-second prices as the day goes on;
+    # every 3 hours re-reads yesterday and today (and fills the history).
+    - cron: "25 1-22/3 * * *"
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Start date YYYY-MM-DD (default: yesterday, plus the missing history)"
+        required: false
+      end:
+        description: "End date YYYY-MM-DD (default: today)"
+        required: false
+      catch_up_days:
+        description: "Missing days of history to fetch in a routine run (default 40)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-picasso
+  cancel-in-progress: false
+
+jobs:
+  update-picasso:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Restore current data from the data branch
+        run: bash .github/scripts/data-branch.sh restore
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Fetch PICASSO prices
+        env:
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          CATCH_UP_DAYS: ${{ inputs.catch_up_days }}
+        run: |
+          ARGS=()
+          if [ -n "$START" ]; then ARGS+=(--start "$START"); fi
+          if [ -n "$END" ]; then ARGS+=(--end "$END"); fi
+          if [ -n "$CATCH_UP_DAYS" ]; then ARGS+=(--catch-up-days "$CATCH_UP_DAYS"); fi
+          echo "Running: python etl/fetch_picasso.py ${ARGS[*]}"
+          python etl/fetch_picasso.py "${ARGS[@]}"
+
+      - name: Publish updated data to the data branch
+        run: bash .github/scripts/data-branch.sh publish app/data/picasso.json
