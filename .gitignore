@@ -28,3 +28,5 @@ app/data/jao_capacity.json
 app/data/available_capacity.json
 app/data/picasso.json
 app/data/gas.json
+app/data/mase_projects.json
+app/data/connections.json

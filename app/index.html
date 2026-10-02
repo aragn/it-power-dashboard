@@ -36,6 +36,10 @@
       --picasso-up:#e66767; --picasso-down:#3987e5; --picasso-none:#4a5058;
       --gas-hub1:#3987e5; --gas-hub2:#d95926; --gas-cornegliano:#199e70; --gas-rovigo:#c98500; --gas-olt:#d55181; --gas-panigaglia:#008300; --gas-piombino:#9085e9; --gas-ravenna:#e66767;
       --gas-injection:#3987e5; --gas-withdrawal:#e66767; --gas-band:rgba(140,148,158,.28);
+      --queue-solar:#c98500; --queue-wind:#199e70; --queue-offshore:#3987e5; --queue-other-res:#d55181; --queue-storage:#9085e9; --queue-consumers:#d95926;
+      --queue-step-1:#3a5786; --queue-step-2:#4670b4; --queue-step-3:#5a90e0; --queue-step-4:#8ab4f3; --queue-step-5:#c3d9fb;
+      --queue-screening:#9ab8e8; --queue-assessment:#4682da; --queue-approved:#5ecb8a; --queue-rejected:#e66767; --queue-withdrawn:#5f656d;
+      --queue-level-0:#3a4048; --queue-level-1:#8c949e; --queue-level-2:#d9b43c; --queue-level-3:#e58a3a; --queue-level-4:#e66767;
     }
     :root[data-theme="light"] {
       color-scheme:light;
@@ -57,6 +61,10 @@
       --picasso-up:#e34948; --picasso-down:#2a78d6; --picasso-none:#c3c8ce;
       --gas-hub1:#2a78d6; --gas-hub2:#eb6834; --gas-cornegliano:#1baf7a; --gas-rovigo:#eda100; --gas-olt:#e87ba4; --gas-panigaglia:#008300; --gas-piombino:#4a3aa7; --gas-ravenna:#e34948;
       --gas-injection:#2a78d6; --gas-withdrawal:#e34948; --gas-band:rgba(91,100,112,.2);
+      --queue-solar:#eda100; --queue-wind:#1baf7a; --queue-offshore:#2a78d6; --queue-other-res:#e87ba4; --queue-storage:#4a3aa7; --queue-consumers:#eb6834;
+      --queue-step-1:#93b5ea; --queue-step-2:#6a98e2; --queue-step-3:#477cd6; --queue-step-4:#2d60bb; --queue-step-5:#1b438c;
+      --queue-screening:#8fb3ea; --queue-assessment:#2f6fdb; --queue-approved:#1f9d57; --queue-rejected:#e34948; --queue-withdrawn:#a3aab3;
+      --queue-level-0:#d5dae0; --queue-level-1:#9aa1a9; --queue-level-2:#d4a514; --queue-level-3:#e07a1f; --queue-level-4:#e34948;
     }
     #theme-toggle { position:fixed; left:16px; bottom:16px; z-index:150; display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 14px 8px 11px; font-size:12px; cursor:pointer; box-shadow:0 6px 18px var(--shadow); }
     #theme-toggle:hover { background:var(--hover); }
@@ -146,6 +154,76 @@
     .gas-table th.num { text-align:right; }
     .gas-notes { margin:10px 0 0; padding-left:18px; color:var(--muted); font-size:12px; line-height:1.6; }
     .gas-notes a { color:var(--blue); }
+    #queue-mount { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
+    #queue-mount .queue-wide { grid-column:1 / -1; }
+    @media (max-width: 1050px) { #queue-mount { grid-template-columns:1fr; } }
+    .queue-heading { grid-column:1 / -1; margin:14px 2px -4px; }
+    .queue-heading h2 { margin:0 0 3px; font-size:16px; font-weight:600; }
+    .queue-heading p { margin:0; color:var(--muted); font-size:12px; line-height:1.55; max-width:1100px; }
+    .queue-heading a, .queue-note a { color:var(--blue); }
+    .queue-layout { display:grid; grid-template-columns:230px minmax(0,1fr); gap:18px; margin-top:6px; }
+    @media (max-width: 900px) { .queue-layout { grid-template-columns:1fr; } }
+    .queue-filters { align-self:start; position:sticky; top:112px; max-height:calc(100vh - 130px); overflow:auto; border:1px solid var(--border); border-radius:8px; background:var(--panel-2); }
+    @media (max-width: 900px) { .queue-filters { position:static; max-height:none; } }
+    .queue-group { border-bottom:1px solid var(--border); padding-bottom:6px; }
+    .queue-group:last-child { border-bottom:0; }
+    .queue-group-head { display:flex; align-items:center; justify-content:space-between; width:100%; border:0; background:transparent; color:var(--text); font-size:12.5px; font-weight:600; padding:10px 14px 6px; cursor:pointer; text-align:left; }
+    .queue-group-head span { color:var(--muted); font-weight:400; }
+    .queue-group.closed .queue-options { display:none; }
+    .queue-group.closed { padding-bottom:0; }
+    .queue-option { display:flex; align-items:center; gap:8px; padding:4px 14px; color:var(--text); font-size:12px; cursor:pointer; }
+    .queue-option:hover { background:var(--hover); }
+    .queue-option input { margin:0; accent-color:var(--blue); }
+    .queue-option .count { margin-left:auto; color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; }
+    .queue-option.empty { color:var(--muted-2); }
+    .queue-clear { margin:8px 14px 10px; border:1px solid var(--border); background:var(--panel); color:var(--muted); border-radius:6px; padding:6px 10px; font-size:11.5px; cursor:pointer; }
+    .queue-clear:hover { color:var(--text); background:var(--hover); }
+    .queue-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:8px; }
+    .queue-count { margin-right:auto; color:var(--text); font-size:13px; }
+    .queue-count small { color:var(--muted); font-size:12px; }
+    .queue-input, .queue-select, .queue-button { border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:7px; padding:7px 10px; font-size:12px; font-family:inherit; }
+    .queue-input { width:min(300px,100%); }
+    .queue-button { cursor:pointer; }
+    .queue-button:hover, .queue-select:hover { background:var(--hover); }
+    .queue-strip { display:flex; gap:2px; height:10px; margin:6px 0 6px; }
+    .queue-strip span { height:100%; min-width:2px; }
+    .queue-strip span:first-child { border-radius:4px 0 0 4px; }
+    .queue-strip span:last-child { border-radius:0 4px 4px 0; }
+    .queue-strip span:only-child { border-radius:4px; }
+    .queue-strip-legend { display:flex; flex-wrap:wrap; gap:4px 16px; margin-bottom:12px; color:var(--muted); font-size:11.5px; }
+    .queue-strip-legend b { color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
+    .queue-table-wrap { overflow:auto; border:1px solid var(--border); border-radius:8px; }
+    .queue-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .queue-table th { position:sticky; top:0; z-index:1; background:var(--panel-2); color:var(--muted); font-weight:600; text-align:left; padding:9px 10px; border-bottom:1px solid var(--border); white-space:nowrap; cursor:pointer; user-select:none; }
+    .queue-table th:hover, .queue-table th.sorted { color:var(--text); }
+    .queue-table th.num, .queue-table td.num { text-align:right; font-variant-numeric:tabular-nums; }
+    .queue-table td { padding:8px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
+    .queue-table tbody tr:last-child td { border-bottom:0; }
+    .queue-table tr.row-open td, .queue-table tr.clickable:hover td { background:var(--hover); }
+    .queue-table tr.clickable { cursor:pointer; }
+    .queue-table td.clip { max-width:250px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .queue-table td.clip.project { max-width:260px; }
+    .queue-table td.clip.procedure { max-width:185px; }
+    .queue-table td.nowrap { white-space:nowrap; }
+    .queue-table td.muted, .queue-table span.muted { color:var(--muted); }
+    .queue-table td.empty { padding:22px; color:var(--muted); text-align:center; }
+    .queue-badge { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+    .queue-badge i { display:inline-block; width:8px; height:8px; border-radius:2px; flex-shrink:0; }
+    .queue-detail > td { padding:14px 16px 16px; background:var(--panel-2); cursor:default; }
+    .queue-detail p { margin:0 0 12px; line-height:1.55; }
+    .queue-facts { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:10px 18px; margin-bottom:12px; }
+    .queue-facts span { display:block; margin-bottom:2px; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.06em; }
+    .queue-detail table { width:100%; border-collapse:collapse; font-size:11.5px; }
+    .queue-detail table th { position:static; padding:6px 8px; background:transparent; cursor:default; }
+    .queue-detail table td { padding:6px 8px; }
+    .queue-pager { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; margin-top:10px; color:var(--muted); font-size:12px; }
+    .queue-pager span:first-child { margin-right:auto; }
+    .queue-pager button { border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:6px; padding:5px 10px; font-size:12px; cursor:pointer; }
+    .queue-pager button:disabled { opacity:.35; cursor:default; }
+    .queue-chart { position:relative; width:100%; }
+    .queue-note { margin:8px 0 0; color:var(--muted-2); font-size:11px; line-height:1.55; }
+    .queue-controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0 10px; }
+    .queue-empty { padding:24px; color:var(--muted); font-size:12.5px; }
     .gas-empty { padding:18px; color:var(--muted); font-size:12px; }
     #chart-mount-balancing { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { #chart-mount-balancing { grid-template-columns:1fr; } }
@@ -320,8 +398,9 @@
           <section id="income-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Congestion Income</div><div id="income-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="income-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida3-chart" class="timeline-chart"></div><div id="income-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 3 (afternoon and evening), signed like the spreads.</div></section>
         </div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net scheduled commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Scheduled commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Scheduled commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
         <div id="gas-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Gas storage and LNG</p></div><nav id="gas-subnav" class="subnav"><button class="subnav-tab active" data-gas-tab="overview" type="button">Overview</button><button class="subnav-tab" data-gas-tab="storage" type="button">Storage</button><button class="subnav-tab" data-gas-tab="lng" type="button">LNG</button><button class="subnav-tab" data-gas-tab="outages" type="button">Outages</button><button class="subnav-tab" data-gas-tab="tariffs" type="button">Tariffs</button></nav><div id="gas-mount"></div></div>
+        <div id="queue-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Project pipeline and grid-connection queue</p></div><nav id="queue-subnav" class="subnav"><button class="subnav-tab active" data-queue-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-queue-tab="connections" type="button">Grid connections (Terna, e-distribuzione)</button></nav><div id="queue-mount"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
-        <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO), GIE (AGSI+, ALSI, IIP).</footer>
+        <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO), GIE (AGSI+, ALSI, IIP), MASE, e-distribuzione.</footer>
       </main>
     </div>
   </div>
@@ -10158,6 +10237,1000 @@
   });
 
   /* ============================================================
+     QUEUE: PROJECT PIPELINE (MASE) AND GRID CONNECTIONS
+     (TERNA ECONNEXTION, E-DISTRIBUZIONE AREE CRITICHE)
+     ============================================================ */
+
+  const queueMount = document.getElementById("queue-mount");
+  let queueTab = "projects";
+  const queueData = {};
+  const queueStatus = {}; // file -> "loading" | "ready" | "missing"
+  let queueCharts = [];
+
+  async function loadQueueFile(file) {
+    if (queueStatus[file]) return;
+    queueStatus[file] = "loading";
+    try {
+      const response = await fetch(`./data/${file}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      queueData[file] = await response.json();
+      queueStatus[file] = "ready";
+    } catch (error) {
+      console.warn(`${file} unavailable:`, error);
+      queueStatus[file] = "missing";
+    }
+    if (currentSection === "queue") renderQueue();
+  }
+
+  /* Rows stored as arrays + a column list -> objects. */
+  const queueRecords = (columns, rows) =>
+    (rows || []).map(row => Object.fromEntries(columns.map((key, index) => [key, row[index]])));
+  const isEmpty = value => value === null || value === undefined || value === "";
+  const formatQueueMw = mw => isEmpty(mw) ? "—" : formatNumber(mw, Math.abs(mw) < 100 && mw % 1 ? 1 : 0);
+  const formatGwValue = (mw, digits = 1) => `${formatNumber(mw / 1000, digits)} GW`;
+  const formatQueueDate = day => day ? parseDate(day).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—";
+  const queueBadge = (color, label, title = "") =>
+    `<span class="queue-badge"${title ? ` title="${escapeHtml(title)}"` : ""}><i style="background:var(${color})"></i>${escapeHtml(label)}</span>`;
+
+  function queueTooltip(formatter, trigger = "axis") {
+    return {
+      trigger, confine: true,
+      axisPointer: { type: "shadow", shadowStyle: { color: cssVar("--chart-zoom-filler") } },
+      backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"), borderWidth: 1,
+      textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 }, formatter
+    };
+  }
+
+  function queueLegend(names) {
+    return { top: 0, left: 0, right: 0, itemWidth: 12, itemHeight: 8, itemGap: 14, icon: "rect",
+      textStyle: { color: cssVar("--chart-legend"), fontSize: 11 }, data: names };
+  }
+
+  const queueAxisLabel = () => ({ ...timelineAxisTextStyle(), fontSize: 11, color: cssVar("--chart-legend") });
+
+  /* A panel with a title, a subtitle and an empty body. */
+  function queuePanel(title, subtitle = "", wide = true) {
+    const section = document.createElement("section");
+    section.className = `panel chart-panel${wide ? " queue-wide" : ""}`;
+    section.innerHTML = `<div class="chart-header"><div><div class="chart-title">${title}</div>` +
+      `<div class="chart-subtitle">${subtitle}</div></div></div><div class="queue-body"></div>`;
+    queueMount.appendChild(section);
+    return section.querySelector(".queue-body");
+  }
+
+  function queueHeading(title, text) {
+    const heading = document.createElement("div");
+    heading.className = "queue-heading";
+    heading.innerHTML = `<h2>${title}</h2><p>${text}</p>`;
+    queueMount.appendChild(heading);
+  }
+
+  /* An ECharts chart of `height` px in `body`, with a note under it. */
+  function queueChart(body, height, note) {
+    const holder = document.createElement("div");
+    holder.className = "queue-chart";
+    holder.style.height = `${height}px`;
+    body.appendChild(holder);
+    if (note) body.insertAdjacentHTML("beforeend", `<div class="queue-note">${note}</div>`);
+    const chart = echarts.init(holder);
+    queueCharts.push(chart);
+    return chart;
+  }
+
+  /* Stacked bar segments: a hairline of the panel colour between them. */
+  const stackedBar = (name, color, data, extra = {}) => ({
+    name, type: "bar", stack: "total", data, barMaxWidth: 26,
+    itemStyle: { color: cssVar(color), borderColor: cssVar("--panel"), borderWidth: 1 },
+    emphasis: { focus: "series" }, ...extra
+  });
+
+  /*
+   * A sortable, paged table in `host`.  spec: columns [{ key, label, num,
+   * value(row), cell(row) -> html, className }], rows, state { sort,
+   * direction, page, open }, pageSize, maxHeight, empty, and optionally
+   * rowKey(row) + detail(row) -> html: a click on a row opens it.
+   */
+  function queueTable(host, spec) {
+    const state = spec.state;
+    const draw = () => {
+      const column = spec.columns.find(item => item.key === state.sort) || spec.columns[0];
+      const sign = state.direction === "asc" ? 1 : -1;
+      const rows = spec.rows.slice().sort((a, b) => {
+        const x = column.value(a), y = column.value(b);
+        if (isEmpty(x) || isEmpty(y)) return isEmpty(x) === isEmpty(y) ? 0 : isEmpty(x) ? 1 : -1;
+        return sign * (typeof x === "number" && typeof y === "number" ? x - y
+          : String(x).localeCompare(String(y), "it", { sensitivity: "base" }));
+      });
+      const size = spec.pageSize || Math.max(rows.length, 1);
+      const pages = Math.max(1, Math.ceil(rows.length / size));
+      state.page = Math.max(0, Math.min(state.page || 0, pages - 1));
+      const first = state.page * size;
+      const shown = rows.slice(first, first + size);
+      const head = spec.columns.map(item => `<th data-key="${item.key}" class="${item.num ? "num" : ""}` +
+        `${item.key === column.key ? " sorted" : ""}" title="${escapeHtml(item.title || "Sort")}">${item.label}` +
+        `${item.key === column.key ? (state.direction === "asc" ? " ↑" : " ↓") : ""}</th>`).join("");
+      const body = shown.length ? shown.map(row => {
+        const key = spec.rowKey ? String(spec.rowKey(row)) : null;
+        const open = Boolean(spec.detail) && key === state.open;
+        const cells = spec.columns.map(item => {
+          const value = item.value(row);
+          return `<td class="${[item.num ? "num" : "", item.className || ""].join(" ").trim()}">` +
+            `${item.cell ? item.cell(row) : isEmpty(value) ? "—" : escapeHtml(value)}</td>`;
+        }).join("");
+        return `<tr class="${spec.detail ? "clickable" : ""}${open ? " row-open" : ""}"` +
+          `${key !== null ? ` data-row="${escapeHtml(key)}"` : ""}>${cells}</tr>` +
+          (open ? `<tr class="queue-detail"><td colspan="${spec.columns.length}">${spec.detail(row)}</td></tr>` : "");
+      }).join("") : `<tr><td class="empty" colspan="${spec.columns.length}">${spec.empty || "Nothing matches the filters."}</td></tr>`;
+      const pager = rows.length > size
+        ? `<div class="queue-pager"><span>${formatNumber(first + 1)}–${formatNumber(first + shown.length)} of ${formatNumber(rows.length)}</span>` +
+          `<button type="button" data-page="-1"${state.page ? "" : " disabled"}>‹ Previous</button>` +
+          `<span>Page ${state.page + 1} of ${pages}</span>` +
+          `<button type="button" data-page="1"${state.page < pages - 1 ? "" : " disabled"}>Next ›</button></div>`
+        : "";
+      host.innerHTML = `<div class="queue-table-wrap"${spec.maxHeight ? ` style="max-height:${spec.maxHeight}px"` : ""}>` +
+        `<table class="queue-table"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>${pager}`;
+      if (spec.onDraw) spec.onDraw();
+    };
+    host.onclick = event => {
+      if (event.target.closest("a")) return;
+      const header = event.target.closest("th[data-key]");
+      if (header && !header.closest(".queue-detail")) {
+        const column = spec.columns.find(item => item.key === header.dataset.key);
+        if (state.sort === column.key) state.direction = state.direction === "asc" ? "desc" : "asc";
+        else Object.assign(state, { sort: column.key, direction: column.num ? "desc" : "asc" });
+        state.page = 0;
+        draw();
+        return;
+      }
+      const pageButton = event.target.closest("button[data-page]");
+      if (pageButton) {
+        state.page += Number(pageButton.dataset.page);
+        draw();
+        host.scrollIntoView({ block: "nearest" });
+        return;
+      }
+      if (event.target.closest(".queue-detail")) return;
+      const row = event.target.closest("tr[data-row]");
+      if (row && spec.detail) {
+        state.open = state.open === row.dataset.row ? null : row.dataset.row;
+        draw();
+      }
+    };
+    draw();
+  }
+
+  /* A <select> of `options` ([value, label]) that calls `onChange(value)`. */
+  function queueSelect(options, value, onChange, label) {
+    const select = document.createElement("select");
+    select.className = "queue-select";
+    select.setAttribute("aria-label", label);
+    select.innerHTML = options.map(([key, text]) =>
+      `<option value="${escapeHtml(key)}"${key === value ? " selected" : ""}>${escapeHtml(text)}</option>`).join("");
+    select.addEventListener("change", () => onChange(select.value));
+    return select;
+  }
+
+  function queueSearch(placeholder, value, onChange) {
+    const input = document.createElement("input");
+    input.type = "search";
+    input.className = "queue-input";
+    input.placeholder = placeholder;
+    input.value = value;
+    let timer = null;
+    input.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => onChange(input.value.trim()), 150);
+    });
+    return input;
+  }
+
+  const matchesSearch = (text, search) =>
+    !search || search.toLowerCase().split(/\s+/).filter(Boolean).every(term => text.includes(term));
+
+  /* ---------- Projects (MASE) ---------- */
+
+  const QUEUE_TECHNOLOGIES = {
+    solar: "Solar PV", agrivoltaic: "Agrivoltaic", wind_onshore: "Onshore wind", wind_offshore: "Offshore wind",
+    hydro: "Hydro", pumped_hydro: "Pumped hydro", geothermal: "Geothermal", thermal: "Thermal",
+    storage: "Battery storage", data_centre: "Data centre", grid: "Power line", other: "Other"
+  };
+  // Summed into GW: for thermal plants, power lines and the rest the MW in
+  // a description is mostly an existing plant's, or there is none.
+  const SUMMED_TECHNOLOGIES = new Set(["solar", "agrivoltaic", "wind_onshore", "wind_offshore", "hydro", "pumped_hydro", "geothermal", "storage"]);
+  const summedMw = project => !project.change && !isEmpty(project.mw) && SUMMED_TECHNOLOGIES.has(project.technology);
+  const QUEUE_STAGES = {
+    assessment: { label: "Under assessment", color: "--queue-assessment" },
+    screening: { label: "Preliminary", color: "--queue-screening" },
+    approved: { label: "Approved", color: "--queue-approved" },
+    rejected: { label: "Rejected", color: "--queue-rejected" },
+    withdrawn: { label: "Withdrawn", color: "--queue-withdrawn" }
+  };
+  const MASE_STATUS = {
+    "Verifica amministrativa": "Administrative check",
+    "Consultazione pubblica": "Public consultation",
+    "Istruttoria tecnica CTPNRR-PNIEC": "Technical review (PNRR-PNIEC committee)",
+    "Istruttoria tecnica CTVIA": "Technical review (VIA committee)",
+    "Istruttoria tecnica Osservatorio": "Technical review (observatory)",
+    "In attesa parere altra Amministrazione": "Awaiting other administrations",
+    "In attesa integrazione atti": "Awaiting additional documents",
+    "In attesa concerto": "Awaiting the Ministry of Culture's agreement",
+    "In predisposizione provvedimento": "Decree being drafted",
+    "Provvedimento alla firma del Ministero per la Cultura": "Decree with the Ministry of Culture for signature",
+    "Procedimento in corso presso la Presidenza del Consiglio dei Ministri": "Referred to the Council of Ministers",
+    "Parere CTVIA emesso, in attesa parere Beni Culturali Regione": "Committee opinion issued, awaiting the region's heritage opinion",
+    "Analisi Pareri": "Reviewing opinions",
+    "Valutazione in corso": "Assessment under way",
+    "Sospesa": "Suspended",
+    "Interrotta": "Interrupted",
+    "Archiviata": "Archived",
+    "Conclusa": "Concluded",
+    "Approvato con/senza prescrizioni": "Approved",
+    "Non necessita di ulteriori valutazioni ambientali": "No further assessment needed",
+    "Necessita di ulteriori valutazioni ambientali": "Further assessment needed",
+    "-": "—"
+  };
+  const MASE_PROCEDURES = [
+    [/^Valutazione Impatto Ambientale \(PNIEC-PNRR\)/, "VIA (PNIEC-PNRR)"],
+    [/^Valutazione Impatto Ambientale \(Legge Obiettivo/, "VIA (strategic works)"],
+    [/^Valutazione Impatto Ambientale/, "VIA"],
+    [/^Verifica di Assoggettabilit. a VIA \(PNIEC-PNRR\)/, "VIA screening (PNIEC-PNRR)"],
+    [/^Verifica di Assoggettabilit. a VIA/, "VIA screening"],
+    [/^Provvedimento Unico in materia Ambientale \(PNIEC-PNRR\)/, "Single environmental permit (PNIEC-PNRR)"],
+    [/^Provvedimento Unico in materia Ambientale/, "Single environmental permit"],
+    [/^Verifica di Ottemperanza/, "Compliance check"],
+    [/^Verifica di Attuazione/, "Implementation check"],
+    [/^Valutazione preliminare/, "Preliminary assessment"],
+    [/^Definizione contenuti SIA/, "Scoping"],
+    [/^Definizione livello elaborati/, "Design-level definition"],
+    [/^Proroga/, "VIA extension"],
+    [/^Varianti/, "Variant"],
+    [/^VIA-VAS integrata/, "Joint VIA and VAS"],
+    [/^Procedimento Unico .*centri dati/, "Data-centre single permit"],
+    [/^Osservatorio/, "Environmental observatory"],
+    [/^Piano di Utilizzo/, "Excavated soil plan"]
+  ];
+  const MASE_OUTCOMES = [
+    [/^positivo con prescrizioni/i, "Positive, with conditions"], [/^positivo/i, "Positive"], [/^negativo/i, "Negative"],
+    [/^parzialmente ottemperata/i, "Partly complied"], [/^non ottemperata/i, "Not complied"], [/ottemperata/i, "Complied"],
+    [/^escluso.*prescrizion/i, "Excluded from VIA, with conditions"], [/^escluso/i, "Excluded from VIA"],
+    [/assoggettare/i, "Full VIA required"], [/^archiviat/i, "Archived"], [/^parere espresso/i, "Opinion issued"]
+  ];
+  const translateStatus = text => MASE_STATUS[text] || text || "—";
+  const translateProcedure = text => (MASE_PROCEDURES.find(([pattern]) => pattern.test(text || "")) || [null, text || "—"])[1];
+  const translateOutcome = text => isEmpty(text) ? "" : (MASE_OUTCOMES.find(([pattern]) => pattern.test(text)) || [null, text])[1];
+  const maseUrl = id => `https://va.mite.gov.it/it-IT/Oggetti/Info/${id}`;
+
+  let maseCache = null;
+
+  function maseProjects() {
+    const data = queueData["mase_projects.json"];
+    if (maseCache && maseCache.data === data) return maseCache.projects;
+    const projects = queueRecords(data.columns, data.projects).map(project => {
+      project.procedures = queueRecords(data.procedure_columns, project.procedures);
+      project.regions = project.regions || [];
+      project.terna_codes = project.terna_codes || [];
+      const index = isEmpty(project.current) ? project.procedures.length - 1 : project.current;
+      project.procedure = project.procedures[index] || null;
+      project.year = project.start ? project.start.slice(0, 4) : "Unknown";
+      project.search = [project.id, project.label, project.name, project.description, project.proponent, ...project.regions,
+        ...(project.provinces || []), ...(project.municipalities || []), ...project.terna_codes].join(" ").toLowerCase();
+      return project;
+    });
+    maseCache = { data, projects };
+    return projects;
+  }
+
+  const PROJECT_FACETS = [
+    { key: "stage", title: "Stage", values: project => [project.stage], label: value => (QUEUE_STAGES[value] || {}).label || value,
+      order: Object.keys(QUEUE_STAGES) },
+    { key: "technology", title: "Technology", values: project => [project.technology], label: value => QUEUE_TECHNOLOGIES[value] || value,
+      order: Object.keys(QUEUE_TECHNOLOGIES) },
+    { key: "region", title: "Region", values: project => project.regions.length ? project.regions : ["Not stated"], label: value => value },
+    { key: "year", title: "Year filed", values: project => [project.year], label: value => value, descending: true },
+    { key: "kind", title: "Project", values: project => [project.change ? "change" : "new"],
+      label: value => value === "change" ? "Change to a project" : "New project", order: ["new", "change"] },
+    { key: "extra", title: "Details", every: true,
+      values: project => [project.storage_mw || project.technology === "storage" ? "storage" : null,
+        project.terna_codes.length ? "terna" : null, isEmpty(project.mw) ? "nomw" : null].filter(Boolean),
+      label: value => ({ storage: "With storage", terna: "Quotes a Terna request", nomw: "MW not stated" })[value],
+      order: ["storage", "terna", "nomw"] }
+  ];
+  const PROJECT_SORTS = [
+    ["start|desc", "Newest filed"], ["start|asc", "Oldest filed"], ["mw|desc", "Largest MW"],
+    ["decision|desc", "Latest decision"], ["name|asc", "Name A–Z"]
+  ];
+  const projectState = {
+    filters: Object.fromEntries(PROJECT_FACETS.map(facet => [facet.key, new Set()])),
+    closed: new Set(["year", "kind", "extra"]),
+    search: "", sort: "start", direction: "desc", page: 0, open: null
+  };
+
+  function projectMatches(project, skip) {
+    for (const facet of PROJECT_FACETS) {
+      const chosen = projectState.filters[facet.key];
+      if (facet.key === skip || !chosen.size) continue;
+      const values = facet.values(project);
+      if (facet.every ? ![...chosen].every(value => values.includes(value)) : !values.some(value => chosen.has(value))) return false;
+    }
+    return matchesSearch(project.search, projectState.search);
+  }
+
+  const PROJECT_COLUMNS = [
+    { key: "name", label: "Project", value: row => row.label || row.name, className: "clip project",
+      cell: row => `<span title="${escapeHtml(row.description)}">${escapeHtml(row.label || row.name)}` +
+        `${(row.municipalities || []).length ? ` <span class="muted">· ${escapeHtml(row.municipalities[0])}` +
+          `${row.regions.length ? ` (${escapeHtml(row.regions.join(", "))})` : ""}</span>` : ""}</span>` +
+        `<br><span class="muted" title="Proponent">${escapeHtml(row.proponent || "—")}</span>` },
+    { key: "technology", label: "Technology", value: row => QUEUE_TECHNOLOGIES[row.technology] || row.technology, className: "nowrap" },
+    { key: "mw", label: "MW", num: true, value: row => row.mw, cell: row => formatQueueMw(row.mw),
+      title: "Capacity stated in the project description" },
+    { key: "stage", label: "Stage", value: row => Object.keys(QUEUE_STAGES).indexOf(row.stage),
+      cell: row => queueBadge((QUEUE_STAGES[row.stage] || {}).color || "--muted", (QUEUE_STAGES[row.stage] || {}).label || row.stage) },
+    { key: "status", label: "Procedure and status", value: row => row.procedure ? translateStatus(row.procedure.status) : null,
+      className: "clip procedure", title: "The latest assessment (or the latest procedure) and its status; sorts by status",
+      cell: row => {
+        if (!row.procedure) return "—";
+        const outcome = translateOutcome(row.procedure.outcome);
+        const status = translateStatus(row.procedure.status);
+        const text = `${translateProcedure(row.procedure.type)} · ${status}${outcome && outcome !== status ? `: ${outcome}` : ""}`;
+        return `<span title="${escapeHtml(`${row.procedure.type} · ${row.procedure.status}${row.procedure.outcome ? ` · ${row.procedure.outcome}` : ""}`)}">${escapeHtml(text)}</span>`;
+      } },
+    { key: "start", label: "Filed", value: row => row.start, cell: row => formatQueueDate(row.start), className: "nowrap",
+      title: "Start of the project's first procedure" },
+    { key: "decision", label: "Decision", value: row => row.decision, cell: row => formatQueueDate(row.decision), className: "nowrap",
+      title: "Date of the latest decree" }
+  ];
+
+  function projectDetail(row) {
+    const list = values => values && values.length ? escapeHtml(values.join(", ")) : "—";
+    const capacity = isEmpty(row.mw) ? "Not stated" : `${formatQueueMw(row.mw)} MW`;
+    const procedures = row.procedures.slice().reverse().map(procedure =>
+      `<tr><td>${escapeHtml(translateProcedure(procedure.type))}</td><td class="muted">${escapeHtml(procedure.code || "")}</td>` +
+      `<td class="nowrap">${formatQueueDate(procedure.start)}</td><td title="${escapeHtml(procedure.status)}">${escapeHtml(translateStatus(procedure.status))}</td>` +
+      `<td class="nowrap">${formatQueueDate(procedure.decree_date)}</td><td title="${escapeHtml(procedure.outcome || "")}">${escapeHtml(translateOutcome(procedure.outcome)) || "—"}</td></tr>`).join("");
+    const work = row.name && row.name !== row.description && !row.description.startsWith(row.name) ? `<b>${escapeHtml(row.name)}</b><br>` : "";
+    return `<p>${work}${escapeHtml(row.description)}</p><div class="queue-facts">` +
+      `<div><span>Proponent</span>${escapeHtml(row.proponent || "—")}</div>` +
+      `<div><span>Capacity</span>${capacity}${row.storage_mw ? ` + ${formatQueueMw(row.storage_mw)} MW storage` : ""}</div>` +
+      `<div><span>Provinces</span>${list(row.provinces)}</div>` +
+      `<div><span>Municipalities</span>${list(row.municipalities)}</div>` +
+      `<div><span>Terna connection request</span>${row.terna_codes.length ? escapeHtml(row.terna_codes.join(", ")) : "Not quoted"}</div>` +
+      `<div><span>MASE project</span><a href="${maseUrl(row.id)}" target="_blank" rel="noopener">No. ${row.id} on va.mite.gov.it ↗</a></div></div>` +
+      `<table><thead><tr><th>Procedure</th><th>Code</th><th>Filed</th><th>Status</th><th>Decree</th><th>Outcome</th></tr></thead>` +
+      `<tbody>${procedures || `<tr><td colspan="6" class="muted">No procedures listed</td></tr>`}</tbody></table>`;
+  }
+
+  function downloadProjectsCsv(rows) {
+    const columns = [["MASE id", row => row.id], ["Project", row => row.label || row.name], ["Work", row => row.name],
+      ["Description", row => row.description],
+      ["Proponent", row => row.proponent], ["Technology", row => QUEUE_TECHNOLOGIES[row.technology] || row.technology],
+      ["MW", row => row.mw], ["Storage MW", row => row.storage_mw], ["Change to a project", row => row.change ? "yes" : "no"],
+      ["Regions", row => row.regions.join("; ")], ["Provinces", row => (row.provinces || []).join("; ")],
+      ["Municipalities", row => (row.municipalities || []).join("; ")], ["Stage", row => (QUEUE_STAGES[row.stage] || {}).label],
+      ["Procedure", row => row.procedure && translateProcedure(row.procedure.type)],
+      ["Status", row => row.procedure && row.procedure.status], ["Outcome", row => row.procedure && row.procedure.outcome],
+      ["Filed", row => row.start], ["Decision", row => row.decision], ["Terna request codes", row => row.terna_codes.join("; ")],
+      ["URL", row => maseUrl(row.id)]];
+    const quote = value => isEmpty(value) ? "" : /[",\n;]/.test(String(value)) ? `"${String(value).replace(/"/g, '""')}"` : String(value);
+    const csv = [columns.map(([name]) => name).join(","), ...rows.map(row => columns.map(([, get]) => quote(get(row))).join(","))].join("\n");
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+    link.download = `mase-projects-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+
+  function renderProjects() {
+    const data = queueData["mase_projects.json"];
+    const body = queuePanel("Projects in MASE's environmental assessment",
+      data ? `${formatNumber(data.projects.length)} power projects · read ${formatCheckDate(data.updated)}` : "");
+    if (!data) {
+      body.innerHTML = `<div class="queue-empty">${queueStatus["mase_projects.json"] === "missing"
+        ? "The MASE project list is not available yet." : "Loading the MASE project list…"}</div>`;
+      return;
+    }
+    const projects = maseProjects();
+    body.innerHTML = `<div class="queue-note" style="margin:0 0 4px">Power projects in the Ministry of the Environment's state-level ` +
+      `environmental impact assessment (VIA): larger wind and solar farms, offshore wind, hydro, thermal plants, power lines ` +
+      `(smaller projects go to the regions). Capacity is read from each project's description; Terna request codes where the ` +
+      `description quotes them. Click a row for its procedures. Source: <a href="https://va.mite.gov.it/it-IT/Ricerca/Via" target="_blank" rel="noopener">va.mite.gov.it</a>.</div>` +
+      `<div class="queue-layout"><aside class="queue-filters" aria-label="Filters"></aside><div class="queue-main">` +
+      `<div class="queue-toolbar"><div class="queue-count"></div></div><div class="queue-strip" aria-hidden="true"></div>` +
+      `<div class="queue-strip-legend"></div><div class="queue-table-host"></div></div></div>`;
+    const filters = body.querySelector(".queue-filters");
+    const toolbar = body.querySelector(".queue-toolbar");
+    const sortSelect = queueSelect(PROJECT_SORTS, `${projectState.sort}|${projectState.direction}`, value => {
+      [projectState.sort, projectState.direction] = value.split("|");
+      projectState.page = 0;
+      update();
+    }, "Sort projects");
+    toolbar.appendChild(sortSelect);
+    toolbar.appendChild(queueSearch("Search project, proponent, municipality, Terna code", projectState.search, value => {
+      projectState.search = value;
+      projectState.page = 0;
+      update();
+    }));
+    const download = document.createElement("button");
+    download.type = "button";
+    download.className = "queue-button";
+    download.textContent = "Download CSV";
+    download.title = "The projects matching the filters, as a CSV file";
+    toolbar.appendChild(download);
+    let shown = [];
+    download.addEventListener("click", () => downloadProjectsCsv(shown));
+
+    filters.addEventListener("change", event => {
+      const box = event.target.closest("input[data-facet]");
+      if (!box) return;
+      const chosen = projectState.filters[box.dataset.facet];
+      if (box.checked) chosen.add(box.value); else chosen.delete(box.value);
+      projectState.page = 0;
+      update();
+    });
+    filters.addEventListener("click", event => {
+      const head = event.target.closest(".queue-group-head");
+      if (head) {
+        const key = head.dataset.group;
+        if (projectState.closed.has(key)) projectState.closed.delete(key); else projectState.closed.add(key);
+        head.parentElement.classList.toggle("closed");
+        head.setAttribute("aria-expanded", String(!projectState.closed.has(key)));
+        return;
+      }
+      if (event.target.closest(".queue-clear")) {
+        Object.values(projectState.filters).forEach(chosen => chosen.clear());
+        projectState.page = 0;
+        update();
+      }
+    });
+    body.querySelector(".queue-strip-legend").addEventListener("click", event => {
+      const item = event.target.closest("[data-stage]");
+      if (!item) return;
+      const chosen = projectState.filters.stage;
+      if (chosen.has(item.dataset.stage)) chosen.delete(item.dataset.stage); else chosen.add(item.dataset.stage);
+      projectState.page = 0;
+      update();
+    });
+
+    function drawFilters() {
+      const any = Object.values(projectState.filters).some(chosen => chosen.size);
+      filters.innerHTML = PROJECT_FACETS.map(facet => {
+        const counts = new Map();
+        projects.forEach(project => {
+          if (!projectMatches(project, facet.key)) return;
+          new Set(facet.values(project)).forEach(value => counts.set(value, (counts.get(value) || 0) + 1));
+        });
+        const chosen = projectState.filters[facet.key];
+        let values = facet.order ? facet.order.slice() : [...new Set([...projects.flatMap(facet.values)])].sort();
+        if (facet.descending) values.reverse();
+        values = values.filter(value => counts.get(value) || chosen.has(value) || !facet.order);
+        if (!facet.order) values = values.filter(value => counts.get(value) || chosen.has(value));
+        const closed = projectState.closed.has(facet.key);
+        return `<div class="queue-group${closed ? " closed" : ""}"><button type="button" class="queue-group-head" data-group="${facet.key}" aria-expanded="${!closed}">` +
+          `${facet.title} <span>${chosen.size ? `${chosen.size} selected` : values.length}</span></button><div class="queue-options">` +
+          values.map(value => `<label class="queue-option${counts.get(value) ? "" : " empty"}"><input type="checkbox" data-facet="${facet.key}" ` +
+            `value="${escapeHtml(value)}"${chosen.has(value) ? " checked" : ""}>${escapeHtml(facet.label(value))}` +
+            `<span class="count">${formatNumber(counts.get(value) || 0)}</span></label>`).join("") + `</div></div>`;
+      }).join("") + (any ? `<button type="button" class="queue-clear">Clear all filters</button>` : "");
+    }
+
+    function update() {
+      shown = projects.filter(project => projectMatches(project));
+      const counted = shown.filter(summedMw);
+      const total = counted.reduce((sum, project) => sum + project.mw, 0);
+      const unstated = shown.filter(project => isEmpty(project.mw)).length;
+      body.querySelector(".queue-count").innerHTML = `<b>${formatNumber(shown.length)}</b> of ${formatNumber(projects.length)} projects ` +
+        `<small title="Sum of the MW stated by the new renewable and storage projects shown: changes to projects are left out so a plant ` +
+        `is not counted twice, and so are thermal plants (their MW is mostly an existing plant's), power lines and data centres. ` +
+        `${formatNumber(unstated)} of the projects shown state no MW.">· ${formatGwValue(total)} of renewables and storage</small>`;
+      sortSelect.value = `${projectState.sort}|${projectState.direction}`;
+
+      // GW by stage, whatever stages are ticked.
+      const byStage = {};
+      projects.forEach(project => {
+        if (!projectMatches(project, "stage") || !summedMw(project)) return;
+        const entry = byStage[project.stage] || (byStage[project.stage] = { mw: 0, count: 0 });
+        entry.mw += project.mw;
+        entry.count += 1;
+      });
+      const stageTotal = Object.values(byStage).reduce((sum, entry) => sum + entry.mw, 0);
+      const chosenStages = projectState.filters.stage;
+      body.querySelector(".queue-strip").innerHTML = Object.entries(QUEUE_STAGES).filter(([key]) => byStage[key] && byStage[key].mw)
+        .map(([key, stage]) => `<span style="flex:${byStage[key].mw} 1 0;background:var(${stage.color});` +
+          `opacity:${!chosenStages.size || chosenStages.has(key) ? 1 : 0.3}" title="${stage.label}: ${formatGwValue(byStage[key].mw)}"></span>`).join("");
+      body.querySelector(".queue-strip-legend").innerHTML = Object.entries(QUEUE_STAGES).filter(([key]) => byStage[key])
+        .map(([key, stage]) => `<span data-stage="${key}" style="cursor:pointer" title="Show only or also this stage">` +
+          `${queueBadge(stage.color, stage.label)} <b>${formatGwValue(byStage[key].mw)}</b> · ${formatNumber(byStage[key].count)}` +
+          `${stageTotal ? ` (${formatNumber(100 * byStage[key].mw / stageTotal, 0)}%)` : ""}</span>`).join("");
+
+      drawFilters();
+      queueTable(body.querySelector(".queue-table-host"), {
+        columns: PROJECT_COLUMNS, rows: shown, state: projectState, pageSize: 25,
+        rowKey: row => row.id, detail: projectDetail,
+        empty: "No project matches the filters.",
+        onDraw: () => { sortSelect.value = `${projectState.sort}|${projectState.direction}`; }
+      });
+    }
+    update();
+  }
+
+  /* ---------- Grid connections: Terna ---------- */
+
+  const TERNA_STAGES = {
+    "STMG da accettare": { label: "Offer to accept (STMG)", color: "--queue-step-1" },
+    "STMG accettate": { label: "Offer accepted (STMG)", color: "--queue-step-2" },
+    "Progetti in valutazione": { label: "Under authorisation", color: "--queue-step-3" },
+    "Progetti con nulla osta": { label: "Authorised", color: "--queue-step-4" },
+    "STMD/Contratti": { label: "Detailed solution or contract (STMD)", color: "--queue-step-5" }
+  };
+  const ADVANCED_STAGES = ["Progetti con nulla osta", "STMD/Contratti"];
+  const sourceIs = (...names) => row => names.includes((row.source || "").toLowerCase());
+  const TERNA_ROWS = [
+    { label: "Solar", kind: "renewables", match: sourceIs("solare") },
+    { label: "Onshore wind", kind: "renewables", match: sourceIs("eolico on-shore") },
+    { label: "Offshore wind", kind: "renewables", match: sourceIs("eolico off-shore") },
+    { label: "Hydro, biomass, geothermal", kind: "renewables", match: sourceIs("idroelettrico", "biomasse", "geotermico") },
+    { label: "Standalone storage", kind: "storage", match: sourceIs("accumulo stand-alone") },
+    { label: "Storage with solar", kind: "storage", match: sourceIs("integrato a solare") },
+    { label: "Storage with wind", kind: "storage", match: sourceIs("integrato a eolico") },
+    { label: "Pumped hydro", kind: "storage", match: sourceIs("pompaggio puro", "pompaggio misto") },
+    { label: "Data centres", kind: "consumers", match: sourceIs("data center") },
+    { label: "Other consumers", kind: "consumers", match: sourceIs("altri utenti di consumo", "cold ironing") }
+  ];
+  const TERNA_GROUPS = [
+    { key: "solar", label: "Solar", color: "--queue-solar", match: row => row.kind === "renewables" && sourceIs("solare")(row) },
+    { key: "wind", label: "Onshore wind", color: "--queue-wind", match: row => row.kind === "renewables" && sourceIs("eolico on-shore")(row) },
+    { key: "offshore", label: "Offshore wind", color: "--queue-offshore", match: row => row.kind === "renewables" && sourceIs("eolico off-shore")(row) },
+    { key: "other", label: "Hydro, biomass, geothermal", color: "--queue-other-res",
+      match: row => row.kind === "renewables" && sourceIs("idroelettrico", "biomasse", "geotermico")(row) },
+    { key: "storage", label: "Storage", color: "--queue-storage", match: row => row.kind === "storage" },
+    { key: "consumers", label: "Consumers", color: "--queue-consumers", match: row => row.kind === "consumers" }
+  ];
+  const TERNA_KINDS = {
+    renewables: { label: "Renewables", color: "--queue-wind" },
+    storage: { label: "Storage", color: "--queue-storage" },
+    consumers: { label: "Consumers", color: "--queue-consumers" }
+  };
+  const ternaProvinceState = { sort: "total", direction: "desc", page: 0, region: "", search: "" };
+
+  function renderTernaKpis(rows, asOf) {
+    const body = queuePanel("Connection requests to Terna's grid", `Data of ${formatQueueDate(asOf)}`);
+    const sum = (filter, field = "mw") => rows.filter(filter).reduce((total, row) => total + (row[field] || 0), 0);
+    const tile = (label, mw, sub) => `<div class="gas-kpi"><div class="gas-kpi-label">${label}</div>` +
+      `<div class="gas-kpi-value">${formatNumber(mw / 1000, 1)}<small>GW</small></div><div class="gas-kpi-sub">${sub}</div></div>`;
+    const kind = key => row => row.kind === key;
+    const advanced = key => row => row.kind === key && ADVANCED_STAGES.includes(row.stage);
+    const regions = {};
+    rows.filter(row => row.kind !== "consumers").forEach(row => { regions[row.region] = (regions[row.region] || 0) + row.mw; });
+    const [topRegion, topMw] = Object.entries(regions).sort((a, b) => b[1] - a[1])[0] || ["—", 0];
+    body.innerHTML = `<div class="gas-kpis" style="grid-template-columns:repeat(4,minmax(0,1fr))">` +
+      tile("Renewables", sum(kind("renewables")), `${formatNumber(sum(kind("renewables"), "requests"))} requests · ` +
+        `${formatGwValue(sum(advanced("renewables")))} authorised or contracted`) +
+      tile("Storage", sum(kind("storage")), `${formatNumber(sum(kind("storage"), "requests"))} requests · ` +
+        `${formatGwValue(sum(advanced("storage")))} authorised or contracted`) +
+      tile("Consumers", sum(kind("consumers")), `${formatNumber(sum(kind("consumers"), "requests"))} requests · ` +
+        `data centres ${formatGwValue(sum(row => row.kind === "consumers" && sourceIs("data center")(row)))}`) +
+      tile(`Most requested: ${escapeHtml(topRegion)}`, topMw, "Renewables and storage") +
+      `</div><div class="queue-note">Requested capacity, not plants: one plant can file several requests, and many will never be built. ` +
+      `For scale, Italy's peak demand is about 55-60 GW.</div>`;
+  }
+
+  function renderTernaStages(rows, asOf) {
+    const body = queuePanel("Requests by technology and stage", `GW · ${formatQueueDate(asOf)}`);
+    const chart = queueChart(body, 400, "From left (earliest) to right: Terna's connection offer (STMG) still to accept, " +
+      "offer accepted, project under authorisation, authorised, detailed connection solution (STMD) or connection contract. " +
+      "Click a stage in the legend to hide or show it.");
+    const stages = Object.keys(TERNA_STAGES);
+    const cell = (definition, stage) => rows.filter(row => row.kind === definition.kind && definition.match(row) && row.stage === stage);
+    const values = TERNA_ROWS.map(definition => stages.map(stage => {
+      const matched = cell(definition, stage);
+      return { mw: matched.reduce((sum, row) => sum + row.mw, 0), requests: matched.reduce((sum, row) => sum + row.requests, 0) };
+    }));
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(stages.map(stage => TERNA_STAGES[stage].label)),
+      tooltip: queueTooltip(params => {
+        const index = params[0].dataIndex;
+        const total = values[index].reduce((sum, entry) => sum + entry.mw, 0);
+        return `<div style="margin-bottom:6px;font-weight:600;">${TERNA_ROWS[index].label}</div>` +
+          stages.map((stage, position) => tooltipRow(cssVar(TERNA_STAGES[stage].color), TERNA_STAGES[stage].label,
+            `${formatGwValue(values[index][position].mw)} · ${formatNumber(values[index][position].requests)}`)).reverse().join("") +
+          tooltipRow(cssVar("--chart-legend"), "Total", formatGwValue(total), "line");
+      }),
+      grid: { left: 170, right: 24, top: 52, bottom: 28 },
+      xAxis: { type: "value", axisLabel: { ...timelineAxisTextStyle(), formatter: value => `${value} GW` },
+        splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      yAxis: { type: "category", inverse: true, data: TERNA_ROWS.map(definition => definition.label),
+        axisTick: { show: false }, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: queueAxisLabel() },
+      series: stages.map((stage, position) => stackedBar(TERNA_STAGES[stage].label, TERNA_STAGES[stage].color,
+        values.map(entries => +(entries[position].mw / 1000).toFixed(3))))
+    }, true);
+  }
+
+  function renderTernaRegions(rows, asOf) {
+    const body = queuePanel("Requests by region", `GW · ${formatQueueDate(asOf)}`);
+    const totals = {};
+    rows.forEach(row => { totals[row.region] = (totals[row.region] || 0) + row.mw; });
+    const regions = Object.keys(totals).sort((a, b) => totals[b] - totals[a]);
+    const chart = queueChart(body, 40 + regions.length * 24, "Offshore wind is counted in the region it connects to. " +
+      "Click a name in the legend to hide or show it.");
+    const value = (region, group) => rows.filter(row => row.region === region && group.match(row)).reduce((sum, row) => sum + row.mw, 0);
+    const table = regions.map(region => TERNA_GROUPS.map(group => value(region, group)));
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(TERNA_GROUPS.map(group => group.label)),
+      tooltip: queueTooltip(params => {
+        const index = params[0].dataIndex;
+        return `<div style="margin-bottom:6px;font-weight:600;">${escapeHtml(regions[index])}</div>` +
+          TERNA_GROUPS.map((group, position) => tooltipRow(cssVar(group.color), group.label, formatGwValue(table[index][position]))).reverse().join("") +
+          tooltipRow(cssVar("--chart-legend"), "Total", formatGwValue(totals[regions[index]]), "line");
+      }),
+      grid: { left: 150, right: 24, top: 30, bottom: 26 },
+      xAxis: { type: "value", axisLabel: { ...timelineAxisTextStyle(), formatter: value => `${value} GW` },
+        splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      yAxis: { type: "category", inverse: true, data: regions, axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: queueAxisLabel() },
+      series: TERNA_GROUPS.map((group, position) => stackedBar(group.label, group.color,
+        table.map(entries => +(entries[position] / 1000).toFixed(3)), { barMaxWidth: 16 }))
+    }, true);
+  }
+
+  function renderTernaProvinces(rows, asOf) {
+    const body = queuePanel("Requests by province", `MW · ${formatQueueDate(asOf)}`);
+    const provinces = {};
+    rows.forEach(row => {
+      const key = `${row.region}|${row.province}`;
+      const entry = provinces[key] || (provinces[key] = { region: row.region, province: row.province, total: 0, requests: 0, advanced: 0,
+        search: `${row.region} ${row.province}`.toLowerCase(), ...Object.fromEntries(TERNA_GROUPS.map(group => [group.key, 0])) });
+      const group = TERNA_GROUPS.find(item => item.match(row));
+      if (group) entry[group.key] += row.mw;
+      entry.total += row.mw;
+      entry.requests += row.requests;
+      if (ADVANCED_STAGES.includes(row.stage)) entry.advanced += row.mw;
+    });
+    const all = Object.values(provinces);
+    const regions = [...new Set(all.map(entry => entry.region))].sort();
+    const controls = document.createElement("div");
+    controls.className = "queue-controls";
+    const host = document.createElement("div");
+    body.append(controls, host);
+    const draw = () => queueTable(host, {
+      rows: all.filter(entry => (!ternaProvinceState.region || entry.region === ternaProvinceState.region) &&
+        matchesSearch(entry.search, ternaProvinceState.search)),
+      state: ternaProvinceState, maxHeight: 520,
+      columns: [
+        { key: "province", label: "Province", value: row => row.province },
+        { key: "region", label: "Region", value: row => row.region, className: "muted nowrap" },
+        ...TERNA_GROUPS.map(group => ({ key: group.key, label: group.label, num: true, value: row => row[group.key],
+          cell: row => row[group.key] ? formatQueueMw(row[group.key]) : `<span class="muted">—</span>` })),
+        { key: "total", label: "Total", num: true, value: row => row.total, cell: row => `<b>${formatQueueMw(row.total)}</b>` },
+        { key: "requests", label: "Requests", num: true, value: row => row.requests, cell: row => formatNumber(row.requests) },
+        { key: "advanced", label: "Authorised or contracted", num: true, value: row => row.total ? row.advanced / row.total : null,
+          cell: row => row.total ? `${formatNumber(100 * row.advanced / row.total, 0)}%` : "—",
+          title: "Share of the province's MW authorised or with a detailed solution or contract" }
+      ]
+    });
+    controls.append(
+      queueSelect([["", "All regions"], ...regions.map(region => [region, region])], ternaProvinceState.region,
+        value => { ternaProvinceState.region = value; ternaProvinceState.page = 0; draw(); }, "Region"),
+      queueSearch("Search province", ternaProvinceState.search, value => { ternaProvinceState.search = value; draw(); }));
+    draw();
+    body.insertAdjacentHTML("beforeend", `<div class="queue-note">Consumers: data centres, cold ironing (ships in port) and other large consumers. Requests per province as Terna publishes them; Terna gives the number of requests per region and province but not per municipality.</div>`);
+  }
+
+  function renderTernaHistory(terna) {
+    const months = Object.keys(terna.history || {}).sort();
+    const body = queuePanel("Requests month by month", `GW · ${months.length} monthly ${months.length === 1 ? "snapshot" : "snapshots"}`);
+    const chart = queueChart(body, 300, `Terna publishes only the latest month, so the dashboard keeps a snapshot of each month it reads, ` +
+      `from ${months.length ? formatMonth(months[0].slice(0, 7)) : "the first read"}. Click a name in the legend to hide or show it.`);
+    const columns = terna.history_columns.national;
+    const totals = months.map(month => {
+      const rows = queueRecords(columns, terna.history[month].national);
+      return Object.fromEntries(Object.keys(TERNA_KINDS).map(kind => [kind, rows.filter(row => row.kind === kind).reduce((sum, row) => sum + row.mw, 0)]));
+    });
+    const labels = months.map(month => new Date(`${month}T12:00:00`).toLocaleDateString("en-GB", { month: "short", year: "numeric" }));
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(Object.values(TERNA_KINDS).map(kind => kind.label)),
+      tooltip: queueTooltip(params => {
+        const index = params[0].dataIndex;
+        return `<div style="margin-bottom:6px;font-weight:600;">${formatQueueDate(months[index])}</div>` +
+          Object.entries(TERNA_KINDS).map(([key, kind]) => tooltipRow(cssVar(kind.color), kind.label, formatGwValue(totals[index][key]))).join("");
+      }),
+      grid: { left: 56, right: 16, top: 34, bottom: 28 },
+      xAxis: { type: "category", data: labels, axisTick: { show: false }, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: timelineAxisTextStyle() },
+      yAxis: { type: "value", axisLabel: { ...timelineAxisTextStyle(), formatter: value => `${value} GW` },
+        splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      series: Object.entries(TERNA_KINDS).map(([key, kind]) => ({
+        name: kind.label, type: "bar", barMaxWidth: 28, barGap: "20%",
+        itemStyle: { color: cssVar(kind.color), borderRadius: [4, 4, 0, 0] },
+        data: totals.map(total => +(total[key] / 1000).toFixed(2))
+      }))
+    }, true);
+  }
+
+  /* ---------- Grid connections: e-distribuzione ---------- */
+
+  const CRITICALITY = {
+    0: { label: "Not e-distribuzione's", color: "--queue-level-0" },
+    1: { label: "Very low", color: "--queue-level-1" },
+    2: { label: "Low", color: "--queue-level-2" },
+    3: { label: "Medium", color: "--queue-level-3" },
+    4: { label: "High", color: "--queue-level-4" }
+  };
+  const SATURATION_LEVELS = {
+    4: { label: "Saturated", color: "--queue-level-4" },
+    3: { label: "Reverse flow above the attention limit", color: "--queue-level-3" },
+    2: { label: "Reverse flow below the attention limit", color: "--queue-level-2" },
+    1: { label: "No reverse flow", color: "--queue-approved" }
+  };
+  const criticalityBadge = level => {
+    const entry = CRITICALITY[level];
+    return entry ? queueBadge(entry.color, entry.label) : "—";
+  };
+  const quarterLabel = key => new Date(`${key}-15T12:00:00`).toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+  const edProvinceState = { sort: "quotes", direction: "desc", page: 0, region: "", search: "" };
+  const edSectionState = { sort: "saturation", direction: "desc", page: 0, region: "", saturation: "", reverse: false, search: "" };
+  const edTownState = { sort: "quotes", direction: "desc", page: 0, region: "", search: "" };
+
+  function edLatest(ed) {
+    const provinces = queueRecords(ed.province_columns, ed.history[ed.period]);
+    const byCode = Object.fromEntries(provinces.map(row => [row.code, row]));
+    return { provinces, byCode };
+  }
+
+  const edHistoryState = { region: "" };
+
+  function renderEdHistory(ed) {
+    const periods = Object.keys(ed.history).sort();
+    const body = queuePanel("Valid connection quotes on e-distribuzione's grid", `GW at the end of each quarter · ${quarterLabel(periods[0])} to ${quarterLabel(periods[periods.length - 1])}`);
+    const controls = document.createElement("div");
+    controls.className = "queue-controls";
+    body.appendChild(controls);
+    const chart = queueChart(body, 320, "The power of the connection quotes (preventivi) still valid: generation that has asked to connect " +
+      "to e-distribuzione's medium and low-voltage grid and holds a quote, whether or not it will be built.");
+    const sums = periods.map(period => {
+      const totals = {};
+      queueRecords(ed.province_columns, ed.history[period]).forEach(row => {
+        totals[row.region] = (totals[row.region] || 0) + (row.quotes_mw || 0);
+      });
+      return totals;
+    });
+    const latest = sums[sums.length - 1];
+    const regions = Object.keys(latest).sort((a, b) => latest[b] - latest[a]);
+    const draw = () => {
+      const region = edHistoryState.region;
+      const values = sums.map(totals => region ? totals[region] || 0 : Object.values(totals).reduce((sum, mw) => sum + mw, 0));
+      const name = region || "Italy";
+      chart.setOption({
+        animation: false, backgroundColor: "transparent",
+        tooltip: queueTooltip(params => {
+          const index = params[0].dataIndex;
+          const before = index >= 4 ? values[index - 4] : null;
+          return `<div style="margin-bottom:6px;font-weight:600;">Quarter to ${quarterLabel(periods[index])}</div>` +
+            tooltipRow(cssVar("--queue-assessment"), escapeHtml(name), formatGwValue(values[index], 2)) +
+            (before ? tooltipRow(cssVar("--chart-legend"), "A year before", formatGwValue(before, 2), "line") : "");
+        }),
+        grid: { left: 56, right: 16, top: 12, bottom: 28 },
+        xAxis: { type: "category", data: periods.map(quarterLabel), axisTick: { show: false },
+          axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: timelineAxisTextStyle() },
+        yAxis: { type: "value", axisLabel: { ...timelineAxisTextStyle(), formatter: value => `${value} GW` },
+          splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+        series: [{ name, type: "bar", barMaxWidth: 22, data: values.map(mw => +(mw / 1000).toFixed(3)),
+          itemStyle: { color: cssVar("--queue-assessment"), borderRadius: [4, 4, 0, 0] } }]
+      }, true);
+    };
+    controls.appendChild(queueSelect([["", "Italy"], ...regions.map(region => [region, `${region} (${formatGwValue(latest[region])})`])],
+      edHistoryState.region, value => { edHistoryState.region = value; draw(); }, "Region"));
+    draw();
+  }
+
+  function renderEdProvinces(ed) {
+    const { provinces } = edLatest(ed);
+    const periods = Object.keys(ed.history).sort();
+    const yearKey = `${Number(ed.period.slice(0, 4)) - 1}${ed.period.slice(4)}`;
+    const before = Object.fromEntries(queueRecords(ed.province_columns, ed.history[yearKey] || []).map(row => [row.code, row]));
+    const sections = queueRecords(ed.section_columns, ed.sections);
+    const towns = queueRecords(ed.municipality_columns, ed.municipalities);
+    const body = queuePanel("Provinces", `Quarter to ${quarterLabel(ed.period)}`);
+    const rows = provinces.map(row => {
+      const own = sections.filter(section => section.province === row.code);
+      const counts = Object.fromEntries(Object.keys(SATURATION_LEVELS).map(level => [level, own.filter(section => String(section.saturation) === level).length]));
+      return { ...row, counts, sections: own.length, reverse: own.filter(section => section.reverse_5).length,
+        towns: towns.filter(town => town.province === row.code && town.level > 0).length,
+        change: before[row.code] && before[row.code].quotes_mw ? (row.quotes_mw - before[row.code].quotes_mw) / before[row.code].quotes_mw : null,
+        saturatedShare: own.length ? (counts[4] + counts[3]) / own.length : null,
+        search: `${row.region} ${row.province}`.toLowerCase() };
+    });
+    const regions = [...new Set(rows.map(row => row.region))].sort();
+    const controls = document.createElement("div");
+    controls.className = "queue-controls";
+    const host = document.createElement("div");
+    body.append(controls, host);
+    const strip = row => row.sections ? `<div class="queue-strip" style="margin:3px 0 0;width:140px;height:8px" title="` +
+      Object.entries(SATURATION_LEVELS).map(([level, entry]) => `${entry.label}: ${row.counts[level]}`).join("\n") + `">` +
+      Object.entries(SATURATION_LEVELS).filter(([level]) => row.counts[level])
+        .map(([level, entry]) => `<span style="flex:${row.counts[level]} 1 0;background:var(${entry.color})"></span>`).join("") + `</div>` : "—";
+    const draw = () => queueTable(host, {
+      rows: rows.filter(row => (!edProvinceState.region || row.region === edProvinceState.region) && matchesSearch(row.search, edProvinceState.search)),
+      state: edProvinceState, maxHeight: 520,
+      columns: [
+        { key: "province", label: "Province", value: row => row.province },
+        { key: "region", label: "Region", value: row => row.region, className: "muted nowrap" },
+        { key: "level", label: "Criticality", value: row => row.level, cell: row => criticalityBadge(row.level) },
+        { key: "quotes", label: "Valid quotes (MW)", num: true, value: row => row.quotes_mw, cell: row => formatQueueMw(row.quotes_mw) },
+        { key: "change", label: "vs a year before", num: true, value: row => row.change,
+          cell: row => isEmpty(row.change) ? "—" : `${row.change >= 0 ? "+" : "−"}${formatNumber(Math.abs(100 * row.change), 0)}%`,
+          title: `Change in valid quotes since ${quarterLabel(yearKey)}` },
+        { key: "mva", label: "Primary substations (MVA)", num: true, value: row => row.substations_mva, cell: row => formatQueueMw(row.substations_mva),
+          title: "Rated power of e-distribuzione's primary substations in the province" },
+        { key: "saturation", label: "AT/MT sections by saturation", value: row => row.saturatedShare, cell: strip,
+          title: "Sort by the share of sections saturated or above the attention limit" },
+        { key: "reverse", label: "Reverse flow ≥5%", num: true, value: row => row.reverse, cell: row => formatNumber(row.reverse),
+          title: "Sections with power flowing back to Terna's grid in at least 5% of the hours of the year before" },
+        { key: "towns", label: "Critical municipalities", num: true, value: row => row.towns, cell: row => formatNumber(row.towns) }
+      ]
+    });
+    controls.append(
+      queueSelect([["", "All regions"], ...regions.map(region => [region, region])], edProvinceState.region,
+        value => { edProvinceState.region = value; edProvinceState.page = 0; draw(); }, "Region"),
+      queueSearch("Search province", edProvinceState.search, value => { edProvinceState.search = value; draw(); }));
+    draw();
+    body.insertAdjacentHTML("beforeend", `<div class="queue-note">Criticality: e-distribuzione's level for the province ` +
+      `(very low, low, medium, high), set under ARERA's connection rules (TICA). ` +
+      `Section saturation, in rising order: ${Object.values(SATURATION_LEVELS).reverse().map(entry => entry.label.toLowerCase()).join(", ")}. ` +
+      `History back to ${quarterLabel(periods[0])} for the quotes and levels only.</div>`);
+  }
+
+  function renderEdSections(ed) {
+    const { byCode } = edLatest(ed);
+    const sections = queueRecords(ed.section_columns, ed.sections).map(row => {
+      const province = byCode[row.province] || {};
+      return { ...row, provinceName: province.province || row.province, region: province.region || "",
+        towns: row.municipalities || [],
+        search: [row.name, row.substation, province.province, province.region, ...(row.municipalities || [])].join(" ").toLowerCase() };
+    });
+    const body = queuePanel("Primary substation sections (AT/MT)", `${formatNumber(sections.length)} sections · quarter to ${quarterLabel(ed.period)}`);
+    const regions = [...new Set(sections.map(row => row.region).filter(Boolean))].sort();
+    const controls = document.createElement("div");
+    controls.className = "queue-controls";
+    const host = document.createElement("div");
+    body.append(controls, host);
+    const draw = () => queueTable(host, {
+      rows: sections.filter(row => (!edSectionState.region || row.region === edSectionState.region) &&
+        (!edSectionState.saturation || String(row.saturation) === edSectionState.saturation) &&
+        (!edSectionState.reverse || row.reverse_1) && matchesSearch(row.search, edSectionState.search)),
+      state: edSectionState, pageSize: 50,
+      columns: [
+        { key: "name", label: "Primary substation", value: row => row.name },
+        { key: "transformer", label: "Transformer", value: row => row.transformer, className: "muted" },
+        { key: "section", label: "Section", value: row => row.section, className: "muted" },
+        { key: "province", label: "Province", value: row => row.provinceName },
+        { key: "region", label: "Region", value: row => row.region, className: "muted nowrap" },
+        { key: "saturation", label: "Saturation", value: row => row.saturation,
+          cell: row => SATURATION_LEVELS[row.saturation] ? queueBadge(SATURATION_LEVELS[row.saturation].color, SATURATION_LEVELS[row.saturation].label) : "—" },
+        { key: "reverse", label: "Reverse flow", value: row => row.reverse_5 ? 2 : row.reverse_1 ? 1 : 0, className: "nowrap",
+          cell: row => row.reverse_5 ? "≥5% of hours" : row.reverse_1 ? "≥1% of hours" : "—",
+          title: "Hours of the year before with power flowing back to Terna's grid" },
+        { key: "towns", label: "Municipalities served", value: row => row.towns.length, className: "clip",
+          cell: row => row.towns.length ? `<span title="${escapeHtml(row.towns.join(", "))}">${escapeHtml(row.towns.slice(0, 3).join(", "))}` +
+            `${row.towns.length > 3 ? ` <span class="muted">+${row.towns.length - 3}</span>` : ""}</span>` : "—" }
+      ],
+      empty: "No section matches the filters."
+    });
+    const reverse = document.createElement("label");
+    reverse.className = "queue-option";
+    reverse.style.padding = "0 6px";
+    reverse.innerHTML = `<input type="checkbox"${edSectionState.reverse ? " checked" : ""}> Reverse flow only`;
+    reverse.querySelector("input").addEventListener("change", event => { edSectionState.reverse = event.target.checked; edSectionState.page = 0; draw(); });
+    controls.append(
+      queueSelect([["", "All regions"], ...regions.map(region => [region, region])], edSectionState.region,
+        value => { edSectionState.region = value; edSectionState.page = 0; draw(); }, "Region"),
+      queueSelect([["", "Any saturation"], ...Object.entries(SATURATION_LEVELS).map(([level, entry]) => [level, entry.label])],
+        edSectionState.saturation, value => { edSectionState.saturation = value; edSectionState.page = 0; draw(); }, "Saturation"),
+      reverse,
+      queueSearch("Search substation or municipality", edSectionState.search, value => { edSectionState.search = value; edSectionState.page = 0; draw(); }));
+    draw();
+    body.insertAdjacentHTML("beforeend", `<div class="queue-note">Each primary substation (cabina primaria) feeds the medium-voltage grid ` +
+      `through one or more transformers, each a section (sezione AT/MT). e-distribuzione rates every section monthly from its minimum load in ` +
+      `the year before, the generation connected and the valid connection quotes: a saturated section cannot take more generation without ` +
+      `grid works. It does not show local limits of the medium and low-voltage lines below the section.` +
+      ((ed.incomplete || []).length ? ` e-distribuzione's service gives no saturation for ` +
+        `${escapeHtml(ed.incomplete.map(code => (byCode[code] || {}).province || code).join(", "))}: only their sections with reverse flow are listed.` : "") +
+      `</div>`);
+  }
+
+  function renderEdTowns(ed) {
+    const { byCode } = edLatest(ed);
+    const towns = queueRecords(ed.municipality_columns, ed.municipalities).map(row => {
+      const province = byCode[row.province] || {};
+      return { ...row, provinceName: province.province || row.province, region: province.region || "",
+        search: `${row.name} ${province.province} ${province.region}`.toLowerCase() };
+    });
+    const body = queuePanel("Critical municipalities", `${formatNumber(towns.filter(row => row.level > 0).length)} municipalities · quarter to ${quarterLabel(ed.period)}`);
+    const regions = [...new Set(towns.map(row => row.region).filter(Boolean))].sort();
+    const controls = document.createElement("div");
+    controls.className = "queue-controls";
+    const host = document.createElement("div");
+    body.append(controls, host);
+    const draw = () => queueTable(host, {
+      rows: towns.filter(row => (!edTownState.region || row.region === edTownState.region) && matchesSearch(row.search, edTownState.search)),
+      state: edTownState, pageSize: 50,
+      columns: [
+        { key: "name", label: "Municipality", value: row => row.name },
+        { key: "province", label: "Province", value: row => row.provinceName },
+        { key: "region", label: "Region", value: row => row.region, className: "muted nowrap" },
+        { key: "level", label: "Criticality", value: row => row.level, cell: row => criticalityBadge(row.level) },
+        { key: "quotes", label: "Valid quotes (MW)", num: true, value: row => row.quotes_mw, cell: row => formatQueueMw(row.quotes_mw) }
+      ],
+      empty: "No municipality matches the filters."
+    });
+    controls.append(
+      queueSelect([["", "All regions"], ...regions.map(region => [region, region])], edTownState.region,
+        value => { edTownState.region = value; edTownState.page = 0; draw(); }, "Region"),
+      queueSearch("Search municipality", edTownState.search, value => { edTownState.search = value; edTownState.page = 0; draw(); }));
+    draw();
+    body.insertAdjacentHTML("beforeend", `<div class="queue-note">The municipalities e-distribuzione lists as critical in each province, ` +
+      `with their level and the power of their valid connection quotes; "not e-distribuzione's" are those another distributor serves.</div>`);
+  }
+
+  function renderConnections() {
+    const data = queueData["connections.json"];
+    if (!data) {
+      const body = queuePanel("Grid connections");
+      body.innerHTML = `<div class="queue-empty">${queueStatus["connections.json"] === "missing"
+        ? "The grid-connection data is not available yet." : "Loading the grid-connection data…"}</div>`;
+      return;
+    }
+    const terna = data.terna;
+    const ternaRows = queueRecords(terna.region_columns, terna.regions);
+    const ternaProvinces = queueRecords(terna.province_columns, terna.provinces);
+    queueHeading("Transmission grid · Terna",
+      `Requests to connect to Terna's high-voltage grid (RTN, plants of 10 MW and more), from ` +
+      `<a href="https://dati.terna.it/econnextion" target="_blank" rel="noopener">Econnextion</a>, updated monthly. ` +
+      `Terna publishes them per region, province and municipality, not per project.`);
+    renderTernaKpis(ternaRows, terna.as_of);
+    renderTernaStages(ternaRows, terna.as_of);
+    renderTernaRegions(ternaRows, terna.as_of);
+    renderTernaProvinces(ternaProvinces, terna.as_of);
+    renderTernaHistory(terna);
+
+    const ed = data.edistribuzione;
+    queueHeading("Distribution grid · e-distribuzione",
+      `How much more generation e-distribuzione's medium and low-voltage grid can take, from its ` +
+      `<a href="https://www.e-distribuzione.it/a-chi-ci-rivolgiamo/produttori/aree-critiche.html" target="_blank" rel="noopener">Aree Critiche</a> map ` +
+      `(Enel's distributor, about 85% of Italy's customers; not Trentino-Alto Adige and Valle d'Aosta). It counts the valid connection ` +
+      `quotes, but does not list the requests.`);
+    renderEdHistory(ed);
+    renderEdProvinces(ed);
+    renderEdSections(ed);
+    renderEdTowns(ed);
+  }
+
+  function renderQueue() {
+    if (currentSection !== "queue") return;
+    loadQueueFile(queueTab === "projects" ? "mase_projects.json" : "connections.json");
+    document.querySelectorAll("#queue-subnav .subnav-tab").forEach(button =>
+      button.classList.toggle("active", button.dataset.queueTab === queueTab));
+    queueCharts.forEach(chart => chart.dispose());
+    queueCharts = [];
+    queueMount.innerHTML = "";
+    if (queueTab === "projects") renderProjects(); else renderConnections();
+  }
+
+  document.querySelectorAll("#queue-subnav .subnav-tab").forEach(button => {
+    button.addEventListener("click", () => {
+      queueTab = button.dataset.queueTab;
+      renderQueue();
+    });
+  });
+
+  window.addEventListener("resize", () => queueCharts.forEach(chart => chart.resize()));
+
+
+  /* ============================================================
      REDESIGN NAVIGATION / TOP-BAR CALENDAR
      ============================================================ */
 
@@ -10216,6 +11289,10 @@
     }
     const isGasSection = currentSection === "gas";
     document.getElementById("gas-page").style.display = isGasSection ? "block" : "none";
+    const isQueueSection = currentSection === "queue";
+    document.getElementById("queue-page").style.display = isQueueSection ? "block" : "none";
+    // The queue is a snapshot: the calendar does not apply.
+    document.querySelector(".calendar-trigger-wrap").style.display = isQueueSection ? "none" : "";
 
     document.getElementById("zone-tabs-wrap").style.display =
       isDataSection ? "flex" : "none";
@@ -10227,17 +11304,21 @@
       isDataSection ? "block" : "none";
 
     document.getElementById("section-placeholder").style.display =
-      isDataSection || isGasSection ? "none" : "flex";
+      isDataSection || isGasSection || isQueueSection ? "none" : "flex";
 
     if (isGasSection) {
       setTimeout(renderGas, 0);
       return;
     }
 
+    if (isQueueSection) {
+      setTimeout(renderQueue, 0);
+      return;
+    }
+
     if (!isDataSection) {
       const titles = {
         maps: "Maps",
-        queue: "Interconnection Queue",
         policy: "Policy"
       };
 
