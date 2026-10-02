@@ -318,6 +318,16 @@ def test_terna_rows_off_the_slot_grid_are_skipped():
     assert [(r["time"], r["value"]) for r in records] == [("02:00", 1.0)]
 
 
+def test_terna_marks_the_repeated_autumn_hour_one_minute_late():
+    # 26 Oct 2025: 02:00-02:59 twice; Terna writes the second pass as 02:01, 02:16, ...
+    rows = [{"reference_date": f"2025-10-26 {label}:00", "v": value}
+            for label, value in (("01:45", 1), ("02:00", 2), ("02:45", 3), ("02:01", 4), ("02:46", 5), ("03:00", 6))]
+    records = fb.local_records(rows, "reference_date", lambda r: "NORD|imbalance_volume", lambda r: r["v"])
+    # Elapsed time since midnight: the second 02:00 is 03:00, local 03:00 is 04:00.
+    assert sorted((r["time"], r["value"]) for r in records) == [
+        ("01:45", 1.0), ("02:00", 2.0), ("02:45", 3.0), ("03:00", 4.0), ("03:45", 5.0), ("04:00", 6.0)]
+
+
 def test_a_catch_up_block_cut_short_stays_in_the_gap(monkeypatch):
     from datetime import date
     monkeypatch.setattr(fb, "HISTORY_START", date(2025, 1, 1))

@@ -527,6 +527,19 @@ def bid_days():
 # ============================================================================
 
 
+def repeated_hour_slot(local):
+    """
+    Terna writes the repeated hour of the autumn clock change one minute
+    late (02:01, 02:16, 02:31, 02:46 for the second 02:00-02:59): the UTC
+    instant of that second occurrence, or None for any other time.
+    """
+    if local.minute % 15 != 1:
+        return None
+    slot = local - timedelta(minutes=1)
+    first, second = slot.replace(tzinfo=MARKET_TZ, fold=0), slot.replace(tzinfo=MARKET_TZ, fold=1)
+    return second.astimezone(timezone.utc) if first.utcoffset() != second.utcoffset() else None
+
+
 def local_records(rows, time_field, group_of, value_of, scale=1.0, minutes=15):
     """
     Point records from Terna rows labelled in local time.  Rows with an
@@ -540,10 +553,13 @@ def local_records(rows, time_field, group_of, value_of, scale=1.0, minutes=15):
         if group is None or value in (None, "", "null"):
             continue
         local = datetime.strptime(row[time_field][:19], "%Y-%m-%d %H:%M:%S")
+        repeated = repeated_hour_slot(local) if not row.get("offset") else None
         if row.get("offset"):
             sign = 1 if row["offset"].startswith("+") else -1
             hours, offset_minutes = (int(part) for part in row["offset"][1:].split(":"))
             instant = (local - sign * timedelta(hours=hours, minutes=offset_minutes)).replace(tzinfo=timezone.utc)
+        elif repeated is not None:
+            instant = repeated
         else:
             fold = int((group, local) in seen)
             seen.add((group, local))
