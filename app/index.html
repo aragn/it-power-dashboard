@@ -10787,11 +10787,6 @@
     { key: "storage", label: "Storage", color: "--queue-storage", match: row => row.kind === "storage" },
     { key: "consumers", label: "Consumers", color: "--queue-consumers", match: row => row.kind === "consumers" }
   ];
-  const TERNA_KINDS = {
-    renewables: { label: "Renewables", color: "--queue-wind" },
-    storage: { label: "Storage", color: "--queue-storage" },
-    consumers: { label: "Consumers", color: "--queue-consumers" }
-  };
   const ternaProvinceState = { sort: "total", direction: "desc", page: 0, region: "", search: "" };
 
   function renderTernaKpis(rows, asOf) {
@@ -10917,38 +10912,6 @@
       queueSearch("Search province", ternaProvinceState.search, value => { ternaProvinceState.search = value; draw(); }));
     draw();
     body.insertAdjacentHTML("beforeend", `<div class="queue-note">Consumers: data centres, cold ironing (ships in port) and other large consumers. Requests per province as Terna publishes them; Terna gives the number of requests per region and province but not per municipality.</div>`);
-  }
-
-  function renderTernaHistory(terna) {
-    const months = Object.keys(terna.history || {}).sort();
-    const body = queuePanel("Requests month by month", `GW · ${months.length} monthly ${months.length === 1 ? "snapshot" : "snapshots"}`);
-    const chart = queueChart(body, 300, `Terna publishes only the latest month, so the dashboard keeps a snapshot of each month it reads, ` +
-      `from ${months.length ? formatMonth(months[0].slice(0, 7)) : "the first read"}. Click a name in the legend to hide or show it.`);
-    const columns = terna.history_columns.national;
-    const totals = months.map(month => {
-      const rows = queueRecords(columns, terna.history[month].national);
-      return Object.fromEntries(Object.keys(TERNA_KINDS).map(kind => [kind, rows.filter(row => row.kind === kind).reduce((sum, row) => sum + row.mw, 0)]));
-    });
-    const labels = months.map(month => new Date(`${month}T12:00:00`).toLocaleDateString("en-GB", { month: "short", year: "numeric" }));
-    chart.setOption({
-      animation: false, backgroundColor: "transparent",
-      legend: queueLegend(Object.values(TERNA_KINDS).map(kind => kind.label)),
-      tooltip: queueTooltip(params => {
-        const index = params[0].dataIndex;
-        return `<div style="margin-bottom:6px;font-weight:600;">${formatQueueDate(months[index])}</div>` +
-          Object.entries(TERNA_KINDS).map(([key, kind]) => tooltipRow(cssVar(kind.color), kind.label, formatGwValue(totals[index][key]))).join("");
-      }),
-      grid: { left: 56, right: 16, top: 34, bottom: 28 },
-      xAxis: { type: "category", data: labels, axisTick: { show: false }, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
-        axisLabel: timelineAxisTextStyle() },
-      yAxis: { type: "value", axisLabel: { ...timelineAxisTextStyle(), formatter: value => `${value} GW` },
-        splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
-      series: Object.entries(TERNA_KINDS).map(([key, kind]) => ({
-        name: kind.label, type: "bar", barMaxWidth: 28, barGap: "20%",
-        itemStyle: { color: cssVar(kind.color), borderRadius: [4, 4, 0, 0] },
-        data: totals.map(total => +(total[key] / 1000).toFixed(2))
-      }))
-    }, true);
   }
 
   /* ---------- Grid connections: e-distribuzione ---------- */
@@ -11195,7 +11158,6 @@
     renderTernaStages(ternaRows, terna.as_of);
     renderTernaRegions(ternaRows, terna.as_of);
     renderTernaProvinces(ternaProvinces, terna.as_of);
-    renderTernaHistory(terna);
 
     const ed = data.edistribuzione;
     queueHeading("Distribution grid · e-distribuzione",
