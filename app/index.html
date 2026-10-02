@@ -8425,25 +8425,27 @@
   /* [min, max] of the shown series per axis; bars stack up and down. */
   function balancingExtents(items, data, selected, axisCount) {
     const extents = Array.from({ length: axisCount }, () => [0, 0]);
-    const stacks = Array.from({ length: axisCount }, () => ({ up: [], down: [] }));
+    // Per axis and bar stack (markets side by side have one each).
+    const stacks = Array.from({ length: axisCount }, () => ({}));
     items.forEach((item, index) => {
       if (selected[item.name] === false) return;
       const axis = item.axis || 0;
+      const stack = stacks[axis][item.stack || "volume"] || (stacks[axis][item.stack || "volume"] = { up: [], down: [] });
       data[index].forEach((value, slot) => {
         if (value === null) return;
         if (item.type === "bar") {
           const side = value < 0 ? "down" : "up";
-          stacks[axis][side][slot] = (stacks[axis][side][slot] || 0) + value;
+          stack[side][slot] = (stack[side][slot] || 0) + value;
         } else {
           extents[axis][0] = Math.min(extents[axis][0], value);
           extents[axis][1] = Math.max(extents[axis][1], value);
         }
       });
     });
-    stacks.forEach((stack, axis) => {
+    stacks.forEach((byStack, axis) => Object.values(byStack).forEach(stack => {
       stack.up.forEach(value => { if (value !== undefined) extents[axis][1] = Math.max(extents[axis][1], value); });
       stack.down.forEach(value => { if (value !== undefined) extents[axis][0] = Math.min(extents[axis][0], value); });
-    });
+    }));
     return extents;
   }
 
