@@ -21,10 +21,12 @@ market time.  Output: app/data/available_capacity.json.
 
 Terna allows 300 calls a day per key: routine runs re-read the last
 LOOKBACK_DAYS of effective capacity and the expected capacity from
-yesterday to EXPECTED_DAYS ahead, then fill the history back to
-HISTORY_START, newest gap first, CATCH_UP_CALLS at most per run.  The key
-is TERNA_KEY_3 / TERNA_SECRET_3 when set and accepted, else TERNA_KEY /
-TERNA_SECRET.
+yesterday to EXPECTED_DAYS ahead, then extend the history back towards
+HISTORY_START, CATCH_UP_CALLS at most per run, until a request comes back
+empty (the start of Terna's history, kept in the output so that later runs
+do not ask again).  The odd day Terna leaves out is not asked for again.
+The key is TERNA_KEY_3 / TERNA_SECRET_3, else TERNA_KEY / TERNA_SECRET
+(used up or not accepted), which the history does not use.
 """
 
 import argparse
@@ -32,11 +34,9 @@ import os
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
-import requests
-
 import compact
 from entsoe_api import day_chunks, market_today, merge_resolutions, parse_date, point_label
-from fetch_terna import Client
+from fetch_terna import MAIN_KEY, THIRD_KEY, Client
 
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "data", "available_capacity.json")
 
@@ -52,7 +52,7 @@ LOOKBACK_DAYS = 7
 EXPECTED_DAYS = 30
 # A month of effective capacity came back cut to 25 days: a week per request.
 CHUNK_DAYS = {"effective": 7, "expected": 14}
-CATCH_UP_CALLS = 40
+CATCH_UP_CALLS = 100
 
 RESOLUTIONS = ("hourly", "daily")
 
@@ -88,32 +88,22 @@ def records(kind, rows):
 
 
 class Fetcher:
-    """Counts the calls; uses the third key when it is set and accepted."""
+    """Counts the calls."""
 
-    def __init__(self):
+    def __init__(self, client):
+        self.client = client
         self.calls = 0
-        self.client = None
-        keys = [("TERNA_KEY_3", "TERNA_SECRET_3"), ("TERNA_KEY", "TERNA_SECRET")]
-        self.keys = [pair for pair in keys if os.environ.get(pair[0]) and os.environ.get(pair[1])]
 
     def get(self, kind, first, last):
         path, key = ENDPOINTS[kind]
-        params = {"dateFrom": first.strftime("%d/%m/%Y"), "dateTo": last.strftime("%d/%m/%Y")}
-        while True:
-            if self.client is None:
-                self.client = Client(*(os.environ[name] for name in self.keys[0]))
-            self.calls += 1
-            try:
-                return self.client.get(path, params).get(key) or []
-            except requests.HTTPError as error:
-                status = error.response.status_code if error.response is not None else None
-                if status in (401, 403) and len(self.keys) > 1:
-                    # Not accepted yet or out of calls: go on with the next key.
-                    print(f"  key {self.keys[0][0]} refused ({status}), using {self.keys[1][0]}")
-                    self.keys.pop(0)
-                    self.client = None
-                    continue
-                raise
+        self.calls += 1
+        return self.client.get(path, {"dateFrom": first.strftime("%d/%m/%Y"),
+                                      "dateTo": last.strftime("%d/%m/%Y")}).get(key) or []
+
+    @property
+    def own_key(self):
+        """Still on the first key: the history is not filled with the fallback's calls."""
+        return self.client.key_name == self.client.first_key
 
 
 def fetch(fetcher, kind, first, last):
@@ -124,25 +114,44 @@ def fetch(fetcher, kind, first, last):
     return out
 
 
-def missing_days(series, kind, before):
-    have = {row["date"] for group, rows in series["daily"].items() if group.startswith(f"{kind}|") for row in rows}
-    day, out = HISTORY_START, []
-    while day < before:
-        if day.isoformat() not in have:
-            out.append(day)
-        day += timedelta(days=1)
-    return out
+def first_day(series, kind):
+    days = [row["date"] for group, rows in series["daily"].items() if group.startswith(f"{kind}|") for row in rows]
+    return parse_date(min(days)) if days else None
+
+
+def catch_up(fetcher, series, history_start, budget):
+    """
+    Extend each kind's history back from its first day, a request after the
+    other, until the budget or the start of Terna's history (a request that
+    comes back empty; its first day goes into history_start).
+    """
+    for kind in ENDPOINTS:
+        start = max(HISTORY_START, parse_date(history_start.get(kind, HISTORY_START.isoformat())))
+        while fetcher.calls < budget and fetcher.own_key:
+            first_have = first_day(series, kind)
+            if first_have is None or first_have <= start:
+                break
+            last = first_have - timedelta(days=1)
+            new = fetch(fetcher, kind, max(last - timedelta(days=CHUNK_DAYS[kind] - 1), start), last)
+            if not new:
+                print(f"  {kind}: Terna has nothing before {first_have}")
+                history_start[kind] = first_have.isoformat()
+                break
+            series = merge(series, new)
+        print(f"  {kind}: history from {first_day(series, kind)}")
+    return series
 
 
 def load_existing():
+    """The series, and per kind the day before which Terna has nothing."""
     series = {resolution: {} for resolution in RESOLUTIONS}
     if not os.path.exists(OUTPUT_PATH):
-        return series
+        return series, {}
     payload = compact.load(OUTPUT_PATH)
     for group, by_resolution in payload.get("series", {}).items():
         for resolution in RESOLUTIONS:
             series[resolution][group] = by_resolution.get(resolution, [])
-    return series
+    return series, payload.get("history_start", {})
 
 
 def merge(series, new):
@@ -157,7 +166,7 @@ def merge(series, new):
     return out
 
 
-def build_output(series):
+def build_output(series, history_start):
     groups = sorted({group for resolution in RESOLUTIONS for group in series[resolution]})
     effective_days = [row["date"] for group in groups if group.startswith("effective|")
                       for row in series["daily"].get(group, [])]
@@ -167,6 +176,7 @@ def build_output(series):
         "macro_areas": {"NORD": "Nord", "SUD": "Sud e isole"},
         "sources": list(SOURCES),
         "effective_until": max(effective_days) if effective_days else None,
+        "history_start": history_start,
         "series": {group: {resolution: compact.encode_series(series[resolution].get(group, []), resolution)
                            for resolution in RESOLUTIONS} for group in groups},
     }
@@ -180,10 +190,8 @@ def main():
     args = parser.parse_args()
 
     today = market_today()
-    fetcher = Fetcher()
-    if not fetcher.keys:
-        raise RuntimeError("TERNA_KEY / TERNA_SECRET must be set.")
-    series = load_existing()
+    fetcher = Fetcher(Client(THIRD_KEY, MAIN_KEY))
+    series, history_start = load_existing()
 
     if args.start:
         first = parse_date(args.start)
@@ -196,21 +204,13 @@ def main():
                                      today - timedelta(days=1)))
         series = merge(series, fetch(fetcher, "expected", today - timedelta(days=1),
                                      today + timedelta(days=EXPECTED_DAYS)))
-        budget = fetcher.calls + args.catch_up_calls
-        for kind in ("effective", "expected"):
-            gap = missing_days(series, kind, today - timedelta(days=LOOKBACK_DAYS))
-            while gap and fetcher.calls < budget:
-                last = gap[-1]
-                first = max(last - timedelta(days=CHUNK_DAYS[kind] - 1), HISTORY_START)
-                series = merge(series, fetch(fetcher, kind, first, last))
-                gap = [day for day in gap if day < first]
-            print(f"  {kind}: {len(gap)} days of history still missing")
+        series = catch_up(fetcher, series, history_start, fetcher.calls + args.catch_up_calls)
 
     for group in sorted(series["daily"]):
         days = series["daily"][group]
         if days:
             print(f"  {group}: {len(days)} days, {days[0]['date']} -> {days[-1]['date']}")
-    compact.dump(build_output(series), OUTPUT_PATH)
+    compact.dump(build_output(series, history_start), OUTPUT_PATH)
     print(f"Wrote {OUTPUT_PATH} ({os.path.getsize(OUTPUT_PATH) // 1024:,} KB), {fetcher.calls} Terna calls")
 
 

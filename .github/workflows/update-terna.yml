@@ -57,6 +57,9 @@ jobs:
 
       - name: Fetch Terna data
         env:
+          # This workflow's own key (300 calls a day), then the main one.
+          TERNA_KEY_3: ${{ secrets.TERNA_TERZO }}
+          TERNA_SECRET_3: ${{ secrets.TERNA_SEGRETO_TERZO }}
           TERNA_KEY: ${{ secrets.TERNA_KEY }}
           TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
         run: |
@@ -73,11 +76,11 @@ jobs:
         # Its own failure must not keep the load and geothermal data back.
         continue-on-error: true
         env:
-          TERNA_KEY: ${{ secrets.TERNA_KEY }}
-          TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
-          # A third key, used first once Terna has accepted it.
+          # This workflow's own key, then the main one (not for the history).
           TERNA_KEY_3: ${{ secrets.TERNA_TERZO }}
           TERNA_SECRET_3: ${{ secrets.TERNA_SEGRETO_TERZO }}
+          TERNA_KEY: ${{ secrets.TERNA_KEY }}
+          TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
           START: ${{ inputs.capacity_start }}
           END: ${{ inputs.capacity_end }}
         run: |

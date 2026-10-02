@@ -50,6 +50,9 @@ jobs:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
           TERNA_KEY: ${{ secrets.TERNA_KEY }}
           TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
+          # The third key when the main one's 300 calls of the day are used up.
+          TERNA_KEY_3: ${{ secrets.TERNA_TERZO }}
+          TERNA_SECRET_3: ${{ secrets.TERNA_SEGRETO_TERZO }}
         run: python etl/fetch_capacity.py
 
       - name: Fetch unavailability of generation units

@@ -18,7 +18,8 @@ Sources (no public source has commissioning dates, so this is yearly):
 Terna's year-end Y and ENTSO-E's 1 January Y+1 describe the same moment,
 so year Y pairs Terna Y with ENTSO-E Y+1.  Hydro = Terna hydro - pumped.
 
-Credentials: TERNA_KEY / TERNA_SECRET and ENTSOE_API_KEY.
+Credentials: TERNA_KEY / TERNA_SECRET (then TERNA_KEY_3 / TERNA_SECRET_3
+when used up) and ENTSOE_API_KEY.
 """
 
 import os
@@ -29,7 +30,7 @@ import requests
 
 import compact
 from entsoe_api import request_entsoe
-from fetch_terna import Client
+from fetch_terna import MAIN_KEY, THIRD_KEY, Client
 
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "data", "capacity.json")
 
@@ -148,12 +149,11 @@ def build(terna, entsoe, units):
 
 
 def main():
-    terna_key, terna_secret = os.environ.get("TERNA_KEY"), os.environ.get("TERNA_SECRET")
     entsoe_token = os.environ.get("ENTSOE_API_KEY")
-    if not (terna_key and terna_secret and entsoe_token):
-        raise RuntimeError("TERNA_KEY, TERNA_SECRET and ENTSOE_API_KEY must be set.")
+    if not entsoe_token:
+        raise RuntimeError("ENTSOE_API_KEY must be set.")
 
-    client = Client(terna_key, terna_secret)
+    client = Client(MAIN_KEY, THIRD_KEY)
     last_year = date.today().year
     terna, entsoe, units = {}, {}, {}
     for year in range(FIRST_YEAR, last_year + 1):

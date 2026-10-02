@@ -236,6 +236,18 @@ def test_terna_stops_at_once_when_the_daily_quota_is_used_up(monkeypatch):
     assert client.calls == 1
 
 
+def test_terna_quota_named_in_the_status_line_only_stops_at_once(monkeypatch):
+    import pytest
+    import requests
+    monkeypatch.setattr(fb.time, "sleep", lambda seconds: pytest.fail("waited"))
+    client = FakeTernaClient()
+    response = requests.Response()
+    response.status_code, response.reason, response._content = 403, "Developer Over Rate", b""
+    client.get = lambda path, params: (_ for _ in ()).throw(requests.HTTPError(response=response))
+    with pytest.raises(fb.TernaRefused):
+        fb.terna_get(client, "/x", {})
+
+
 def test_terna_waits_out_other_refusals(monkeypatch):
     waits = []
     monkeypatch.setattr(fb.time, "sleep", waits.append)
