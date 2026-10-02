@@ -1,0 +1,24 @@
+name: Probe GIE APIs (temporary)
+
+on:
+  push:
+    branches: [gas-lng]
+    paths: [etl/_probe_gie.py, .github/workflows/probe-gie.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install requests
+      - name: Probe
+        env:
+          GIE_KEY: ${{ secrets.AGSI_KEY }}
+        run: python etl/_probe_gie.py
