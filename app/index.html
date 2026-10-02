@@ -40,6 +40,9 @@
       --queue-step-1:#3a5786; --queue-step-2:#4670b4; --queue-step-3:#5a90e0; --queue-step-4:#8ab4f3; --queue-step-5:#c3d9fb;
       --queue-screening:#9ab8e8; --queue-assessment:#4682da; --queue-approved:#5ecb8a; --queue-rejected:#e66767; --queue-withdrawn:#5f656d;
       --queue-level-0:#3a4048; --queue-level-1:#8c949e; --queue-level-2:#d9b43c; --queue-level-3:#e58a3a; --queue-level-4:#e66767;
+      --map-solar:#d9a800; --map-agrivoltaic:#e07b1a; --map-wind:#2ca76a; --map-offshore:#3f93d8; --map-hydro:#22b3c6; --map-pumped:#6f7fd6;
+      --map-geothermal:#b06a3b; --map-thermal:#d6453a; --map-storage:#a07be0; --map-datacentre:#e07bbf; --map-grid:#9aa2ab; --map-other:#b5b83a;
+      --map-land:#1a1f25; --map-border:#2c323a;
     }
     :root[data-theme="light"] {
       color-scheme:light;
@@ -65,6 +68,9 @@
       --queue-step-1:#93b5ea; --queue-step-2:#6a98e2; --queue-step-3:#477cd6; --queue-step-4:#2d60bb; --queue-step-5:#1b438c;
       --queue-screening:#8fb3ea; --queue-assessment:#2f6fdb; --queue-approved:#1f9d57; --queue-rejected:#e34948; --queue-withdrawn:#a3aab3;
       --queue-level-0:#d5dae0; --queue-level-1:#9aa1a9; --queue-level-2:#d4a514; --queue-level-3:#e07a1f; --queue-level-4:#e34948;
+      --map-solar:#c99a00; --map-agrivoltaic:#d06a00; --map-wind:#1a8f55; --map-offshore:#2a78c6; --map-hydro:#0f97a8; --map-pumped:#4d5cc0;
+      --map-geothermal:#9a5426; --map-thermal:#c23a2c; --map-storage:#7e57c2; --map-datacentre:#c2569e; --map-grid:#7a838e; --map-other:#949712;
+      --map-land:#eef0f3; --map-border:#c9cfd6;
     }
     #theme-toggle { position:fixed; left:16px; bottom:16px; z-index:150; display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 14px 8px 11px; font-size:12px; cursor:pointer; box-shadow:0 6px 18px var(--shadow); }
     #theme-toggle:hover { background:var(--hover); }
@@ -224,6 +230,36 @@
     .queue-note { margin:8px 0 0; color:var(--muted-2); font-size:11px; line-height:1.55; }
     .queue-controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:8px 0 10px; }
     .queue-empty { padding:24px; color:var(--muted); font-size:12.5px; }
+    .map-layout { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:18px; }
+    @media (max-width: 1050px) { .map-layout { grid-template-columns:1fr; } }
+    .map-wrap { position:relative; }
+    .map-canvas { position:relative; width:100%; height:760px; border:1px solid var(--border); border-radius:8px; background:var(--panel); }
+    @media (max-width: 700px) { .map-canvas { height:560px; } }
+    .map-back { position:absolute; top:12px; left:12px; z-index:5; border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:7px; padding:7px 12px; font-size:12px; cursor:pointer; box-shadow:0 4px 14px var(--shadow); }
+    .map-back:hover { background:var(--hover); }
+    .map-hint { position:absolute; top:14px; left:16px; z-index:5; color:var(--muted-2); font-size:11px; pointer-events:none; }
+    .map-side { display:flex; flex-direction:column; gap:14px; }
+    .map-box { border:1px solid var(--border); border-radius:8px; background:var(--panel-2); padding:12px 14px; }
+    .map-box h3 { margin:0 0 8px; font-size:12.5px; font-weight:600; }
+    .map-year { display:flex; align-items:center; gap:10px; }
+    .map-year input[type=range] { flex:1; accent-color:var(--blue); }
+    .map-year b { min-width:42px; font-size:15px; font-variant-numeric:tabular-nums; }
+    .map-play { width:30px; height:30px; flex-shrink:0; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:6px; cursor:pointer; }
+    .map-play:hover { background:var(--hover); }
+    .map-count { margin-top:8px; color:var(--muted); font-size:12px; line-height:1.5; }
+    .map-count b { color:var(--text); }
+    .map-legend { width:100%; border-collapse:collapse; font-size:11px; }
+    .map-legend th { padding:0 1px 6px; color:var(--muted); font-weight:500; font-size:9.5px; text-align:center; line-height:1.2; cursor:pointer; vertical-align:bottom; }
+    .map-legend th:first-child { text-align:left; cursor:default; }
+    .map-legend td { padding:4px 2px; text-align:center; border-top:1px solid var(--border); }
+    .map-legend td:first-child { text-align:left; cursor:pointer; white-space:nowrap; padding-right:4px; }
+    .map-legend td.cell { cursor:pointer; }
+    .map-legend i { display:inline-block; width:11px; height:11px; border-radius:50%; vertical-align:middle; }
+    .map-legend span.n { display:block; color:var(--muted); font-size:9.5px; font-variant-numeric:tabular-nums; }
+    .map-legend .off { opacity:.25; }
+    .map-sizes { display:flex; align-items:flex-end; gap:16px; color:var(--muted); font-size:11px; }
+    .map-sizes div { display:flex; flex-direction:column; align-items:center; gap:4px; }
+    .map-sizes i { display:inline-block; border-radius:50%; border:1px solid var(--muted); }
     .gas-empty { padding:18px; color:var(--muted); font-size:12px; }
     #chart-mount-balancing { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { #chart-mount-balancing { grid-template-columns:1fr; } }
@@ -398,6 +434,7 @@
           <section id="income-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Congestion Income</div><div id="income-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="income-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida3-chart" class="timeline-chart"></div><div id="income-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 3 (afternoon and evening), signed like the spreads.</div></section>
         </div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net scheduled commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Scheduled commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Scheduled commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
         <div id="gas-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Gas storage and LNG</p></div><nav id="gas-subnav" class="subnav"><button class="subnav-tab active" data-gas-tab="overview" type="button">Overview</button><button class="subnav-tab" data-gas-tab="storage" type="button">Storage</button><button class="subnav-tab" data-gas-tab="lng" type="button">LNG</button><button class="subnav-tab" data-gas-tab="outages" type="button">Outages</button><button class="subnav-tab" data-gas-tab="tariffs" type="button">Tariffs</button></nav><div id="gas-mount"></div></div>
+        <div id="maps-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Maps</p></div><div id="maps-mount"></div></div>
         <div id="queue-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Project pipeline and grid-connection queue</p></div><nav id="queue-subnav" class="subnav"><button class="subnav-tab active" data-queue-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-queue-tab="connections" type="button">Grid connections (Terna, e-distribuzione)</button></nav><div id="queue-mount"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO), GIE (AGSI+, ALSI, IIP), MASE, e-distribuzione.</footer>
@@ -10260,6 +10297,7 @@
       queueStatus[file] = "missing";
     }
     if (currentSection === "queue") renderQueue();
+    if (currentSection === "maps") renderMaps();
   }
 
   /* Rows stored as arrays + a column list -> objects. */
@@ -11193,6 +11231,284 @@
 
 
   /* ============================================================
+     MAPS: MASE PROJECTS ON A MAP OF ITALY
+     ============================================================ */
+
+  const mapsMount = document.getElementById("maps-mount");
+  /*
+   * One hue per technology, the stage a shade of it.  Twelve hues cannot all
+   * stay apart for colour-blind readers; the legend's toggles and the
+   * tooltip carry the technology too.
+   */
+  const MAP_TECHNOLOGIES = [
+    { key: "solar", color: "--map-solar" },
+    { key: "agrivoltaic", color: "--map-agrivoltaic" },
+    { key: "wind_onshore", color: "--map-wind" },
+    { key: "wind_offshore", color: "--map-offshore" },
+    { key: "hydro", color: "--map-hydro" },
+    { key: "pumped_hydro", color: "--map-pumped" },
+    { key: "geothermal", color: "--map-geothermal" },
+    { key: "thermal", color: "--map-thermal" },
+    { key: "storage", color: "--map-storage" },
+    { key: "data_centre", color: "--map-datacentre" },
+    { key: "grid", color: "--map-grid" },
+    { key: "other", color: "--map-other" }
+  ];
+  // Shade: towards white above zero, towards black below.
+  const MAP_STAGES = [
+    { key: "screening", label: "Preliminary", shade: 0.5 },
+    { key: "assessment", label: "Under assessment", shade: 0.25 },
+    { key: "approved", label: "Approved", shade: 0 },
+    { key: "rejected", label: "Rejected", shade: -0.3 },
+    { key: "withdrawn", label: "Withdrawn", shade: -0.5 }
+  ];
+  const mapState = { year: null, only: false, hidden: new Set(), timer: null, region: null };
+  let mapsChart = null;
+  let italyGeo = null;
+  let italyGeoStatus = null; // null | "loading" | "ready" | "missing"
+
+  async function loadItalyGeo() {
+    if (italyGeoStatus) return;
+    italyGeoStatus = "loading";
+    try {
+      const response = await fetch("./geo/italy_regions.json");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      italyGeo = await response.json();
+      echarts.registerMap("italy", italyGeo);
+      italyGeoStatus = "ready";
+    } catch (error) {
+      console.warn("Map of Italy unavailable:", error);
+      italyGeoStatus = "missing";
+    }
+    if (currentSection === "maps") renderMaps();
+  }
+
+  function shadeColor(hex, amount) {
+    const value = parseInt(hex.trim().replace("#", ""), 16);
+    const target = amount > 0 ? 255 : 0;
+    return "#" + [value >> 16 & 255, value >> 8 & 255, value & 255]
+      .map(channel => Math.round(channel + (target - channel) * Math.abs(amount)).toString(16).padStart(2, "0")).join("");
+  }
+
+  const mapTechnologyOf = technology => MAP_TECHNOLOGIES.find(entry => entry.key === technology) || MAP_TECHNOLOGIES[MAP_TECHNOLOGIES.length - 1];
+  const mapColor = (technology, stage) => shadeColor(cssVar(technology.color), (MAP_STAGES.find(entry => entry.key === stage) || MAP_STAGES[1]).shade);
+  const mapSize = mw => isEmpty(mw) ? 4 : Math.min(26, 3.5 + 0.65 * Math.sqrt(mw));
+  const mapHidden = (technology, stage) => mapState.hidden.has(technology) || mapState.hidden.has(stage) || mapState.hidden.has(`${technology}|${stage}`);
+  // "Emilia Romagna" (MASE) and "Emilia-Romagna" (the map) -> one key.
+  const regionKey = name => (name || "").split("/")[0].normalize("NFKD").replace(/[^a-zA-Z]/g, "").toLowerCase();
+
+  /* Projects of one municipality share its point: fan them out a little, the same way every time. */
+  function mapJitter(id) {
+    const angle = (id * 137.508) % 360 * Math.PI / 180;
+    const radius = 0.01 + (id % 5) * 0.004;
+    return [Math.cos(angle) * radius, Math.sin(angle) * radius];
+  }
+
+  /* [[west, north], [east, south]] of a region, with a margin. */
+  function regionBounds(name) {
+    const feature = italyGeo.features.find(entry => entry.properties.name === name);
+    let west = 180, east = -180, south = 90, north = -90;
+    feature.geometry.coordinates.forEach(polygon => polygon[0].forEach(([lon, lat]) => {
+      west = Math.min(west, lon); east = Math.max(east, lon); south = Math.min(south, lat); north = Math.max(north, lat);
+    }));
+    const pad = Math.max(east - west, north - south) * 0.06;
+    return [[west - pad, north + pad], [east + pad, south - pad]];
+  }
+
+  function stopMapPlay() {
+    if (mapState.timer) clearInterval(mapState.timer);
+    mapState.timer = null;
+  }
+
+  function openProject(project) {
+    stopMapPlay();
+    Object.values(projectState.filters).forEach(chosen => chosen.clear());
+    Object.assign(projectState, { search: String(project.id), open: String(project.id), page: 0 });
+    queueTab = "projects";
+    currentSection = "queue";
+    updateView();
+    window.scrollTo(0, 0);
+  }
+
+  function renderMaps() {
+    if (currentSection !== "maps") return;
+    loadQueueFile("mase_projects.json");
+    loadItalyGeo();
+    stopMapPlay();
+    if (mapsChart) mapsChart.dispose();
+    mapsChart = null;
+    mapsMount.innerHTML = "";
+    const data = queueData["mase_projects.json"];
+    const section = document.createElement("section");
+    section.className = "panel chart-panel";
+    section.innerHTML = `<div class="chart-header"><div><div class="chart-title">Power projects in MASE's environmental assessment</div>` +
+      `<div class="chart-subtitle">${data ? `Read ${formatCheckDate(data.updated)}` : ""}</div></div></div><div class="queue-body"></div>`;
+    mapsMount.appendChild(section);
+    const body = section.querySelector(".queue-body");
+    if (!data || italyGeoStatus !== "ready") {
+      const missing = queueStatus["mase_projects.json"] === "missing" || italyGeoStatus === "missing";
+      body.innerHTML = `<div class="queue-empty">${missing ? "The project map is not available yet." : "Loading the project map…"}</div>`;
+      return;
+    }
+
+    const all = maseProjects();
+    const projects = all.filter(project => !isEmpty(project.lat) && !isEmpty(project.lon)).map(project => {
+      const [dx, dy] = mapJitter(project.id);
+      // Sized by MW only where the MW is the project's (see summedMw).
+      return { project, technology: mapTechnologyOf(project.technology), size: mapSize(summedMw(project) ? project.mw : null),
+        regions: new Set(project.regions.map(regionKey)),
+        year: /^\d{4}$/.test(project.year) ? Number(project.year) : null, x: project.lon + dx, y: project.lat + dy };
+    }).sort((a, b) => b.size - a.size); // big dots first, so small ones stay on top
+    const years = projects.map(entry => entry.year).filter(Boolean);
+    const first = Math.min(...years), last = Math.max(...years);
+    if (mapState.year === null || mapState.year > last || mapState.year < first) mapState.year = last;
+
+    body.innerHTML = `<div class="map-layout"><div class="map-wrap"><div class="map-canvas"></div>` +
+      `<button type="button" class="map-back">← Back to Italy</button><div class="map-hint">Click a region to see it on its own</div></div>` +
+      `<div class="map-side">` +
+      `<div class="map-box"><h3>Year filed</h3><div class="map-year"><button type="button" class="map-play" aria-label="Play through the years">▶</button>` +
+      `<input type="range" min="${first}" max="${last}" step="1" value="${mapState.year}" aria-label="Year filed"><b></b></div>` +
+      `<label class="queue-option" style="padding:8px 0 0"><input type="checkbox"${mapState.only ? " checked" : ""}> Only projects filed that year</label>` +
+      `<div class="map-count"></div></div>` +
+      `<div class="map-box"><h3>Technology and stage</h3><table class="map-legend"></table>` +
+      `<div class="queue-note">Click a technology, a stage or a dot to hide or show it.</div></div>` +
+      `<div class="map-box"><h3>Capacity of renewable and storage projects</h3><div class="map-sizes">${[10, 100, 1000].map(mw => {
+        const size = mapSize(mw);
+        return `<div><i style="width:${size}px;height:${size}px"></i>${formatNumber(mw)} MW</div>`;
+      }).join("")}<div><i style="width:4px;height:4px"></i>not stated</div></div>` +
+      `<div class="queue-note">Thermal plants, power lines, data centres and changes to projects are drawn small: ` +
+      `the MW in their descriptions is mostly an existing plant's.</div></div>` +
+      `</div></div><div class="queue-note">Each dot is a project placed at the centre of the municipalities it lists, not at its exact site ` +
+      `(MASE's own map service is switched off); offshore wind farms sit at their coastal municipalities, and projects of one municipality are ` +
+      `fanned out around it. Colours show each project's stage today. Click a region to see it on its own, a dot to open the project in Queue. ` +
+      `${formatNumber(all.length - projects.length)} projects list no municipality that could be placed and are not shown. ` +
+      `Boundaries: ISTAT (CC BY 4.0) via openpolis; municipality positions: Wikidata.</div>`;
+
+    const slider = body.querySelector(".map-year input");
+    const yearLabel = body.querySelector(".map-year b");
+    const play = body.querySelector(".map-play");
+    const legend = body.querySelector(".map-legend");
+    const back = body.querySelector(".map-back");
+    const hint = body.querySelector(".map-hint");
+    const chart = mapsChart = echarts.init(body.querySelector(".map-canvas"));
+
+    const inYear = entry => mapState.only ? entry.year === mapState.year
+      : entry.year === null ? mapState.year === last : entry.year <= mapState.year;
+    const inRegion = entry => !mapState.region || entry.regions.has(regionKey(mapState.region));
+    const inView = entry => inYear(entry) && inRegion(entry);
+
+    function points() {
+      return projects.filter(entry => inView(entry) && !mapHidden(entry.technology.key, entry.project.stage)).map(entry => ({
+        value: [entry.x, entry.y, entry.size], entry,
+        itemStyle: { color: mapColor(entry.technology, entry.project.stage) }
+      }));
+    }
+
+    function drawSide(shown) {
+      yearLabel.textContent = mapState.year;
+      slider.value = mapState.year;
+      play.textContent = mapState.timer ? "❚❚" : "▶";
+      back.style.display = mapState.region ? "" : "none";
+      hint.style.display = mapState.region ? "none" : "";
+      const gw = shown.filter(point => summedMw(point.entry.project)).reduce((sum, point) => sum + point.entry.project.mw, 0);
+      body.querySelector(".map-count").innerHTML = `<b>${formatNumber(shown.length)}</b> projects ` +
+        `${mapState.only ? `filed in ${mapState.year}` : `filed up to ${mapState.year}`}` +
+        `${mapState.region ? ` in <b>${escapeHtml(mapState.region)}</b>` : ""} · <b>${formatGwValue(gw)}</b> of renewables and storage`;
+      const counts = {};
+      projects.filter(inView).forEach(entry => {
+        const key = `${entry.technology.key}|${entry.project.stage}`;
+        counts[key] = (counts[key] || 0) + 1;
+      });
+      legend.innerHTML = `<tr><th></th>${MAP_STAGES.map(stage => `<th data-key="${stage.key}" class="${mapState.hidden.has(stage.key) ? "off" : ""}">${stage.label}</th>`).join("")}</tr>` +
+        MAP_TECHNOLOGIES.map(technology => `<tr><td data-key="${technology.key}" class="${mapState.hidden.has(technology.key) ? "off" : ""}">` +
+          `<i style="background:${cssVar(technology.color)};margin-right:6px"></i>${QUEUE_TECHNOLOGIES[technology.key]}</td>` +
+          MAP_STAGES.map(stage => {
+            const key = `${technology.key}|${stage.key}`;
+            return `<td class="cell${mapHidden(technology.key, stage.key) ? " off" : ""}" data-key="${key}" title="${escapeHtml(`${QUEUE_TECHNOLOGIES[technology.key]} · ${stage.label}`)}">` +
+              `<i style="background:${mapColor(technology, stage.key)}"></i><span class="n">${formatNumber(counts[key] || 0)}</span></td>`;
+          }).join("") + `</tr>`).join("");
+    }
+
+    function draw(full) {
+      const shown = points();
+      if (full) {
+        const region = mapState.region;
+        chart.setOption({
+          animation: false, backgroundColor: "transparent",
+          tooltip: {
+            trigger: "item", confine: true, backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"),
+            borderWidth: 1, textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
+            formatter: params => {
+              const entry = params.data && params.data.entry;
+              if (!entry) return "";
+              const project = entry.project;
+              const stage = (QUEUE_STAGES[project.stage] || {}).label || project.stage;
+              const place = (project.municipalities || []).slice(0, 3).join(", ") + ((project.municipalities || []).length > 3 ? "…" : "");
+              return `<div style="max-width:300px;white-space:normal"><div style="font-weight:600;margin-bottom:4px">${escapeHtml(project.label || project.name)}</div>` +
+                `<div style="color:${cssVar("--chart-tooltip-muted")};margin-bottom:6px">${escapeHtml(place)}${project.regions.length ? ` (${escapeHtml(project.regions.join(", "))})` : ""}</div>` +
+                tooltipRow(params.color, QUEUE_TECHNOLOGIES[project.technology] || project.technology, isEmpty(project.mw) ? "MW not stated" : `${formatQueueMw(project.mw)} MW`) +
+                tooltipRow("transparent", stage, project.procedure ? escapeHtml(translateStatus(project.procedure.status)) : "") +
+                tooltipRow("transparent", "Filed", formatQueueDate(project.start)) +
+                `<div style="margin-top:6px;color:${cssVar("--chart-tooltip-muted")}">Click to open it in Queue</div></div>`;
+            }
+          },
+          geo: {
+            map: "italy", roam: false, aspectScale: 0.78, layoutCenter: ["50%", "50%"], layoutSize: "96%",
+            ...(region ? { boundingCoords: regionBounds(region) } : {}),
+            itemStyle: { areaColor: cssVar("--map-land"), borderColor: cssVar("--map-border"), borderWidth: 0.8 },
+            // The other regions stay as context, faded.
+            regions: region ? italyGeo.features.filter(feature => feature.properties.name !== region)
+              .map(feature => ({ name: feature.properties.name, itemStyle: { opacity: 0.35 } })) : [],
+            emphasis: { label: { show: false }, itemStyle: { areaColor: cssVar("--hover") } },
+            select: { disabled: true }, tooltip: { show: false }, label: { show: false }
+          },
+          series: [{
+            type: "scatter", coordinateSystem: "geo", data: shown, symbolSize: value => value[2], progressive: 0,
+            itemStyle: { borderColor: cssVar("--panel"), borderWidth: 0.6, opacity: 0.92 },
+            emphasis: { scale: 1.6, itemStyle: { borderColor: cssVar("--text"), borderWidth: 1 } }
+          }]
+        }, true);
+      } else {
+        chart.setOption({ series: [{ data: shown }] });
+      }
+      drawSide(shown);
+    }
+
+    slider.addEventListener("input", () => { stopMapPlay(); mapState.year = Number(slider.value); draw(false); });
+    body.querySelector(".map-box input[type=checkbox]").addEventListener("change", event => { mapState.only = event.target.checked; draw(false); });
+    play.addEventListener("click", () => {
+      if (mapState.timer) { stopMapPlay(); drawSide(points()); return; }
+      if (mapState.year >= last) mapState.year = first;
+      mapState.timer = setInterval(() => {
+        if (currentSection !== "maps" || !section.isConnected) { stopMapPlay(); return; }
+        if (mapState.year >= last) { stopMapPlay(); drawSide(points()); return; }
+        mapState.year += 1;
+        draw(false);
+      }, 700);
+      draw(false);
+    });
+    legend.addEventListener("click", event => {
+      const target = event.target.closest("[data-key]");
+      if (!target) return;
+      const key = target.dataset.key;
+      if (mapState.hidden.has(key)) mapState.hidden.delete(key); else mapState.hidden.add(key);
+      draw(false);
+    });
+    back.addEventListener("click", () => { mapState.region = null; draw(true); });
+    chart.on("click", params => {
+      if (params.data && params.data.entry) openProject(params.data.entry.project);
+      else if (params.componentType === "geo" && params.name) {
+        mapState.region = params.name;
+        draw(true);
+      }
+    });
+    draw(true);
+  }
+
+  window.addEventListener("resize", () => { if (mapsChart) mapsChart.resize(); });
+
+
+  /* ============================================================
      REDESIGN NAVIGATION / TOP-BAR CALENDAR
      ============================================================ */
 
@@ -11253,8 +11569,10 @@
     document.getElementById("gas-page").style.display = isGasSection ? "block" : "none";
     const isQueueSection = currentSection === "queue";
     document.getElementById("queue-page").style.display = isQueueSection ? "block" : "none";
-    // The queue is a snapshot: the calendar does not apply.
-    document.querySelector(".calendar-trigger-wrap").style.display = isQueueSection ? "none" : "";
+    const isMapsSection = currentSection === "maps";
+    document.getElementById("maps-page").style.display = isMapsSection ? "block" : "none";
+    // The queue and the map are snapshots: the calendar does not apply.
+    document.querySelector(".calendar-trigger-wrap").style.display = isQueueSection || isMapsSection ? "none" : "";
 
     document.getElementById("zone-tabs-wrap").style.display =
       isDataSection ? "flex" : "none";
@@ -11266,7 +11584,7 @@
       isDataSection ? "block" : "none";
 
     document.getElementById("section-placeholder").style.display =
-      isDataSection || isGasSection || isQueueSection ? "none" : "flex";
+      isDataSection || isGasSection || isQueueSection || isMapsSection ? "none" : "flex";
 
     if (isGasSection) {
       setTimeout(renderGas, 0);
@@ -11278,9 +11596,13 @@
       return;
     }
 
+    if (isMapsSection) {
+      setTimeout(renderMaps, 0);
+      return;
+    }
+
     if (!isDataSection) {
       const titles = {
-        maps: "Maps",
         policy: "Policy"
       };
 

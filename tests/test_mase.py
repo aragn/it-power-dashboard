@@ -1,5 +1,6 @@
 """Checks for fetch_mase.  Run: python -m pytest tests"""
 
+import json
 import os
 import sys
 
@@ -136,3 +137,25 @@ def test_short_name_is_the_quoted_name():
     assert fm.short_name("Costruzione di un impianto eolico denominato \"Monte Croce di Ferro\"", "") == "Monte Croce di Ferro"
     assert fm.short_name("Impianto MANFREDONIA", "repowering denominato \"Manfredonia\", con") == "Manfredonia"
     assert fm.short_name("ELETTRODOTTO 150 KV CINECITTA' - BANCA D'ITALIA", "") == "ELETTRODOTTO 150 KV CINECITTA' - BANCA D'ITALIA"
+
+
+def test_projects_are_placed_at_the_centre_of_their_municipalities(tmp_path):
+    reference = tmp_path / "municipalities.json"
+    reference.write_text(json.dumps({
+        "columns": ["istat", "name", "lat", "lon", "current"],
+        "municipalities": [["075020", "Castro", 40.0, 18.4, True], ["016066", "Castro", 45.8, 10.0, True],
+                           ["021011", "Bressanone", 46.7, 11.6, True], ["077011", "Grottole", 40.6, 16.4, True],
+                           ["077014", "Matera", 40.7, 16.6, True]],
+        "provinces": {"075": "provincia di Lecce", "016": "provincia di Bergamo", "021": "provincia autonoma di Bolzano",
+                      "077": "provincia di Matera"}}), encoding="utf-8")
+    places = fm.Gazetteer(str(reference))
+    assert places.locate("Castro", ["Lecce"]) == (40.0, 18.4)       # namesakes: the project's province decides
+    assert places.locate("Castro", ["Bergamo"]) == (45.8, 10.0)
+    assert places.locate("Bressanone/Brixen", ["Bolzano/Bozen"]) == (46.7, 11.6)
+    assert places.locate("Atlantide") is None
+    fm._gazetteer = places
+    try:
+        assert fm.location({"municipalities": ["Grottole", "Matera", "Atlantide"], "provinces": ["Matera"]}) == (40.65, 16.5, 2)
+        assert fm.location({"municipalities": [], "provinces": []}) == (None, None, 0)
+    finally:
+        fm._gazetteer = None
