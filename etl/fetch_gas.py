@@ -188,6 +188,7 @@ def umm_events(rows):
         if row.get("status") == "Dismissed":
             continue
         entity = row.get("reportingEntity") or {}
+        message = row.get("message") or {}
 
         def gwh_day(block):
             block = row.get(block) or {}
