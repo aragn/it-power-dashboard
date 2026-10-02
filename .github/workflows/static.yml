@@ -28,6 +28,7 @@ on:
       - "Update Price Spreads (JAO)"
       - "Update Cross-Zonal Capacity (JAO)"
       - "Update PICASSO Prices (TransnetBW)"
+      - "Update Gas Storage & LNG (GIE)"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab

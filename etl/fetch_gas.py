@@ -192,6 +192,10 @@ def umm_facility(row):
     return "OTHER"
 
 
+def version_order(version):
+    return int(version) if str(version).isdigit() else 0
+
+
 def umm_events(rows):
     """The latest version of each event on Italy's balancing zone (dismissed ones too)."""
     latest = {}
@@ -200,7 +204,7 @@ def umm_events(rows):
         event, _, version = (message.get("messageId") or "").rpartition("_")
         if not event:
             continue
-        if event in latest and int(latest[event][0] or 0) >= int(version or 0):
+        if event in latest and version_order(latest[event][0]) >= version_order(version):
             continue
         latest[event] = (version, row)
     events = []
@@ -253,10 +257,6 @@ def umm_daily(events):
     return {group: {day: round(value, 2) for day, value in values.items()} for group, values in out.items()}
 
 
-def version_number(event):
-    return int(event["version"]) if str(event["version"]).isdigit() else -1
-
-
 def merge_events(existing, new):
     """
     The saved events updated with the new ones (a later version replaces an
@@ -265,7 +265,7 @@ def merge_events(existing, new):
     """
     events = {event["id"]: event for event in existing}
     for event in new:
-        if event["id"] not in events or version_number(event) >= version_number(events[event["id"]]):
+        if event["id"] not in events or version_order(event["version"]) >= version_order(events[event["id"]]["version"]):
             events[event["id"]] = event
     return [event for _, event in sorted(events.items()) if event["status"] != "Dismissed"]
 
@@ -328,10 +328,10 @@ def main():
         have = series.get(f"{code}|full" if ENTITIES[code][0] == "storage" else f"{code}|send_out", {})
         if args.start:
             first = max(start, date.fromisoformat(args.start))
-        elif have and min(have) <= start.isoformat():
+        elif have:
             first = today - timedelta(days=LOOKBACK_DAYS)
         else:
-            first = start  # history missing: from the start
+            first = start  # nothing saved yet: from the start (some sites start later)
         for name, values in fetch_entity(gie, code, first, today).items():
             group = series.setdefault(f"{code}|{name}", {})
             for day in [day for day in group if day >= first.isoformat()]:

@@ -34,6 +34,8 @@
       --coupling-flow:#199e70; --coupling-limit:#d9dde2; --coupling-price-italy:#e66767; --coupling-price-sud:#d55181; --coupling-price-neighbour:#9085e9;
       --bal-imbalance:#c783ff; --bal-picasso:#5ecb8a; --bal-afrr:#5b9cff; --bal-rr:#e7a84b; --bal-fcr:#ef6fae; --bal-msd:#ef6fae; --bal-reference:#d9dde2; --bal-volume:rgba(140,148,158,.5);
       --picasso-up:#e66767; --picasso-down:#3987e5; --picasso-none:#4a5058;
+      --gas-hub1:#3987e5; --gas-hub2:#d95926; --gas-cornegliano:#199e70; --gas-rovigo:#c98500; --gas-olt:#d55181; --gas-panigaglia:#008300; --gas-piombino:#9085e9; --gas-ravenna:#e66767;
+      --gas-injection:#3987e5; --gas-withdrawal:#e66767; --gas-band:rgba(140,148,158,.28);
     }
     :root[data-theme="light"] {
       color-scheme:light;
@@ -53,6 +55,8 @@
       --coupling-flow:#12805f; --coupling-limit:#1f2429; --coupling-price-italy:#e34948; --coupling-price-sud:#c93d74; --coupling-price-neighbour:#4a3aa7;
       --bal-imbalance:#8a4fd6; --bal-picasso:#1f9d57; --bal-afrr:#2f6fdb; --bal-rr:#c27a0e; --bal-fcr:#d23f84; --bal-msd:#d23f84; --bal-reference:#1f2429; --bal-volume:rgba(91,100,112,.4);
       --picasso-up:#e34948; --picasso-down:#2a78d6; --picasso-none:#c3c8ce;
+      --gas-hub1:#2a78d6; --gas-hub2:#eb6834; --gas-cornegliano:#1baf7a; --gas-rovigo:#eda100; --gas-olt:#e87ba4; --gas-panigaglia:#008300; --gas-piombino:#4a3aa7; --gas-ravenna:#e34948;
+      --gas-injection:#2a78d6; --gas-withdrawal:#e34948; --gas-band:rgba(91,100,112,.2);
     }
     #theme-toggle { position:fixed; left:16px; bottom:16px; z-index:150; display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 14px 8px 11px; font-size:12px; cursor:pointer; box-shadow:0 6px 18px var(--shadow); }
     #theme-toggle:hover { background:var(--hover); }
@@ -120,6 +124,25 @@
     .intraday-chart-wrap { height:320px; }
     .xbid-grid { grid-column:1 / -1; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { .xbid-grid { grid-template-columns:1fr; } }
+    #gas-mount { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
+    #gas-mount .gas-wide { grid-column:1 / -1; }
+    @media (max-width: 1050px) { #gas-mount { grid-template-columns:1fr; } }
+    .gas-kpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-top:12px; }
+    @media (max-width: 1050px) { .gas-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+    .gas-kpi { padding:12px 14px; border:1px solid var(--border); border-radius:8px; background:var(--panel-2); min-width:0; }
+    .gas-kpi-label { color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+    .gas-kpi-value { margin:6px 0 3px; color:var(--text); font-size:24px; font-weight:600; font-variant-numeric:tabular-nums; letter-spacing:-.01em; }
+    .gas-kpi-value small { margin-left:3px; color:var(--muted); font-size:13px; font-weight:500; }
+    .gas-kpi-sub { color:var(--muted); font-size:12px; line-height:1.4; }
+    .gas-table-wrap { max-height:440px; overflow:auto; margin-top:10px; border:1px solid var(--border); border-radius:8px; }
+    .gas-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .gas-table th { position:sticky; top:0; background:var(--panel-2); color:var(--muted); font-weight:600; text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); white-space:nowrap; }
+    .gas-table td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); vertical-align:top; }
+    .gas-table td:nth-child(-n+3) { white-space:nowrap; }
+    .gas-table td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .gas-table td.muted { color:var(--muted); }
+    .gas-table .swatch { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; }
+    .gas-empty { padding:18px; color:var(--muted); font-size:12px; }
     #chart-mount-balancing { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { #chart-mount-balancing { grid-template-columns:1fr; } }
     .depth-panel { grid-column:1 / -1; padding:14px 18px; }
@@ -262,7 +285,7 @@
       </div>
     </header>
     <div class="app-body">
-      <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
+      <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="gas" type="button">Gas &amp; LNG</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
         <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="balancing" type="button">Balancing</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range. <span class="info-hover" tabindex="0" aria-describedby="outages-info">Read here for more info<span id="outages-info" class="info-pop" role="tooltip"></span></span></div></section><section id="available-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Available Capacity</div><div id="available-subtitle" class="chart-subtitle"></div></div></div><div id="available-wrap" class="timeline-chart-wrap"><div id="available-chart" class="timeline-chart"></div><div id="available-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, available capacity of the generating units of 100 MW or more. Solid: the effective capacity, final the day after; shaded and marked "Expected": the capacity the operators expect, where the effective one is not published (the days ahead, up to 14 when the selected dates reach the latest one, and the odd missing day). Dashed: the expected total over the whole period, to compare with what was then available. Click a source in the legend to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
@@ -292,8 +315,9 @@
           <section id="income-ida2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 2 Congestion Income</div><div id="income-ida2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="income-ida2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida2-chart" class="timeline-chart"></div><div id="income-ida2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 2, signed like the spreads.</div></section>
           <section id="income-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Congestion Income</div><div id="income-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="income-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida3-chart" class="timeline-chart"></div><div id="income-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 3 (afternoon and evening), signed like the spreads.</div></section>
         </div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net scheduled commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Scheduled commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Scheduled commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
+        <div id="gas-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Gas storage and LNG</p></div><nav id="gas-subnav" class="subnav"><button class="subnav-tab active" data-gas-tab="overview" type="button">Overview</button><button class="subnav-tab" data-gas-tab="storage" type="button">Storage</button><button class="subnav-tab" data-gas-tab="lng" type="button">LNG</button><button class="subnav-tab" data-gas-tab="outages" type="button">Outages</button></nav><div id="gas-mount"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
-        <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO).</footer>
+        <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO), GIE (AGSI+, ALSI, IIP).</footer>
       </main>
     </div>
   </div>
@@ -9042,6 +9066,874 @@
 
 
   /* ============================================================
+     GAS & LNG (GIE: AGSI+ STORAGE, ALSI LNG, IIP UMM), ITALY, DAILY
+     ============================================================ */
+
+  /*
+   * data/gas.json (see etl/fetch_gas.py): one value per gas day.  The
+   * section has its own tabs and follows the calendar (daily only); the
+   * seasonal chart compares whole years instead.  Facilities keep one
+   * colour everywhere: storage sites in the first three palette slots,
+   * LNG terminals in the next five; Italy in the reference ink, the EU
+   * dashed.
+   */
+  const GAS_FACILITIES = {
+    HUB1: { name: "Stogit HUB1", color: "--gas-hub1" },
+    HUB2: { name: "Stogit HUB2", color: "--gas-hub2" },
+    CORNEGLIANO: { name: "IGS Cornegliano", color: "--gas-cornegliano" },
+    ROVIGO: { name: "Adriatic LNG (Rovigo)", color: "--gas-rovigo" },
+    OLT: { name: "OLT Toscana", color: "--gas-olt" },
+    PANIGAGLIA: { name: "Panigaglia", color: "--gas-panigaglia" },
+    PIOMBINO: { name: "Piombino FSRU", color: "--gas-piombino" },
+    RAVENNA: { name: "Ravenna FSRU", color: "--gas-ravenna" },
+    OTHER: { name: "Other", color: "--chart-legend" }
+  };
+  const GAS_SITES = ["HUB1", "HUB2", "CORNEGLIANO"];
+  const GAS_TERMINALS = ["ROVIGO", "OLT", "PANIGAGLIA", "PIOMBINO", "RAVENNA"];
+  const GAS_ITALY = { name: "Italy", color: "--chart-pun" };
+  const GAS_EU = { name: "EU", color: "--chart-legend" };
+
+  const gasMount = document.getElementById("gas-mount");
+  let gasTab = "overview";
+  let rawGasData = null;
+  let gasStatus = null; // null (not asked for yet) | "loading" | "ready" | "missing"
+  const gasCache = {};
+
+  async function loadGasData() {
+    if (gasStatus) return;
+    gasStatus = "loading";
+    try {
+      const response = await fetch("./data/gas.json", { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      rawGasData = decodeCompactPayload(await response.json());
+      gasStatus = "ready";
+    } catch (error) {
+      console.warn("Gas data unavailable:", error);
+      gasStatus = "missing";
+    }
+    updateView();
+  }
+
+  /* One series: gas day -> value. */
+  function gasMap(group) {
+    if (!gasCache[group]) {
+      const rows = ((((rawGasData || {}).series || {})[group] || {}).daily) || [];
+      gasCache[group] = new Map(rows.map(row => [row.date, Number(row.value)]));
+    }
+    return gasCache[group];
+  }
+
+  const gasValue = (group, day) => lookupValue(gasMap(group), day);
+  const isoDay = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  const formatGasDay = day => parseDate(day).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const formatNumber = (value, digits = 0) => Number(value).toLocaleString(undefined, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+
+  /* The calendar's days as timeline rows, up to the latest gas day unless `ahead`. */
+  function resetGasTimeline(timeline, ahead = false) {
+    const latest = (rawGasData || {}).latest_gas_day;
+    const first = currentStart ? isoDay(currentStart) : "2025-01-01";
+    let last = currentEnd ? isoDay(currentEnd) : latest;
+    if (!ahead && latest && last > latest) last = latest;
+    const rows = [];
+    for (let day = parseDate(first); isoDay(day) <= last; day.setDate(day.getDate() + 1)) {
+      const date = isoDay(day);
+      rows.push({ date, time: "", key: date });
+    }
+    timeline.rows = rows;
+    timeline.start = 0;
+    timeline.end = Math.max(0, rows.length - 1);
+    return rows;
+  }
+
+  /* The latest gas day with `group` on or before the end of the calendar range. */
+  function gasLastDay(group) {
+    const end = currentEnd ? isoDay(currentEnd) : "9999-12-31";
+    let best = null;
+    gasMap(group).forEach((_, day) => { if (day <= end && (!best || day > best)) best = day; });
+    return best;
+  }
+
+  function gasPanel(id, title, help, wide) {
+    const section = document.createElement("section");
+    section.className = `panel chart-panel${wide ? " gas-wide" : ""}`;
+    section.innerHTML =
+      `<div class="chart-header"><div><div class="chart-title">${title}</div>` +
+      `<div id="gas-${id}-subtitle" class="chart-subtitle"></div></div></div>` +
+      `<div id="gas-${id}-wrap" class="timeline-chart-wrap"><div id="gas-${id}-chart" class="timeline-chart"></div>` +
+      `<div id="gas-${id}-drag" class="timeline-drag-selection"></div></div>` +
+      `<div class="chart-help">${help}</div>`;
+    return section;
+  }
+
+  const GAS_DRAG_NOTE = "Drag horizontally across the chart to select a narrower range.";
+  const GAS_LEGEND_NOTE = `Click a name in the legend to hide or show it. ${GAS_DRAG_NOTE}`;
+
+  /*
+   * Charts per tab: id -> { title, help, wide, render }.  Built on first
+   * use; a tab's sections are attached when it is open.
+   */
+  const GAS_TABS = {
+    overview: ["kpis", "seasonal", "fill", "flows", "lng-total", "cover"],
+    storage: ["site-fill", "site-stock", "site-flows", "site-booking", "site-capacity"],
+    lng: ["terminal-sendout", "terminal-use", "terminal-inventory", "lng-booking", "terminal-capacity"],
+    outages: ["umm-daily", "umm-timeline", "umm-table"]
+  };
+  const GAS_CHARTS = {};
+
+  function gasChart(id) {
+    const item = GAS_CHARTS[id];
+    if (item.section) return item;
+    if (item.custom) {
+      item.section = item.custom();
+      return item;
+    }
+    item.section = gasPanel(id, item.title, item.help, item.wide);
+    gasMount.appendChild(item.section);
+    item.chart = echarts.init(item.section.querySelector(".timeline-chart"));
+    item.timeline = createTimeline(item.chart);
+    if (!item.noDrag) attachDragZoom(item.chart, `gas-${id}-wrap`, `gas-${id}-drag`);
+    item.section.remove();
+    return item;
+  }
+
+  function gasReady(item) {
+    if (rawGasData) return true;
+    if (item.chart) item.chart.clear();
+    setChartSubtitle(`gas-${item.id}-subtitle`, gasStatus === "missing" ? "Gas data not available yet" : "Loading gas data…");
+    return false;
+  }
+
+  function gasLine(name, color, data, extra = {}) {
+    const { width = 1.6, type = "solid", area = null, z = 3, ...rest } = extra;
+    return {
+      name, type: "line", data, showSymbol: false, connectNulls: false,
+      lineStyle: { color: cssVar(color), width, type },
+      itemStyle: { color: cssVar(color) },
+      areaStyle: area === null ? undefined : { color: cssVar(color), opacity: area },
+      emphasis: { focus: "series" }, z, ...rest
+    };
+  }
+
+  function gasLegend(chart, names) {
+    return {
+      top: 0, left: CHART_GRID.left, right: 16, itemWidth: 14, itemHeight: 8, itemGap: 12,
+      textStyle: { color: cssVar("--chart-legend"), fontSize: 10 }, data: names
+    };
+  }
+
+  function gasOption(item, series, tooltip, yAxis, legendNames) {
+    const names = legendNames || series.map(entry => entry.name);
+    return {
+      animation: false,
+      backgroundColor: "transparent",
+      legend: gasLegend(item.chart, names),
+      tooltip: timelineTooltip(tooltip),
+      grid: { left: CHART_GRID.left, right: 16, top: legendGridTop(item.chart, names, 14, 12), bottom: CHART_GRID.bottom, containLabel: false },
+      xAxis: timelineXAxis(item.timeline, { onZero: false }),
+      yAxis,
+      series,
+      dataZoom: timelineDataZoom(0, 16)
+    };
+  }
+
+  /* Tooltip lines for the series that have a value on the row. */
+  function gasTooltip(rows, lines) {
+    return params => {
+      const row = rows[params && params.length ? params[0].dataIndex : -1];
+      if (!row) return "";
+      const body = lines(row).filter(Boolean).join("");
+      return tooltipHeader(row) + (body || "No data");
+    };
+  }
+
+  const gasRow = (color, name, value, unit, shape = "line", digits = 1) => value === null || value === undefined ? ""
+    : tooltipRow(cssVar(color), name, `${formatNumber(value, digits)} ${unit}`, shape);
+
+  /* With the selected dates, unless the chart does not follow them. */
+  function setGasSubtitle(item, text, withDates = true) {
+    if (withDates) setChartSubtitle(`gas-${item.id}-subtitle`, text);
+    else document.getElementById(`gas-${item.id}-subtitle`).textContent = text;
+  }
+
+  /* ---------- Overview ---------- */
+
+  GAS_CHARTS.kpis = {
+    custom() {
+      const section = document.createElement("section");
+      section.className = "panel chart-panel gas-wide";
+      section.innerHTML = `<div class="chart-header"><div><div class="chart-title">Italy at a glance</div>` +
+        `<div id="gas-kpis-subtitle" class="chart-subtitle"></div></div></div><div id="gas-kpis" class="gas-kpis"></div>` +
+        `<div class="chart-help" style="margin-left:0">The latest gas day in the selected dates (a gas day runs from 06:00 to 06:00). GIE publishes each day's storage and LNG data the following evening.</div>`;
+      return section;
+    },
+    render() {
+      const box = document.getElementById("gas-kpis");
+      if (!rawGasData) {
+        box.innerHTML = `<div class="gas-empty">${gasStatus === "missing" ? "Gas data not available yet" : "Loading gas data…"}</div>`;
+        return;
+      }
+      const day = gasLastDay("IT|full");
+      if (!day) {
+        box.innerHTML = `<div class="gas-empty">No gas data for these dates</div>`;
+        return;
+      }
+      document.getElementById("gas-kpis-subtitle").textContent = `Gas day ${formatGasDay(day)}`;
+      const yearBefore = parseDate(day);
+      yearBefore.setFullYear(yearBefore.getFullYear() - 1);
+      const full = gasValue("IT|full", day);
+      const fullBefore = gasValue("IT|full", isoDay(yearBefore));
+      const net = (gasValue("IT|injection", day) || 0) - (gasValue("IT|withdrawal", day) || 0);
+      const week = [];
+      for (let back = 0; back < 7; back++) {
+        const date = parseDate(day);
+        date.setDate(date.getDate() - back);
+        const key = isoDay(date);
+        const injection = gasValue("IT|injection", key);
+        const withdrawal = gasValue("IT|withdrawal", key);
+        if (injection !== null || withdrawal !== null) week.push((injection || 0) - (withdrawal || 0));
+      }
+      const weekAverage = week.length ? week.reduce((sum, value) => sum + value, 0) / week.length : null;
+      const lngDay = gasLastDay("LNG|send_out");
+      const sendOut = lngDay ? gasValue("LNG|send_out", lngDay) : null;
+      const dtrs = lngDay ? gasValue("LNG|dtrs", lngDay) : null;
+      const inventory = lngDay ? gasValue("LNG|inventory", lngDay) : null;
+      const dtmi = lngDay ? gasValue("LNG|dtmi", lngDay) : null;
+      const signed = value => `${value >= 0 ? "+" : "−"}${formatNumber(Math.abs(value), 1)}`;
+      const tiles = [
+        { label: "Storage full", value: full === null ? "—" : formatNumber(full, 1), unit: "%",
+          sub: fullBefore === null ? "" : `${signed(full - fullBefore)} points on a year earlier` },
+        { label: "Gas in storage", value: formatNumber(gasValue("IT|gas_in_storage", day), 1), unit: "TWh",
+          sub: `${formatNumber(gasValue("IT|consumption_full", day), 0)}% of a year's consumption` },
+        { label: net >= 0 ? "Net injection" : "Net withdrawal", value: formatNumber(Math.abs(net), 0), unit: "GWh/d",
+          sub: weekAverage === null ? "" : `7-day average: net ${weekAverage >= 0 ? "injection" : "withdrawal"} ${formatNumber(Math.abs(weekAverage), 0)} GWh/d` },
+        { label: "LNG send-out", value: sendOut === null ? "—" : formatNumber(sendOut, 0), unit: "GWh/d",
+          sub: sendOut !== null && dtrs ? `${formatNumber(100 * sendOut / dtrs, 0)}% of the terminals' send-out capacity` : "" },
+        { label: "LNG in tanks", value: inventory === null ? "—" : formatNumber(inventory, 0), unit: "GWh",
+          sub: inventory !== null && dtmi ? `${formatNumber(100 * inventory / dtmi, 0)}% of the tanks' capacity` : "" }
+      ];
+      box.innerHTML = tiles.map(tile => `<div class="gas-kpi"><div class="gas-kpi-label">${tile.label}</div>` +
+        `<div class="gas-kpi-value">${tile.value}<small>${tile.unit}</small></div><div class="gas-kpi-sub">${tile.sub}</div></div>`).join("");
+    }
+  };
+
+  GAS_CHARTS.seasonal = {
+    title: "Storage filling through the year",
+    wide: true,
+    noDrag: true,
+    help: "Italy's storage, % of the working gas volume, gas day by gas day: the last two years against the range (shaded) and average (dashed) of the five years before. The EU's filling target (Regulation 2022/1032, amended in 2025): 90% at any time between 1 October and 1 December (shaded), with up to 10 points of flexibility when conditions are difficult. Not linked to the selected dates.",
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      // 365 day slots (29 February left out).
+      const slots = [];
+      for (let day = new Date(2023, 0, 1); day.getFullYear() === 2023; day.setDate(day.getDate() + 1)) {
+        slots.push(`${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`);
+      }
+      const full = gasMap("IT|full");
+      const years = [...new Set([...full.keys()].map(day => Number(day.slice(0, 4))))].sort();
+      const current = years[years.length - 1];
+      const shown = [current - 1, current].filter(year => years.includes(year));
+      const band = years.filter(year => year < shown[0]).slice(-5);
+      const value = (year, slot) => lookupValue(full, `${year}-${slot}`);
+      const bandValues = slots.map(slot => band.map(year => value(year, slot)).filter(entry => entry !== null));
+      const low = bandValues.map(values => values.length ? Math.min(...values) : null);
+      const high = bandValues.map(values => values.length ? Math.max(...values) : null);
+      const mean = bandValues.map(values => values.length ? values.reduce((sum, entry) => sum + entry, 0) / values.length : null);
+      const bandName = band.length ? `${band[0]}–${band[band.length - 1]} range` : "Range";
+      const meanName = band.length ? `${band[0]}–${band[band.length - 1]} average` : "Average";
+      const yearColors = [cssVar("--gas-hub1"), cssVar("--chart-pun")];
+      const series = [
+        { name: bandName, type: "line", data: low, stack: "band", showSymbol: false, lineStyle: { opacity: 0 }, itemStyle: { color: cssVar("--gas-band") }, silent: true },
+        { name: bandName, type: "line", data: high.map((entry, index) => entry === null || low[index] === null ? null : entry - low[index]),
+          stack: "band", showSymbol: false, lineStyle: { opacity: 0 }, areaStyle: { color: cssVar("--gas-band"), opacity: 1 },
+          itemStyle: { color: cssVar("--gas-band") }, silent: true,
+          markArea: { silent: true, itemStyle: { color: cssVar("--chart-zoom-filler"), opacity: 0.45 }, label: { show: false },
+            data: [[{ xAxis: "10-01" }, { xAxis: "12-01" }]] },
+          markLine: { silent: true, symbol: "none", lineStyle: { color: cssVar("--chart-legend"), type: "dashed", width: 1 },
+            label: { formatter: "EU target 90%", color: cssVar("--chart-legend"), fontSize: 10, position: "insideStartTop" },
+            data: [{ yAxis: 90 }] } },
+        gasLine(meanName, "--chart-legend", mean, { type: "dashed", width: 1.2 }),
+        ...shown.map((year, index) => ({ ...gasLine(String(year), index === shown.length - 1 ? "--chart-pun" : "--gas-hub1",
+          slots.map(slot => value(year, slot)), { width: index === shown.length - 1 ? 2.2 : 1.6, z: 5 }),
+          lineStyle: { color: yearColors[index === shown.length - 1 ? 1 : 0], width: index === shown.length - 1 ? 2.2 : 1.6 } }))
+      ];
+      setGasSubtitle(item, `Italy, % of working gas volume · ${shown.join(" and ")} against ${band.length ? `${band[0]}–${band[band.length - 1]}` : "earlier years"}`, false);
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      item.chart.setOption({
+        animation: false,
+        backgroundColor: "transparent",
+        legend: gasLegend(item.chart, [...shown.map(String).reverse(), meanName,
+          { name: bandName, icon: "rect", itemStyle: { color: cssVar("--gas-band") } }]),
+        tooltip: {
+          ...timelineTooltip(params => {
+            const index = params && params.length ? params[0].dataIndex : -1;
+            if (index < 0) return "";
+            const [month, dayOfMonth] = slots[index].split("-").map(Number);
+            let html = `<div style="margin-bottom:6px;color:${cssVar("--chart-tooltip-muted")};">${dayOfMonth} ${months[month - 1]}</div>`;
+            [...shown].reverse().forEach((year, order) => {
+              html += gasRow(order === 0 ? "--chart-pun" : "--gas-hub1", String(year), value(year, slots[index]), "%");
+            });
+            html += gasRow("--chart-legend", meanName, mean[index], "%", "dashed");
+            if (low[index] !== null) html += tooltipRow(cssVar("--gas-band"), bandName, `${formatNumber(low[index], 1)}–${formatNumber(high[index], 1)} %`);
+            return html;
+          })
+        },
+        grid: { left: CHART_GRID.left, right: 16, top: 34, bottom: 30, containLabel: false },
+        xAxis: {
+          type: "category", data: slots, boundaryGap: false,
+          axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisTick: { show: false },
+          axisLabel: { ...timelineAxisTextStyle(), interval: 0, formatter: slot => slot.endsWith("-01") ? months[Number(slot.slice(0, 2)) - 1] : "" },
+          splitLine: { show: false }
+        },
+        yAxis: timelineYAxis("%", { min: 0, max: 100 }),
+        series
+      }, true);
+      item.chart.resize();
+    }
+  };
+
+  GAS_CHARTS.fill = {
+    title: "Storage level: Italy and the EU",
+    help: `Gas in storage as a share of the working gas volume (AGSI+), Italy against the EU as a whole. ${GAS_LEGEND_NOTE}`,
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const rows = resetGasTimeline(item.timeline);
+      setGasSubtitle(item, "% of working gas volume");
+      const series = [
+        gasLine(GAS_ITALY.name, GAS_ITALY.color, rows.map(row => gasValue("IT|full", row.date)), { width: 2.2, z: 5 }),
+        gasLine(GAS_EU.name, GAS_EU.color, rows.map(row => gasValue("EU|full", row.date)), { type: "dashed" })
+      ];
+      const tooltip = gasTooltip(rows, row => [
+        gasRow(GAS_ITALY.color, "Italy", gasValue("IT|full", row.date), "%"),
+        gasRow(GAS_EU.color, "EU", gasValue("EU|full", row.date), "%", "dashed")
+      ]);
+      item.chart.setOption(gasOption(item, series, tooltip, timelineYAxis("%", { min: 0, max: 100 })), true);
+      item.chart.resize();
+    }
+  };
+
+  GAS_CHARTS.flows = {
+    title: "Injection and withdrawal",
+    help: `Italy's storage: gas injected (above zero) and withdrawn (below zero) each gas day; the technical injection and withdrawal capacity in the tooltip. ${GAS_LEGEND_NOTE}`,
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const rows = resetGasTimeline(item.timeline);
+      setGasSubtitle(item, "Italy · GWh per gas day");
+      const bar = (name, color, group, sign) => ({
+        name, type: "bar", stack: "flows", stackStrategy: "samesign", barCategoryGap: "20%",
+        data: rows.map(row => { const value = gasValue(group, row.date); return value === null ? null : sign * value; }),
+        itemStyle: { color: cssVar(color) }, emphasis: { focus: "series" }
+      });
+      const series = [
+        bar("Injection", "--gas-injection", "IT|injection", 1),
+        bar("Withdrawal", "--gas-withdrawal", "IT|withdrawal", -1)
+      ];
+      const tooltip = gasTooltip(rows, row => {
+        const injection = gasValue("IT|injection", row.date);
+        const withdrawal = gasValue("IT|withdrawal", row.date);
+        return [
+          gasRow("--gas-injection", "Injection", injection, "GWh/d", "area", 0),
+          gasRow("--gas-withdrawal", "Withdrawal", withdrawal, "GWh/d", "area", 0),
+          injection !== null && withdrawal !== null ? tooltipRow(cssVar("--chart-legend"), "Net", `${injection - withdrawal >= 0 ? "injection" : "withdrawal"} ${formatNumber(Math.abs(injection - withdrawal), 0)} GWh/d`, "line") : "",
+          gasRow("--chart-legend", "Injection capacity", gasValue("IT|injection_capacity", row.date), "GWh/d", "dotted", 0),
+          gasRow("--chart-legend", "Withdrawal capacity", gasValue("IT|withdrawal_capacity", row.date), "GWh/d", "dotted", 0)
+        ];
+      });
+      const option = gasOption(item, series, tooltip, timelineYAxis("GWh/d", { axisLabel: { ...timelineAxisTextStyle(), formatter: value => formatNumber(Math.abs(value)) } }));
+      option.xAxis.boundaryGap = true;
+      item.chart.setOption(option, true);
+      item.chart.resize();
+    }
+  };
+
+  GAS_CHARTS["lng-total"] = {
+    title: "LNG send-out and capacity",
+    help: `Gas sent out into the grid by Italy's LNG terminals each gas day (ALSI), against their declared send-out capacity (dotted) and the part of it booked by shippers (dashed). ${GAS_LEGEND_NOTE}`,
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const rows = resetGasTimeline(item.timeline);
+      setGasSubtitle(item, "Italy · GWh per gas day");
+      const series = [
+        gasLine("Send-out", "--chart-pun", rows.map(row => gasValue("LNG|send_out", row.date)), { area: 0.18, width: 1.8 }),
+        gasLine("Booked capacity", "--gas-hub1", rows.map(row => gasValue("LNG|contracted", row.date)), { type: "dashed", width: 1.2 }),
+        gasLine("Send-out capacity", "--chart-legend", rows.map(row => gasValue("LNG|dtrs", row.date)), { type: "dotted", width: 1.4 })
+      ];
+      const tooltip = gasTooltip(rows, row => {
+        const sendOut = gasValue("LNG|send_out", row.date);
+        const capacity = gasValue("LNG|dtrs", row.date);
+        return [
+          gasRow("--chart-pun", "Send-out", sendOut, "GWh/d", "area", 0),
+          gasRow("--gas-hub1", "Booked capacity", gasValue("LNG|contracted", row.date), "GWh/d", "dashed", 0),
+          gasRow("--chart-legend", "Send-out capacity", capacity, "GWh/d", "dotted", 0),
+          sendOut !== null && capacity ? tooltipRow(cssVar("--chart-legend"), "Use of capacity", `${formatNumber(100 * sendOut / capacity, 0)}%`, "line") : ""
+        ];
+      });
+      item.chart.setOption(gasOption(item, series, tooltip, timelineYAxis("GWh/d")), true);
+      item.chart.resize();
+    }
+  };
+
+  GAS_CHARTS.cover = {
+    title: "Storage against annual consumption",
+    help: `Gas in storage as a share of a year's gas consumption (AGSI+, consumption of the latest full year): how much of the demand storage could cover, Italy against the EU. ${GAS_LEGEND_NOTE}`,
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const rows = resetGasTimeline(item.timeline);
+      const consumption = gasValue("IT|consumption", gasLastDay("IT|consumption") || "");
+      setGasSubtitle(item, `% of annual consumption${consumption ? ` · Italy ${formatNumber(consumption, 0)} TWh a year` : ""}`);
+      const series = [
+        gasLine(GAS_ITALY.name, GAS_ITALY.color, rows.map(row => gasValue("IT|consumption_full", row.date)), { width: 2.2, z: 5 }),
+        gasLine(GAS_EU.name, GAS_EU.color, rows.map(row => gasValue("EU|consumption_full", row.date)), { type: "dashed" })
+      ];
+      const tooltip = gasTooltip(rows, row => [
+        gasRow(GAS_ITALY.color, "Italy", gasValue("IT|consumption_full", row.date), "%"),
+        gasRow(GAS_EU.color, "EU", gasValue("EU|consumption_full", row.date), "%", "dashed")
+      ]);
+      item.chart.setOption(gasOption(item, series, tooltip, timelineYAxis("%")), true);
+      item.chart.resize();
+    }
+  };
+
+  /* ---------- Storage ---------- */
+
+  GAS_CHARTS["site-fill"] = {
+    title: "Fill level by site",
+    help: `Gas in storage as a share of each site's working gas volume: Stogit HUB1 (Fiume Treste, Bordolano, Sabbioncello, Minerbio, Sergnano, Ripalta, Cortemaggiore, Brugherio, Settala), HUB2 (Collalto, Cellino, San Potito & Cotignola; Edison Stoccaggio's until February 2025) and IGS Cornegliano; Italy in white. ${GAS_LEGEND_NOTE}`,
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const rows = resetGasTimeline(item.timeline);
+      setGasSubtitle(item, "% of working gas volume");
+      const series = [
+        ...GAS_SITES.map(code => gasLine(GAS_FACILITIES[code].name, GAS_FACILITIES[code].color, rows.map(row => gasValue(`${code}|full`, row.date)))),
+        gasLine(GAS_ITALY.name, GAS_ITALY.color, rows.map(row => gasValue("IT|full", row.date)), { width: 2.2, z: 5 })
+      ];
+      const tooltip = gasTooltip(rows, row => [
+        gasRow(GAS_ITALY.color, "Italy", gasValue("IT|full", row.date), "%"),
+        ...GAS_SITES.map(code => gasRow(GAS_FACILITIES[code].color, GAS_FACILITIES[code].name, gasValue(`${code}|full`, row.date), "%"))
+      ]);
+      item.chart.setOption(gasOption(item, series, tooltip, timelineYAxis("%", { min: 0, max: 100 })), true);
+      item.chart.resize();
+    }
+  };
+
+  GAS_CHARTS["site-stock"] = {
+    title: "Gas in storage by site",
+    help: `Gas in storage at the end of each gas day, the sites stacked, against Italy's working gas volume (dotted: the most the sites can hold). ${GAS_LEGEND_NOTE}`,
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const rows = resetGasTimeline(item.timeline);
+      setGasSubtitle(item, "TWh");
+      const surface = cssVar("--panel");
+      const series = [
+        ...GAS_SITES.map(code => ({
+          ...gasLine(GAS_FACILITIES[code].name, GAS_FACILITIES[code].color, rows.map(row => gasValue(`${code}|gas_in_storage`, row.date)), { area: 0.85, width: 0.5 }),
+          stack: "stock", lineStyle: { color: surface, width: 0.5 }
+        })),
+        gasLine("Working gas volume", "--chart-pun", rows.map(row => gasValue("IT|working_gas_volume", row.date)), { type: "dotted", width: 1.4, z: 5 })
+      ];
+      const tooltip = gasTooltip(rows, row => [
+        ...GAS_SITES.map(code => gasRow(GAS_FACILITIES[code].color, GAS_FACILITIES[code].name, gasValue(`${code}|gas_in_storage`, row.date), "TWh", "area")),
+        gasRow("--chart-pun", "Italy", gasValue("IT|gas_in_storage", row.date), "TWh"),
+        gasRow("--chart-pun", "Working gas volume", gasValue("IT|working_gas_volume", row.date), "TWh", "dotted")
+      ]);
+      item.chart.setOption(gasOption(item, series, tooltip, timelineYAxis("TWh")), true);
+      item.chart.resize();
+    }
+  };
+
+  GAS_CHARTS["site-flows"] = {
+    title: "Injection and withdrawal by site",
+    wide: true,
+    help: `Gas injected (above zero) and withdrawn (below zero) at each site per gas day. ${GAS_LEGEND_NOTE}`,
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const rows = resetGasTimeline(item.timeline);
+      setGasSubtitle(item, "GWh per gas day");
+      const series = GAS_SITES.flatMap(code => [["injection", 1], ["withdrawal", -1]].map(([field, sign]) => ({
+        name: GAS_FACILITIES[code].name, type: "bar", stack: "flows", stackStrategy: "samesign", barCategoryGap: "20%",
+        data: rows.map(row => { const value = gasValue(`${code}|${field}`, row.date); return value === null ? null : sign * value; }),
+        itemStyle: { color: cssVar(GAS_FACILITIES[code].color) }, emphasis: { focus: "series" }
+      })));
+      const tooltip = gasTooltip(rows, row => GAS_SITES.map(code => {
+        const injection = gasValue(`${code}|injection`, row.date);
+        const withdrawal = gasValue(`${code}|withdrawal`, row.date);
+        if (injection === null && withdrawal === null) return "";
+        const text = [injection ? `in ${formatNumber(injection, 0)}` : "", withdrawal ? `out ${formatNumber(withdrawal, 0)}` : ""].filter(Boolean).join(" · ") || "0";
+        return tooltipRow(cssVar(GAS_FACILITIES[code].color), GAS_FACILITIES[code].name, `${text} GWh/d`);
+      }));
+      const option = gasOption(item, series, tooltip, timelineYAxis("GWh/d", { axisLabel: { ...timelineAxisTextStyle(), formatter: value => formatNumber(Math.abs(value)) } }),
+        GAS_SITES.map(code => GAS_FACILITIES[code].name));
+      option.xAxis.boundaryGap = true;
+      item.chart.setOption(option, true);
+      item.chart.resize();
+    }
+  };
+
+  /* Italy's booked and unbooked capacity over time, stacked. */
+  function renderGasBooking(item, prefix, unit, totalGroup, totalName) {
+    if (!gasReady(item)) return;
+    const rows = resetGasTimeline(item.timeline);
+    setGasSubtitle(item, `Italy · ${unit}`);
+    const surface = cssVar("--panel");
+    const stacked = (name, color, group, opacity) => ({
+      ...gasLine(name, color, rows.map(row => gasValue(group, row.date)), { area: opacity }),
+      stack: "booking", lineStyle: { color: surface, width: 0.5 }
+    });
+    const series = [
+      stacked("Booked", "--gas-hub1", `${prefix}|contracted`, 0.85),
+      stacked("Not booked", "--chart-legend", `${prefix}|available`, 0.35),
+      gasLine(totalName, "--chart-pun", rows.map(row => gasValue(totalGroup, row.date)), { type: "dotted", width: 1.4, z: 5 })
+    ];
+    const tooltip = gasTooltip(rows, row => {
+      const booked = gasValue(`${prefix}|contracted`, row.date);
+      const total = gasValue(totalGroup, row.date);
+      return [
+        gasRow("--gas-hub1", "Booked", booked, unit, "area"),
+        gasRow("--chart-legend", "Not booked", gasValue(`${prefix}|available`, row.date), unit, "area"),
+        gasRow("--chart-pun", totalName, total, unit, "dotted"),
+        booked !== null && total ? tooltipRow(cssVar("--chart-legend"), "Booked share", `${formatNumber(100 * booked / total, 0)}%`, "line") : ""
+      ];
+    });
+    item.chart.setOption(gasOption(item, series, tooltip, timelineYAxis(unit)), true);
+    item.chart.resize();
+  }
+
+  GAS_CHARTS["site-booking"] = {
+    title: "Storage capacity booked",
+    help: `The storage space shippers have booked (contracted) and the space still offered (available), Italy as a whole, against the working gas volume (dotted). ${GAS_LEGEND_NOTE}`,
+    render() { renderGasBooking(this, "IT", "TWh", "IT|working_gas_volume", "Working gas volume"); }
+  };
+
+  /* Facilities as horizontal bars on the last day of the range: booked and not booked. */
+  function renderGasCapacityBars(item, codes, unit, subtitle) {
+    if (!gasReady(item)) return;
+    const day = gasLastDay(`${codes[0]}|contracted`) || gasLastDay(`${codes[1]}|contracted`);
+    if (!day) {
+      item.chart.clear();
+      setGasSubtitle(item, "No data for these dates");
+      return;
+    }
+    setGasSubtitle(item, `% of ${subtitle.toLowerCase()} · gas day ${formatGasDay(day)}`, false);
+    const names = codes.map(code => GAS_FACILITIES[code].name);
+    const booked = codes.map(code => gasValue(`${code}|contracted`, day));
+    const free = codes.map(code => gasValue(`${code}|available`, day));
+    // Shares, so the small sites read as well as the large ones.
+    const share = (values, index) => {
+      const total = (booked[index] || 0) + (free[index] || 0);
+      return total ? 100 * (values[index] || 0) / total : null;
+    };
+    const bar = (name, values, opacity) => ({
+      name, type: "bar", stack: "capacity", barWidth: "55%",
+      data: values.map((_, index) => ({ value: share(values, index), itemStyle: { color: cssVar(GAS_FACILITIES[codes[index]].color), opacity } })),
+      label: opacity === 1 ? { show: true, position: "insideLeft", color: "#fff", fontSize: 10,
+        formatter: params => `${formatNumber(booked[params.dataIndex] || 0, 1)} of ${formatNumber((booked[params.dataIndex] || 0) + (free[params.dataIndex] || 0), 1)} ${unit}` } : undefined,
+      emphasis: { focus: "series" }
+    });
+    item.chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      tooltip: {
+        trigger: "axis", axisPointer: { type: "shadow", shadowStyle: { color: cssVar("--chart-zoom-filler") } }, confine: true,
+        backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"), borderWidth: 1,
+        textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
+        formatter: params => {
+          const index = params[0].dataIndex;
+          const total = (booked[index] || 0) + (free[index] || 0);
+          const color = cssVar(GAS_FACILITIES[codes[index]].color);
+          return `<div style="margin-bottom:6px;font-weight:600;">${names[index]}</div>` +
+            tooltipRow(color, "Booked", `${formatNumber(booked[index] || 0, 1)} ${unit}`) +
+            tooltipRow(`color-mix(in srgb, ${color} 35%, transparent)`, "Not booked", `${formatNumber(free[index] || 0, 1)} ${unit}`) +
+            (total ? tooltipRow(cssVar("--chart-legend"), "Booked share", `${formatNumber(100 * (booked[index] || 0) / total, 0)}%`, "line") : "");
+        }
+      },
+      grid: { left: 150, right: 24, top: 8, bottom: 30, containLabel: false },
+      xAxis: { type: "value", min: 0, max: 100, axisLabel: { ...timelineAxisTextStyle(), formatter: value => `${value}%` },
+        splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      yAxis: { type: "category", inverse: true, data: names, axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...timelineAxisTextStyle(), fontSize: 11, color: cssVar("--chart-legend") } },
+      series: [bar("Booked", booked, 1), bar("Not booked", free, 0.35)]
+    }, true);
+    item.chart.resize();
+  }
+
+  GAS_CHARTS["site-capacity"] = {
+    title: "Capacity booked by site",
+    noDrag: true,
+    help: "The share of each site's working gas volume booked by shippers (solid) and still offered (light), on the last gas day of the selected dates.",
+    render() { renderGasCapacityBars(this, GAS_SITES, "TWh", "Working gas volume"); }
+  };
+
+  /* ---------- LNG ---------- */
+
+  GAS_CHARTS["terminal-sendout"] = {
+    title: "LNG send-out by terminal",
+    wide: true,
+    help: `Gas sent out into the grid by each terminal per gas day (ALSI), stacked, against the terminals' declared send-out capacity (dotted). Panigaglia was GNL Italia's until February 2025, then Snam LNG's; the Ravenna FSRU started in 2025. ${GAS_LEGEND_NOTE}`,
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const rows = resetGasTimeline(item.timeline);
+      setGasSubtitle(item, "GWh per gas day");
+      const surface = cssVar("--panel");
+      const series = [
+        ...GAS_TERMINALS.map(code => ({
+          ...gasLine(GAS_FACILITIES[code].name, GAS_FACILITIES[code].color, rows.map(row => gasValue(`${code}|send_out`, row.date)), { area: 0.85, width: 0.5 }),
+          stack: "sendout", lineStyle: { color: surface, width: 0.5 }
+        })),
+        gasLine("Send-out capacity", "--chart-pun", rows.map(row => gasValue("LNG|dtrs", row.date)), { type: "dotted", width: 1.4, z: 5 })
+      ];
+      const tooltip = gasTooltip(rows, row => [
+        ...GAS_TERMINALS.map(code => gasRow(GAS_FACILITIES[code].color, GAS_FACILITIES[code].name, gasValue(`${code}|send_out`, row.date), "GWh/d", "area", 0)),
+        gasRow("--chart-pun", "Italy", gasValue("LNG|send_out", row.date), "GWh/d", "line", 0),
+        gasRow("--chart-pun", "Send-out capacity", gasValue("LNG|dtrs", row.date), "GWh/d", "dotted", 0)
+      ]);
+      item.chart.setOption(gasOption(item, series, tooltip, timelineYAxis("GWh/d")), true);
+      item.chart.resize();
+    }
+  };
+
+  GAS_CHARTS["terminal-use"] = {
+    title: "Use of send-out capacity",
+    help: `Each terminal's send-out as a share of its declared send-out capacity: how hard it runs. ${GAS_LEGEND_NOTE}`,
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const rows = resetGasTimeline(item.timeline);
+      setGasSubtitle(item, "% of send-out capacity");
+      const use = (code, day) => {
+        const sendOut = gasValue(`${code}|send_out`, day);
+        const capacity = gasValue(`${code}|dtrs`, day);
+        return sendOut === null || !capacity ? null : 100 * sendOut / capacity;
+      };
+      const series = GAS_TERMINALS.map(code => gasLine(GAS_FACILITIES[code].name, GAS_FACILITIES[code].color, rows.map(row => use(code, row.date))));
+      const tooltip = gasTooltip(rows, row => GAS_TERMINALS.map(code => gasRow(GAS_FACILITIES[code].color, GAS_FACILITIES[code].name, use(code, row.date), "%", "line", 0)));
+      item.chart.setOption(gasOption(item, series, tooltip, timelineYAxis("%", { min: 0 })), true);
+      item.chart.resize();
+    }
+  };
+
+  GAS_CHARTS["terminal-inventory"] = {
+    title: "LNG in tanks by terminal",
+    help: `LNG in each terminal's tanks at the end of the gas day, in energy, stacked, against the declared tank capacity (dotted). A cargo arriving shows as a jump. ${GAS_LEGEND_NOTE}`,
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const rows = resetGasTimeline(item.timeline);
+      setGasSubtitle(item, "GWh");
+      const surface = cssVar("--panel");
+      const series = [
+        ...GAS_TERMINALS.map(code => ({
+          ...gasLine(GAS_FACILITIES[code].name, GAS_FACILITIES[code].color, rows.map(row => gasValue(`${code}|inventory`, row.date)), { area: 0.85, width: 0.5 }),
+          stack: "inventory", lineStyle: { color: surface, width: 0.5 }
+        })),
+        gasLine("Tank capacity", "--chart-pun", rows.map(row => gasValue("LNG|dtmi", row.date)), { type: "dotted", width: 1.4, z: 5 })
+      ];
+      const tooltip = gasTooltip(rows, row => [
+        ...GAS_TERMINALS.map(code => {
+          const lng = gasValue(`${code}|inventory_lng`, row.date);
+          const value = gasValue(`${code}|inventory`, row.date);
+          return value === null ? "" : tooltipRow(cssVar(GAS_FACILITIES[code].color), GAS_FACILITIES[code].name,
+            `${formatNumber(value, 0)} GWh${lng === null ? "" : ` <span style="font-weight:400;color:${cssVar("--chart-tooltip-muted")}">${formatNumber(lng, 0)}k m³</span>`}`);
+        }),
+        gasRow("--chart-pun", "Tank capacity", gasValue("LNG|dtmi", row.date), "GWh", "dotted", 0)
+      ]);
+      item.chart.setOption(gasOption(item, series, tooltip, timelineYAxis("GWh")), true);
+      item.chart.resize();
+    }
+  };
+
+  GAS_CHARTS["lng-booking"] = {
+    title: "Send-out capacity booked",
+    help: `The terminals' send-out capacity booked by shippers (contracted) and still offered (available), Italy as a whole, against the declared send-out capacity (dotted). ${GAS_LEGEND_NOTE}`,
+    render() { renderGasBooking(this, "LNG", "GWh/d", "LNG|dtrs", "Send-out capacity"); }
+  };
+
+  GAS_CHARTS["terminal-capacity"] = {
+    title: "Send-out capacity booked by terminal",
+    noDrag: true,
+    help: "The share of each terminal's send-out capacity booked by shippers (solid) and still offered (light), on the last gas day of the selected dates.",
+    render() { renderGasCapacityBars(this, GAS_TERMINALS, "GWh/d", "Send-out capacity"); }
+  };
+
+  /* ---------- Outages (IIP urgent market messages) ---------- */
+
+  const gasEventFacility = event => GAS_FACILITIES[event.facility] || GAS_FACILITIES.OTHER;
+
+  /* Events overlapping the calendar range, newest first. */
+  function gasEventsInRange() {
+    const first = currentStart ? `${isoDay(currentStart)} 00:00` : "0000";
+    const last = currentEnd ? `${isoDay(currentEnd)} 23:59` : "9999";
+    return ((rawGasData || {}).umm || [])
+      .filter(event => event.from && event.to && event.from <= last && event.to >= first)
+      .sort((a, b) => (b.from > a.from ? 1 : -1));
+  }
+
+  GAS_CHARTS["umm-daily"] = {
+    title: "Unavailable capacity by facility",
+    wide: true,
+    help: `The capacity the storage and LNG operators declared unavailable in their urgent market messages (REMIT, GIE's IIP), averaged over each gas day: solid planned, light unplanned. LNG terminals report send-out capacity, storage sites injection or withdrawal capacity. Snam Rete Gas (the pipelines) publishes its messages elsewhere. ${GAS_LEGEND_NOTE}`,
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const rows = resetGasTimeline(item.timeline, true);
+      setGasSubtitle(item, "GWh/d, average over the gas day");
+      const codes = Object.keys(GAS_FACILITIES).filter(code => ["planned", "unplanned"].some(kind => gasMap(`UMM|${code}|${kind}`).size));
+      const series = codes.flatMap(code => [["planned", 0.9], ["unplanned", 0.4]].map(([kind, opacity]) => ({
+        name: GAS_FACILITIES[code].name, type: "bar", stack: "umm", barCategoryGap: "20%",
+        data: rows.map(row => gasValue(`UMM|${code}|${kind}`, row.date)),
+        itemStyle: { color: cssVar(GAS_FACILITIES[code].color), opacity }, emphasis: { focus: "series" }
+      })));
+      const tooltip = gasTooltip(rows, row => codes.flatMap(code => ["planned", "unplanned"].map(kind => {
+        const value = gasValue(`UMM|${code}|${kind}`, row.date);
+        return value ? tooltipRow(cssVar(GAS_FACILITIES[code].color), `${GAS_FACILITIES[code].name}, ${kind}`, `${formatNumber(value, 0)} GWh/d`) : "";
+      })));
+      const option = gasOption(item, series, tooltip, timelineYAxis("GWh/d"), codes.map(code => GAS_FACILITIES[code].name));
+      option.xAxis.boundaryGap = true;
+      if (!codes.length) setGasSubtitle(item, "No outages reported");
+      item.chart.setOption(option, true);
+      item.chart.resize();
+    }
+  };
+
+  GAS_CHARTS["umm-timeline"] = {
+    title: "Outages over time",
+    wide: true,
+    noDrag: true,
+    help: "Each urgent market message in the selected dates as a bar from its start to its end, one row per facility: solid planned, light unplanned. Hover for the reason and the capacity; scroll or pinch to zoom.",
+    render() {
+      const item = this;
+      if (!gasReady(item)) return;
+      const events = gasEventsInRange();
+      const codes = [...new Set(events.map(event => event.facility))]
+        .sort((a, b) => Object.keys(GAS_FACILITIES).indexOf(a) - Object.keys(GAS_FACILITIES).indexOf(b));
+      setGasSubtitle(item, `${events.length} message${events.length === 1 ? "" : "s"} · times in UTC`);
+      if (!events.length) {
+        item.chart.clear();
+        return;
+      }
+      const time = text => Date.parse(`${text.replace(" ", "T")}:00Z`);
+      const start = currentStart ? Date.UTC(currentStart.getFullYear(), currentStart.getMonth(), currentStart.getDate()) : Math.min(...events.map(event => time(event.from)));
+      const end = currentEnd ? Date.UTC(currentEnd.getFullYear(), currentEnd.getMonth(), currentEnd.getDate() + 1) : Math.max(...events.map(event => time(event.to)));
+      const data = events.map(event => ({
+        value: [codes.indexOf(event.facility), time(event.from), time(event.to)],
+        event,
+        itemStyle: { color: cssVar(gasEventFacility(event).color), opacity: event.planned ? 0.9 : 0.45 }
+      }));
+      item.chart.setOption({
+        animation: false,
+        backgroundColor: "transparent",
+        tooltip: {
+          trigger: "item", confine: true,
+          backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"), borderWidth: 1,
+          textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 }, extraCssText: "max-width:360px;white-space:normal;",
+          formatter: params => {
+            const event = params.data.event;
+            const muted = cssVar("--chart-tooltip-muted");
+            return `<div style="margin-bottom:4px;font-weight:600;">${gasEventFacility(event).name}</div>` +
+              `<div style="color:${muted};margin-bottom:6px;">${event.from} → ${event.to} UTC · ${event.planned ? "planned" : "unplanned"} · ${event.status.toLowerCase()}</div>` +
+              (event.unavailable !== null ? tooltipRow(cssVar(gasEventFacility(event).color), "Unavailable", `${formatNumber(event.unavailable, 1)} GWh/d${event.technical ? ` of ${formatNumber(event.technical, 0)}` : ""}`) : "") +
+              `<div style="margin-top:6px;">${event.message_type || ""}${event.reason ? `: ${event.reason}` : ""}</div>`;
+          }
+        },
+        grid: { left: 150, right: 24, top: 10, bottom: 54, containLabel: false },
+        xAxis: { type: "time", min: start, max: end, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+          axisLabel: { ...timelineAxisTextStyle(), hideOverlap: true, formatter: value => new Date(value).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", timeZone: "UTC" }) },
+          splitLine: { show: true, lineStyle: { color: cssVar("--chart-grid") } } },
+        yAxis: { type: "category", data: codes.map(code => (GAS_FACILITIES[code] || GAS_FACILITIES.OTHER).name), inverse: true,
+          axisTick: { show: false }, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+          axisLabel: { ...timelineAxisTextStyle(), fontSize: 11, color: cssVar("--chart-legend") } },
+        dataZoom: [{ type: "inside", xAxisIndex: 0, filterMode: "weakFilter" },
+          { type: "slider", xAxisIndex: 0, filterMode: "weakFilter", height: 16, bottom: 8, left: 150, right: 24,
+            borderColor: cssVar("--chart-zoom-border"), backgroundColor: cssVar("--chart-zoom-bg"), fillerColor: cssVar("--chart-zoom-filler"),
+            handleStyle: { color: cssVar("--chart-zoom-handle") }, textStyle: { color: cssVar("--chart-zoom-text") }, showDetail: false }],
+        series: [{
+          type: "custom",
+          encode: { x: [1, 2], y: 0 },
+          data,
+          renderItem: (params, api) => {
+            const row = api.value(0);
+            const from = api.coord([api.value(1), row]);
+            const to = api.coord([api.value(2), row]);
+            const height = api.size([0, 1])[1] * 0.55;
+            const shape = echarts.graphic.clipRectByRect(
+              { x: from[0], y: from[1] - height / 2, width: Math.max(to[0] - from[0], 3), height },
+              { x: params.coordSys.x, y: params.coordSys.y, width: params.coordSys.width, height: params.coordSys.height });
+            return shape && { type: "rect", shape: { ...shape, r: 2 }, style: api.style() };
+          }
+        }]
+      }, true);
+      const height = Math.max(160, 70 + codes.length * 44);
+      item.section.querySelector(".timeline-chart-wrap").style.height = `${height}px`;
+      item.section.querySelector(".timeline-chart").style.height = `${height}px`;
+      item.chart.resize();
+    }
+  };
+
+  GAS_CHARTS["umm-table"] = {
+    custom() {
+      const section = document.createElement("section");
+      section.className = "panel chart-panel gas-wide";
+      section.innerHTML = `<div class="chart-header"><div><div class="chart-title">Urgent market messages</div>` +
+        `<div id="gas-umm-table-subtitle" class="chart-subtitle"></div></div></div><div id="gas-umm-table"></div>` +
+        `<div class="chart-help" style="margin-left:0">The latest version of each message on Italy's balancing zone (GIE's IIP) that overlaps the selected dates, newest first; withdrawn ("dismissed") messages left out. "Inactive": the event is over or was replaced. Capacity in GWh/d, converted from the unit reported.</div>`;
+      return section;
+    },
+    render() {
+      const box = document.getElementById("gas-umm-table");
+      if (!rawGasData) {
+        box.innerHTML = `<div class="gas-empty">${gasStatus === "missing" ? "Gas data not available yet" : "Loading gas data…"}</div>`;
+        return;
+      }
+      const events = gasEventsInRange();
+      document.getElementById("gas-umm-table-subtitle").textContent = `${events.length} message${events.length === 1 ? "" : "s"} in the selected dates`;
+      if (!events.length) {
+        box.innerHTML = `<div class="gas-empty">No urgent market messages for these dates.</div>`;
+        return;
+      }
+      const escape = text => String(text || "").replace(/[&<>"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[char]);
+      box.innerHTML = `<div class="gas-table-wrap"><table class="gas-table"><thead><tr><th>Facility</th><th>From (UTC)</th><th>To (UTC)</th>` +
+        `<th>Type</th><th style="text-align:right">Unavailable</th><th style="text-align:right">Technical</th><th>Status</th><th>Reason</th></tr></thead><tbody>` +
+        events.map(event => `<tr><td><span class="swatch" style="background:var(${gasEventFacility(event).color})"></span>${escape(gasEventFacility(event).name)}</td>` +
+          `<td class="muted">${escape(event.from)}</td><td class="muted">${escape(event.to)}</td>` +
+          `<td>${event.planned ? "Planned" : "Unplanned"}<div class="muted">${escape(event.message_type)}</div></td>` +
+          `<td class="num">${event.unavailable === null ? "—" : formatNumber(event.unavailable, 1)}</td>` +
+          `<td class="num">${event.technical === null ? "—" : formatNumber(event.technical, 0)}</td>` +
+          `<td class="muted">${escape(event.status)}</td><td>${escape(event.reason)}</td></tr>`).join("") +
+        `</tbody></table></div>`;
+    }
+  };
+
+  Object.entries(GAS_CHARTS).forEach(([id, item]) => { item.id = id; });
+
+  function renderGas() {
+    if (currentSection !== "gas") return;
+    loadGasData();
+    document.querySelectorAll("#gas-subnav .subnav-tab").forEach(button =>
+      button.classList.toggle("active", button.dataset.gasTab === gasTab));
+    Object.values(GAS_CHARTS).forEach(item => { if (item.section) item.section.remove(); });
+    GAS_TABS[gasTab].forEach(id => gasMount.appendChild(gasChart(id).section));
+    GAS_TABS[gasTab].forEach(id => GAS_CHARTS[id].render());
+  }
+
+  document.querySelectorAll("#gas-subnav .subnav-tab").forEach(button => {
+    button.addEventListener("click", () => {
+      gasTab = button.dataset.gasTab;
+      renderGas();
+    });
+  });
+
+  window.addEventListener("resize", () => {
+    Object.values(GAS_CHARTS).forEach(item => { if (item.chart && item.section && item.section.isConnected) item.chart.resize(); });
+  });
+
+  /* ============================================================
      REDESIGN NAVIGATION / TOP-BAR CALENDAR
      ============================================================ */
 
@@ -9059,6 +9951,7 @@
   const ZONES_WITH_DATA = ["italy"];
 
   let currentSection = "data";
+  let granularityBeforeGas = null;
   let currentZone = "italy";
   let currentSubTab = "overview";
 
@@ -9084,6 +9977,22 @@
     const isDataSection =
       currentSection === "data";
 
+    // Gas data is daily: the section runs on the daily resolution and the
+    // data section gets its own back afterwards.
+    if (currentSection === "gas" && currentGranularity !== "daily") {
+      granularityBeforeGas = currentGranularity;
+      document.querySelector('#granularity-control button[data-granularity="daily"]').click();
+      return;
+    }
+    if (isDataSection && granularityBeforeGas) {
+      const previous = granularityBeforeGas;
+      granularityBeforeGas = null;
+      document.querySelector(`#granularity-control button[data-granularity="${previous}"]`).click();
+      return;
+    }
+    const isGasSection = currentSection === "gas";
+    document.getElementById("gas-page").style.display = isGasSection ? "block" : "none";
+
     document.getElementById("zone-tabs-wrap").style.display =
       isDataSection ? "flex" : "none";
 
@@ -9094,7 +10003,12 @@
       isDataSection ? "block" : "none";
 
     document.getElementById("section-placeholder").style.display =
-      isDataSection ? "none" : "flex";
+      isDataSection || isGasSection ? "none" : "flex";
+
+    if (isGasSection) {
+      setTimeout(renderGas, 0);
+      return;
+    }
 
     if (!isDataSection) {
       const titles = {
@@ -9127,7 +10041,7 @@
       ZONE_LABELS[currentZone];
 
     document
-      .querySelectorAll(".subnav-tab")
+      .querySelectorAll("#zone-page .subnav-tab")
       .forEach(button => {
         button.classList.toggle(
           "active",
@@ -9311,7 +10225,7 @@
   });
 
   document
-    .querySelectorAll(".subnav-tab")
+    .querySelectorAll("#zone-page .subnav-tab")
     .forEach(button => {
       button.addEventListener("click", () => {
         currentSubTab =
