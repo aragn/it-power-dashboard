@@ -142,6 +142,10 @@
     .gas-table td.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
     .gas-table td.muted { color:var(--muted); }
     .gas-table .swatch { display:inline-block; width:8px; height:8px; border-radius:2px; margin-right:6px; }
+    .gas-table td.prev { color:var(--muted); font-size:11px; }
+    .gas-table th.num { text-align:right; }
+    .gas-notes { margin:10px 0 0; padding-left:18px; color:var(--muted); font-size:12px; line-height:1.6; }
+    .gas-notes a { color:var(--blue); }
     .gas-empty { padding:18px; color:var(--muted); font-size:12px; }
     #chart-mount-balancing { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { #chart-mount-balancing { grid-template-columns:1fr; } }
@@ -315,7 +319,7 @@
           <section id="income-ida2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 2 Congestion Income</div><div id="income-ida2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="income-ida2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida2-chart" class="timeline-chart"></div><div id="income-ida2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 2, signed like the spreads.</div></section>
           <section id="income-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Congestion Income</div><div id="income-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="income-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida3-chart" class="timeline-chart"></div><div id="income-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 3 (afternoon and evening), signed like the spreads.</div></section>
         </div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net scheduled commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Scheduled commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Scheduled commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
-        <div id="gas-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Gas storage and LNG</p></div><nav id="gas-subnav" class="subnav"><button class="subnav-tab active" data-gas-tab="overview" type="button">Overview</button><button class="subnav-tab" data-gas-tab="storage" type="button">Storage</button><button class="subnav-tab" data-gas-tab="lng" type="button">LNG</button><button class="subnav-tab" data-gas-tab="outages" type="button">Outages</button></nav><div id="gas-mount"></div></div>
+        <div id="gas-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Gas storage and LNG</p></div><nav id="gas-subnav" class="subnav"><button class="subnav-tab active" data-gas-tab="overview" type="button">Overview</button><button class="subnav-tab" data-gas-tab="storage" type="button">Storage</button><button class="subnav-tab" data-gas-tab="lng" type="button">LNG</button><button class="subnav-tab" data-gas-tab="outages" type="button">Outages</button><button class="subnav-tab" data-gas-tab="tariffs" type="button">Tariffs</button></nav><div id="gas-mount"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO), GIE (AGSI+, ALSI, IIP).</footer>
       </main>
@@ -9176,7 +9180,8 @@
     overview: ["kpis", "seasonal", "fill", "flows", "lng-total", "cover"],
     storage: ["site-fill", "site-stock", "site-flows", "site-booking", "site-capacity"],
     lng: ["terminal-sendout", "terminal-use", "terminal-inventory", "lng-booking", "terminal-capacity"],
-    outages: ["umm-daily", "umm-timeline", "umm-table"]
+    outages: ["umm-daily", "umm-timeline", "umm-table"],
+    tariffs: ["tariffs-storage", "tariffs-lng"]
   };
   const GAS_CHARTS = {};
 
@@ -9908,6 +9913,109 @@
           `<td class="muted">${escape(event.status)}</td><td>${escape(event.reason)}</td></tr>`).join("") +
         `</tbody></table></div>`;
     }
+  };
+
+
+  /* ---------- Tariffs (ARERA-regulated, updated by hand once a year) ---------- */
+
+  /*
+   * Storage: the unit charges each operator publishes for the thermal year
+   * (1 April to 31 March), computed under ARERA's rules (RAST, Allegato A
+   * to 67/2019/R/gas) from the revenues ARERA allows.  LNG: the
+   * regasification tariffs ARERA approves per calendar year.  `previous`:
+   * the year before, where published.
+   */
+  const GAS_TARIFFS = {
+    storage: {
+      year: "2026/27", previousYear: "2025/26", revenueYear: 2026,
+      rows: [
+        { code: "HUB1", operator: "Stogit", space: 0.108631, injection: 7.780965, withdrawal: 10.695586, revenue: 555157601, previousRevenue: 581387757 },
+        { code: "HUB2", operator: "Stogit Adriatica (Edison Stoccaggio until Feb 2025)", space: 0.218326, injection: 18.698103, withdrawal: 23.899226,
+          previous: { space: 0.229137, injection: 19.645861, withdrawal: 25.120233 }, revenue: 64774103, previousRevenue: 67322497 },
+        { code: "CORNEGLIANO", operator: "Ital Gas Storage", space: 1.057529, injection: 86.554694, withdrawal: 75.247266,
+          previous: { space: 1.255719, injection: 105.094047, withdrawal: 89.349259 }, revenue: 104397107, previousRevenue: 106253173 }
+      ]
+    },
+    lng: {
+      year: 2026, previousYear: 2025,
+      rows: [
+        { code: "PANIGAGLIA", operator: "Snam Energy Terminals (GNL Italia until Feb 2025)", cqs: 7.286283, crs: 0.138276, qcp: 1.20, ccp: 1.597928, cets: 0.712759,
+          previous: { cqs: 5.725007, crs: 0.124912, qcp: 1.33, ccp: 1.960790, cets: 0.890395 } },
+        { code: "ROVIGO", operator: "Terminale GNL Adriatico", cqs: 18.365225, crs: null, qcp: 0.85, ccp: null, cets: 0.336516,
+          previous: { cqs: 22.551126, crs: null, qcp: 0.75, ccp: null, cets: 0.636278 } },
+        { code: "OLT", operator: "OLT Offshore LNG Toscana", cqs: 16.741698, crs: 0.255274, qcp: 0.86, ccp: null, cets: 0.616003,
+          previous: { cqs: 21.953614, crs: 0.086270, qcp: 0.73, ccp: null, cets: 1.095685 } },
+        { code: "PIOMBINO", operator: "Snam Energy Terminals (FSRU Italia in 2025)", cqs: 11.630056, cdelta: 0.325297, crs: 0.011210, qcp: 0.80, ccp: null, cets: 0.635283,
+          previous: { cqs: 12.534504, crs: 0.011033, qcp: 1.10, ccp: null, cets: 0.979750 } },
+        { code: "RAVENNA", operator: "Snam Energy Terminals (FSRU Italia in 2025)", cqs: 19.482558, crs: null, qcp: 1.40, ccp: null, cets: 1.097117,
+          previous: { cqs: 16.492822, crs: null, qcp: 2.00, ccp: null, cets: 1.999491 } }
+      ]
+    }
+  };
+
+  /* A tariff cell: the value, and the previous year's with the change underneath. */
+  function tariffCell(value, previous, digits, suffix = "") {
+    if (value === null || value === undefined) return `<td class="num">—</td>`;
+    let text = `${formatNumber(value, digits)}${suffix}`;
+    if (previous !== null && previous !== undefined) {
+      const change = previous ? 100 * (value - previous) / previous : null;
+      text += `<div class="prev">${formatNumber(previous, digits)}${suffix}${change === null ? "" : ` · ${change >= 0 ? "+" : "−"}${formatNumber(Math.abs(change), 0)}%`}</div>`;
+    }
+    return `<td class="num">${text}</td>`;
+  }
+
+  function tariffSection(id, title, subtitle, body) {
+    const section = document.createElement("section");
+    section.className = "panel chart-panel gas-wide";
+    section.innerHTML = `<div class="chart-header"><div><div class="chart-title">${title}</div>` +
+      `<div class="chart-subtitle">${subtitle}</div></div></div>${body}`;
+    return section;
+  }
+
+  const facilityCell = code => `<td><span class="swatch" style="background:var(${GAS_FACILITIES[code].color})"></span>${GAS_FACILITIES[code].name}</td>`;
+
+  GAS_CHARTS["tariffs-storage"] = {
+    custom() {
+      const t = GAS_TARIFFS.storage;
+      const rows = t.rows.map(row => `<tr>${facilityCell(row.code)}<td class="muted">${row.operator}</td>` +
+        tariffCell(row.space, row.previous && row.previous.space, 6) +
+        tariffCell(row.injection, row.previous && row.previous.injection, 4) +
+        tariffCell(row.withdrawal, row.previous && row.previous.withdrawal, 4) +
+        tariffCell(row.revenue / 1e6, row.previousRevenue / 1e6, 1) + `</tr>`).join("");
+      return tariffSection("tariffs-storage", "Storage tariffs",
+        `Thermal year ${t.year} (from 1 April 2026); under each value the ${t.previousYear} one and the change`,
+        `<div class="gas-table-wrap" style="max-height:none"><table class="gas-table"><thead><tr><th>Site</th><th>Operator</th>` +
+        `<th class="num">Space C<sub>S</sub><br>c€/kWh/year</th><th class="num">Injection capacity C<sub>I</sub><br>c€/kWh/day/year</th>` +
+        `<th class="num">Withdrawal capacity C<sub>E</sub><br>c€/kWh/day/year</th><th class="num">Allowed revenue ${t.revenueYear}<br>€ million</th></tr></thead>` +
+        `<tbody>${rows}</tbody></table></div>` +
+        `<ul class="gas-notes">` +
+        `<li>Unit charges for the capacity booked: space per kWh of storage a year, injection and withdrawal per kWh/day of capacity a year. They spread the revenue ARERA allows each operator (<a href="https://www.arera.it/atti-e-provvedimenti/dettaglio/25/367-25" target="_blank" rel="noopener">deliberation 367/2025/R/gas</a> for 2026, 335/2024 for 2025) over the capacity offered, so a small site has much higher unit charges. Most capacity is in fact allocated by auction, the tariffs being the reference.</li>` +
+        `<li>All operators also charge C<sub>COMP</sub> = 0.001 c€/kWh/year on the space booked (compensation to the host territories). Stogit also charges, from 1 April 2026: ETS costs of 0.012984 c€/kWh injected and 0.000345 c€/kWh withdrawn, and 0.003368 €/Smc for the strategic storage (C<sub>RV CS</sub>); technical consumption shares 1.33% (injection) and 0.05% (withdrawal).</li>` +
+        `<li>Sources: <a href="https://www.snam.it/it/i-nostri-business/stoccaggio/codice-di-stoccaggio-tariffe-e-area-comitato/tariffe-stoccaggio.html" target="_blank" rel="noopener">Stogit and Stogit Adriatica</a> (Stogit's 2025/26 sheet is a scanned image, so no comparison), <a href="https://igs.eu/la-nostra-offerta/comunicazioni-operative/tariffe/index" target="_blank" rel="noopener">Ital Gas Storage</a>, <a href="https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-di-stoccaggio" target="_blank" rel="noopener">ARERA</a>. Not linked to the selected dates.</li></ul>`);
+    },
+    render() {}
+  };
+
+  GAS_CHARTS["tariffs-lng"] = {
+    custom() {
+      const t = GAS_TARIFFS.lng;
+      const prev = (row, key) => row.previous ? row.previous[key] : null;
+      const rows = t.rows.map(row => `<tr>${facilityCell(row.code)}<td class="muted">${row.operator}</td>` +
+        tariffCell(row.cqs, prev(row, "cqs"), 4) + tariffCell(row.crs, prev(row, "crs"), 4) +
+        tariffCell(row.qcp, prev(row, "qcp"), 2, "%") + tariffCell(row.ccp, prev(row, "ccp"), 4) +
+        tariffCell(row.cets, prev(row, "cets"), 4) + `</tr>`).join("");
+      return tariffSection("tariffs-lng", "LNG regasification tariffs",
+        `Year ${t.year}; under each value the ${t.previousYear} one and the change`,
+        `<div class="gas-table-wrap" style="max-height:none"><table class="gas-table"><thead><tr><th>Terminal</th><th>Operator</th>` +
+        `<th class="num">Capacity C<sub>QS</sub><br>€/m³ LNG/year</th><th class="num">Restoration C<sub>RS</sub><br>€/m³ LNG/year</th>` +
+        `<th class="num">Consumption and losses Q<sub>CP</sub><br>% of LNG delivered</th><th class="num">Consumption costs C<sub>CP</sub><br>€/m³ LNG</th>` +
+        `<th class="num">Emission trading C<sub>ETS</sub><br>€/m³ LNG</th></tr></thead><tbody>${rows}</tbody></table></div>` +
+        `<ul class="gas-notes">` +
+        `<li>C<sub>QS</sub>: the charge per m³ of liquid LNG of contracted capacity a year; C<sub>RS</sub>: site restoration; Q<sub>CP</sub>: the share of the LNG delivered retained for the terminal's own consumption and losses; C<sub>CP</sub>, C<sub>ETS</sub>: per m³ of LNG delivered, for the monetary costs of that consumption and for CO₂ allowances. Piombino also has C<sub>Δt-2</sub> = 0.325297 €/m³/year in 2026, recovering a past revenue gap.</li>` +
+        `<li>Adriatic LNG (Rovigo) holds an exemption from regulated third-party access for most of its capacity; the tariff applies to the rest. Regasification slots are largely allocated by auction, the tariffs being the reference.</li>` +
+        `<li>Sources: ARERA <a href="https://www.arera.it/fileadmin/allegati/docs/25/293-2025-R-gas-TABELLE.pdf" target="_blank" rel="noopener">293/2025/R/gas</a> (Panigaglia, Rovigo, Livorno, Piombino), <a href="https://www.arera.it/fileadmin/allegati/docs/25/369-2025-R-gas-TABELLA_1.pdf" target="_blank" rel="noopener">369/2025/R/gas</a> (Ravenna) and <a href="https://www.arera.it/fileadmin/allegati/docs/24/253-2024tab.pdf" target="_blank" rel="noopener">253/2024/R/gas</a> (2025). Not linked to the selected dates.</li></ul>`);
+    },
+    render() {}
   };
 
   Object.entries(GAS_CHARTS).forEach(([id, item]) => { item.id = id; });
