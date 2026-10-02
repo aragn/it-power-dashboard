@@ -1,0 +1,53 @@
+name: Update Grid Connection Queue (Terna, e-distribuzione)
+
+on:
+  schedule:
+    # Terna updates Econnextion monthly and e-distribuzione its saturation
+    # monthly, on no fixed day: twice a week is enough.
+    - cron: "35 5 * * 1,4"
+  workflow_dispatch:
+    inputs:
+      full_history:
+        description: "Re-read every e-distribuzione quarter (from 2019)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-connections
+  cancel-in-progress: false
+
+jobs:
+  update-connections:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Restore current data from the data branch
+        run: bash .github/scripts/data-branch.sh restore
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Fetch Terna and e-distribuzione connection data
+        env:
+          FULL_HISTORY: ${{ inputs.full_history }}
+        run: |
+          ARGS=()
+          if [ "$FULL_HISTORY" = "true" ]; then ARGS+=(--full-history); fi
+          echo "Running: python etl/fetch_connections.py ${ARGS[*]}"
+          python -u etl/fetch_connections.py "${ARGS[@]}"
+
+      - name: Publish updated data to the data branch
+        run: bash .github/scripts/data-branch.sh publish app/data/connections.json

@@ -29,6 +29,8 @@ on:
       - "Update Cross-Zonal Capacity (JAO)"
       - "Update PICASSO Prices (TransnetBW)"
       - "Update Gas Storage & LNG (GIE)"
+      - "Update MASE Projects (VIA)"
+      - "Update Grid Connection Queue (Terna, e-distribuzione)"
     types: [completed]
 
   # Allows you to run this workflow manually from the Actions tab
