@@ -71,7 +71,7 @@ def test_umm_events_keep_the_latest_version_and_convert_units():
         umm("26091921X000000001360B002_001", status="Dismissed"),
         umm("26050421X000000001360B001_001", capacity="1914000", unit="kWh/h", code="59X4-IGSTORAGE-T"),
     ]
-    events = fg.umm_events(rows)
+    events = fg.merge_events([], fg.umm_events(rows))
     assert [event["id"] for event in events] == ["26050421X000000001360B001", "26091921X000000001360B001"]
     storage, lng = events
     assert lng["version"] == 2 and lng["status"] == "Inactive" and lng["planned"] is False
@@ -97,3 +97,11 @@ def test_outages_are_spread_over_the_gas_days_they_cover():
     autumn = fg.umm_daily([{"facility": "OLT", "planned": True, "unavailable": 25.0,
                             "from": "2026-10-24 04:00", "to": "2026-10-25 05:00"}])
     assert autumn["UMM|OLT|planned"] == {"2026-10-24": 25.0}
+
+
+def test_saved_events_survive_a_short_answer_and_dismissals_drop_them():
+    saved = fg.merge_events([], fg.umm_events([umm("26091921X000000001360B001_001"), umm("26091921X000000001360B002_001")]))
+    assert len(saved) == 2
+    # The next answer misses the first event and dismisses the second.
+    merged = fg.merge_events(saved, fg.umm_events([umm("26091921X000000001360B002_002", status="Dismissed")]))
+    assert [event["id"] for event in merged] == ["26091921X000000001360B001"]

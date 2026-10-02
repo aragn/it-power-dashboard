@@ -193,20 +193,18 @@ def umm_facility(row):
 
 
 def umm_events(rows):
-    """The latest version of each event on Italy's balancing zone, dismissed ones left out."""
+    """The latest version of each event on Italy's balancing zone (dismissed ones too)."""
     latest = {}
     for row in rows:
         message = row.get("message") or {}
         event, _, version = (message.get("messageId") or "").rpartition("_")
         if not event:
             continue
-        if event in latest and latest[event][0] >= version:
+        if event in latest and int(latest[event][0] or 0) >= int(version or 0):
             continue
         latest[event] = (version, row)
     events = []
     for event, (version, row) in sorted(latest.items()):
-        if row.get("status") == "Dismissed":
-            continue
         entity = row.get("reportingEntity") or {}
         message = row.get("message") or {}
 
@@ -255,25 +253,48 @@ def umm_daily(events):
     return {group: {day: round(value, 2) for day, value in values.items()} for group, values in out.items()}
 
 
-def fetch_umms(gie):
+def version_number(event):
+    return int(event["version"]) if str(event["version"]).isdigit() else -1
+
+
+def merge_events(existing, new):
+    """
+    The saved events updated with the new ones (a later version replaces an
+    earlier one), dismissed events left out: a short IIP answer cannot drop
+    events.
+    """
+    events = {event["id"]: event for event in existing}
+    for event in new:
+        if event["id"] not in events or version_number(event) >= version_number(events[event["id"]]):
+            events[event["id"]] = event
+    return [event for _, event in sorted(events.items()) if event["status"] != "Dismissed"]
+
+
+def fetch_umms(gie, existing):
+    """
+    Every message on Italy's balancing zone: IIP pages by 50, and its
+    last_page is not always right, so read on until a short page.
+    """
     rows, page = [], 1
-    while True:
+    while page <= 500:
         body = gie.get("iip", balancingZone=ITALY_ZONE, page=page)
-        rows += body.get("data", [])
-        if page >= ((body.get("meta") or {}).get("last_page") or 1):
+        data = body.get("data", [])
+        rows += data
+        if len(data) < ((body.get("meta") or {}).get("per_page") or 50):
             break
         page += 1
-    events = umm_events(rows)
-    print(f"  IIP: {len(rows)} messages, {len(events)} events")
+    events = merge_events(existing, umm_events(rows))
+    print(f"  IIP: {len(rows)} messages in {page} pages, {len(events)} events")
     return events
 
 
 def load_existing():
+    """The saved series ({group: {day: value}}) and UMM events."""
     if not os.path.exists(OUTPUT_PATH):
-        return {}
+        return {}, []
     payload = compact.load(OUTPUT_PATH)
-    return {group: {row["date"]: row["value"] for row in by_resolution.get("daily", [])}
-            for group, by_resolution in payload.get("series", {}).items()}
+    return ({group: {row["date"]: row["value"] for row in by_resolution.get("daily", [])}
+             for group, by_resolution in payload.get("series", {}).items()}, payload.get("umm", []))
 
 
 def build_output(series, events, latest_day):
@@ -300,7 +321,7 @@ def main():
         raise RuntimeError("GIE_KEY must be set.")
     gie = Gie(key)
     today = date.today()
-    series = {} if args.full_history else load_existing()
+    series, saved_events = ({}, []) if args.full_history else load_existing()
 
     for code in ENTITIES:
         start = SEASONAL_START if code == "IT" else HISTORY_START
@@ -317,7 +338,7 @@ def main():
                 del group[day]
             group.update(values)
 
-    events = fetch_umms(gie)
+    events = fetch_umms(gie, saved_events)
     series = {group: values for group, values in series.items() if not group.startswith("UMM|")}
     series.update(umm_daily(events))
     latest_day = max((day for day in series.get("IT|full", {})), default=None)
