@@ -15,7 +15,9 @@ portal's GIS services (WMS/WFS) are disabled, so the pages are read.
 Per project: name, description, proponent, technology, MW and storage MW
 read from the description (when it states them), territories, the Terna
 connection codes the description quotes ("Codice pratica MY TERNA"), the
-procedures and a stage derived from them (see project_stage).
+procedures and a stage derived from them (see project_stage), and a position:
+the average of its municipalities' coordinates (etl/municipalities.json,
+from Wikidata; built by etl/build_reference.py), as MASE gives none.
 
 Routine runs read each type's listing (newest first) until a page brings
 no new project, then the pages of new projects and of the ones checked
@@ -29,6 +31,8 @@ import json
 import os
 import re
 import time
+import unicodedata
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
@@ -38,6 +42,7 @@ BASE_URL = "https://va.mite.gov.it"
 LIST_URL = BASE_URL + "/it-IT/Ricerca/ViaTipologia"
 INFO_URL = BASE_URL + "/it-IT/Oggetti/Info/{id}"
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "..", "app", "data", "mase_projects.json")
+MUNICIPALITIES_PATH = os.path.join(os.path.dirname(__file__), "municipalities.json")
 USER_AGENT = "it-power-dashboard/1.0 (+https://github.com/aragn/it-power-dashboard)"
 
 # MASE "Tipologia di opera" -> the technology it holds (refined from the
@@ -282,6 +287,65 @@ def technology(typology_key, text):
     return "other"
 
 
+# ---------- Where ----------
+
+def place_key(name):
+    """"Leini'" and "Leinì", "Fie' allo Sciliar" and "Fiè allo Sciliar" -> the same key."""
+    text = unicodedata.normalize("NFKD", name or "").encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z]", "", text)
+
+
+PROVINCE_PREFIX = re.compile(r"^(provincia( autonoma)? d\w*|citta metropolitana di|libero consorzio comunale di|"
+                             r"provincia)\s+", re.I)
+
+
+class Gazetteer:
+    """Municipality name -> coordinates (etl/municipalities.json, from Wikidata)."""
+
+    def __init__(self, path=MUNICIPALITIES_PATH):
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+        provinces = {code: place_key(PROVINCE_PREFIX.sub("", unicodedata.normalize("NFKD", name)
+                                                         .encode("ascii", "ignore").decode()))
+                     for code, name in data["provinces"].items()}
+        self.places = defaultdict(list)
+        for istat, name, lat, lon, current in data["municipalities"]:
+            for part in name.split("/"):  # bilingual names: "Bressanone/Brixen"
+                self.places[place_key(part)].append((lat, lon, provinces.get(istat[:3], ""), current))
+
+    def locate(self, name, provinces=()):
+        """(lat, lon) of a municipality, using the project's provinces between namesakes; None if unknown."""
+        for part in [name] + (name or "").split("/"):
+            candidates = self.places.get(place_key(part))
+            if candidates:
+                break
+        else:
+            return None
+        if len({candidate[:2] for candidate in candidates}) > 1:
+            wanted = {place_key(part) for province in provinces for part in province.split("/")} - {""}
+            candidates = ([candidate for candidate in candidates
+                           if any(key in candidate[2] or candidate[2] in key for key in wanted if candidate[2])]
+                          or candidates)
+            candidates = [candidate for candidate in candidates if candidate[3]] or candidates
+        return candidates[0][:2]
+
+
+_gazetteer = None
+
+
+def location(project):
+    """The average position of the project's municipalities, and how many were found."""
+    global _gazetteer
+    if _gazetteer is None:
+        _gazetteer = Gazetteer()
+    points = [_gazetteer.locate(name, project.get("provinces") or []) for name in project.get("municipalities") or []]
+    points = [point for point in points if point]
+    if not points:
+        return None, None, 0
+    return (round(sum(point[0] for point in points) / len(points), 4),
+            round(sum(point[1] for point in points) / len(points), 4), len(points))
+
+
 # ---------- Stage ----------
 
 PRE_PROCEDURES = ("Valutazione preliminare", "Definizione contenuti SIA", "Definizione livello elaborati",
@@ -348,7 +412,7 @@ def project_stage(procedures):
 
 PROCEDURE_KEYS = ["type", "code", "start", "status", "submitted", "consultation", "decree_date", "outcome"]
 PROJECT_KEYS = ["id", "label", "name", "description", "proponent", "typology_id", "technology", "change", "mw", "storage_mw",
-                "regions", "provinces", "municipalities", "terna_codes", "stage", "current", "start", "decision",
+                "regions", "provinces", "municipalities", "lat", "lon", "terna_codes", "stage", "current", "start", "decision",
                 "procedures", "checked"]
 
 
@@ -360,6 +424,7 @@ def enrich(project):
     project["change"] = is_change(project["description"])
     project["mw"], project["storage_mw"] = capacities(project["description"])
     project["terna_codes"] = terna_codes(project["description"])
+    project["lat"], project["lon"], _ = location(project)
     procedures = project["procedures"]
     project["stage"] = project_stage(procedures)
     # The procedure the stage comes from: the latest assessment, else the latest one.
@@ -493,6 +558,10 @@ def main():
                 projects[project_id] = project
             if count % 250 == 0:
                 print(f"  {count}/{len(refresh)} project pages read")
+
+    # Re-derive every saved project too, so parser changes reach them all.
+    for project in projects.values():
+        enrich(project)
 
     write_output(projects, datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%MZ"), portal)
 
