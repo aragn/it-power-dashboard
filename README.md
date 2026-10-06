@@ -20,3 +20,10 @@ With access to the private repository (as the remote `private`), the full dashbo
 ```bash
 DATA_REMOTE=private bash .github/scripts/data-branch.sh restore
 ```
+
+## Full and public versions
+
+GME's terms allow its data to be shown publicly only as re-elaborations, without the exact values. The page is the same for both versions:
+
+- **Public** (served from GitHub Pages, or locally with `?public` added to the address): no hover windows on GME's charts and no GME line in the others' hover windows, no GME values in labels or subtitles, the market units under made-up names ("Gas plant 7"), the units list hidden, GME credited under each of its charts with a notice at the bottom. The GME files behind it are re-elaborated by `etl/publicise_gme.py` in the private repository (prices rounded to 5 €/MWh, volumes rounded, no unit codes or operators) and published to this repository's `data` branch, once the private repository has the secret `PUBLIC_DATA_TOKEN`.
+- **Full** (opened locally, from `localhost`): everything, with the exact data restored from both data branches.

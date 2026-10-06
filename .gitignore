@@ -35,3 +35,4 @@ app/data/gme_units_state.json
 app/data/mgp_merit/
 app/data/*.recent.json
 app/data/balancing_gme/
+app/data/public_salt.txt

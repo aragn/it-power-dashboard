@@ -2,9 +2,11 @@
 name: Deploy static content to Pages
 
 on:
-  # Runs on pushes targeting the default branch
+  # Runs on pushes to the default branch, and to the data branch when the
+  # private repository publishes the public version of GME's data there
+  # (pushed with a token, so it starts workflows, unlike the GITHUB_TOKEN).
   push:
-    branches: ["main"]
+    branches: ["main", "data"]
 
   # Data commits pushed by the update workflows use GITHUB_TOKEN, which
   # does not trigger "push" events, so redeploy when one of them finishes.

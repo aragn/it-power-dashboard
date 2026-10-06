@@ -1,0 +1,222 @@
+"""
+The public versions of GME's data files, for the public site.  GME's terms
+allow its data to be shown publicly only re-elaborated, without the exact
+values, so the files behind the public charts are not GME's numbers:
+
+  prices (EUR/MWh)  rounded to PRICE_STEP: the PUN, zonal, MI-A, MI-XBID and
+                    coupling prices, MSD/MB prices, the merit order's bid,
+                    awarded and zonal prices
+  volumes (MW)      rounded to VOLUME_STEP (OFFER_STEP for single offers)
+  estimates (EUR)   the dispatching cost estimate rounded to ESTIMATE_STEP
+  market units      no GME codes, operators or code families: each day's
+                    units named by source and numbered in a random order
+                    ("Gas plant 7"), from a salt kept in the private data
+                    (SALT_PATH); the order of the units and of the offers
+                    in the file says nothing either
+  not published     the unit list (gme_units.json, its state) and the code
+                    map (mgp_merit/units.json): removed here
+
+Run in the private repository after a GME job has published its private
+files, on the paths that job writes, in place (the runner's copy); the job
+then publishes them to the public repository's data branch.
+
+  publicise_gme.py app/data/pun.json app/data/mgp_merit ...
+"""
+
+import argparse
+import gzip
+import json
+import os
+import random
+import secrets
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import compact  # noqa: E402
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SALT_PATH = os.path.join(ROOT, "app", "data", "public_salt.txt")
+
+PRICE_STEP = 5          # EUR/MWh
+VOLUME_STEP = 1         # MW, time series
+OFFER_STEP = 0.1        # MW, single offers and bids
+ESTIMATE_STEP = 100     # EUR
+
+# The page's source groups (MGP_GROUPS) and the public names of their units.
+GROUP_OF = {
+    "solar": "solar", "wind_onshore": "wind", "wind_offshore": "wind", "hydro": "hydro", "hydro_ror": "hydro",
+    "hydro_reservoir": "hydro", "pumped_hydro": "pumped", "geothermal": "geothermal", "bioenergy": "bioenergy",
+    "waste": "bioenergy", "other_res": "bioenergy", "gas": "gas", "coal": "coal", "oil": "oil", "battery": "battery",
+    "interconnection": "imports",
+}
+PUBLIC_NAMES = {
+    "solar": "Solar plant", "wind": "Wind farm", "hydro": "Hydro plant", "pumped": "Pumped hydro plant",
+    "geothermal": "Geothermal plant", "bioenergy": "Bioenergy plant", "gas": "Gas plant", "coal": "Coal plant",
+    "oil": "Oil plant", "battery": "Battery", "imports": "Import", "other": "Other power plant",
+}
+NOTE = "Re-elaborated for the public site: prices rounded, units renamed (GME's terms); source GME."
+
+
+def step(value, size):
+    """value rounded to a multiple of size (None stays None)."""
+    if value is None:
+        return None
+    rounded = round(round(value / size) * size, 6)
+    return int(rounded) if float(rounded).is_integer() else rounded
+
+
+def round_series(payload, kind_of, path=""):
+    """Every compact series in payload rounded as kind_of(path) says ("price",
+    "volume", "estimate"); the rest as it is."""
+    if compact.is_series(payload):
+        size = {"price": PRICE_STEP, "volume": VOLUME_STEP, "estimate": ESTIMATE_STEP}[kind_of(path)]
+        if "values" in payload:
+            return {**payload, "values": [step(value, size) for value in payload["values"]]}
+        return {**payload, "days": [None if day is None else [step(value, size) for value in day]
+                                    for day in payload.get("days", [])]}
+    if isinstance(payload, dict):
+        return {key: round_series(value, kind_of, f"{path}/{key}") for key, value in payload.items()}
+    return payload
+
+
+def balancing_kind(path):
+    group = path.rsplit("/", 1)[-1]
+    if "|cost_" in group:
+        return "estimate"
+    return "price" if "_price" in group else "volume"
+
+
+def series_kind(name):
+    """How the series of a GME file are rounded, by file."""
+    if name.startswith("coupling"):
+        return lambda path: "price" if "/prices/" in path else "volume"
+    return lambda path: "price"
+
+
+def read_json(path):
+    opener = gzip.open if path.endswith(".gz") else open
+    with opener(path, "rt", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def write_json(payload, path):
+    text = json.dumps(payload, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    with open(path, "wb") as handle:
+        handle.write(gzip.compress(text, compresslevel=6, mtime=0) if path.endswith(".gz") else text)
+
+
+def salt():
+    if not os.path.exists(SALT_PATH):
+        raise SystemExit(f"{SALT_PATH} missing (the private data's salt for the units' public names)")
+    with open(SALT_PATH, encoding="utf-8") as handle:
+        return handle.read().strip()
+
+
+def publicise_day(data, sources, secret):
+    """A merit-order day file without GME's numbers or the units' identities."""
+    units = data["units"]
+    by_group = {}
+    for index, unit in enumerate(units):
+        source = (sources.get(unit[0]) or [None])[0] or unit[1] or "unknown"
+        group = GROUP_OF.get(source, "other")
+        by_group.setdefault(group, []).append((index, source))
+    new_index, public_units = {}, []
+    for group in sorted(by_group):
+        members = by_group[group]
+        random.Random(f"{secret}|{data['date']}|{group}").shuffle(members)
+        for number, (index, source) in enumerate(members, 1):
+            new_index[index] = len(public_units)
+            public_units.append([f"{PUBLIC_NAMES[group]} {number}", source, None, None, None])
+
+    quarters = []
+    for quarter in data["quarters"]:
+        flat = quarter["supply"]
+        supply = [[new_index[flat[i]], step(flat[i + 1], OFFER_STEP), step(flat[i + 2], PRICE_STEP), flat[i + 3],
+                   step(flat[i + 4], OFFER_STEP), step(flat[i + 5], PRICE_STEP), flat[i + 6]]
+                  for i in range(0, len(flat), 7)]
+        supply.sort(key=lambda record: (record[3], record[2] if record[2] is not None else 0, record[0], record[1]))
+        demand = {}
+        for i in range(0, len(quarter["demand"]), 3):
+            price = step(quarter["demand"][i], PRICE_STEP)
+            totals = demand.setdefault(price, [0.0, 0.0])
+            totals[0] += quarter["demand"][i + 1]
+            totals[1] += quarter["demand"][i + 2]
+        public = {
+            "time": quarter["time"],
+            "prices": {zone: step(price, PRICE_STEP) for zone, price in quarter.get("prices", {}).items()},
+            "supply": [value for record in supply for value in record],
+            "demand": [value for price, (accepted, rest) in sorted(demand.items(), key=lambda item: -item[0])
+                       for value in (price, step(accepted, OFFER_STEP), step(rest, OFFER_STEP))],
+        }
+        if "period" in quarter:
+            public["period"] = quarter["period"]
+        if "others" in quarter:
+            others = {}
+            for i in range(0, len(quarter["others"]), 3):
+                key = (new_index[quarter["others"][i]], quarter["others"][i + 1])
+                others[key] = others.get(key, 0.0) + quarter["others"][i + 2]
+            public["others"] = [value for (unit, status), mw in sorted(others.items())
+                                for value in (unit, status, step(mw, OFFER_STEP))]
+        elif "status" in quarter:
+            public["status"] = {source: {status: step(mw, OFFER_STEP) for status, mw in by_status.items()}
+                                for source, by_status in quarter["status"].items()}
+        quarters.append(public)
+    return {"date": data["date"], "market": data.get("market", "MGP"), "source": NOTE,
+            "units": public_units, "quarters": quarters}
+
+
+def publicise_merit(directory, secret):
+    sources_path = os.path.join(directory, "units.json")
+    sources = read_json(sources_path) if os.path.exists(sources_path) else {}
+    count = 0
+    for name in sorted(os.listdir(directory)):
+        if name in ("index.json", "units.json") or not name.endswith((".json", ".json.gz")):
+            continue
+        path = os.path.join(directory, name)
+        write_json(publicise_day(read_json(path), sources, secret), path)
+        count += 1
+    if os.path.exists(sources_path):
+        os.remove(sources_path)
+    return count
+
+
+def publicise(path, secret=None):
+    """One file or directory of the private data, in place."""
+    name = os.path.basename(os.path.normpath(path))
+    if name == "mgp_merit":
+        return f"{publicise_merit(path, secret if secret is not None else salt())} day(s)"
+    if name == "balancing_gme":
+        for file in sorted(os.listdir(path)):
+            if file.endswith(".json"):
+                full = os.path.join(path, file)
+                payload = read_json(full)
+                payload = {**round_series(payload, balancing_kind), "source": NOTE}
+                write_json(payload, full)
+        return "balancing series"
+    if name in ("gme_units.json", "gme_units_state.json"):
+        if os.path.exists(path):
+            os.remove(path)
+        return "removed (not published)"
+    targets = [path] + ([compact.recent_path(path)] if os.path.exists(compact.recent_path(path)) else [])
+    for target in targets:
+        payload = read_json(target)
+        write_json({**round_series(payload, series_kind(name)), "source": NOTE}, target)
+    return f"{len(targets)} file(s)"
+
+
+def new_salt(path=SALT_PATH):
+    """The salt of the units' public names, made once (kept in the private data)."""
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(secrets.token_hex(16) + "\n")
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("paths", nargs="+", help="private data files or directories (app/data/...), changed in place")
+    args = parser.parse_args()
+    for path in args.paths:
+        print(f"{path}: {publicise(path)}")
+
+
+if __name__ == "__main__":
+    main()
