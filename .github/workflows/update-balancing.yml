@@ -1,0 +1,81 @@
+name: Update Balancing (ENTSO-E, Terna)
+
+on:
+  schedule:
+    # ENTSO-E publishes the imbalance prices, activations and bids within
+    # the hour; Terna's final macrozonal imbalance at 17:00 on D+1. GitHub
+    # starts scheduled runs hours late or not at all when busy, hence every
+    # 3 hours; the concurrency group keeps them from overlapping.  GME's
+    # series (MSD, MB) are updated by the private repository
+    # (fetch_balancing.py --part gme, balancing_gme/).
+    - cron: "40 1-22/3 * * *"
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "First market day YYYY-MM-DD (default: 3 days ago)"
+        required: false
+      end:
+        description: "Last market day YYYY-MM-DD (default: tomorrow)"
+        required: false
+      sources:
+        description: "Comma-separated subset of entsoe,terna,bids (default: all three)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-balancing
+  cancel-in-progress: false
+
+jobs:
+  update-balancing:
+    runs-on: ubuntu-latest
+    # A backfill (start date given) takes hours.
+    timeout-minutes: ${{ inputs.start && 330 || 90 }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Restore current data from the data branch
+        run: bash .github/scripts/data-branch.sh restore
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Fetch balancing data
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+          TERNA_KEY: ${{ secrets.TERNA_KEY }}
+          TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
+          # The third key when the main one's 300 calls of the day are used up.
+          TERNA_KEY_3: ${{ secrets.TERNA_TERZO }}
+          TERNA_SECRET_3: ${{ secrets.TERNA_SEGRETO_TERZO }}
+          # A second Terna key for filling the history (300 calls a day per
+          # key), and the last resort of the routine runs.
+          TERNA_KEY_2: ${{ secrets.SECOND_NAME_TERNA }}
+          TERNA_SECRET_2: ${{ secrets.SECRET_SECOND_TERNA }}
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          SOURCES: ${{ inputs.sources }}
+        run: |
+          ARGS=(--part public)
+          if [ -n "$SOURCES" ]; then ARGS+=(--sources "$SOURCES"); fi
+          if [ -n "$START" ]; then ARGS+=(--start "$START"); fi
+          if [ -n "$END" ]; then ARGS+=(--end "$END"); fi
+          echo "Running: python etl/fetch_balancing.py ${ARGS[*]}"
+          python etl/fetch_balancing.py "${ARGS[@]}"
+
+      - name: Publish updated data to the data branch
+        # balancing.json: the single file the zone files replaced (removed).
+        run: |
+          mkdir -p app/data/balancing app/data/balancing_bids
+          bash .github/scripts/data-branch.sh publish app/data/balancing app/data/balancing_bids app/data/balancing.json

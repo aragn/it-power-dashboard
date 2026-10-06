@@ -1,0 +1,103 @@
+name: Update Terna Geothermal & Total Load
+
+# Also Terna's effective and expected available capacity (units >= 100 MW).
+
+on:
+  schedule:
+    # Terna publishes the load of a day by the next morning and the
+    # generation a few days later; two runs a day with a 10-day lookback.
+    - cron: "30 5 * * *"
+    - cron: "30 17 * * *"
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "Start date YYYYMMDD (default: 10 days ago)"
+        required: false
+      end:
+        description: "End date YYYYMMDD (default: today)"
+        required: false
+      full_history:
+        description: "Rebuild from 2025-01-01"
+        type: boolean
+        default: false
+      capacity_start:
+        description: "Available capacity: first day to refetch YYYY-MM-DD (default: routine window + history catch-up)"
+        required: false
+      capacity_end:
+        description: "Available capacity: last day for capacity_start (default: yesterday)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-terna
+  cancel-in-progress: false
+
+jobs:
+  update-terna:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Restore current data from the data branch
+        run: bash .github/scripts/data-branch.sh restore
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Fetch Terna data
+        env:
+          # This workflow's own key (300 calls a day), then the main one,
+          # then the second. With all three used up the run keeps the data
+          # it has (the next run's lookback fills the gap).
+          TERNA_KEY_3: ${{ secrets.TERNA_TERZO }}
+          TERNA_SECRET_3: ${{ secrets.TERNA_SEGRETO_TERZO }}
+          TERNA_KEY: ${{ secrets.TERNA_KEY }}
+          TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
+          TERNA_KEY_2: ${{ secrets.SECOND_NAME_TERNA }}
+          TERNA_SECRET_2: ${{ secrets.SECRET_SECOND_TERNA }}
+        run: |
+          ARGS=()
+          if [ -n "${{ inputs.start }}" ]; then ARGS+=(--start "${{ inputs.start }}"); fi
+          if [ -n "${{ inputs.end }}" ]; then ARGS+=(--end "${{ inputs.end }}"); fi
+          if [ "${{ inputs.full_history }}" = "true" ]; then
+            ARGS+=(--full-history)
+          fi
+          echo "Running: python etl/fetch_terna.py ${ARGS[*]}"
+          python etl/fetch_terna.py "${ARGS[@]}"
+
+      - name: Fetch available capacity
+        # Its own failure must not keep the load and geothermal data back.
+        continue-on-error: true
+        env:
+          # This workflow's own key, then the main one and the second (not
+          # for the history).
+          TERNA_KEY_3: ${{ secrets.TERNA_TERZO }}
+          TERNA_SECRET_3: ${{ secrets.TERNA_SEGRETO_TERZO }}
+          TERNA_KEY: ${{ secrets.TERNA_KEY }}
+          TERNA_SECRET: ${{ secrets.TERNA_SECRET }}
+          TERNA_KEY_2: ${{ secrets.SECOND_NAME_TERNA }}
+          TERNA_SECRET_2: ${{ secrets.SECRET_SECOND_TERNA }}
+          START: ${{ inputs.capacity_start }}
+          END: ${{ inputs.capacity_end }}
+        run: |
+          ARGS=()
+          if [ -n "$START" ]; then ARGS+=(--start "$START"); fi
+          if [ -n "$END" ]; then ARGS+=(--end "$END"); fi
+          python etl/fetch_available_capacity.py "${ARGS[@]}"
+
+      - name: Publish updated data to the data branch
+        run: |
+          files=(app/data/terna.json)
+          if [ -f app/data/available_capacity.json ]; then files+=(app/data/available_capacity.json); fi
+          bash .github/scripts/data-branch.sh publish "${files[@]}"
