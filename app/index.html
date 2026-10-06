@@ -312,6 +312,8 @@
     .zone-placeholder { display:none; align-items:center; justify-content:center; min-height:320px; padding:40px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--muted); font-size:13.5px; text-align:center; }
     .section-placeholder { display:none; align-items:center; justify-content:center; flex-direction:column; gap:8px; min-height:420px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--muted); text-align:center; }
     .section-placeholder h2 { margin:0; color:var(--text); font-size:20px; }
+    .gme-source { margin:6px 0 0 72px; color:var(--muted-2); font-size:10px; font-style:italic; }
+    .gme-notice { max-width:900px; margin:10px auto 0; color:var(--muted-2); font-size:10.5px; line-height:1.5; }
     .site-footer { margin-top:40px; padding-top:18px; border-top:1px solid var(--border); color:var(--muted-2); font-size:11.5px; text-align:center; }
     .calendar-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
     .calendar-nav { display:flex; align-items:center; gap:5px; }
@@ -444,7 +446,7 @@
         <div id="maps-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Maps</p></div><div id="maps-mount"></div></div>
         <div id="queue-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Project pipeline, grid-connection queue and market units</p></div><nav id="queue-subnav" class="subnav"><button class="subnav-tab active" data-queue-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-queue-tab="connections" type="button">Grid connections (Terna, e-distribuzione)</button><button class="subnav-tab" data-queue-tab="units" type="button">Market connections (GME)</button></nav><div id="queue-mount"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
-        <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO), GIE (AGSI+, ALSI, IIP), MASE, e-distribuzione.</footer>
+        <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO), GIE (AGSI+, ALSI, IIP), MASE, e-distribuzione.<p class="gme-notice"><strong>Notice on GME data.</strong> The data of Gestore dei Mercati Energetici S.p.A. (GME) shown on this site are re-elaborations and estimates made by the author, for information only; they are not GME's official data, which GME publishes on www.mercatoelettrico.org under its own terms. GME is not responsible for these elaborations nor for any use of them. They may not be extracted, downloaded, copied, reproduced or redistributed, in whole or in part, nor used for commercial purposes, without the prior written consent of the author and of GME.</p></footer>
       </main>
     </div>
   </div>
@@ -473,6 +475,37 @@
       .trim();
   }
 
+  /* ============================================================
+     PUBLIC VERSION
+     ============================================================ */
+
+  /*
+   * GME's terms: its data may be shown publicly only as re-elaborations,
+   * without the exact values.  The site served from GitHub Pages is the
+   * public version; opened from this computer (localhost) it is the full
+   * one, with the hover windows and the values, unless "?public" is added
+   * to the address to see the public version.  In the public version:
+   * no hover windows on GME's charts (nor GME's lines in the hover windows
+   * of the others), no GME values in labels and subtitles, the market units
+   * under made-up names, GME credited under each of its charts and the
+   * notice on its data at the bottom of the page.
+   */
+  const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]", ""];
+  const PUBLIC_MODE = !LOCAL_HOSTS.includes(location.hostname) ||
+    new URLSearchParams(location.search).has("public");
+  if (PUBLIC_MODE) document.documentElement.classList.add("public-version");
+  const GME_CREDIT = "GME data: Gestore dei Mercati Energetici S.p.A., elaborated by the author; " +
+    "not to be extracted or reproduced (see the notice at the bottom of the page).";
+
+  /* A chart of GME's data only: in the public version, no hover window. */
+  function gmeChart(chart) {
+    if (!PUBLIC_MODE) return chart;
+    const setOption = chart.setOption.bind(chart);
+    chart.setOption = (option, ...rest) => setOption(option && typeof option === "object"
+      ? { ...option, tooltip: { show: false }, axisPointer: { show: false } } : option, ...rest);
+    return chart;
+  }
+
   const DATA_URL = "./data/pun.json";
   const GENERATION_LOAD_DATA_URL = "./data/generation_load.json";
 
@@ -493,7 +526,7 @@
     document.getElementById("chart-drag-selection");
 
   const chart =
-    echarts.init(chartElement);
+    gmeChart(echarts.init(chartElement));
 
   const generationLoadChartElement =
     document.getElementById("generation-load-chart");
@@ -505,7 +538,7 @@
     document.getElementById("zonal-chart");
 
   const zonalChart =
-    echarts.init(zonalChartElement);
+    gmeChart(echarts.init(zonalChartElement));
 
   let rawData = null;
   let rawZonalData = null;
@@ -5174,7 +5207,7 @@
         tooltipRow(cssVar("--chart-eua"), EUA_NAME, `${row.eua.toFixed(2)} €/tCO₂`, "line") + `</div>`;
     }
 
-    if (shown(PUN_INDEX_NAME) && Number.isFinite(row.pun)) {
+    if (!PUBLIC_MODE && shown(PUN_INDEX_NAME) && Number.isFinite(row.pun)) {
       html += `<div style="margin-top:6px;">` +
         tooltipRow(cssVar("--chart-pun"), PUN_INDEX_NAME, `${row.pun.toFixed(2)} €/MWh`, "line") + `</div>`;
     }
@@ -6698,7 +6731,7 @@
     const lookups = getNeighbourPriceLookups();
     if (!row || !lookups) return "";
 
-    const pun = Number.isFinite(row.pun)
+    const pun = !PUBLIC_MODE && Number.isFinite(row.pun)
       ? `<div style="margin-bottom:4px;">${tooltipRow(cssVar("--chart-pun"), PUN_INDEX_NAME, formatPrice(row.pun), "line")}</div>`
       : "";
     const lines = CROSS_BORDER_COUNTRIES
@@ -6832,7 +6865,7 @@
       `<div id="coupling-${key}-drag" class="timeline-drag-selection"></div></div>`;
     couplingGrid.insertBefore(section, couplingNote);
 
-    const chart = echarts.init(document.getElementById(`coupling-${key}-chart`));
+    const chart = gmeChart(echarts.init(document.getElementById(`coupling-${key}-chart`)));
     attachDragZoom(chart, `coupling-${key}-wrap`, `coupling-${key}-drag`);
     return { chart, timeline: createTimeline(chart), subtitleId: `coupling-${key}-subtitle` };
   }
@@ -7650,7 +7683,7 @@
     { code: "MI-A2", id: "mia2", coverage: "held D-1 evening" },
     { code: "MI-A3", id: "mia3", coverage: "held on the day, afternoon/evening only" }
   ].map(market => {
-    const chart = echarts.init(document.getElementById(`intraday-${market.id}-chart`));
+    const chart = gmeChart(echarts.init(document.getElementById(`intraday-${market.id}-chart`)));
     return { ...market, chart, timeline: createTimeline(chart) };
   });
 
@@ -7821,7 +7854,7 @@
     { code: "XBID-60", id: "xbid60", coverage: "60-minute products" },
     { code: "XBID-15", id: "xbid15", coverage: "15-minute products" }
   ].map(market => {
-    const chart = echarts.init(document.getElementById(`intraday-${market.id}-chart`));
+    const chart = gmeChart(echarts.init(document.getElementById(`intraday-${market.id}-chart`)));
     return { ...market, chart, timeline: createTimeline(chart) };
   });
 
@@ -8228,8 +8261,8 @@
 
   const mgpSections = ["mgp-merit-section", "mgp-revenue-section", "mgp-status-section"]
     .map(id => document.getElementById(id));
-  const mgpChart = echarts.init(document.getElementById("mgp-merit-chart"));
-  const mgpStatusChart = echarts.init(document.getElementById("mgp-status-chart"));
+  const mgpChart = gmeChart(echarts.init(document.getElementById("mgp-merit-chart")));
+  const mgpStatusChart = gmeChart(echarts.init(document.getElementById("mgp-status-chart")));
   const mgpSlider = document.getElementById("mgp-slider");
   const mgpDays = {};       // date -> Promise of the day's file (null if none)
   let mgpIndex = null;
@@ -8306,7 +8339,7 @@
     const onFile = Object.keys((mgpIndex || {}).days || {}).sort();
     document.getElementById("mgp-merit-help").textContent =
       "GME's public MGP offers for the quarter-hour chosen, all zones together. Bubbles: the sale offers, one per offer, sized by MW and coloured by " +
-      "the unit's source (Queue & Market › Market connections): first every accepted offer by bid price, then the others by bid price, faded " +
+      "the unit's source: first every accepted offer by bid price, then the others by bid price, faded " +
       "(rejected offers and the part not taken of a partly accepted one). Line: the purchase bids, the accepted ones first from the highest price, " +
       "then the others. The market clears every zone in one run (EUPHEMIA, with the rest of Europe) within the transmission limits between zones: " +
       "where no limit binds the zones share one price, where one binds they split (Sicily often does). Every offer and bid is settled at its zone's " +
@@ -8329,10 +8362,59 @@
   function mgpUnit(day, index) {
     const unit = day.units[index] || [];
     const known = mgpUnitMap[unit[0]];
+    const source = (known ? known[0] : unit[1]) || "unknown";
+    if (PUBLIC_MODE) return { code: mgpPublicName(day, index), source, operator: null, zone: null };
     return {
-      code: unit[0], source: (known ? known[0] : unit[1]) || "unknown",
+      code: unit[0], source,
       operator: (known && known[1]) || unit[2], zone: (known && known[2]) || unit[3]
     };
+  }
+
+  /*
+   * The public version names the units by source, numbered in a random
+   * order of the day ("Gas plant 7"): no GME codes.  The public files carry
+   * those names already (etl/publicise_gme.py); these are for the full
+   * files shown as the public version (localhost, ?public).
+   */
+  const MGP_PUBLIC_NAMES = {
+    solar: "Solar plant", wind: "Wind farm", hydro: "Hydro plant", pumped: "Pumped hydro plant",
+    geothermal: "Geothermal plant", bioenergy: "Bioenergy plant", gas: "Gas plant", coal: "Coal plant",
+    oil: "Oil plant", battery: "Battery", imports: "Import", other: "Other power plant"
+  };
+  const GME_CODE = /^(UP|UPV|UC|UCV|UVZi|UVZp)_/;
+
+  function seededRandom(text) {
+    let seed = 0;
+    for (const char of text) seed = (Math.imul(31, seed) + char.charCodeAt(0)) | 0;
+    return () => {
+      seed = (seed + 0x6D2B79F5) | 0;
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function mgpPublicName(day, index) {
+    const unit = day.units[index] || [];
+    if (!GME_CODE.test(unit[0] || "")) return unit[0];
+    if (!day.publicNames) {
+      day.publicNames = [];
+      const byGroup = new Map();
+      day.units.forEach((item, position) => {
+        const known = mgpUnitMap[item[0]];
+        const group = mgpGroup((known ? known[0] : item[1]) || "unknown");
+        if (!byGroup.has(group)) byGroup.set(group, []);
+        byGroup.get(group).push(position);
+      });
+      byGroup.forEach((positions, group) => {
+        const random = seededRandom(`${day.date}|${group.key}`);
+        const order = positions.map(position => [random(), position]).sort((a, b) => a[0] - b[0]);
+        order.forEach(([, position], number) => {
+          day.publicNames[position] = `${MGP_PUBLIC_NAMES[group.key] || "Power plant"} ${number + 1}`;
+        });
+      });
+    }
+    return day.publicNames[index];
   }
 
   /* MW offered for sale by source and status: the standing offers and the
@@ -8464,10 +8546,11 @@
     const blue = cssVar("--blue");
     const priceLines = (oneLine ? [] : priceGroups.map(group => ({
       price: group.price,
-      text: `${formatPrice(group.price)} · ${priceGroups.length > 1 ? group.zones.join(", ") : "all zones"}`
+      text: `${PUBLIC_MODE ? "Zonal price" : formatPrice(group.price)} · ${priceGroups.length > 1 ? group.zones.join(", ") : "all zones"}`
     }))).concat(pun !== null ? [{
       price: pun, pun: true,
-      text: oneLine ? `PUN Index ${formatPrice(pun)} · all zones at this price` : `PUN Index ${formatPrice(pun)}`
+      text: PUBLIC_MODE ? `PUN Index${oneLine ? " · all zones at this price" : ""}`
+        : oneLine ? `PUN Index ${formatPrice(pun)} · all zones at this price` : `PUN Index ${formatPrice(pun)}`
     }] : []);
     // Labelled apart from the lines (below, once drawn): prices a few
     // €/MWh apart would print their labels on top of each other.
@@ -8476,16 +8559,18 @@
       label: { show: false },
       ...(line.pun ? { lineStyle: { color: blue, type: "solid", width: 1.4 } } : {})
     }));
-    markLines.push({ xAxis: cleared, label: { formatter: `${formatGw(demandAccepted)} cleared`, position: "end" } });
+    markLines.push({ xAxis: cleared, label: { formatter: PUBLIC_MODE ? "Cleared" : `${formatGw(demandAccepted)} cleared`, position: "end" } });
     const band = Math.abs(gap) >= 1 ? [[
-      { xAxis: 0, name: gap > 0 ? `Net import ${formatGw(gap)}` : `Net export ${formatGw(-gap)}` },
+      { xAxis: 0, name: PUBLIC_MODE ? `Net ${gap > 0 ? "import" : "export"} (coupled borders)`
+        : gap > 0 ? `Net import ${formatGw(gap)}` : `Net export ${formatGw(-gap)}` },
       { xAxis: Math.abs(gap) / 1000 }
     ]] : [];
 
     const ink = cssVar("--chart-pun");
     const groups = MGP_GROUPS.filter(group => byGroup.has(group));
     const priceList = priceGroups.map(group => `${formatPrice(group.price)} (${group.zones.join(", ")})`).join(", ");
-    setText("mgp-merit-subtitle",
+    if (PUBLIC_MODE) setText("mgp-merit-subtitle", "Sale offers (bubbles, by source) and purchase bids (line) of the quarter-hour, all zones together");
+    else setText("mgp-merit-subtitle",
       `${formatGw(supplyAccepted)} of sale offers accepted out of ${formatGw(supplyOffered)} · demand accepted ${formatGw(demandAccepted)}` +
       ` · ${gap >= 0 ? "net import" : "net export"} ${formatGw(Math.abs(gap))}` +
       `${pun !== null ? ` · PUN Index ${formatPrice(pun)}` : ""} · zonal ${priceList}`);
@@ -8631,8 +8716,13 @@
     setText("mgp-revenue-subtitle",
       `About ${formatEuro(total)} estimated for ${formatNumber(rows.length)} units in ${depthSlotLabel(slot)} · 10 a page, the highest first`);
     const number = (value, digits = 1) => isEmpty(value) ? "—" : formatNumber(value, digits);
+    const revenueColumn = { key: "revenue", label: "Est. gross revenue (€)", num: true, value: row => row.revenue,
+      cell: row => number(row.revenue, 0) };
+    const sourceColumn = { key: "source", label: "Source", value: row => mgpGroup(row.source).label,
+      cell: row => queueBadge(mgpGroup(row.source).color, (UNIT_SOURCES[row.source] || {}).label || "Not known") };
     queueTable(document.getElementById("mgp-revenue-table"), {
-      columns: [
+      // The public version: the unit's made-up name, its source, the estimate.
+      columns: PUBLIC_MODE ? [{ key: "code", label: "Unit", value: row => row.code }, sourceColumn, revenueColumn] : [
         { key: "code", label: "GME code", value: row => row.code },
         { key: "source", label: "Source", value: row => mgpGroup(row.source).label,
           cell: row => queueBadge(mgpGroup(row.source).color, (UNIT_SOURCES[row.source] || {}).label || "Not known") },
@@ -8643,7 +8733,7 @@
           cell: row => row.bilateral ? number(row.bilateral) : "—" },
         { key: "price", label: "€/MWh", num: true, value: row => (row.mw ? row.revenue / (row.mw * 0.25) : null),
           cell: row => (row.mw ? number(row.revenue / (row.mw * 0.25), 2) : "—") },
-        { key: "revenue", label: "Est. revenue (€)", num: true, value: row => row.revenue, cell: row => number(row.revenue, 0) }
+        revenueColumn
       ],
       rows, state: mgpRevenueState, pageSize: 10, empty: "No accepted sale offers in this quarter-hour."
     });
@@ -8660,7 +8750,8 @@
     const groups = MGP_GROUPS.filter(group => byGroup.has(group));
     const statuses = MGP_STATUSES.filter(status => groups.some(group => byGroup.get(group)[status.key]));
     const offered = groups.reduce((sum, group) => sum + Object.values(byGroup.get(group)).reduce((a, b) => a + b, 0), 0);
-    setText("mgp-status-subtitle", `${formatGw(offered)} in all the sale offers of ${depthSlotLabel(slot)}, every status`);
+    setText("mgp-status-subtitle", PUBLIC_MODE ? `The sale offers of ${depthSlotLabel(slot)} by source and status`
+      : `${formatGw(offered)} in all the sale offers of ${depthSlotLabel(slot)}, every status`);
     mgpStatusChart.setOption({
       animation: false,
       backgroundColor: "transparent",
@@ -8862,6 +8953,10 @@
     euro: () => "€"
   };
 
+  /* GME's balancing series (MSD, MB) and those built on GME's prices. */
+  const isGmeSeries = item => Boolean(item.gme ||
+    [item.group, ...(item.groups || [])].some(group => group && /\|(sum_)?(msd|mb)_/.test(group)));
+
   /*
    * What accepted MSD/MB offers earned over the zone's day-ahead price:
    * up, price − MGP; down, MGP − price (positive = a cost to the system).
@@ -8896,7 +8991,7 @@
     return msd || mb ? `${formatEuro(msd + mb)} in the selected dates (MSD ${formatEuro(msd)}, MB ${formatEuro(mb)})` : "";
   }
 
-  const dayAheadSeries = { name: "Day-ahead (MGP)", color: "--bal-reference", map: mgpPriceMap, unit: "price", width: 1.2 };
+  const dayAheadSeries = { name: "Day-ahead (MGP)", color: "--bal-reference", map: mgpPriceMap, unit: "price", width: 1.2, gme: true };
   const punSeries = { ...dayAheadSeries, name: "PUN Index" };
 
   /*
@@ -9027,10 +9122,10 @@
       id: "premium", title: "Premium over the Day-Ahead Price",
       help: () => "What the accepted offers earned over the zone's day-ahead price: up, the average price paid minus the day-ahead price; down, the day-ahead price minus the average price at which the energy was bought back. Above zero the system paid more than the day-ahead value (MSD ex-ante pink, MB orange). Drag horizontally across the chart to select a narrower range.",
       series: () => [
-        { name: "MSD up", color: "--bal-msd", map: premiumMap("msd_price_up", 1), own: true, unit: "price", sparse: true },
-        { name: "MSD down", color: "--bal-msd", map: premiumMap("msd_price_down", -1), own: true, unit: "price", line: "dashed", sparse: true },
-        { name: "MB up", color: "--bal-rr", map: premiumMap("mb_price_up", 1), own: true, unit: "price", sparse: true },
-        { name: "MB down", color: "--bal-rr", map: premiumMap("mb_price_down", -1), own: true, unit: "price", line: "dashed", sparse: true }
+        { name: "MSD up", color: "--bal-msd", gme: true, map: premiumMap("msd_price_up", 1), own: true, unit: "price", sparse: true },
+        { name: "MSD down", color: "--bal-msd", gme: true, map: premiumMap("msd_price_down", -1), own: true, unit: "price", line: "dashed", sparse: true },
+        { name: "MB up", color: "--bal-rr", gme: true, map: premiumMap("mb_price_up", 1), own: true, unit: "price", sparse: true },
+        { name: "MB down", color: "--bal-rr", gme: true, map: premiumMap("mb_price_down", -1), own: true, unit: "price", line: "dashed", sparse: true }
       ]
     },
 
@@ -9292,6 +9387,7 @@
       items.forEach((item, i) => {
         const value = data[i][index];
         if (spec.selected[item.name] === false || value === null) return;
+        if (PUBLIC_MODE && isGmeSeries(item)) return;
         const shape = item.type === "bar" || item.area ? "area" : ({ dashed: "dashed", dotted: "dotted" }[item.line] || "line");
         body += tooltipRow(cssVar(item.color), item.name, formatBalancingValue(value * (item.sign || 1), item.unit), shape);
       });
@@ -9312,7 +9408,8 @@
         data: names,
         selected: { ...spec.selected }
       },
-      tooltip: timelineTooltip(tooltip),
+      // In the public version a chart of GME's series only has no hover window.
+      tooltip: PUBLIC_MODE && items.every(isGmeSeries) ? { show: false } : timelineTooltip(tooltip),
       grid: {
         left: 60, right: hasRight ? 60 : 16,
         top: legendGridTop(chart, names, 18, 12), bottom: CHART_GRID.bottom, containLabel: false
@@ -13003,6 +13100,26 @@
   syncThemeToggle();
 
   updateView();
+  /* GME credited under each chart of its data (or with a line of it). */
+  (function creditGme() {
+    const sections = ["pun-chart-section", "generation-mix-chart-section", "neighbour-prices-section", "zonal-chart-section",
+      "intraday-mia1-section", "intraday-mia2-section", "intraday-mia3-section", "intraday-xbid60-section",
+      "intraday-xbid15-section", ...mgpSections.map(section => section.id)]
+      .map(id => document.getElementById(id))
+      .concat([...document.querySelectorAll('[id^="coupling-"][id$="-section"]')])
+      .concat(BALANCING_CHARTS.filter(spec => ["imbalance", "energy", "msd", "mb-volumes", "mb-prices", "msd-vs-mb",
+        "premium", "it-imbalance", "it-msd-mb", "it-dispatch-cost"].includes(spec.id)).map(spec => spec.section));
+    sections.filter(Boolean).forEach(section => {
+      if (section.querySelector(".gme-source")) return;
+      section.insertAdjacentHTML("beforeend", `<div class="gme-source">${GME_CREDIT}</div>`);
+    });
+    // The public version shows no list of GME's market units.
+    if (PUBLIC_MODE) {
+      const unitsTab = document.querySelector('[data-queue-tab="units"]');
+      if (unitsTab) unitsTab.remove();
+    }
+  })();
+
   loadData();
 
   </script>
