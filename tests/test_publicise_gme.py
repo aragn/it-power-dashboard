@@ -66,7 +66,8 @@ def test_a_merit_order_day_loses_codes_operators_and_exact_numbers(rounded):
     public = pg.publicise_day(DAY, {"UP_GAS_B_1": ["battery", "x", "y"]}, "secret")
     names = [unit[0] for unit in public["units"]]
     assert not any(name.startswith(("UP_", "UVZ")) for name in names)
-    assert all(unit[2] is None and unit[3] is None and unit[4] is None for unit in public["units"])
+    assert all(unit[2] is None and unit[4] is None for unit in public["units"])     # no operator, no code family
+    assert {unit[0]: unit[3] for unit in public["units"]}["Solar plant 1"] == "NORD"  # the zone stays
     # The research's source wins over the day file's: B is a battery now.
     assert sorted(names) == ["Battery 1", "Gas plant 1", "Solar plant 1"]
     quarter = public["quarters"][0]

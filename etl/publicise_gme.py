@@ -9,8 +9,9 @@ its data shown publicly only re-elaborated):
                     and zonal prices), volumes (MW) to VOLUME_STEP
                     (OFFER_STEP for single offers), the dispatching cost
                     estimate to ESTIMATE_STEP
-  market units      no GME codes, operators or code families: each day's
-                    units named by source and numbered in a random order
+  market units      no GME codes, operators or code families (the bidding
+                    zone stays): each day's units named by source and
+                    numbered in a random order
                     ("Gas plant 7"), from a salt kept in the private data
                     (SALT_PATH); the order of the units and of the offers
                     in the file says nothing either
@@ -122,16 +123,17 @@ def publicise_day(data, sources, secret):
     units = data["units"]
     by_group = {}
     for index, unit in enumerate(units):
-        source = (sources.get(unit[0]) or [None])[0] or unit[1] or "unknown"
+        known = sources.get(unit[0]) or [None, None, None]
+        source = known[0] or unit[1] or "unknown"
         group = GROUP_OF.get(source, "other")
-        by_group.setdefault(group, []).append((index, source))
+        by_group.setdefault(group, []).append((index, source, known[2] or unit[3]))
     new_index, public_units = {}, []
     for group in sorted(by_group):
         members = by_group[group]
         random.Random(f"{secret}|{data['date']}|{group}").shuffle(members)
-        for number, (index, source) in enumerate(members, 1):
+        for number, (index, source, zone) in enumerate(members, 1):
             new_index[index] = len(public_units)
-            public_units.append([f"{PUBLIC_NAMES[group]} {number}", source, None, None, None])
+            public_units.append([f"{PUBLIC_NAMES[group]} {number}", source, None, zone, None])
 
     quarters = []
     for quarter in data["quarters"]:
