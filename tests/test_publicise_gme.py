@@ -9,17 +9,35 @@ import compact  # noqa: E402
 import publicise_gme as pg  # noqa: E402
 
 
+import pytest  # noqa: E402
+
+
+@pytest.fixture
+def rounded(monkeypatch):
+    """The rounding as it would be if GME asks for it."""
+    for name, size in (("PRICE_STEP", 5), ("VOLUME_STEP", 1), ("OFFER_STEP", 0.1), ("ESTIMATE_STEP", 100)):
+        monkeypatch.setattr(pg, name, size)
+
+
 def series(values, step=15):
     return {"step": step, "field": "price", "start": "2026-09-01", "days": [values, None]}
 
 
-def test_prices_are_rounded_and_gaps_kept():
+def test_numbers_stay_as_they_are_for_now():
+    payload = {"zones": {"NORD": {"quarter_hourly": series([101.23, None, 188.64])}}}
+    assert pg.round_series(payload, lambda path: "price") == payload
+    public = pg.publicise_day(DAY, {}, "secret")
+    assert public["quarters"][0]["prices"]["NORD"] == 188.64
+    assert not any(unit[0].startswith("UP_") for unit in public["units"])
+
+
+def test_prices_are_rounded_and_gaps_kept(rounded):
     out = pg.round_series({"zones": {"NORD": {"quarter_hourly": series([101.23, None, 188.64, -0.01])}}},
                           lambda path: "price")
     assert out["zones"]["NORD"]["quarter_hourly"]["days"] == [[100, None, 190, 0], None]
 
 
-def test_coupling_flows_and_prices_and_balancing_series_by_kind():
+def test_coupling_flows_and_prices_and_balancing_series_by_kind(rounded):
     kind = pg.series_kind("coupling.json")
     assert kind("/flows/quarter_hourly/BSP/export_flow") == "volume"
     assert kind("/prices/quarter_hourly/NORD") == "price"
@@ -44,7 +62,7 @@ DAY = {
 }
 
 
-def test_a_merit_order_day_loses_codes_operators_and_exact_numbers():
+def test_a_merit_order_day_loses_codes_operators_and_exact_numbers(rounded):
     public = pg.publicise_day(DAY, {"UP_GAS_B_1": ["battery", "x", "y"]}, "secret")
     names = [unit[0] for unit in public["units"]]
     assert not any(name.startswith(("UP_", "UVZ")) for name in names)
@@ -80,7 +98,7 @@ def test_the_names_follow_the_salt_not_the_codes():
     assert sorted(names("one").values()) == sorted(f"Gas plant {n}" for n in range(1, 31))
 
 
-def test_files_in_place(tmp_path, monkeypatch):
+def test_files_in_place(tmp_path, monkeypatch, rounded):
     merit = tmp_path / "mgp_merit"
     merit.mkdir()
     pg.write_json(DAY, str(merit / "2026-09-17.json.gz"))

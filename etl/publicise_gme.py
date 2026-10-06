@@ -1,13 +1,14 @@
 """
-The public versions of GME's data files, for the public site.  GME's terms
-allow its data to be shown publicly only re-elaborated, without the exact
-values, so the files behind the public charts are not GME's numbers:
+The public versions of GME's data files, for the public site (GME's terms:
+its data shown publicly only re-elaborated):
 
-  prices (EUR/MWh)  rounded to PRICE_STEP: the PUN, zonal, MI-A, MI-XBID and
-                    coupling prices, MSD/MB prices, the merit order's bid,
-                    awarded and zonal prices
-  volumes (MW)      rounded to VOLUME_STEP (OFFER_STEP for single offers)
-  estimates (EUR)   the dispatching cost estimate rounded to ESTIMATE_STEP
+  numbers           as they are for now (the owner is asking GME whether
+                    that is allowed); with the steps set, rounded: prices
+                    (EUR/MWh) to PRICE_STEP (the PUN, zonal, MI-A, MI-XBID,
+                    coupling, MSD/MB prices, the merit order's bid, awarded
+                    and zonal prices), volumes (MW) to VOLUME_STEP
+                    (OFFER_STEP for single offers), the dispatching cost
+                    estimate to ESTIMATE_STEP
   market units      no GME codes, operators or code families: each day's
                     units named by source and numbered in a random order
                     ("Gas plant 7"), from a salt kept in the private data
@@ -37,10 +38,12 @@ import compact  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SALT_PATH = os.path.join(ROOT, "app", "data", "public_salt.txt")
 
-PRICE_STEP = 5          # EUR/MWh
-VOLUME_STEP = 1         # MW, time series
-OFFER_STEP = 0.1        # MW, single offers and bids
-ESTIMATE_STEP = 100     # EUR
+# Rounding steps; None: no rounding (for now).  E.g. 5 EUR/MWh, 1 MW,
+# 0.1 MW and EUR 100 if GME asks for rounded numbers.
+PRICE_STEP = None       # EUR/MWh
+VOLUME_STEP = None      # MW, time series
+OFFER_STEP = None       # MW, single offers and bids
+ESTIMATE_STEP = None    # EUR
 
 # The page's source groups (MGP_GROUPS) and the public names of their units.
 GROUP_OF = {
@@ -54,13 +57,13 @@ PUBLIC_NAMES = {
     "geothermal": "Geothermal plant", "bioenergy": "Bioenergy plant", "gas": "Gas plant", "coal": "Coal plant",
     "oil": "Oil plant", "battery": "Battery", "imports": "Import", "other": "Other power plant",
 }
-NOTE = "Re-elaborated for the public site: prices rounded, units renamed (GME's terms); source GME."
+NOTE = "Re-elaborated for the public site: units renamed, unit list not published (GME's terms); source GME."
 
 
 def step(value, size):
-    """value rounded to a multiple of size (None stays None)."""
-    if value is None:
-        return None
+    """value rounded to a multiple of size (None stays None; no size: as it is)."""
+    if value is None or size is None:
+        return value
     rounded = round(round(value / size) * size, 6)
     return int(rounded) if float(rounded).is_integer() else rounded
 
@@ -70,6 +73,8 @@ def round_series(payload, kind_of, path=""):
     "volume", "estimate"); the rest as it is."""
     if compact.is_series(payload):
         size = {"price": PRICE_STEP, "volume": VOLUME_STEP, "estimate": ESTIMATE_STEP}[kind_of(path)]
+        if size is None:
+            return payload
         if "values" in payload:
             return {**payload, "values": [step(value, size) for value in payload["values"]]}
         return {**payload, "days": [None if day is None else [step(value, size) for value in day]

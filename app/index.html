@@ -485,10 +485,10 @@
    * public version; opened from this computer (localhost) it is the full
    * one, with the hover windows and the values, unless "?public" is added
    * to the address to see the public version.  In the public version:
-   * no hover windows on GME's charts (nor GME's lines in the hover windows
-   * of the others), no GME values in labels and subtitles, the market units
-   * under made-up names, GME credited under each of its charts and the
-   * notice on its data at the bottom of the page.
+   * no hover windows on any chart (PUBLIC_NO_HOVER; without it, none on
+   * GME's charts and no GME line in the others'), no GME values in labels
+   * and subtitles, the market units under made-up names, GME credited under
+   * each of its charts and the notice on its data at the bottom of the page.
    */
   const LOCAL_HOSTS = ["localhost", "127.0.0.1", "[::1]", ""];
   const PUBLIC_MODE = !LOCAL_HOSTS.includes(location.hostname) ||
@@ -504,6 +504,14 @@
     chart.setOption = (option, ...rest) => setOption(option && typeof option === "object"
       ? { ...option, tooltip: { show: false }, axisPointer: { show: false } } : option, ...rest);
     return chart;
+  }
+
+  // The owner's choice: in the public version no chart has a hover window,
+  // GME's or not.  Every chart made from here on goes through gmeChart.
+  const PUBLIC_NO_HOVER = true;
+  if (PUBLIC_MODE && PUBLIC_NO_HOVER) {
+    const init = echarts.init.bind(echarts);
+    echarts.init = (...args) => gmeChart(init(...args));
   }
 
   const DATA_URL = "./data/pun.json";
