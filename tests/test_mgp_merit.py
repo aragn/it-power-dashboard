@@ -99,11 +99,13 @@ def test_days_are_written_gzipped_and_indexed(tmp_path):
 def test_the_backfill_skips_full_days_only(tmp_path):
     from datetime import date
     out = str(tmp_path)
-    mm.write_day(out, {"date": "2026-08-02", "units": [], "quarters": [{"time": mm.label(q)} for q in range(96)]})
-    mm.write_day(out, {"date": "2026-08-03", "units": [], "quarters": [{"time": "11:00"}]})
+    full = [{"time": mm.label(q)} for q in range(96)]
+    mm.write_day(out, {"date": "2026-08-02", "version": mm.FORMAT, "units": [], "quarters": full})
+    mm.write_day(out, {"date": "2026-08-03", "version": mm.FORMAT, "units": [], "quarters": [{"time": "11:00"}]})
+    mm.write_day(out, {"date": "2026-08-05", "units": [], "quarters": full})     # full, but of the old format
     mm.write_index(out)
-    assert mm.missing_days(date(2026, 8, 1), date(2026, 8, 4), out) == [
-        date(2026, 8, 1), date(2026, 8, 3), date(2026, 8, 4)]
+    assert mm.missing_days(date(2026, 8, 1), date(2026, 8, 5), out) == [
+        date(2026, 8, 1), date(2026, 8, 3), date(2026, 8, 4), date(2026, 8, 5)]
 
 
 def test_a_run_stops_at_the_first_day_not_published(tmp_path, monkeypatch):
@@ -121,3 +123,15 @@ def test_a_run_stops_at_the_first_day_not_published(tmp_path, monkeypatch):
     monkeypatch.setattr(mm, "unit_sources", lambda: {})
     mm.backfill(date(2026, 9, 28), date(2026, 10, 3), str(tmp_path), 8)
     assert asked == [date(2026, 9, 28)]
+
+
+def test_accepted_purchases_are_kept_per_unit():
+    rows = [row("UC_0000001_01", 49, 300, awarded=250, purpose="BID", price="3000", awarded_price="120"),
+            row("UP_SOLE_1", 49, 40, awarded=0, purpose="BID", status="REJ", price="10"),
+            row("UC_0000001_01", 13, 100, awarded=100, purpose="BID", granularity="PT60", price="3000", awarded_price="118.5")]
+    data = mm.build(rows, mm.quarter("12:00"), mm.quarter("12:00"), UNITS)
+    quarter, = data["quarters"]
+    assert quarter["purchases"] == [0, 100.0, 118.5, mm.HOURLY, 0, 250.0, 120.0, 0] or \
+        quarter["purchases"] == [0, 250.0, 120.0, 0, 0, 100.0, 118.5, mm.HOURLY]
+    assert quarter["demand"][0] == 3000.0                     # the curve stays as it was
+    assert data["units"][0][0] == "UC_0000001_01"

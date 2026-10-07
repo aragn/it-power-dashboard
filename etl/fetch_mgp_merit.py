@@ -11,6 +11,9 @@ Per quarter-hour:
            [unit, MW, bid price, status, MW accepted, price awarded, flags]
   demand   the purchase bids (BID) the same way, grouped by bid price:
            [price, MW accepted, MW not accepted]
+  purchases  the accepted purchase bids per unit (consumption units, storage
+           and pumping buying, units buying back), as [unit, MW accepted,
+           price awarded, flags] (since FORMAT 2)
   others   the sale offers that did not stand, per unit and status:
            [unit, status, MW], status 3 replaced (REP), 4 revoked (REV),
            5 invalid (INC); with "supply", the MW offered by status (the page
@@ -67,6 +70,7 @@ BACKFILL_FROM = "2026-08-01"   # the first day the scheduled runs fill in
 PUBLISHED_AFTER = 7            # days after the market before GME may have the offers out
 MAX_DAYS = 8                   # days a run (each file is 500-650 MB)
 COMPLETE = 92                  # quarter-hours of a full day (92 on the spring DST day)
+FORMAT = 2                     # day files of an older format are read again (2: purchases per unit)
 
 
 def period_of(row):
@@ -123,6 +127,7 @@ def build(rows, first, last, units, registry=None):
     supply = defaultdict(list)
     demand = defaultdict(lambda: defaultdict(lambda: [0.0, 0.0]))
     others = defaultdict(lambda: defaultdict(float))  # quarter -> (unit, status) -> MW
+    purchases = defaultdict(list)
     unit_index, unit_list = registry if registry is not None else ({}, [])
 
     def unit_of(row):
@@ -172,6 +177,11 @@ def build(rows, first, last, units, registry=None):
                 step = demand[index][price if price is not None else 0.0]
                 step[0] += accepted
                 step[1] += quantity - accepted
+            if accepted > 0:
+                record = [unit_of(row), round_mw(accepted), awarded_price,
+                          (HOURLY if hourly else 0) | (BILATERAL if row.get("BILATERAL_IN") == "true" else 0)]
+                for index in covered:
+                    purchases[index].append(record)
 
     quarters = []
     for index in sorted(wanted):
@@ -191,6 +201,7 @@ def build(rows, first, last, units, registry=None):
                        for value in (bid_price, round_mw(accepted), round_mw(rest))],
             "others": [value for (unit, code), mw in sorted(others[index].items())
                        for value in (unit, code, round_mw(mw))],
+            "purchases": [value for record in purchases[index] for value in record],
         })
     return {"units": unit_list, "quarters": quarters}
 
@@ -235,16 +246,18 @@ def read_day(path):
 
 
 def write_index(out_dir):
-    """index.json: the days on file, their quarter-hours and file names."""
-    days, files = {}, {}
+    """index.json: the days on file, their quarter-hours, file names and
+    formats."""
+    days, files, versions = {}, {}, {}
     for name in sorted(os.listdir(out_dir)):
         if name in ("index.json", "units.json") or not name.endswith((".json", ".json.gz")):
             continue
         data = read_day(os.path.join(out_dir, name))
         days[data["date"]] = [item["time"] for item in data["quarters"]]
         files[data["date"]] = name
+        versions[data["date"]] = data.get("version", 1)
     with open(os.path.join(out_dir, "index.json"), "w", encoding="utf-8") as handle:
-        json.dump({"days": days, "files": files}, handle, separators=(",", ":"))
+        json.dump({"days": days, "files": files, "versions": versions}, handle, separators=(",", ":"))
     return days
 
 
@@ -259,15 +272,16 @@ def write_units_map(out_dir, units):
 
 
 def missing_days(first, last, out_dir):
-    """The days of first..last without a full day on file."""
-    on_file = {}
+    """The days of first..last without a full day of this FORMAT on file."""
+    on_file, versions = {}, {}
     index = os.path.join(out_dir, "index.json")
     if os.path.exists(index):
         with open(index, encoding="utf-8") as handle:
-            on_file = json.load(handle).get("days", {})
+            data = json.load(handle)
+        on_file, versions = data.get("days", {}), data.get("versions", {})
     days, day = [], first
     while day <= last:
-        if len(on_file.get(day.isoformat(), [])) < COMPLETE:
+        if len(on_file.get(day.isoformat(), [])) < COMPLETE or versions.get(day.isoformat(), 1) < FORMAT:
             days.append(day)
         day += timedelta(days=1)
     return days
@@ -275,7 +289,7 @@ def missing_days(first, last, out_dir):
 
 def day_data(day, rows, first, last, units):
     data = build(rows, first, last, units)
-    return {"date": day.isoformat(), "market": "MGP",
+    return {"date": day.isoformat(), "market": "MGP", "version": FORMAT,
             "source": "GME public offers (Offers_PublicDomain, MGP); unit sources from gme_units.json", **data}
 
 

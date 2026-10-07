@@ -154,3 +154,16 @@ def test_xbid_fills_are_renamed_and_sorted():
     public = pg.publicise_offers_day(xbid, {}, "salt")
     assert public["units"][0][0] == "Import 1"
     assert public["quarters"][0]["fills"] == [0, 1, 1.0, 151.0, 90, 0, 0, 2.0, 150.0, 30]   # the oldest first
+
+
+def test_purchases_are_renamed_and_consumption_units_named_as_such():
+    day = {"date": "2026-09-17", "units": [["UC_0000001_01", None, "BUYER", "NORD", "consumption"],
+                                           ["UP_BESS_1", "battery", "OP", "SUD", "production"]],
+           "quarters": [{"time": "12:00", "prices": {}, "demand": [], "supply": [],
+                         "purchases": [1, 20.0, 100.0, 0, 0, 900.0, 101.0, 2]}]}
+    public = pg.publicise_day(day, {}, "salt")
+    names = [unit[0] for unit in public["units"]]
+    assert sorted(names) == ["Battery 1", "Consumption unit 1"]
+    flat = public["quarters"][0]["purchases"]
+    rows = {public["units"][flat[i]][0]: flat[i + 1:i + 4] for i in range(0, len(flat), 4)}
+    assert rows == {"Battery 1": [20.0, 100.0, 0], "Consumption unit 1": [900.0, 101.0, 2]}

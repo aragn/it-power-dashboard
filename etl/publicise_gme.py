@@ -59,12 +59,13 @@ GROUP_OF = {
     "solar": "solar", "wind_onshore": "wind", "wind_offshore": "wind", "hydro": "hydro", "hydro_ror": "hydro",
     "hydro_reservoir": "hydro", "pumped_hydro": "pumped", "geothermal": "geothermal", "bioenergy": "bioenergy",
     "waste": "bioenergy", "other_res": "bioenergy", "gas": "gas", "coal": "coal", "oil": "oil", "battery": "battery",
-    "interconnection": "imports",
+    "interconnection": "imports", "consumption": "consumption",
 }
 PUBLIC_NAMES = {
     "solar": "Solar plant", "wind": "Wind farm", "hydro": "Hydro plant", "pumped": "Pumped hydro plant",
     "geothermal": "Geothermal plant", "bioenergy": "Bioenergy plant", "gas": "Gas plant", "coal": "Coal plant",
-    "oil": "Oil plant", "battery": "Battery", "imports": "Import", "other": "Other power plant",
+    "oil": "Oil plant", "battery": "Battery", "imports": "Import", "consumption": "Consumption unit",
+    "other": "Other power plant",
 }
 NOTE = "Re-elaborated for the public site: units renamed, unit list not published (GME's terms); source GME."
 
@@ -126,6 +127,18 @@ def salt():
         return handle.read().strip()
 
 
+CONSUMPTION_KINDS = ("consumption", "aggregate_withdrawal", "legacy_consumption")
+
+
+def fallback_source(kind):
+    """The source of a unit the database has none for, from its kind:
+    virtual import/export units are interconnection, consumption units
+    (UC, UVZp) consumption."""
+    if kind in ("import", "export"):
+        return "interconnection"
+    return "consumption" if kind in CONSUMPTION_KINDS else "unknown"
+
+
 def load_names(day):
     path = os.path.join(NAMES_DIR, f"{day}.json")
     return read_json(path) if os.path.exists(path) else {"codes": {}, "next": {}}
@@ -146,7 +159,7 @@ def public_units(units, day, sources, secret, store=None):
     new_by_group, known_units = {}, []
     for index, unit in enumerate(units):
         known = sources.get(unit[0]) or [None, None, None]
-        source = known[0] or unit[1] or ("interconnection" if unit[4] in ("import", "export") else "unknown")
+        source = known[0] or unit[1] or fallback_source(unit[4])
         group = GROUP_OF.get(source, "other")
         known_units.append((index, source, known[2] or unit[3]))
         if unit[0] not in store["codes"]:
@@ -194,6 +207,12 @@ def public_quarters(quarters, new_index):
             "demand": [value for price, (accepted, rest) in sorted(demand.items(), key=lambda item: -item[0])
                        for value in (price, step(accepted, OFFER_STEP), step(rest, OFFER_STEP))],
         }
+        if "purchases" in quarter:
+            flat = quarter["purchases"]
+            rows = [[new_index[flat[i]], step(flat[i + 1], OFFER_STEP), step(flat[i + 2], PRICE_STEP), flat[i + 3]]
+                    for i in range(0, len(flat), 4)]
+            rows.sort(key=lambda record: (record[2] if record[2] is not None else 0, record[0], record[1], record[3]))
+            public["purchases"] = [value for record in rows for value in record]
         if "period" in quarter:
             public["period"] = quarter["period"]
         if "others" in quarter:

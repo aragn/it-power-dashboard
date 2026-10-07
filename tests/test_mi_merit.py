@@ -26,7 +26,7 @@ def test_the_three_auctions_share_one_unit_list():
 
 
 def test_index_and_missing_days(tmp_path):
-    day = {"date": "2026-09-17", "market": "MI-A", "units": [],
+    day = {"date": "2026-09-17", "market": "MI-A", "version": mi.FORMAT, "units": [],
            "markets": {"MI-A1": [{"time": "00:00"}], "MI-A2": [{"time": "00:00"}], "MI-A3": [{"time": "12:00"}]}}
     mi.write_day(str(tmp_path), day)
     mi.write_day(str(tmp_path), {**day, "date": "2026-09-18", "markets": {"MI-A1": [{"time": "00:00"}]}})
