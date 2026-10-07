@@ -64,7 +64,7 @@ GROUP_OF = {
 PUBLIC_NAMES = {
     "solar": "Solar plant", "wind": "Wind farm", "hydro": "Hydro plant", "pumped": "Pumped hydro plant",
     "geothermal": "Geothermal plant", "bioenergy": "Bioenergy plant", "gas": "Gas plant", "coal": "Coal plant",
-    "oil": "Oil plant", "battery": "Battery", "imports": "Import", "consumption": "Consumption unit",
+    "oil": "Oil plant", "battery": "Battery", "imports": "Cross-border unit", "consumption": "Consumption unit",
     "other": "Other power plant",
 }
 NOTE = "Re-elaborated for the public site: units renamed, unit list not published (GME's terms); source GME."

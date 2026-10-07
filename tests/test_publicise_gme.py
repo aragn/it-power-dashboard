@@ -152,7 +152,7 @@ def test_xbid_fills_are_renamed_and_sorted():
     xbid = {"date": "2026-09-17", "market": "XBID", "units": [["UPV_X_1", None, "OP", "SVIZ", "import"]],
             "quarters": [{"time": "12:00", "fills": [0, 0, 2.0, 150.0, 30, 0, 1, 1.0, 151.0, 90]}], "hours": []}
     public = pg.publicise_offers_day(xbid, {}, "salt")
-    assert public["units"][0][0] == "Import 1"
+    assert public["units"][0][0] == "Cross-border unit 1"
     assert public["quarters"][0]["fills"] == [0, 1, 1.0, 151.0, 90, 0, 0, 2.0, 150.0, 30]   # the oldest first
 
 
