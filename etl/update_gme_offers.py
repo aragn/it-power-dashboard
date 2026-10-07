@@ -66,7 +66,7 @@ def read_days(days, merit_days, unit_days, state, merit_dir, max_days):
             continue
         parts = []
         if day in merit_days:
-            data = merit_etl.day_data(day, units_etl.rows_of(name, content), 0, 95, sources)
+            data = merit_etl.day_data(day, units_etl.rows_of(name, content), sources)
             merit_etl.write_day(merit_dir, data)
             parts.append(f"merit order {len(data['quarters'])} quarter-hours")
         if day in unit_days:

@@ -8534,16 +8534,48 @@
   }
 
   const setText = (id, text) => { document.getElementById(id).textContent = text; };
-  /* PUN Index GME of a quarter-hour (data/pun.json, already loaded). */
+  /* PUN Index GME of a quarter-hour (data/pun.json, already loaded).
+     pun.json labels quarter-hours by the time elapsed since midnight (GME's
+     periods: 00:00–22:45 on the spring clock change, 00:00–24:45 on the
+     autumn one), the market files by the clock: found by the period. */
   let mgpPunRows = null, mgpPunMap = null;
-  function mgpPun(slot) {
+  function mgpPun(slot, quarter) {
     const rows = (rawData && rawData.quarter_hourly) || [];
     if (rows !== mgpPunRows) {
       mgpPunRows = rows;
       mgpPunMap = new Map(rows.map(row => [`${row.date}|${row.time}`, Number(row.pun)]));
     }
-    const value = mgpPunMap.get(`${slot.date}|${slot.time}`);
+    const time = quarter && quarter.period ? minutesToLabel((quarter.period - 1) * 15) : slot.time;
+    const value = mgpPunMap.get(`${slot.date}|${time}`);
     return Number.isFinite(value) ? value : null;
+  }
+
+  /* A quarter-hour of the market files, by the clock: on the autumn clock
+     change 02:00–03:00 comes twice, the second time marked "*" on file. */
+  function mgpSlotLabel(slot) {
+    const time = slot.time.replace("*", "");
+    const label = depthSlotLabel({ date: slot.date, time });
+    if (time !== slot.time) return `${label} (second time, CET)`;
+    const times = ((mgpIndex || {}).days || {})[slot.date] || [];
+    return times.includes(`${time}*`) ? `${label} (first time, CEST)` : label;
+  }
+
+  /* The period (1-100) of a quarter-hour labelled by the clock: from the
+     day's MGP file where it is loaded, else hours × 4 + quarters (an
+     ordinary day). */
+  function slotPeriod(time) {
+    const day = marketContext && marketContext.day;
+    const quarter = day && day.quarters.find(item => item.time === time);
+    if (quarter && quarter.period) return quarter.period;
+    const [hours, minutes] = time.replace("*", "").split(":").map(Number);
+    return hours * 4 + minutes / 15 + 1;
+  }
+
+  /* The hourly product covering a quarter-hour: by its hour's period (files
+     since the clock-change work), else by its clock hour. */
+  function hourOfSlot(hours, time) {
+    const hourPeriod = Math.ceil(slotPeriod(time) / 4);
+    return (hours || []).find(hour => (hour.period ? hour.period === hourPeriod : hour.time === `${time.slice(0, 2)}:00`));
   }
 
   const formatGw = mw => `${(mw / 1000).toLocaleString("en-GB", { maximumFractionDigits: 1 })} GW`;
@@ -8568,7 +8600,7 @@
      consumers too are settled at the zonal price).  legendSelected: the
      sources hidden from a shared legend (the chart's own legend hidden). */
   function drawMeritChart(chart, day, quarter, slot, { withPun = false, subtitleId, legendSelected = null } = {}) {
-    const pun = withPun ? mgpPun(slot) : null;
+    const pun = withPun ? mgpPun(slot, quarter) : null;
     const offers = mgpOffers(day, quarter);
     const accepted = [], others = [];
     offers.forEach(offer => {
@@ -8823,7 +8855,7 @@
     const total = rows.reduce((sum, row) => sum + row.revenue, 0);
     setText(subtitleId,
       `About ${formatEuro(total)} estimated for ${formatNumber(rows.length)} units${chosen ? ` (${chosen.label})` : ""} ` +
-      `in ${scope ? `${scope}, ` : ""}${depthSlotLabel(slot)} · 10 a page, the highest first`);
+      `in ${scope ? `${scope}, ` : ""}${mgpSlotLabel(slot)} · 10 a page, the highest first`);
     const number = (value, digits = 1) => isEmpty(value) ? "—" : formatNumber(value, digits);
     const revenueColumn = { key: "revenue", label: "Est. gross revenue (€)", num: true, value: row => row.revenue,
       cell: row => number(row.revenue, 0) };
@@ -8866,8 +8898,8 @@
     const groups = MGP_GROUPS.filter(group => byGroup.has(group));
     const statuses = MGP_STATUSES.filter(status => groups.some(group => byGroup.get(group)[status.key]));
     const offered = groups.reduce((sum, group) => sum + Object.values(byGroup.get(group)).reduce((a, b) => a + b, 0), 0);
-    setText(subtitleId, PUBLIC_MODE ? `${what[0].toUpperCase()}${what.slice(1)} of ${depthSlotLabel(slot)} by source and status`
-      : `${formatGw(offered)} in all ${what} of ${depthSlotLabel(slot)}, every status`);
+    setText(subtitleId, PUBLIC_MODE ? `${what[0].toUpperCase()}${what.slice(1)} of ${mgpSlotLabel(slot)} by source and status`
+      : `${formatGw(offered)} in all ${what} of ${mgpSlotLabel(slot)}, every status`);
     chart.setOption({
       animation: false,
       backgroundColor: "transparent",
@@ -8914,7 +8946,7 @@
     syncMgpSlots();
     const token = ++mgpRenderToken;
     const slot = mgpSlots[Number(mgpSlider.value)];
-    document.getElementById("mgp-label").textContent = slot ? depthSlotLabel(slot) : "";
+    document.getElementById("mgp-label").textContent = slot ? mgpSlotLabel(slot) : "";
     // Every market's file of the day at once: the units' public names are
     // made from all of them (one name per unit across the markets).
     const [day, miDay, others] = slot
@@ -9051,7 +9083,7 @@
         : !quarters ? `No ${market.label} offers on file for this day.`
         : market.key === "MI-A3" ? `MI-A3 covers only the afternoon and evening (from ${quarters[0].time}).`
         : "No offers for this quarter-hour.";
-      miChartMessage(chart, subtitleId, slot ? depthSlotLabel(slot) : "", message);
+      miChartMessage(chart, subtitleId, slot ? mgpSlotLabel(slot) : "", message);
     });
     miLast = { slot, results };
     drawMiRevenue();
@@ -9204,10 +9236,9 @@
         slot ? marketMissingText("XBID", slot) : "Loading…");
       return;
     }
-    const hourTime = `${slot.time.slice(0, 2)}:00`;
     const trades = [];
     [[(file.quarters || []).find(item => item.time === slot.time), false],
-      [(file.hours || []).find(item => item.time === hourTime), true]].forEach(([product, hourly]) => {
+      [hourOfSlot(file.hours, slot.time), true]].forEach(([product, hourly]) => {
       if (!product) return;
       const flat = product.fills;
       for (let index = 0; index < flat.length; index += 5) {
@@ -9216,17 +9247,17 @@
       }
     });
     if (!trades.length) {
-      miChartMessage(xbidChart, "xbid-trades-subtitle", depthSlotLabel(slot), "No MI-XBID trades of the Italian units for this quarter-hour.");
+      miChartMessage(xbidChart, "xbid-trades-subtitle", mgpSlotLabel(slot), "No MI-XBID trades of the Italian units for this quarter-hour.");
       return;
     }
     const sum = (side, field) => trades.filter(trade => trade.side === side)
       .reduce((total, trade) => total + (field === "mw" ? trade.mw : trade.mw * trade.price), 0);
     const sold = sum(0, "mw"), bought = sum(1, "mw");
     setText("xbid-trades-subtitle", PUBLIC_MODE
-      ? `Trades of the products delivering in ${depthSlotLabel(slot)} by source and time before delivery: sales filled, purchases hollow`
+      ? `Trades of the products delivering in ${mgpSlotLabel(slot)} by source and time before delivery: sales filled, purchases hollow`
       : `${formatNumber(trades.length)} fills · Italian units sold ${formatNumber(sold, 1)} MW` +
         `${sold ? ` at ${formatPrice(sum(0, "euro") / sold)} on average` : ""}, bought ${formatNumber(bought, 1)} MW` +
-        `${bought ? ` at ${formatPrice(sum(1, "euro") / bought)}` : ""} · ${depthSlotLabel(slot)} and its hour's product`);
+        `${bought ? ` at ${formatPrice(sum(1, "euro") / bought)}` : ""} · ${mgpSlotLabel(slot)} and its hour's product`);
     const byGroup = new Map();
     trades.forEach((trade, index) => {
       const group = mgpGroup(trade.source);
@@ -9333,7 +9364,7 @@
     const describe = (side, name) => `${name} ${formatNumber(side.acceptedMw, 1)} MW accepted` +
       (market === "MSD" ? ` of ${formatGw(side.total)}` : "") + (side.average !== null ? ` at ${formatPrice(side.average)} on average` : "");
     setText(`${prefix}-subtitle`, PUBLIC_MODE
-      ? `${market === "MSD" ? "Upward and downward offers" : "Accepted offers, upward and downward,"} of ${depthSlotLabel(slot)} by source` +
+      ? `${market === "MSD" ? "Upward and downward offers" : "Accepted offers, upward and downward,"} of ${mgpSlotLabel(slot)} by source` +
         `${market === "MSD" ? ": accepted solid, the rest faded" : ""}${events ? ` · start-ups and changes of mode accepted: ${events}` : ""}`
       : `${describe(sides[0], "Upward")} · ${describe(sides[1], "Downward")}` +
         `${events ? ` · ${events} start-up${events > 1 ? "s" : ""} or change${events > 1 ? "s" : ""} of mode accepted (${formatEuro(eventEuro)})` : ""}`);
@@ -9424,13 +9455,13 @@
         for (let index = 0; index < bought.length; index += 4) add(bought[index], 1, bought[index + 1], bought[index + 2], 0.25);
       });
     } else if (market === "XBID") {
-      const hourTime = time === null ? null : `${time.slice(0, 2)}:00`;
+      const hour = time === null ? null : hourOfSlot(file.hours, time);
       pick(file.quarters).forEach(quarter => {
         for (let index = 0; index < quarter.fills.length; index += 5) {
           add(quarter.fills[index], quarter.fills[index + 1], quarter.fills[index + 2], quarter.fills[index + 3], 0.25);
         }
       });
-      (file.hours || []).filter(hour => hourTime === null || hour.time === hourTime).forEach(hour => {
+      (file.hours || []).filter(item => time === null || item === hour).forEach(hour => {
         for (let index = 0; index < hour.fills.length; index += 5) {
           add(hour.fills[index], hour.fills[index + 1], hour.fills[index + 2], hour.fills[index + 3], time === null ? 1 : 0.25);
         }
@@ -9517,7 +9548,7 @@
       return;
     }
     const time = marketPeriod === "day" ? null : slot.time;
-    const when = marketPeriod === "day" ? formatDate(parseDate(slot.date)) : depthSlotLabel(slot);
+    const when = marketPeriod === "day" ? formatDate(parseDate(slot.date)) : mgpSlotLabel(slot);
     const flows = Object.fromEntries(TOTAL_MARKETS.map(market => [market.key, marketFlows(market.key, marketFile(market.key), time)]));
     const missing = TOTAL_MARKETS.filter(market => !flows[market.key]).map(market => market.label);
     // Day files of before the purchases per unit (format 1): sales only.

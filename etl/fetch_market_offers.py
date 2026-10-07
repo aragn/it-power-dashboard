@@ -87,7 +87,7 @@ def period_of(row):
     return int((hour - 1) * 4 + quarter) if hour and quarter else 0
 
 
-def build_balancing(rows, sources):
+def build_balancing(rows, sources, day):
     """MSD or MB: the quarter-hours' energy offers and accepted events."""
     units = Units(sources)
     offers, events = defaultdict(list), defaultdict(list)
@@ -112,7 +112,7 @@ def build_balancing(rows, sources):
                                    STANDARD if row.get("TYPE_CD") == "STND" else 0])
     quarters = []
     for index in sorted(set(offers) | set(events)):
-        quarters.append({"time": label(index),
+        quarters.append({"time": label(index, day), "period": index + 1,
                          "offers": [value for record in offers[index] for value in record],
                          "events": [value for record in events[index] for value in record]})
     return {"units": units.list, "quarters": quarters}
@@ -163,12 +163,16 @@ def build_xbid(rows, day, sources):
                 for value in (unit, side, round_mw(mw), price, before)]
 
     return {"units": units.list,
-            "quarters": [{"time": label(index), "fills": flat(fills["quarter"][index])} for index in sorted(fills["quarter"])],
-            "hours": [{"time": f"{index:02d}:00", "fills": flat(fills["hour"][index])} for index in sorted(fills["hour"])]}
+            "quarters": [{"time": label(index, day), "period": index + 1, "fills": flat(fills["quarter"][index])}
+                         for index in sorted(fills["quarter"])],
+            # An hourly product: the clock time of its first quarter-hour,
+            # its hour's period (1-24; 23 or 25 on the clock-change days).
+            "hours": [{"time": label(index * 4, day), "period": index + 1, "fills": flat(fills["hour"][index])}
+                      for index in sorted(fills["hour"])]}
 
 
 def day_data(market, day, rows, sources):
-    data = build_xbid(rows, day, sources) if market == "XBID" else build_balancing(rows, sources)
+    data = build_xbid(rows, day, sources) if market == "XBID" else build_balancing(rows, sources, day)
     return {"date": day.isoformat(), "market": market,
             "source": f"GME public offers (Offers_PublicDomain, {SEGMENTS[market]}); unit sources from gme_units.json",
             **data}
@@ -187,17 +191,30 @@ def write_index(out_dir):
             if not name.endswith((".json", ".json.gz")):
                 continue
             data = read_day(os.path.join(folder, name))
-            times = {item["time"] for item in data.get("quarters", [])}
+            # Quarter-hour index -> clock time, in the day's order (the autumn
+            # clock change's repeated hour after the first).
+            day = date.fromisoformat(data["date"])
+            times = {}
+            for item in data.get("quarters", []):
+                position = item["period"] - 1 if "period" in item else quarter_index(item["time"])
+                times[position] = item["time"]
             for hour in data.get("hours", []):
-                start = int(hour["time"][:2]) * 4
-                times |= {label(start + offset) for offset in range(4)}
-            days[data["date"]] = sorted(times)
+                start = (hour["period"] - 1) * 4 if "period" in hour else int(hour["time"][:2]) * 4
+                times.update({start + offset: label(start + offset, day) for offset in range(4)})
+            days[data["date"]] = [times[position] for position in sorted(times)]
             files[data["date"]] = f"{market}/{name}"
         index[market] = {"days": days, "files": files}
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "index.json"), "w", encoding="utf-8") as handle:
         json.dump(index, handle, separators=(",", ":"))
     return index
+
+
+def quarter_index(text):
+    """The index of a quarter-hour of a file of before the periods (an
+    ordinary day: hours * 4 + minutes / 15)."""
+    hours, minutes = (int(part) for part in text.rstrip("*").split(":"))
+    return hours * 4 + minutes // 15
 
 
 def on_file(out_dir, market):

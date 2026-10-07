@@ -24,6 +24,15 @@ MGP: the same MW in the hour's four quarter-hours, cleared at the average
 of their four prices (their AWARDED_PRICE_NO).  They go into each of the
 four quarter-hours with that price, flagged.
 
+Quarter-hours: GME numbers a day's periods by the time elapsed since local
+midnight (Europe/Rome), 96 quarter-hours (PT15 PERIOD 1-96, PT60 1-24), 92
+on the spring clock change (02:00-03:00 skipped: 1-92, 1-23) and 100 on the
+autumn one (02:00-03:00 twice: 1-100, 1-25).  Each quarter-hour is labelled
+by the clock ("time"), the second 02:00-02:45 of the autumn day as "02:00*"
+.. "02:45*", and keeps its period ("period"): pun.json labels quarter-hours
+by elapsed time (period 13 is "03:00" there), so the page finds the PUN by
+period.  The MI-A, MSD, MB and MI-XBID files are labelled the same way.
+
 The unit sources come from the market-unit database (gme_units.json).
 
 Backfill and daily update (no arguments, or --from/--to): the days from
@@ -36,6 +45,7 @@ day, or asks once and stops.
 
   fetch_mgp_merit.py [--from 2026-08-01 --to 2026-09-30 --max-days 8]
   fetch_mgp_merit.py --date 2026-09-17 [--start 11:00 --end 19:45]
+      (clock times; "02:00*" .. "02:45*" the repeated hour in autumn)
       [--dump rows.csv.gz]   also write the offer rows read
       [--rows rows.csv.gz]   read the rows from such a file, not from GME
 
@@ -50,7 +60,8 @@ import os
 import sys
 import time
 from collections import Counter, defaultdict
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fetch_gme_units import REQUEST_PAUSE_SECONDS, get_token, number, request_offers, rows_of  # noqa: E402
@@ -69,7 +80,8 @@ ZONES = ["NORD", "CNOR", "CSUD", "SUD", "CALA", "SICI", "SARD"]
 BACKFILL_FROM = "2026-08-01"   # the first day the scheduled runs fill in
 PUBLISHED_AFTER = 7            # days after the market before GME may have the offers out
 MAX_DAYS = 8                   # days a run (each file is 500-650 MB)
-COMPLETE = 92                  # quarter-hours of a full day (92 on the spring DST day)
+MARKET_TZ = ZoneInfo("Europe/Rome")
+REPEATED = "*"                 # marks the second 02:00-02:45 of the autumn clock change
 FORMAT = 2                     # day files of an older format are read again (2: purchases per unit)
 
 
@@ -78,21 +90,39 @@ def period_of(row):
 
 
 def quarters_of(row):
-    """The day's quarter-hours (0-95) a row covers: one for PT15, the
-    hour's four for PT60 (period = hour 1-24)."""
+    """The day's quarter-hours (0-95; 0-91 or 0-99 on the clock-change
+    days) a row covers: one for PT15, the hour's four for PT60.  Both count
+    elapsed time from midnight, so PT60 period n is PT15 periods 4n-3..4n
+    on every day."""
     period = period_of(row)
     if row.get("GRANULARITY") == "PT60":
         return range((period - 1) * 4, period * 4)
     return range(period - 1, period)
 
 
-def quarter(text):
-    hours, minutes = (int(part) for part in text.split(":"))
-    return hours * 4 + minutes // 15
+def midnight(day):
+    """The UTC instant of the day's local midnight."""
+    return datetime(day.year, day.month, day.day, tzinfo=MARKET_TZ).astimezone(timezone.utc)
 
 
-def label(index):
-    return f"{index // 4:02d}:{index % 4 * 15:02d}"
+def day_quarters(day):
+    """The day's quarter-hours: 96, 92 on the spring clock change, 100 on the autumn one."""
+    return int((midnight(day + timedelta(days=1)) - midnight(day)).total_seconds()) // 900
+
+
+def label(index, day):
+    """The clock time of the day's quarter-hour index (period - 1); the
+    second 02:00-02:45 of the autumn clock change marked REPEATED."""
+    local = (midnight(day) + timedelta(minutes=15 * index)).astimezone(MARKET_TZ)
+    return f"{local.hour:02d}:{local.minute:02d}" + (REPEATED if local.fold else "")
+
+
+def quarter(text, day):
+    """The index of the day's quarter-hour labelled text (a clock time)."""
+    for index in range(day_quarters(day)):
+        if label(index, day) == text:
+            return index
+    raise ValueError(f"{text} is not a quarter-hour of {day}")
 
 
 def round_mw(value):
@@ -118,8 +148,8 @@ def unit_sources(path=UNITS_PATH):
     return units
 
 
-def build(rows, first, last, units, registry=None):
-    """The day's merit order data for the quarter-hours first..last.
+def build(rows, first, last, units, day, registry=None):
+    """The day's merit order data for its quarter-hours first..last (indexes).
     registry: (code -> index, unit list) shared by several markets' builds
     (the MI-A auctions of a day share one unit list); else a new one."""
     wanted = set(range(first, last + 1))
@@ -194,7 +224,8 @@ def build(rows, first, last, units, registry=None):
                 zone_prices[zone] = counts.most_common(1)[0][0]
         steps = sorted(demand[index].items(), key=lambda item: -item[0])
         quarters.append({
-            "time": label(index),
+            "time": label(index, day),
+            "period": index + 1,
             "prices": zone_prices,
             "supply": [value for record in supply[index] for value in record],
             "demand": [value for bid_price, (accepted, rest) in steps
@@ -281,14 +312,17 @@ def missing_days(first, last, out_dir):
         on_file, versions = data.get("days", {}), data.get("versions", {})
     days, day = [], first
     while day <= last:
-        if len(on_file.get(day.isoformat(), [])) < COMPLETE or versions.get(day.isoformat(), 1) < FORMAT:
+        if len(on_file.get(day.isoformat(), [])) < day_quarters(day) or versions.get(day.isoformat(), 1) < FORMAT:
             days.append(day)
         day += timedelta(days=1)
     return days
 
 
-def day_data(day, rows, first, last, units):
-    data = build(rows, first, last, units)
+def day_data(day, rows, units, first=0, last=None):
+    """The day's file for its quarter-hours first..last (all of them by default)."""
+    if last is None:
+        last = day_quarters(day) - 1
+    data = build(rows, first, last, units, day)
     return {"date": day.isoformat(), "market": "MGP", "version": FORMAT,
             "source": "GME public offers (Offers_PublicDomain, MGP); unit sources from gme_units.json", **data}
 
@@ -318,7 +352,7 @@ def backfill(first, last, out_dir, max_days):
                 continue        # another failure must not stop the other days
             # The day's 96 quarter-hours.  TODO: the autumn DST day has 100
             # (02:00-03:00 twice); its later labels would be an hour off.
-            data = day_data(day, rows_of(name, content), 0, 95, units)
+            data = day_data(day, rows_of(name, content), units)
             del content
             path = write_day(out_dir, data)
             print(f"  {day}: {name}, {len(data['quarters'])} quarter-hours, {len(data['units']):,} units, "
@@ -337,8 +371,8 @@ def backfill(first, last, out_dir, max_days):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--date", help="one day (else the backfill range)")
-    parser.add_argument("--start", default="00:00", help="first quarter-hour of --date (local time)")
-    parser.add_argument("--end", default="23:45", help="last quarter-hour of --date (local time)")
+    parser.add_argument("--start", default="00:00", help="first quarter-hour of --date (local clock time)")
+    parser.add_argument("--end", default="23:45", help="last quarter-hour of --date (local clock time)")
     parser.add_argument("--from", dest="first", default=BACKFILL_FROM)
     parser.add_argument("--to", dest="last", help=f"last day (default: {PUBLISHED_AFTER} days ago)")
     parser.add_argument("--max-days", type=int, default=MAX_DAYS)
@@ -353,7 +387,10 @@ def main():
         return
 
     day = date.fromisoformat(args.date)
-    first, last = quarter(args.start), quarter(args.end)
+    try:
+        first, last = quarter(args.start, day), quarter(args.end, day)
+    except ValueError as error:
+        raise SystemExit(str(error))
     if args.rows:
         rows = read_csv(args.rows)
     else:
@@ -364,7 +401,7 @@ def main():
     if args.dump:
         rows = dumped(rows, args.dump, first, last)
 
-    data = day_data(day, rows, first, last, unit_sources())
+    data = day_data(day, rows, unit_sources(), first, last)
     if not data["quarters"]:
         raise SystemExit(f"No offers for {day} {args.start}-{args.end}")
     path = write_day(args.out, data)

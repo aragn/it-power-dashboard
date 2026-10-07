@@ -27,7 +27,7 @@ def test_balancing_offers_events_and_what_is_left_out():
         msd("UP_GAS_1", 49, "OFF", "GR3", "REP", 10, 0, "200"),      # replaced: out
         msd("UP_GAS_1", 49, "OFF", "GR1", "REJ", 0, 0, "1"),         # no MW: out
     ]
-    data = mo.build_balancing(rows, UNITS)
+    data = mo.build_balancing(rows, UNITS, date(2026, 9, 17))
     quarter, = data["quarters"]
     assert quarter["time"] == "12:00"
     records = [quarter["offers"][i:i + 8] for i in range(0, len(quarter["offers"]), 8)]
@@ -89,6 +89,21 @@ def test_mb_rows_give_the_hour_and_its_quarter():
     row = msd("UP_GAS_1", 1, "OFF", "AS", "ACC", 0, 31.5, "300")
     del row["PERIOD"]
     row.update({"INTERVAL_NO": "16", "QUARTER_NO": "2"})
-    quarter, = mo.build_balancing([row], UNITS)["quarters"]
+    quarter, = mo.build_balancing([row], UNITS, date(2026, 9, 17))["quarters"]
     assert quarter["time"] == "15:15"                       # hour 16 = 15:00-16:00, its second quarter
     assert quarter["offers"][3] == 31.5                     # 0 MW offered: what was taken
+
+
+def test_the_autumn_clock_change_in_msd_and_xbid(tmp_path):
+    autumn = date(2026, 10, 25)
+    # MSD period 13 is the second 02:00 (clock 02:00*); XBID hour 4 (H04) is the repeated hour.
+    quarter, = mo.build_balancing([msd("UP_GAS_1", 13, "OFF", "GR1", "ACC", 10, 10, "200")], UNITS, autumn)["quarters"]
+    assert (quarter["time"], quarter["period"]) == ("02:00*", 13)
+    data = mo.build_xbid([xbid("20261025-H04-SUD", "OFF", 5.0, 90.0, "2026-10-24T20:00:00+02:00")], autumn, UNITS)
+    hour, = data["hours"]
+    assert (hour["time"], hour["period"]) == ("02:00*", 4)
+    # Delivery starts 3 hours after local midnight (01:00 UTC); traded 18:00 UTC the day before.
+    assert hour["fills"][4] == 7 * 60
+    mo.write_day(str(tmp_path / "XBID"), {**data, "date": "2026-10-25", "market": "XBID"})
+    times = mo.write_index(str(tmp_path))["XBID"]["days"]["2026-10-25"]
+    assert times == ["02:00*", "02:15*", "02:30*", "02:45*"]
