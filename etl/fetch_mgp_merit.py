@@ -131,9 +131,12 @@ def build(rows, first, last, units, registry=None):
             source, operator, zone, kind = units.get(code) or (None, None, None, None)
             if not source and kind is None:
                 source = infer_source(code, {})[0]
+            kind = kind or kind_of(code)
+            if not source and kind in ("import", "export"):
+                source = "interconnection"     # virtual units (UPV, UCV), e.g. the TSOs' in the MI-A coupling
             unit_index[code] = len(unit_list)
             unit_list.append([code, source or None, operator or row.get("OPERATORE") or None,
-                              zone or row.get("ZONE_CD") or None, kind or kind_of(code)])
+                              zone or row.get("ZONE_CD") or None, kind])
         return unit_index[code]
 
     for row in rows:

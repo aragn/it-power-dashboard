@@ -126,7 +126,7 @@ def public_units(units, day, sources, secret):
     by_group = {}
     for index, unit in enumerate(units):
         known = sources.get(unit[0]) or [None, None, None]
-        source = known[0] or unit[1] or "unknown"
+        source = known[0] or unit[1] or ("interconnection" if unit[4] in ("import", "export") else "unknown")
         group = GROUP_OF.get(source, "other")
         by_group.setdefault(group, []).append((index, source, known[2] or unit[3]))
     new_index, renamed = {}, []
