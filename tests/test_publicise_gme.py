@@ -107,6 +107,7 @@ def test_files_in_place(tmp_path, monkeypatch, rounded):
     pg.write_json({"days": {"2026-09-17": ["12:00"]}}, str(merit / "index.json"))
     salt_file = tmp_path / "public_salt.txt"
     monkeypatch.setattr(pg, "SALT_PATH", str(salt_file))
+    monkeypatch.setattr(pg, "NAMES_DIR", str(tmp_path / "public_names"))
     pg.new_salt(str(salt_file))
     assert pg.publicise(str(merit)) == "1 day(s)"
     assert not (merit / "units.json").exists() and (merit / "index.json").exists()
@@ -122,3 +123,34 @@ def test_files_in_place(tmp_path, monkeypatch, rounded):
         [{"date": "2026-09-17", "time": "00:00", "price": 188.64}], "hourly", "price")}}}, prices)
     pg.publicise(prices)
     assert compact.load(prices)["zones"]["NORD"]["hourly"] == [{"date": "2026-09-17", "time": "00:00", "price": 190.0}]
+
+
+def test_a_unit_keeps_its_name_in_every_market_of_the_day(tmp_path, monkeypatch):
+    monkeypatch.setattr(pg, "NAMES_DIR", str(tmp_path / "public_names"))
+    store = pg.load_names("2026-09-17")
+    mgp = {"date": "2026-09-17", "units": [["UP_GAS_A_1", "gas", "OP", "NORD", None], ["UP_GAS_B_1", "gas", "OP", "SUD", None]],
+           "quarters": [{"time": "12:00", "prices": {}, "demand": [], "supply": [0, 10, 1, 0, 10, 1, 0, 1, 20, 1, 0, 20, 1, 0]}]}
+    public_mgp = pg.publicise_day(mgp, {}, "salt", store)
+    names = {unit[3]: unit[0] for unit in public_mgp["units"]}          # by zone
+    pg.save_names("2026-09-17", store)
+    # Later, MSD that day: B again and a new unit C.
+    msd = {"date": "2026-09-17", "market": "MSD",
+           "units": [["UP_GAS_C_1", "gas", "OP", "CSUD", None], ["UP_GAS_B_1", "gas", "OP", "SUD", None]],
+           "quarters": [{"time": "12:00", "offers": [1, 0, 0, 5.0, 180.0, 0, 5.0, 0, 0, 1, 0, 8.0, 40.0, 1, 0, 0],
+                         "events": [0, 0, 15000.0]}]}
+    public_msd = pg.publicise_offers_day(msd, {}, "salt", pg.load_names("2026-09-17"))
+    msd_names = {unit[3]: unit[0] for unit in public_msd["units"]}
+    assert msd_names["SUD"] == names["SUD"]                             # the same name as in the MGP
+    assert msd_names["CSUD"] == "Gas plant 3"                           # a new unit: the next number
+    offers = public_msd["quarters"][0]["offers"]
+    by_name = {public_msd["units"][offers[i]][0]: offers[i + 1:i + 8] for i in range(0, len(offers), 8)}
+    assert by_name[names["SUD"]] == [0, 0, 5.0, 180.0, 0, 5.0, 0]
+    assert not any(unit[0].startswith("UP_") for unit in public_msd["units"])
+
+
+def test_xbid_fills_are_renamed_and_sorted():
+    xbid = {"date": "2026-09-17", "market": "XBID", "units": [["UPV_X_1", None, "OP", "SVIZ", "import"]],
+            "quarters": [{"time": "12:00", "fills": [0, 0, 2.0, 150.0, 30, 0, 1, 1.0, 151.0, 90]}], "hours": []}
+    public = pg.publicise_offers_day(xbid, {}, "salt")
+    assert public["units"][0][0] == "Import 1"
+    assert public["quarters"][0]["fills"] == [0, 1, 1.0, 151.0, 90, 0, 0, 2.0, 150.0, 30]   # the oldest first

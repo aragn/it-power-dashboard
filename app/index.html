@@ -280,6 +280,16 @@
     .mgp-source-filter { display:flex; align-items:center; gap:6px; flex-shrink:0; color:var(--muted); font-size:12px; }
     .mgp-source-filter select { border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:6px; padding:5px 8px; font-size:12px; cursor:pointer; }
     #mgp-merit-section .depth-controls { margin:4px 0 0; }
+    #chart-mount-market { width:100%; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; align-items:stretch; }
+    #chart-mount-market .spread-wide { grid-column:1 / -1; }
+    @media (max-width: 1050px) { #chart-mount-market { grid-template-columns:1fr; } }
+    .market-bar { grid-column:1 / -1; position:sticky; top:100px; z-index:50; display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:8px 14px; box-shadow:0 8px 18px var(--shadow); }
+    .market-bar .depth-controls { flex:1; min-width:300px; margin:0; }
+    .market-period { display:flex; align-items:center; gap:4px; color:var(--muted); font-size:12px; }
+    .market-period span { margin-right:4px; }
+    .market-period button { border:1px solid var(--border); background:var(--panel-2); color:var(--muted); border-radius:6px; padding:5px 10px; font-size:12px; cursor:pointer; }
+    .market-period button.active { color:var(--text); border-color:var(--blue); }
+    .market-chart-wrap { position:relative; width:100%; height:480px; }
     .mi-merit-wrap { position:relative; width:100%; height:470px; margin-top:6px; }
     .mi-merit-legend .mi-slot { margin-left:auto; display:flex; align-items:center; gap:8px; }
     .mi-merit-legend .mi-slot button { width:28px; height:28px; border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:6px; cursor:pointer; font-size:14px; }
@@ -420,7 +430,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="gas" type="button">Gas &amp; LNG</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue &amp; Market</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="balancing" type="button">Balancing</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range. <span class="info-hover" tabindex="0" aria-describedby="outages-info">Read here for more info<span id="outages-info" class="info-pop" role="tooltip"></span></span></div></section><section id="available-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Available Capacity</div><div id="available-subtitle" class="chart-subtitle"></div></div></div><div id="available-wrap" class="timeline-chart-wrap"><div id="available-chart" class="timeline-chart"></div><div id="available-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, available capacity of the generating units of 100 MW or more. Solid: the effective capacity, final the day after; shaded and marked "Expected": the capacity the operators expect for the days after the last effective one (up to 14 days ahead when the selected dates reach the latest one). A past day Terna did not publish is left blank. Dashed: the expected total over the whole period, to compare with what was then available. Click a source in the legend to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="market" type="button">Market</button><button class="subnav-tab" data-tab="balancing" type="button">Balancing</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range. <span class="info-hover" tabindex="0" aria-describedby="outages-info">Read here for more info<span id="outages-info" class="info-pop" role="tooltip"></span></span></div></section><section id="available-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Available Capacity</div><div id="available-subtitle" class="chart-subtitle"></div></div></div><div id="available-wrap" class="timeline-chart-wrap"><div id="available-chart" class="timeline-chart"></div><div id="available-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, available capacity of the generating units of 100 MW or more. Solid: the effective capacity, final the day after; shaded and marked "Expected": the capacity the operators expect for the days after the last effective one (up to 14 days ahead when the selected dates reach the latest one). A past day Terna did not publish is left blank. Dashed: the expected total over the whole period, to compare with what was then available. Click a source in the legend to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -447,15 +457,27 @@
           <section id="income-ida1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 1 Congestion Income</div><div id="income-ida1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="income-ida1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida1-chart" class="timeline-chart"></div><div id="income-ida1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 1, signed like the spreads.</div></section>
           <section id="income-ida2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 2 Congestion Income</div><div id="income-ida2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="income-ida2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida2-chart" class="timeline-chart"></div><div id="income-ida2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 2, signed like the spreads.</div></section>
           <section id="income-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Congestion Income</div><div id="income-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="income-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida3-chart" class="timeline-chart"></div><div id="income-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 3 (afternoon and evening), signed like the spreads.</div></section>
-          <section id="mgp-merit-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MGP Merit Order</div><div id="mgp-merit-subtitle" class="chart-subtitle">Day-ahead market, Italy</div></div></div><div class="depth-controls"><button id="mgp-prev" type="button" aria-label="Previous quarter-hour">‹</button><div class="depth-track"><input id="mgp-slider" type="range" min="0" max="0" value="0" step="1" aria-label="Quarter-hour shown in the MGP merit order"><div id="mgp-availability" class="depth-availability"></div></div><button id="mgp-next" type="button" aria-label="Next quarter-hour">›</button><div id="mgp-label" class="depth-label"></div></div><div class="mgp-chart-wrap"><div id="mgp-merit-chart" class="timeline-chart"></div></div><div id="mgp-merit-help" class="chart-help"></div></section>
+        </div><div id="chart-mount-market" style="display:none"><div id="market-bar" class="panel market-bar"><span class="legend-title">Quarter-hour</span><div class="depth-controls"><button id="mgp-prev" type="button" aria-label="Previous quarter-hour">‹</button><div class="depth-track"><input id="mgp-slider" type="range" min="0" max="0" value="0" step="1" aria-label="Quarter-hour shown in the MGP merit order"><div id="mgp-availability" class="depth-availability"></div></div><button id="mgp-next" type="button" aria-label="Next quarter-hour">›</button><div id="mgp-label" class="depth-label"></div></div><div class="market-period" role="group" aria-label="Totals and unit table for"><span>Totals</span><button type="button" data-period="quarter" class="active">Quarter-hour</button><button type="button" data-period="day">Whole day</button></div></div>
+          <h3 class="capacity-heading">Day-ahead market (MGP)</h3>
+          <section id="mgp-merit-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MGP Merit Order</div><div id="mgp-merit-subtitle" class="chart-subtitle">Day-ahead market, Italy</div></div></div><div class="mgp-chart-wrap"><div id="mgp-merit-chart" class="timeline-chart"></div></div><div id="mgp-merit-help" class="chart-help"></div></section>
           <section id="mgp-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MGP Estimated Revenues by Unit</div><div id="mgp-revenue-subtitle" class="chart-subtitle">Accepted sale offers of the quarter-hour</div></div><label class="mgp-source-filter">Source <select id="mgp-revenue-source" aria-label="Show the units of one source only"><option value="">All sources</option></select></label></div><div id="mgp-revenue-table" class="mgp-table-host"></div><div class="chart-help">Estimated: per unit, its sale offers accepted in the quarter-hour chosen above, MW accepted × the zonal price awarded × ¼ h, before fees, imbalances and any hedge. Hourly orders are paid the hour's average price. Bilateral schedules (GME operator &ldquo;Bilateralista&rdquo;) are registered at the zonal price but settled between the parties, so their part of the revenue is notional. Click a column to sort.</div></section>
           <section id="mgp-status-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MGP Sale Offers by Source and Status</div><div id="mgp-status-subtitle" class="chart-subtitle">MW offered in the quarter-hour</div></div></div><div class="mgp-status-wrap"><div id="mgp-status-chart" class="timeline-chart"></div></div><div class="chart-help">The MW of every sale offer of the quarter-hour chosen above, by the unit's source and the offer's status at the close: accepted, rejected, paradoxically rejected (a block order turned down although its price was in the money, to keep the clearing consistent), replaced by a later offer of the same operator, revoked, or invalid. Replaced and revoked offers repeat MW offered again in the final ones. The axis stops at 100 GW.</div></section>
-          <div id="mi-merit-legend" class="panel crossborder-legend mi-merit-legend" role="group" aria-label="Sources shown in the MI-A merit orders"><span class="legend-title">MI-A merit orders</span><span id="mi-merit-chips" style="display:contents"></span><span class="mi-slot"><button id="mi-prev" type="button" aria-label="Previous quarter-hour">‹</button><span id="mi-label" class="depth-label"></span><button id="mi-next" type="button" aria-label="Next quarter-hour">›</button></span></div>
+          <h3 class="capacity-heading">Intraday auctions (MI-A)</h3>
+          <div id="mi-merit-legend" class="panel crossborder-legend mi-merit-legend" role="group" aria-label="Sources shown in the MI-A merit orders"><span class="legend-title">MI-A merit orders</span><span id="mi-merit-chips" style="display:contents"></span></div>
           <section id="mi-merit-mia1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A1 Merit Order</div><div id="mi-merit-mia1-subtitle" class="chart-subtitle">Intraday auction 1, held the day before (afternoon)</div></div></div><div class="mi-merit-wrap"><div id="mi-merit-mia1-chart" class="timeline-chart"></div></div><div class="chart-help">Covers the whole day.</div></section><section id="mi-merit-mia2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A2 Merit Order</div><div id="mi-merit-mia2-subtitle" class="chart-subtitle">Intraday auction 2, held the day before (evening)</div></div></div><div class="mi-merit-wrap"><div id="mi-merit-mia2-chart" class="timeline-chart"></div></div><div class="chart-help">Covers the whole day.</div></section><section id="mi-merit-mia3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MI-A3 Merit Order</div><div id="mi-merit-mia3-subtitle" class="chart-subtitle">Intraday auction 3, held on the day (morning)</div></div></div><div class="mi-merit-wrap"><div id="mi-merit-mia3-chart" class="timeline-chart"></div></div><div class="chart-help">Covers only the afternoon and evening.</div></section>
           <p id="mi-merit-note" class="coupling-note"></p>
           <section id="mi-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MI-A Estimated Revenues by Unit</div><div id="mi-revenue-subtitle" class="chart-subtitle">Accepted sale offers of the quarter-hour</div></div><div class="merit-filters"><label class="mgp-source-filter">Auction <select id="mi-revenue-market" aria-label="Show the units of one intraday auction"><option value="MI-A1">ID1 · MI-A1</option><option value="MI-A2">ID2 · MI-A2</option><option value="MI-A3">ID3 · MI-A3</option></select></label><label class="mgp-source-filter">Source <select id="mi-revenue-source" aria-label="Show the units of one source only"><option value="">All sources</option></select></label></div></div><div id="mi-revenue-table" class="mgp-table-host"></div><div class="chart-help">Estimated: per unit, its sale offers accepted in the auction and quarter-hour chosen, MW accepted × the zonal price awarded × ¼ h, before fees, imbalances and any hedge. Purchases (a unit buying back what it sold in the MGP or an earlier auction) are not netted. Click a column to sort.</div></section>
           <section id="mi-status-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MI-A Sale Offers by Source and Status</div><div id="mi-status-subtitle" class="chart-subtitle">MW offered in the quarter-hour, the three auctions together</div></div></div><div class="mgp-status-wrap"><div id="mi-status-chart" class="timeline-chart"></div></div><div class="chart-help">The MW of every sale offer of the quarter-hour chosen above in MI-A1, MI-A2 and MI-A3 together, by the unit's source and the offer's status at the close (as in the MGP chart). The same unit can offer in each auction, so its MW count once per auction. The axis stops at 100 GW.</div></section>
-          <section id="market-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Estimated Revenues by Source and Market</div><div id="market-revenue-subtitle" class="chart-subtitle">MGP and the three MI-A auctions</div></div></div><div class="market-revenue-wrap"><div id="market-revenue-chart" class="timeline-chart"></div></div><div class="chart-help">Estimated gross revenue of the sale offers accepted in the quarter-hour chosen above, by the units' source: the MGP and each MI-A auction stacked (MW accepted × the zonal price awarded × ¼ h). Purchases are not netted, so a unit selling in the MGP and buying back in an intraday auction counts only its sales. A market with no offers on file for the quarter-hour adds nothing.</div></section>
+          <h3 class="capacity-heading">Continuous intraday market (MI-XBID)</h3>
+          <section id="xbid-trades-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MI-XBID Trades</div><div id="xbid-trades-subtitle" class="chart-subtitle">Continuous intraday market, Italy</div></div></div><div class="market-chart-wrap"><div id="xbid-trades-chart" class="timeline-chart"></div></div><div id="xbid-trades-help" class="chart-help">Every fill of the Italian units' orders in the products that deliver in the quarter-hour chosen above, by the time it was traded: its 15-minute product (circles) and its hour's product (diamonds). Filled: sales, hollow: purchases; sized by MW, coloured by the unit's source. The counterparty can be another Italian unit or, through the European continuous market (SIDC/XBID), one abroad. Dashed: the MGP zonal prices of the quarter-hour, for reference. Orders never filled are not shown.</div></section>
+          <h3 class="capacity-heading">Dispatching services (MSD ex-ante) and balancing market (MB)</h3>
+          <section id="msd-offers-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MSD Ex-Ante Offers</div><div id="msd-offers-subtitle" class="chart-subtitle">Terna's dispatching services market</div></div></div><div class="market-chart-wrap"><div id="msd-offers-chart" class="timeline-chart"></div></div><div id="msd-offers-help" class="chart-help">The units' energy offers to Terna for the quarter-hour chosen above (GME public offers, MSD ex-ante; offer steps GR1–GR4, AS and RS, in €/MWh), each direction sorted by price: upward, the unit produces more (or consumes less) and is paid its price; downward, it produces less and pays its price back. Pay-as-bid: Terna takes the offers it needs where it needs them (congestion, reserve, voltage), not the cheapest first, so the accepted ones (solid, outlined) lie anywhere along the line; the rest are faded. Start-ups and changes of mode, priced in € each, are counted in the subtitle. Dashed: the MGP zonal prices. Log price scale.</div></section>
+          <section id="mb-offers-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MB Accepted Offers</div><div id="mb-offers-subtitle" class="chart-subtitle">Balancing market (real time)</div></div></div><div class="market-chart-wrap"><div id="mb-offers-chart" class="timeline-chart"></div></div><div id="mb-offers-help" class="chart-help">The offers Terna accepted in the balancing market (MB) for the quarter-hour chosen above, upward and downward, each sorted by price; GME publishes MB's accepted offers only, more than a month after the market. Pay-as-bid, like MSD. Dashed: the MGP zonal prices. Log price scale.</div></section>
+          <h3 class="capacity-heading">All markets: volumes and revenues by source and unit</h3>
+          <section id="market-volume-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Accepted Volumes by Source and Market</div><div id="market-volume-subtitle" class="chart-subtitle">MWh accepted</div></div></div><div class="market-revenue-wrap"><div id="market-volume-chart" class="timeline-chart"></div></div><div id="market-volume-help" class="chart-help">The energy each source sold or bought in each market in the quarter-hour (or day) chosen above, in MWh: above zero the sales (MGP, MI-A, MI-XBID) and the upward balancing (MSD, MB), below zero the MI-XBID purchases and the downward balancing. The MGP and MI-A purchases are left out (GME's files do not give them per unit).</div></section>
+          <section id="market-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Estimated Revenues by Source: MGP, MI-A and MI-XBID</div><div id="market-revenue-subtitle" class="chart-subtitle">The energy markets</div></div></div><div class="market-revenue-wrap"><div id="market-revenue-chart" class="timeline-chart"></div></div><div class="chart-help">Estimated gross revenue of the sales accepted in the quarter-hour (or day) chosen above, by the units' source: the MGP, each MI-A auction and MI-XBID stacked (MW × the price awarded or traded × the hours delivered). Purchases are not netted (MI-XBID's are in the volumes chart and the unit table), so a unit selling in the MGP and buying back later counts only its sales. A market with no offers on file adds nothing.</div></section>
+          <section id="balancing-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Balancing: Estimated Revenues and Payments by Source</div><div id="balancing-revenue-subtitle" class="chart-subtitle">MSD ex-ante and MB</div></div></div><div class="market-revenue-wrap"><div id="balancing-revenue-chart" class="timeline-chart"></div></div><div id="balancing-revenue-help" class="chart-help">Estimated: upward, MW accepted × the unit's own price × the hours (paid to the unit); downward, the same paid by the unit to Terna (below zero; the unit also saves the fuel of what it no longer produces, not counted). Start-ups and changes of mode are not included.</div></section>
+          <section id="unit-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Estimated Revenues by Unit, All Markets</div><div id="unit-revenue-subtitle" class="chart-subtitle">Each unit across the markets</div></div><div class="merit-filters"><label class="mgp-source-filter">Market <select id="unit-revenue-market" aria-label="Show one market"><option value="">All markets</option><option value="MGP">MGP</option><option value="MI-A1">ID1 · MI-A1</option><option value="MI-A2">ID2 · MI-A2</option><option value="MI-A3">ID3 · MI-A3</option><option value="XBID">MI-XBID</option><option value="MSD">MSD</option><option value="MB">MB</option></select></label><label class="mgp-source-filter">Source <select id="unit-revenue-source" aria-label="Show the units of one source only"><option value="">All sources</option></select></label></div></div><div id="unit-revenue-table" class="mgp-table-host"></div><div id="unit-revenue-help" class="chart-help">Estimated, for the quarter-hour or the whole day chosen above: MGP and MI-A, the sales accepted; MI-XBID, sales minus purchases; MSD and MB, upward minus downward (what Terna paid the unit minus what the unit paid Terna). Before fees, imbalances, any hedge and the fuel saved or burnt. Click a column to sort.</div></section>
         </div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net scheduled commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Scheduled commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Scheduled commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
         <div id="gas-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Gas storage and LNG</p></div><nav id="gas-subnav" class="subnav"><button class="subnav-tab active" data-gas-tab="overview" type="button">Overview</button><button class="subnav-tab" data-gas-tab="storage" type="button">Storage</button><button class="subnav-tab" data-gas-tab="lng" type="button">LNG</button><button class="subnav-tab" data-gas-tab="outages" type="button">Outages</button><button class="subnav-tab" data-gas-tab="tariffs" type="button">Tariffs</button></nav><div id="gas-mount"></div></div>
         <div id="maps-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Maps</p></div><div id="maps-mount"></div></div>
@@ -8282,9 +8304,10 @@
   const MGP_ZONES = ["NORD", "CNOR", "CSUD", "SUD", "CALA", "SICI", "SARD"];
   const MGP_STATUS_CAP_GW = 100;
 
-  const mgpSections = ["mgp-merit-section", "mgp-revenue-section", "mgp-status-section", "mi-merit-legend",
+  const mgpSections = ["market-bar", "mgp-merit-section", "mgp-revenue-section", "mgp-status-section", "mi-merit-legend",
     "mi-merit-mia1-section", "mi-merit-mia2-section", "mi-merit-mia3-section", "mi-merit-note", "mi-revenue-section",
-    "mi-status-section", "market-revenue-section"]
+    "mi-status-section", "xbid-trades-section", "msd-offers-section", "mb-offers-section", "market-volume-section",
+    "market-revenue-section", "balancing-revenue-section", "unit-revenue-section"]
     .map(id => document.getElementById(id));
   const mgpChart = gmeChart(echarts.init(document.getElementById("mgp-merit-chart")));
   const mgpStatusChart = gmeChart(echarts.init(document.getElementById("mgp-status-chart")));
@@ -8317,21 +8340,27 @@
     refreshView();
   }
 
+  /* A day file of a market (gzipped on the server: unzipped here, unless
+     the server already did), its units registered for the public names. */
+  async function fetchMarketFile(url) {
+    const response = await fetch(url, { cache: "no-cache" });
+    if (!response.ok) return null;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    const zipped = bytes[0] === 0x1f && bytes[1] === 0x8b;
+    const text = zipped
+      ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text()
+      : new TextDecoder().decode(bytes);
+    const file = JSON.parse(text);
+    registerDayUnits(file);
+    return file;
+  }
+
   function loadMgpDay(day) {
     if (!mgpDays[day]) {
       // Day files are gzipped on the server (a full day is 6 MB of JSON):
       // unzipped here, unless the server already did (no gzip header).
       const name = ((mgpIndex || {}).files || {})[day] || `${day}.json`;
-      mgpDays[day] = fetch(`./data/mgp_merit/${name}`, { cache: "no-cache" })
-        .then(async response => {
-          if (!response.ok) return null;
-          const bytes = new Uint8Array(await response.arrayBuffer());
-          const zipped = bytes[0] === 0x1f && bytes[1] === 0x8b;
-          const text = zipped
-            ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text()
-            : new TextDecoder().decode(bytes);
-          return JSON.parse(text);
-        })
+      mgpDays[day] = fetchMarketFile(`./data/mgp_merit/${name}`)
         .catch(error => {
           console.warn(`MGP offers of ${day} unavailable:`, error);
           return null;
@@ -8344,7 +8373,7 @@
      through those only (a day is read for some hours at a time). */
   function syncMgpSlots() {
     if (!currentStart || !currentEnd) return;
-    const rangeKey = `${mgpStatus}|${dateKey(currentStart)}|${dateKey(currentEnd)}`;
+    const rangeKey = `${mgpStatus}|${miStatus}|${marketStatus}|${dateKey(currentStart)}|${dateKey(currentEnd)}`;
     if (rangeKey === mgpRangeKey) return;
     mgpRangeKey = rangeKey;
     const first = dateKey(currentStart), last = dateKey(currentEnd);
@@ -8358,7 +8387,9 @@
       const width = mgpSlots.length ? 100 / mgpSlots.length : 0;
       return `<span style="left:${from * width}%;width:${Math.max(count * width - 0.3, 0.3)}%"></span>`;
     }).join("");
-    const lastDay = days[days.length - 1];
+    // The latest day with the other markets' offers on file too, else the latest.
+    const withAll = days.filter(day => marketIndex && ["XBID", "MSD"].every(market => ((marketIndex[market] || {}).days || {})[day]));
+    const lastDay = withAll.length ? withAll[withAll.length - 1] : days[days.length - 1];
     const start = lastDay ? mgpSlots.findIndex(slot => slot.date === lastDay && slot.time === "12:00") : -1;
     mgpSlider.value = String(start >= 0 ? start : Math.max(0, mgpSlots.findIndex(slot => slot.date === lastDay)));
     const onFile = Object.keys((mgpIndex || {}).days || {}).sort();
@@ -8422,28 +8453,42 @@
     };
   }
 
+  // date -> { groups: code -> source group, names: code -> name (null: to make) }
+  const dayUnitCodes = {};
+
+  function registerDayUnits(file) {
+    if (!file || !file.units || file.registered) return;
+    file.registered = true;
+    const entry = dayUnitCodes[file.date] || (dayUnitCodes[file.date] = { groups: new Map(), names: null });
+    file.units.forEach(item => {
+      if (!GME_CODE.test(item[0] || "") || entry.groups.has(item[0])) return;
+      const known = mgpUnitMap[item[0]];
+      const source = (known ? known[0] : item[1]) || (item[4] === "import" || item[4] === "export" ? "interconnection" : "unknown");
+      entry.groups.set(item[0], mgpGroup(source).key);
+      entry.names = null;
+    });
+  }
+
+  /* The units of every market's file of the day, by source, numbered in a
+     random order of the day: the same unit has one name in every market. */
   function mgpPublicName(day, index) {
-    const unit = day.units[index] || [];
-    if (!GME_CODE.test(unit[0] || "")) return unit[0];
-    if (!day.publicNames) {
-      day.publicNames = [];
+    const code = (day.units[index] || [])[0] || "";
+    if (!GME_CODE.test(code)) return code;
+    registerDayUnits(day);
+    const entry = dayUnitCodes[day.date];
+    if (!entry.names) {
+      entry.names = new Map();
       const byGroup = new Map();
-      day.units.forEach((item, position) => {
-        const known = mgpUnitMap[item[0]];
-        const group = mgpGroup((known ? known[0] : item[1]) ||
-          (item[4] === "import" || item[4] === "export" ? "interconnection" : "unknown"));
+      entry.groups.forEach((group, item) => {
         if (!byGroup.has(group)) byGroup.set(group, []);
-        byGroup.get(group).push(position);
+        byGroup.get(group).push(item);
       });
-      byGroup.forEach((positions, group) => {
-        const random = seededRandom(`${day.date}|${group.key}`);
-        const order = positions.map(position => [random(), position]).sort((a, b) => a[0] - b[0]);
-        order.forEach(([, position], number) => {
-          day.publicNames[position] = `${MGP_PUBLIC_NAMES[group.key] || "Power plant"} ${number + 1}`;
-        });
+      byGroup.forEach((items, group) => {
+        items.map(item => [seededRandom(`${day.date}|${item}`)(), item]).sort((a, b) => a[0] - b[0])
+          .forEach(([, item], number) => entry.names.set(item, `${MGP_PUBLIC_NAMES[group] || "Power plant"} ${number + 1}`));
       });
     }
-    return day.publicNames[index];
+    return entry.names.get(code);
   }
 
   /* MW offered for sale by source and status: the standing offers and the
@@ -8861,34 +8906,35 @@
     const token = ++mgpRenderToken;
     const slot = mgpSlots[Number(mgpSlider.value)];
     document.getElementById("mgp-label").textContent = slot ? depthSlotLabel(slot) : "";
-    document.getElementById("mi-label").textContent = slot ? depthSlotLabel(slot) : "";
-    const empty = message => {
+    // Every market's file of the day at once: the units' public names are
+    // made from all of them (one name per unit across the markets).
+    const [day, miDay, others] = slot
+      ? await Promise.all([loadMgpDay(slot.date), miDayFor(slot.date), otherMarketDays(slot.date)])
+      : [null, null, {}];
+    if (token !== mgpRenderToken) return; // the slider moved on meanwhile
+    const quarter = day && slot ? day.quarters.find(item => item.time === slot.time) : null;
+    let pieces = [];
+    if (quarter) {
+      pieces = drawMgpMerit(day, quarter, slot);
+      drawMgpRevenue(pieces, slot);
+      drawMgpStatus(day, quarter, slot);
+    } else {
+      const onFile = Object.keys((mgpIndex || {}).days || {}).sort();
+      const message = !slot && (mgpStatus === "loading" || !mgpStatus) ? "Loading the MGP offers…"
+        : !slot && (mgpStatus === "missing" || !onFile.length) ? "MGP merit order not available yet"
+        : !slot ? `No MGP offers on file in the date range. ${mgpOnFileText(onFile)}`
+        : "No offers for this quarter-hour";
       mgpChart.clear();
       mgpStatusChart.clear();
-      ["mgp-merit-subtitle", "mgp-revenue-subtitle", "mgp-status-subtitle"].forEach(id => {
-        document.getElementById(id).textContent = message;
-      });
+      ["mgp-merit-subtitle", "mgp-revenue-subtitle", "mgp-status-subtitle"].forEach(id => setText(id, message));
       document.getElementById("mgp-revenue-table").innerHTML = "";
-      renderMiCharts(slot, [], token);
-    };
-    if (!slot) {
-      const onFile = Object.keys((mgpIndex || {}).days || {}).sort();
-      empty(mgpStatus === "loading" || !mgpStatus ? "Loading the MGP offers…"
-        : mgpStatus === "missing" || !onFile.length ? "MGP merit order not available yet"
-        : `No MGP offers on file in the date range. ${mgpOnFileText(onFile)}`);
-      return;
     }
-    const day = await loadMgpDay(slot.date);
-    if (token !== mgpRenderToken) return; // the slider moved on meanwhile
-    const quarter = day && day.quarters.find(item => item.time === slot.time);
-    if (!quarter) {
-      empty("No offers for this quarter-hour");
-      return;
-    }
-    const pieces = drawMgpMerit(day, quarter, slot);
-    drawMgpRevenue(pieces, slot);
-    drawMgpStatus(day, quarter, slot);
-    renderMiCharts(slot, pieces, token);
+    const miResults = renderMiCharts(slot, miDay);
+    marketContext = { slot, day, quarter, pieces, miDay, miResults, others };
+    drawXbidTrades();
+    drawBalancingOffers("MSD");
+    drawBalancingOffers("MB");
+    drawMarketTotals();
   }
 
   function stepMgp(delta) {
@@ -8930,7 +8976,7 @@
   let miIndex = null;
   let miStatus = null;          // null | "loading" | "ready" | "missing"
   const miRevenueState = { sort: "revenue", direction: "desc", page: 0, slot: null, market: "MI-A1", source: "" };
-  let miLast = null;            // { slot, mgpPieces, results } of the last drawing
+  let miLast = null;            // { slot, results } of the last drawing
 
   async function loadMiMeritData() {
     if (miStatus) return;
@@ -8951,16 +8997,7 @@
   function loadMiDay(day) {
     if (!miDays[day]) {
       const name = ((miIndex || {}).files || {})[day] || `${day}.json`;
-      miDays[day] = fetch(`./data/mi_merit/${name}`, { cache: "no-cache" })
-        .then(async response => {
-          if (!response.ok) return null;
-          const bytes = new Uint8Array(await response.arrayBuffer());
-          const zipped = bytes[0] === 0x1f && bytes[1] === 0x8b;
-          const text = zipped
-            ? await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"))).text()
-            : new TextDecoder().decode(bytes);
-          return JSON.parse(text);
-        })
+      miDays[day] = fetchMarketFile(`./data/mi_merit/${name}`)
         .catch(error => {
           console.warn(`MI-A offers of ${day} unavailable:`, error);
           return null;
@@ -8980,11 +9017,13 @@
     setText(subtitleId, subtitle);
   }
 
-  async function renderMiCharts(slot, mgpPieces, token) {
+  function miDayFor(date) {
+    return miIndex && miIndex.days[date] ? loadMiDay(date) : null;
+  }
+
+  function renderMiCharts(slot, day) {
     const onFile = Object.keys((miIndex || {}).days || {}).sort();
     const dayIndex = slot && miIndex ? miIndex.days[slot.date] : null;
-    const day = dayIndex ? await loadMiDay(slot.date) : null;
-    if (token !== mgpRenderToken) return;
     const results = {};
     MI_MARKETS.forEach((market, position) => {
       const chart = miCharts[position];
@@ -9005,17 +9044,17 @@
         : "No offers for this quarter-hour.";
       miChartMessage(chart, subtitleId, slot ? depthSlotLabel(slot) : "", message);
     });
-    miLast = { slot, mgpPieces, results };
+    miLast = { slot, results };
     drawMiRevenue();
     drawMiStatus(day, slot);
-    drawMarketRevenue();
     document.getElementById("mi-merit-note").textContent =
-      "The three intraday auctions' public offers (GME) for the quarter-hour of the MGP slider, drawn like the MGP merit order: bubbles the " +
+      "The three intraday auctions' public offers (GME) for the quarter-hour of the slider, drawn like the MGP merit order: bubbles the " +
       "sale offers by source (accepted first, then the rest, faded), line the purchase bids, dashed the zonal prices. In the intraday auctions " +
       "units sell more or buy back what they sold before; consumers too are settled at the zonal price, so there is no PUN Index. The auctions are coupled " +
       "with the European intraday auctions (IDA): the cross-border trades are among the offers, as the TSOs' virtual units (Imports), so supply and " +
       "demand accepted meet without a net-import band. Click a source above to hide or show it " +
       `on the three charts. Log price scale. ${mgpOnFileText(onFile)}`;
+    return results;
   }
 
   function drawMiRevenue() {
@@ -9052,66 +9091,524 @@
     drawStatusChart(miStatusChart, totals, slot, "mi-status-subtitle", "the MI-A sale offers");
   }
 
-  /* Revenue by source: the MGP and each auction stacked. */
-  function drawMarketRevenue() {
-    const slot = miLast && miLast.slot;
-    if (!slot) {
-      marketRevenueChart.clear();
+
+  /* ============================================================
+     MI-XBID, MSD AND MB OFFERS; TOTALS OF EVERY MARKET
+     ============================================================ */
+
+  /*
+   * GME's public offers of the markets without a merit order
+   * (data/market_offers/<MARKET>/<date>.json, see etl/fetch_market_offers.py):
+   * MI-XBID's fills by the time they were traded; MSD's and MB's offers to
+   * Terna, upward and downward, by price (pay-as-bid).  Then every market
+   * together: volumes and revenues by source, revenues by unit, for the
+   * quarter-hour of the slider or its whole day.
+   */
+  const MARKET_COLORS = { MGP: "--blue", "MI-A1": "--bal-picasso", "MI-A2": "--bal-rr", "MI-A3": "--bal-imbalance",
+    XBID: "--coupling-price-sud", MSD: "--flow-scheduled", MB: "--zone-7" };
+  const TOTAL_MARKETS = [
+    { key: "MGP", label: "MGP", kind: "auction" },
+    { key: "MI-A1", label: "MI-A1", kind: "auction" },
+    { key: "MI-A2", label: "MI-A2", kind: "auction" },
+    { key: "MI-A3", label: "MI-A3", kind: "auction" },
+    { key: "XBID", label: "MI-XBID", kind: "continuous" },
+    { key: "MSD", label: "MSD", kind: "balancing" },
+    { key: "MB", label: "MB", kind: "balancing" }
+  ];
+  const OTHER_MARKETS = ["XBID", "MSD", "MB"];
+  const xbidChart = gmeChart(echarts.init(document.getElementById("xbid-trades-chart")));
+  const msdChart = gmeChart(echarts.init(document.getElementById("msd-offers-chart")));
+  const mbChart = gmeChart(echarts.init(document.getElementById("mb-offers-chart")));
+  const volumeChart = gmeChart(echarts.init(document.getElementById("market-volume-chart")));
+  const balancingRevenueChart = gmeChart(echarts.init(document.getElementById("balancing-revenue-chart")));
+  const marketDays = {};          // "MARKET|date" -> Promise of the file
+  let marketIndex = null;
+  let marketStatus = null;        // null | "loading" | "ready" | "missing"
+  let marketPeriod = "quarter";   // the totals: "quarter" | "day"
+  let marketContext = null;       // what the last drawing used
+  const unitRevenueState = { sort: "total", direction: "desc", page: 0, slot: null, market: "", source: "" };
+
+  async function loadMarketOffersData() {
+    if (marketStatus) return;
+    marketStatus = "loading";
+    try {
+      const response = await fetch("./data/market_offers/index.json", { cache: "no-cache" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      marketIndex = await response.json();
+      marketStatus = "ready";
+    } catch (error) {
+      console.warn("MSD, MB and MI-XBID offers unavailable:", error);
+      marketStatus = "missing";
+    }
+    mgpRangeKey = null;
+    refreshView();
+  }
+
+  function marketDaysOnFile(market) {
+    return Object.keys(((marketIndex || {})[market] || {}).days || {}).sort();
+  }
+
+  /* The day's file of each of MI-XBID, MSD and MB (null where none). */
+  async function otherMarketDays(date) {
+    const files = await Promise.all(OTHER_MARKETS.map(market => {
+      const entry = (marketIndex || {})[market];
+      const name = entry && entry.files && entry.files[date];
+      if (!name) return null;
+      const key = `${market}|${date}`;
+      if (!marketDays[key]) {
+        marketDays[key] = fetchMarketFile(`./data/market_offers/${name}`).catch(error => {
+          console.warn(`${market} offers of ${date} unavailable:`, error);
+          return null;
+        });
+      }
+      return marketDays[key];
+    }));
+    return Object.fromEntries(OTHER_MARKETS.map((market, index) => [market, files[index]]));
+  }
+
+  function marketMissingText(market, slot) {
+    const label = market === "XBID" ? "MI-XBID" : market;
+    if (marketStatus === "loading" || !marketStatus) return `Loading the ${label} offers…`;
+    const onFile = marketDaysOnFile(market);
+    if (!onFile.length) return `${label} offers not available yet.`;
+    const when = formatDate(parseDate(slot.date));
+    const lag = market === "MB" ? " GME publishes MB's offers more than a month after the market." : "";
+    return `No ${label} offers on file for ${when}.${lag} ${mgpOnFileText(onFile)}`;
+  }
+
+  /* The MGP zonal prices of the quarter-hour as reference lines. */
+  function mgpReferenceLines(axisValue) {
+    const quarter = marketContext && marketContext.quarter;
+    if (!quarter) return [];
+    return mgpPriceGroups(quarter.prices || {}).map(group => ({
+      yAxis: axisValue(group.price),
+      label: { formatter: `MGP${PUBLIC_MODE ? "" : ` ${formatPrice(group.price)}`} · ${group.zones.length === 7 ? "all zones" : group.zones.join(", ")}`,
+        position: "insideEndTop", color: cssVar("--chart-legend"), fontSize: 10 }
+    }));
+  }
+
+  function drawXbidTrades() {
+    const { slot, others } = marketContext;
+    const file = others && others.XBID;
+    if (!slot || !file) {
+      miChartMessage(xbidChart, "xbid-trades-subtitle", "Continuous intraday market, Italy",
+        slot ? marketMissingText("XBID", slot) : "Loading…");
       return;
     }
-    const markets = [{ key: "MGP", label: "MGP", color: "--blue", pieces: miLast.mgpPieces || [] }]
-      .concat(MI_MARKETS.map(market => ({ ...market, pieces: miLast.results[market.key] || [] })));
-    const sums = markets.map(market => {
-      const bySource = new Map();
-      market.pieces.filter(piece => piece.taken).forEach(piece => {
-        const group = mgpGroup(piece.offer.source);
-        bySource.set(group, (bySource.get(group) || 0) + piece.mw * (piece.offer.awardedPrice || 0) * 0.25);
-      });
-      return bySource;
+    const hourTime = `${slot.time.slice(0, 2)}:00`;
+    const trades = [];
+    [[(file.quarters || []).find(item => item.time === slot.time), false],
+      [(file.hours || []).find(item => item.time === hourTime), true]].forEach(([product, hourly]) => {
+      if (!product) return;
+      const flat = product.fills;
+      for (let index = 0; index < flat.length; index += 5) {
+        trades.push({ ...mgpUnit(file, flat[index]), side: flat[index + 1], mw: flat[index + 2], price: flat[index + 3],
+          before: flat[index + 4], hourly });
+      }
     });
-    const groups = MGP_GROUPS.filter(group => sums.some(bySource => bySource.get(group)));
-    const totals = sums.map(bySource => [...bySource.values()].reduce((a, b) => a + b, 0));
-    setText("market-revenue-subtitle", PUBLIC_MODE
-      ? `Estimated gross revenue by source in ${depthSlotLabel(slot)}: the MGP and the MI-A auctions stacked`
-      : `About ${formatEuro(totals.reduce((a, b) => a + b, 0))} estimated in ${depthSlotLabel(slot)}: ` +
-        markets.map((market, index) => `${market.label} ${formatEuro(totals[index])}`).join(" · "));
-    marketRevenueChart.setOption({
+    if (!trades.length) {
+      miChartMessage(xbidChart, "xbid-trades-subtitle", depthSlotLabel(slot), "No MI-XBID trades of the Italian units for this quarter-hour.");
+      return;
+    }
+    const sum = (side, field) => trades.filter(trade => trade.side === side)
+      .reduce((total, trade) => total + (field === "mw" ? trade.mw : trade.mw * trade.price), 0);
+    const sold = sum(0, "mw"), bought = sum(1, "mw");
+    setText("xbid-trades-subtitle", PUBLIC_MODE
+      ? `Trades of the products delivering in ${depthSlotLabel(slot)} by source and time before delivery: sales filled, purchases hollow`
+      : `${formatNumber(trades.length)} fills · Italian units sold ${formatNumber(sold, 1)} MW` +
+        `${sold ? ` at ${formatPrice(sum(0, "euro") / sold)} on average` : ""}, bought ${formatNumber(bought, 1)} MW` +
+        `${bought ? ` at ${formatPrice(sum(1, "euro") / bought)}` : ""} · ${depthSlotLabel(slot)} and its hour's product`);
+    const byGroup = new Map();
+    trades.forEach((trade, index) => {
+      const group = mgpGroup(trade.source);
+      if (!byGroup.has(group)) byGroup.set(group, []);
+      const color = cssVar(group.color);
+      byGroup.get(group).push({
+        value: [-trade.before / 60, trade.price, Math.min(30, Math.max(4, Math.sqrt(trade.mw) * 4)), index],
+        symbol: trade.hourly ? "diamond" : "circle",
+        itemStyle: trade.side === 0 ? { color, opacity: 0.75 } : { color: "transparent", borderColor: color, borderWidth: 1.4, opacity: 0.9 }
+      });
+    });
+    const groups = MGP_GROUPS.filter(group => byGroup.has(group));
+    xbidChart.setOption({
       animation: false,
       backgroundColor: "transparent",
       legend: {
-        top: 0, left: 70, textStyle: { color: cssVar("--chart-legend"), fontSize: 11 }, itemWidth: 12, itemHeight: 10,
-        data: markets.map(market => market.label)
+        top: 0, left: 60, right: 20, type: "scroll", itemWidth: 10, itemHeight: 10,
+        textStyle: { color: cssVar("--chart-legend"), fontSize: 11 }, pageTextStyle: { color: cssVar("--chart-legend") },
+        data: groups.map(group => ({ name: group.label, icon: "circle", itemStyle: { color: cssVar(group.color) } }))
+      },
+      tooltip: {
+        trigger: "item", confine: true,
+        backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"), borderWidth: 1,
+        textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
+        formatter: params => {
+          const trade = trades[params.value && params.value[3]];
+          if (!trade) return "";
+          const color = cssVar(mgpGroup(trade.source).color);
+          return `<div style="font-weight:600;margin-bottom:4px">${escapeHtml(trade.code || "")}</div>` +
+            tooltipRow(color, (UNIT_SOURCES[trade.source] || {}).label || "Source not known", escapeHtml(trade.zone || "")) +
+            (trade.operator ? `<div style="color:${cssVar("--chart-tooltip-muted")};margin:2px 0 4px">${escapeHtml(trade.operator)}</div>` : "") +
+            tooltipRow(color, trade.side === 0 ? "Sold" : "Bought", `${formatChartNumber(trade.mw)} MW`) +
+            tooltipRow(color, "Price", formatPrice(trade.price)) +
+            tooltipRow(color, "Traded", `${formatNumber(trade.before / 60, 1)} h before delivery`) +
+            `<div style="margin-top:4px">${trade.hourly ? "Hourly product" : "15-minute product"}</div>`;
+        }
+      },
+      grid: { left: 60, right: 24, top: 40, bottom: 44, containLabel: false },
+      xAxis: {
+        type: "value", max: 0, name: "Hours before delivery", nameLocation: "middle", nameGap: 26,
+        nameTextStyle: timelineAxisTextStyle(), axisLabel: { ...timelineAxisTextStyle(), formatter: value => `${Math.abs(value)}` },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, splitLine: { lineStyle: { color: cssVar("--chart-grid") } }
+      },
+      yAxis: timelineYAxis("€/MWh", { scale: true, nameGap: 44 }),
+      series: groups.map(group => ({
+        name: group.label, type: "scatter", data: byGroup.get(group), symbolSize: value => value[2],
+        itemStyle: { color: cssVar(group.color) }, emphasis: { focus: "series" }, large: false
+      })).concat([{
+        name: "MGP", type: "line", data: [], silent: true,
+        markLine: { silent: true, symbol: "none", lineStyle: { color: cssVar("--bal-reference"), type: "dashed", width: 1 },
+          data: mgpReferenceLines(value => value) }
+      }])
+    }, true);
+    xbidChart.resize();
+  }
+
+  /* MSD's or MB's offers of the quarter-hour: upward on the left, downward
+     on the right, each sorted by price; the accepted ones solid. */
+  function drawBalancingOffers(market) {
+    const chart = market === "MSD" ? msdChart : mbChart;
+    const prefix = market === "MSD" ? "msd-offers" : "mb-offers";
+    const { slot, others } = marketContext;
+    const file = others && others[market];
+    const quarter = file && slot ? file.quarters.find(item => item.time === slot.time) : null;
+    if (!quarter) {
+      miChartMessage(chart, `${prefix}-subtitle`, market === "MSD" ? "Terna's dispatching services market" : "Balancing market (real time)",
+        !slot ? "Loading…" : !file ? marketMissingText(market, slot) : `No ${market} offers for this quarter-hour.`);
+      return;
+    }
+    const offers = [];
+    const flat = quarter.offers;
+    for (let index = 0; index < flat.length; index += 8) {
+      const info = mgpUnit(file, flat[index]);
+      const record = { ...info, direction: flat[index + 1], scope: flat[index + 2], mw: flat[index + 3], price: flat[index + 4] ?? 0,
+        status: flat[index + 5], accepted: flat[index + 6], standard: flat[index + 7] & 1 };
+      if (record.status === 0 && record.accepted > 0) offers.push({ ...record, piece: record.accepted, taken: true });
+      const rest = record.status === 0 ? record.mw - record.accepted : record.mw;
+      if (rest > 0.0005) offers.push({ ...record, piece: rest, taken: false });
+    }
+    let events = 0, eventEuro = 0;
+    for (let index = 0; index < (quarter.events || []).length; index += 3) {
+      events += 1;
+      eventEuro += quarter.events[index + 2] || 0;
+    }
+    const sides = [0, 1].map(direction => {
+      const list = offers.filter(offer => offer.direction === direction)
+        .sort((a, b) => (direction === 0 ? a.price - b.price : b.price - a.price));
+      const byGroup = new Map();
+      let total = 0;
+      list.forEach(offer => {
+        const group = mgpGroup(offer.source);
+        if (!byGroup.has(group)) byGroup.set(group, []);
+        byGroup.get(group).push({
+          value: [(total + offer.piece / 2) / 1000, symlog(offer.price), Math.min(36, Math.max(3, Math.sqrt(offer.piece) * 1.6)), offer],
+          itemStyle: offer.taken ? { opacity: 0.95, borderColor: cssVar("--text"), borderWidth: 1.2 } : { opacity: 0.16 }
+        });
+        total += offer.piece;
+      });
+      const taken = list.filter(offer => offer.taken);
+      const acceptedMw = taken.reduce((sum, offer) => sum + offer.piece, 0);
+      const euro = taken.reduce((sum, offer) => sum + offer.piece * offer.price, 0);
+      return { list, byGroup, total, acceptedMw, average: acceptedMw ? euro / acceptedMw : null };
+    });
+    const describe = (side, name) => `${name} ${formatNumber(side.acceptedMw, 1)} MW accepted` +
+      (market === "MSD" ? ` of ${formatGw(side.total)}` : "") + (side.average !== null ? ` at ${formatPrice(side.average)} on average` : "");
+    setText(`${prefix}-subtitle`, PUBLIC_MODE
+      ? `${market === "MSD" ? "Upward and downward offers" : "Accepted offers, upward and downward,"} of ${depthSlotLabel(slot)} by source` +
+        `${market === "MSD" ? ": accepted solid, the rest faded" : ""}${events ? ` · start-ups and changes of mode accepted: ${events}` : ""}`
+      : `${describe(sides[0], "Upward")} · ${describe(sides[1], "Downward")}` +
+        `${events ? ` · ${events} start-up${events > 1 ? "s" : ""} or change${events > 1 ? "s" : ""} of mode accepted (${formatEuro(eventEuro)})` : ""}`);
+    const prices = offers.map(offer => symlog(offer.price)).concat(
+      mgpPriceGroups((marketContext.quarter || {}).prices || {}).map(group => symlog(group.price)));
+    const low = Math.floor(Math.min(0, ...prices)), high = Math.max(low + 1, Math.ceil(Math.max(0, ...prices)));
+    const groups = MGP_GROUPS.filter(group => sides.some(side => side.byGroup.has(group)));
+    const axisText = timelineAxisTextStyle();
+    chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      legend: {
+        top: 0, left: 60, right: 20, type: "scroll", itemWidth: 10, itemHeight: 10,
+        textStyle: { color: cssVar("--chart-legend"), fontSize: 11 }, pageTextStyle: { color: cssVar("--chart-legend") },
+        data: groups.map(group => ({ name: group.label, icon: "circle", itemStyle: { color: cssVar(group.color) } }))
+      },
+      title: [
+        { text: "Upward: the unit sells to Terna", left: "6%", top: 26, textStyle: { color: cssVar("--chart-legend"), fontSize: 11, fontWeight: 600 } },
+        { text: "Downward: the unit buys back", left: "55%", top: 26, textStyle: { color: cssVar("--chart-legend"), fontSize: 11, fontWeight: 600 } }
+      ],
+      tooltip: {
+        trigger: "item", confine: true,
+        backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"), borderWidth: 1,
+        textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
+        formatter: params => {
+          const offer = params.value && params.value[3];
+          if (!offer || typeof offer !== "object") return "";
+          const color = cssVar(mgpGroup(offer.source).color);
+          return `<div style="font-weight:600;margin-bottom:4px">${escapeHtml(offer.code || "")}</div>` +
+            tooltipRow(color, (UNIT_SOURCES[offer.source] || {}).label || "Source not known", escapeHtml(offer.zone || "")) +
+            (offer.operator ? `<div style="color:${cssVar("--chart-tooltip-muted")};margin:2px 0 4px">${escapeHtml(offer.operator)}</div>` : "") +
+            tooltipRow(color, offer.taken ? "MW accepted" : "MW", formatChartNumber(offer.piece)) +
+            (offer.taken && offer.accepted < offer.mw ? tooltipRow(color, "MW offered", formatChartNumber(offer.mw)) : "") +
+            tooltipRow(color, "Price", formatPrice(offer.price)) +
+            `<div style="margin-top:4px">${offer.taken ? "Accepted" : offer.status === 0 ? "Partly accepted: the part not taken" : "Rejected"}` +
+            ` · step ${["GR1", "GR2", "GR3", "GR4", "AS", "RS"][offer.scope] || ""}${offer.standard ? " · standard product" : ""}</div>`;
+        }
+      },
+      grid: [
+        { left: 60, right: "52%", top: 52, bottom: 44, containLabel: false },
+        { left: "55%", right: 20, top: 52, bottom: 44, containLabel: false }
+      ],
+      xAxis: [0, 1].map(index => ({
+        gridIndex: index, type: "value", min: 0, max: value => Math.max(0.1, Math.ceil(value.max * 10) / 10), name: "GW offered, by price",
+        nameLocation: "middle", nameGap: 26, nameTextStyle: axisText, axisLabel: axisText,
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, splitLine: { show: false }
+      })),
+      yAxis: [0, 1].map(index => timelineYAxis(index ? "" : "€/MWh", {
+        gridIndex: index, min: low, max: high, interval: 1, nameGap: 44,
+        axisLabel: { ...axisText, formatter: formatSymlogTick }
+      })),
+      series: [0, 1].flatMap(index => groups.filter(group => sides[index].byGroup.has(group)).map(group => ({
+        name: group.label, type: "scatter", xAxisIndex: index, yAxisIndex: index,
+        data: sides[index].byGroup.get(group), symbolSize: value => value[2],
+        itemStyle: { color: cssVar(group.color) }, emphasis: { focus: "series" }, large: false
+      }))).concat([0, 1].map(index => ({
+        name: "MGP", type: "line", data: [], silent: true, xAxisIndex: index, yAxisIndex: index,
+        markLine: { silent: true, symbol: "none", lineStyle: { color: cssVar("--bal-reference"), type: "dashed", width: 1 },
+          data: mgpReferenceLines(symlog) }
+      })))
+    }, true);
+    chart.resize();
+  }
+
+  /* One market's accepted MWh and € per unit, in a quarter-hour (time) or
+     the whole day (time null): key -> { unit, sold, bought, soldEuro,
+     boughtEuro } (sold: sales or upward, bought: purchases or downward). */
+  function marketFlows(market, file, time) {
+    const rows = new Map();
+    if (!file) return null;
+    const add = (index, side, mw, price, hours) => {
+      const unit = mgpUnit(file, index);
+      if (!rows.has(unit.code)) rows.set(unit.code, { unit, sold: 0, bought: 0, soldEuro: 0, boughtEuro: 0 });
+      const row = rows.get(unit.code);
+      if (side === 0) { row.sold += mw * hours; row.soldEuro += mw * (price || 0) * hours; }
+      else { row.bought += mw * hours; row.boughtEuro += mw * (price || 0) * hours; }
+    };
+    const pick = quarters => (quarters || []).filter(item => time === null || item.time === time);
+    if (market === "MGP" || market.startsWith("MI-A")) {
+      const quarters = market === "MGP" ? file.quarters : (file.markets || {})[market];
+      if (!quarters) return null;
+      pick(quarters).forEach(quarter => {
+        const flat = quarter.supply;
+        for (let index = 0; index < flat.length; index += 7) {
+          if (flat[index + 3] === 0 && flat[index + 4] > 0) add(flat[index], 0, flat[index + 4], flat[index + 5], 0.25);
+        }
+      });
+    } else if (market === "XBID") {
+      const hourTime = time === null ? null : `${time.slice(0, 2)}:00`;
+      pick(file.quarters).forEach(quarter => {
+        for (let index = 0; index < quarter.fills.length; index += 5) {
+          add(quarter.fills[index], quarter.fills[index + 1], quarter.fills[index + 2], quarter.fills[index + 3], 0.25);
+        }
+      });
+      (file.hours || []).filter(hour => hourTime === null || hour.time === hourTime).forEach(hour => {
+        for (let index = 0; index < hour.fills.length; index += 5) {
+          add(hour.fills[index], hour.fills[index + 1], hour.fills[index + 2], hour.fills[index + 3], time === null ? 1 : 0.25);
+        }
+      });
+    } else {
+      pick(file.quarters).forEach(quarter => {
+        const flat = quarter.offers;
+        for (let index = 0; index < flat.length; index += 8) {
+          if (flat[index + 5] === 0 && flat[index + 6] > 0) add(flat[index], flat[index + 1], flat[index + 6], flat[index + 4], 0.25);
+        }
+      });
+    }
+    return rows;
+  }
+
+  function marketFile(market) {
+    const context = marketContext;
+    if (market === "MGP") return context.day;
+    if (market.startsWith("MI-A")) return context.miDay;
+    return (context.others || {})[market] || null;
+  }
+
+  /* Sums by source group of one market's flows. */
+  function flowsBySource(rows, field) {
+    const sums = new Map();
+    (rows ? [...rows.values()] : []).forEach(row => {
+      const group = mgpGroup(row.unit.source);
+      sums.set(group, (sums.get(group) || 0) + row[field]);
+    });
+    return sums;
+  }
+
+  function stackedSourceChart(chart, groups, series, unit, formatValue) {
+    chart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      legend: {
+        top: 0, left: 70, right: 20, type: "scroll", textStyle: { color: cssVar("--chart-legend"), fontSize: 11 }, itemWidth: 12, itemHeight: 10,
+        pageTextStyle: { color: cssVar("--chart-legend") }, data: series.map(item => item.name)
       },
       tooltip: {
         trigger: "axis", axisPointer: { type: "shadow" }, confine: true,
         backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"), borderWidth: 1,
         textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
-        formatter: params => `<div style="font-weight:600;margin-bottom:4px">${escapeHtml(params[0].axisValue)}</div>` +
-          params.filter(item => item.value).map(item => tooltipRow(item.color, item.seriesName, formatEuro(item.value))).join("") +
-          tooltipRow(cssVar("--chart-legend"), "Total", formatEuro(params.reduce((sum, item) => sum + (item.value || 0), 0)))
+        formatter: params => `<div style="font-weight:600;margin-bottom:4px">${escapeHtml(params[0].axisValue.replace("\n", " "))}</div>` +
+          params.filter(item => item.value).map(item => tooltipRow(item.color, item.seriesName, formatValue(item.value))).join("")
       },
       grid: { left: 70, right: 24, top: 34, bottom: 52, containLabel: false },
       xAxis: {
         type: "category", data: groups.map(group => group.label),
-        // Every source named: long names on two lines.
         axisLabel: { ...timelineAxisTextStyle(), interval: 0, lineHeight: 14,
           formatter: name => {
             if (name.length <= 12 || !name.includes(" ")) return name;
             const cut = name.includes(" (") ? name.indexOf(" (") : name.lastIndexOf(" ");
             return `${name.slice(0, cut)}\n${name.slice(cut + 1)}`;
           } },
-        axisTick: { show: false },
-        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }
+        axisTick: { show: false }, axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }
       },
-      yAxis: timelineYAxis("€", { nameGap: 54, axisLabel: { ...timelineAxisTextStyle(),
+      yAxis: timelineYAxis(unit, { nameGap: 54, axisLabel: { ...timelineAxisTextStyle(),
         formatter: value => (Math.abs(value) >= 1000 ? `${formatNumber(value / 1000, 0)}k` : formatNumber(value, 0)) } }),
-      series: markets.map((market, index) => ({
-        name: market.label, type: "bar", stack: "revenue", barMaxWidth: 46,
-        data: groups.map(group => Math.round(sums[index].get(group) || 0)),
-        itemStyle: { color: cssVar(market.color) }
+      series: series.map(item => ({
+        name: item.name, type: "bar", stack: "total", barMaxWidth: 46,
+        data: groups.map(group => Math.round(item.values.get(group) || 0)),
+        itemStyle: { color: cssVar(item.color), opacity: item.faded ? 0.5 : 1 }
       }))
     }, true);
-    marketRevenueChart.resize();
+    chart.resize();
+  }
+
+  function drawMarketTotals() {
+    const { slot } = marketContext;
+    if (!slot) {
+      [volumeChart, marketRevenueChart, balancingRevenueChart].forEach(chart => chart.clear());
+      document.getElementById("unit-revenue-table").innerHTML = "";
+      return;
+    }
+    const time = marketPeriod === "day" ? null : slot.time;
+    const when = marketPeriod === "day" ? formatDate(parseDate(slot.date)) : depthSlotLabel(slot);
+    const flows = Object.fromEntries(TOTAL_MARKETS.map(market => [market.key, marketFlows(market.key, marketFile(market.key), time)]));
+    const missing = TOTAL_MARKETS.filter(market => !flows[market.key]).map(market => market.label);
+    const missingText = missing.length ? ` · not on file: ${missing.join(", ")}` : "";
+    const label = key => TOTAL_MARKETS.find(market => market.key === key).label;
+
+    // Volumes: sales and upward above zero, purchases and downward below.
+    const volumeSeries = TOTAL_MARKETS.map(market => ({
+      name: market.kind === "balancing" ? `${market.label} up` : market.kind === "continuous" ? `${market.label} sales` : market.label,
+      color: MARKET_COLORS[market.key], values: flowsBySource(flows[market.key], "sold")
+    })).concat(["XBID", "MSD", "MB"].map(key => ({
+      name: key === "XBID" ? `${label(key)} purchases` : `${label(key)} down`, color: MARKET_COLORS[key], faded: true,
+      values: new Map([...flowsBySource(flows[key], "bought")].map(([group, value]) => [group, -value]))
+    })));
+    const groupsOf = series => MGP_GROUPS.filter(group => series.some(item => Math.abs(item.values.get(group) || 0) >= 0.5));
+    stackedSourceChart(volumeChart, groupsOf(volumeSeries), volumeSeries, "MWh", value => `${formatNumber(value, 0)} MWh`);
+    const totalSold = volumeSeries.slice(0, TOTAL_MARKETS.length).reduce((sum, item) => sum + [...item.values.values()].reduce((a, b) => a + b, 0), 0);
+    setText("market-volume-subtitle", PUBLIC_MODE ? `MWh accepted by source and market in ${when}${missingText}`
+      : `${formatNumber(totalSold, 0)} MWh sold or upward in ${when}${missingText}`);
+
+    // Energy markets' revenues (sales).
+    const energy = TOTAL_MARKETS.filter(market => market.kind !== "balancing").map(market => ({
+      name: market.label, color: MARKET_COLORS[market.key], values: flowsBySource(flows[market.key], "soldEuro")
+    }));
+    stackedSourceChart(marketRevenueChart, groupsOf(energy), energy, "€", value => formatEuro(value));
+    const energyTotals = energy.map(item => [...item.values.values()].reduce((a, b) => a + b, 0));
+    setText("market-revenue-subtitle", PUBLIC_MODE
+      ? `Estimated gross revenue by source in ${when}: the MGP, the MI-A auctions and MI-XBID stacked${missingText}`
+      : `About ${formatEuro(energyTotals.reduce((a, b) => a + b, 0))} estimated in ${when}: ` +
+        energy.map((item, index) => `${item.name} ${formatEuro(energyTotals[index])}`).join(" · ") + missingText);
+
+    // Balancing: upward revenue above zero, downward payments below.
+    const balancing = ["MSD", "MB"].flatMap(key => [
+      { name: `${key} upward (paid to the unit)`, color: MARKET_COLORS[key], values: flowsBySource(flows[key], "soldEuro") },
+      { name: `${key} downward (paid by the unit)`, color: MARKET_COLORS[key], faded: true,
+        values: new Map([...flowsBySource(flows[key], "boughtEuro")].map(([group, value]) => [group, -value])) }
+    ]);
+    stackedSourceChart(balancingRevenueChart, groupsOf(balancing), balancing, "€", value => formatEuro(value));
+    const balancingTotals = balancing.map(item => [...item.values.values()].reduce((a, b) => a + b, 0));
+    setText("balancing-revenue-subtitle", PUBLIC_MODE ? `Estimated upward revenues and downward payments by source in ${when}` +
+      (flows.MSD || flows.MB ? "" : " · MSD and MB not on file")
+      : `${when}: ` + balancing.map((item, index) => `${item.name.split(" (")[0]} ${formatEuro(Math.abs(balancingTotals[index]))}`).join(" · ") +
+        (flows.MSD || flows.MB ? "" : " · MSD and MB not on file"));
+
+    drawUnitRevenue(flows, when);
+  }
+
+  function drawUnitRevenue(flows, when) {
+    const state = unitRevenueState;
+    const slotKey = `${marketPeriod}|${marketContext.slot.date}|${marketContext.slot.time}`;
+    if (state.slot !== slotKey) Object.assign(state, { slot: slotKey, page: 0 });
+    const chosen = MGP_GROUPS.find(group => group.key === state.source) || null;
+    const select = document.getElementById("unit-revenue-source");
+    select.innerHTML = `<option value="">All sources</option>` +
+      MGP_GROUPS.map(group => `<option value="${group.key}">${escapeHtml(group.label)}</option>`).join("");
+    select.value = chosen ? chosen.key : "";
+    document.getElementById("unit-revenue-market").value = state.market;
+    const number = (value, digits = 0) => (isEmpty(value) || value === 0 ? "—" : formatNumber(value, digits));
+    const sourceColumn = { key: "source", label: "Source", value: row => mgpGroup(row.unit.source).label,
+      cell: row => queueBadge(mgpGroup(row.unit.source).color, (UNIT_SOURCES[row.unit.source] || {}).label || "Not known") };
+    const unitColumns = PUBLIC_MODE ? [{ key: "code", label: "Unit", value: row => row.unit.code }, sourceColumn,
+      { key: "zone", label: "Zone", value: row => row.unit.zone }]
+      : [{ key: "code", label: "GME code", value: row => row.unit.code }, sourceColumn,
+        { key: "operator", label: "Operator (GME)", value: row => row.unit.operator, className: "clip" },
+        { key: "zone", label: "Zone", value: row => row.unit.zone }];
+    let rows, columns, what;
+    if (!state.market) {
+      // Every market: one column each (MI-A together), the total.
+      const parts = [["MGP", ["MGP"]], ["MI-A", ["MI-A1", "MI-A2", "MI-A3"]], ["MI-XBID", ["XBID"]], ["MSD", ["MSD"]], ["MB", ["MB"]]];
+      const byUnit = new Map();
+      parts.forEach(([name, keys]) => keys.forEach(key => {
+        (flows[key] ? [...flows[key].values()] : []).forEach(flow => {
+          if (!byUnit.has(flow.unit.code)) byUnit.set(flow.unit.code, { unit: flow.unit, total: 0 });
+          const row = byUnit.get(flow.unit.code);
+          const net = TOTAL_MARKETS.find(market => market.key === key).kind === "auction" ? flow.soldEuro : flow.soldEuro - flow.boughtEuro;
+          row[name] = (row[name] || 0) + net;
+          row.total += net;
+        });
+      }));
+      rows = [...byUnit.values()];
+      columns = unitColumns.concat(parts.map(([name]) => ({ key: name, label: `${name} (€)`, num: true, value: row => row[name] || 0,
+        cell: row => number(row[name]) })), [{ key: "total", label: "Total (€)", num: true, value: row => row.total, cell: row => number(row.total) }]);
+      what = "all markets";
+    } else {
+      const market = TOTAL_MARKETS.find(item => item.key === state.market);
+      const auction = market.kind === "auction";
+      rows = (flows[market.key] ? [...flows[market.key].values()] : []).map(flow => ({ ...flow,
+        total: auction ? flow.soldEuro : flow.soldEuro - flow.boughtEuro }));
+      const soldName = market.kind === "balancing" ? "upward" : "sold", boughtName = market.kind === "balancing" ? "downward" : "bought";
+      columns = unitColumns.concat(PUBLIC_MODE ? [
+        { key: "soldEuro", label: `Est. ${soldName} (€)`, num: true, value: row => row.soldEuro, cell: row => number(row.soldEuro) },
+        ...(auction ? [] : [{ key: "boughtEuro", label: `Est. ${boughtName} (€)`, num: true, value: row => row.boughtEuro, cell: row => number(row.boughtEuro) }])
+      ] : [
+        { key: "sold", label: `MWh ${soldName}`, num: true, value: row => row.sold, cell: row => number(row.sold, 1) },
+        { key: "soldPrice", label: "€/MWh", num: true, value: row => (row.sold ? row.soldEuro / row.sold : null),
+          cell: row => (row.sold ? number(row.soldEuro / row.sold, 2) : "—") },
+        ...(auction ? [] : [
+          { key: "bought", label: `MWh ${boughtName}`, num: true, value: row => row.bought, cell: row => number(row.bought, 1) },
+          { key: "boughtPrice", label: "€/MWh", num: true, value: row => (row.bought ? row.boughtEuro / row.bought : null),
+            cell: row => (row.bought ? number(row.boughtEuro / row.bought, 2) : "—") }])
+      ], [{ key: "total", label: auction ? "Est. gross revenue (€)" : "Est. net (€)", num: true, value: row => row.total, cell: row => number(row.total) }]);
+      what = market.label;
+    }
+    if (chosen) rows = rows.filter(row => mgpGroup(row.unit.source) === chosen);
+    if (!columns.some(column => column.key === state.sort)) Object.assign(state, { sort: "total", direction: "desc" });
+    const total = rows.reduce((sum, row) => sum + row.total, 0);
+    setText("unit-revenue-subtitle", `About ${formatEuro(total)} estimated for ${formatNumber(rows.length)} units` +
+      `${chosen ? ` (${chosen.label})` : ""} in ${what}, ${when} · 10 a page, the highest first`);
+    queueTable(document.getElementById("unit-revenue-table"), {
+      columns, rows, state, pageSize: 10,
+      empty: state.market && !flows[state.market] ? `No ${what} offers on file for this day.` : "No accepted offers for these choices."
+    });
   }
 
   (function buildMiLegend() {
@@ -9135,8 +9632,21 @@
       });
   })();
 
-  document.getElementById("mi-prev").addEventListener("click", () => stepMgp(-1));
-  document.getElementById("mi-next").addEventListener("click", () => stepMgp(1));
+  document.querySelectorAll("#market-bar .market-period button").forEach(button => {
+    button.addEventListener("click", () => {
+      marketPeriod = button.dataset.period;
+      document.querySelectorAll("#market-bar .market-period button").forEach(item => item.classList.toggle("active", item === button));
+      if (marketContext) drawMarketTotals();
+    });
+  });
+  document.getElementById("unit-revenue-market").addEventListener("change", event => {
+    Object.assign(unitRevenueState, { market: event.target.value, page: 0 });
+    if (marketContext) drawMarketTotals();
+  });
+  document.getElementById("unit-revenue-source").addEventListener("change", event => {
+    Object.assign(unitRevenueState, { source: event.target.value, page: 0 });
+    if (marketContext) drawMarketTotals();
+  });
   document.getElementById("mi-revenue-market").addEventListener("change", event => {
     Object.assign(miRevenueState, { market: event.target.value, page: 0 });
     drawMiRevenue();
@@ -12973,8 +13483,10 @@
   const PRICE_BLOCKS = [
     lazyBlock(["mia1", "mia2", "mia3"].map(id => byId(`intraday-${id}-section`)), renderIntradayCharts, [loadIntradayData]),
     lazyBlock(["xbid60", "xbid15"].map(id => byId(`intraday-${id}-section`)), renderXbidCharts, [loadXbidData]),
-    lazyBlock(SPREAD_MARKETS.map(market => byId(`${market.prefix}-section`)), renderSpreadCharts, [loadSpreadData]),
-    lazyBlock(mgpSections, renderMgpCharts, [loadMgpMeritData, loadMiMeritData])
+    lazyBlock(SPREAD_MARKETS.map(market => byId(`${market.prefix}-section`)), renderSpreadCharts, [loadSpreadData])
+  ];
+  const MARKET_BLOCKS = [
+    lazyBlock(mgpSections, renderMgpCharts, [loadMgpMeritData, loadMiMeritData, loadMarketOffersData])
   ];
 
   // Loaders finishing together redraw the view once (a timer, not an
@@ -13108,6 +13620,11 @@
       currentZone === "italy" &&
       currentSubTab === "interconnection";
 
+    const showMarket =
+      hasData &&
+      currentZone === "italy" &&
+      currentSubTab === "market";
+
     const showBalancing =
       currentSubTab === "balancing";
 
@@ -13119,7 +13636,7 @@
       document.getElementById("zone-placeholder");
 
     zonePlaceholder.style.display =
-      showPunChart || showZonalChart || showInterconnection || showBalancing
+      showPunChart || showZonalChart || showInterconnection || showBalancing || showMarket
         ? "none"
         : "flex";
 
@@ -13180,6 +13697,15 @@
     interconnectionMount.style.display =
       showInterconnection ? "grid" : "none";
 
+    const marketMount = document.getElementById("chart-mount-market");
+    marketMount.style.display = showMarket ? "grid" : "none";
+    if (showMarket) {
+      setTimeout(() => {
+        if (marketMount.style.display === "none") return;
+        drawBlocks(MARKET_BLOCKS);
+      }, 0);
+    }
+
     if (showInterconnection) {
       setTimeout(renderInterconnectionCharts, 0);
     }
@@ -13191,11 +13717,13 @@
       setTimeout(renderBalancing, 0);
     }
 
-    if (!showPunChart && !showZonalChart && !showInterconnection && !showBalancing) {
+    if (!showPunChart && !showZonalChart && !showInterconnection && !showBalancing && !showMarket) {
       document.getElementById(
         "zone-placeholder-text"
       ).textContent = currentSubTab === "balancing"
         ? "Balancing data is published per bidding zone: choose a zone in the menu at the top."
+        : currentSubTab === "market"
+        ? "The market data (offers, revenues by unit) is shown for Italy as a whole: choose Italy in the menu at the top."
         : `${currentSubTab.charAt(0).toUpperCase()}${currentSubTab.slice(1)} data for ${ZONE_LABELS[currentZone]} is not yet available.`;
     }
   }
@@ -13369,6 +13897,7 @@
     miCharts.forEach(chart => chart.resize());
     miStatusChart.resize();
     marketRevenueChart.resize();
+    [xbidChart, msdChart, mbChart, volumeChart, balancingRevenueChart].forEach(chart => chart.resize());
     resizeCapacityCharts();
     BALANCING_CHARTS.forEach(spec => spec.chart.resize());
     Object.values(PICASSO_CHARTS).forEach(item => item.chart.resize());

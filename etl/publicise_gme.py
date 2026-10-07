@@ -18,8 +18,10 @@ its data shown publicly only re-elaborated):
   not published     the unit list (gme_units.json, its state) and the code
                     map (mgp_merit/units.json): removed here
 
-The merit orders: mgp_merit (MGP) and mi_merit (the MI-A auctions, a unit
-under one name in the three auctions of a day).
+The merit orders, mgp_merit (MGP) and mi_merit (MI-A), and the other
+markets' offers, market_offers (MSD, MB, MI-XBID): a unit has one name in
+every market of a day, kept in the private data (NAMES_DIR, which the jobs
+publish to the private data branch only).
 
 Run in the private repository after a GME job has published its private
 files, on the paths that job writes, in place (the runner's copy); the job
@@ -41,6 +43,9 @@ import compact  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SALT_PATH = os.path.join(ROOT, "app", "data", "public_salt.txt")
+# The units' public names of each day (kept in the private data, published
+# by the jobs to its data branch): one name per unit in every market.
+NAMES_DIR = os.path.join(ROOT, "app", "data", "public_names")
 
 # Rounding steps; None: no rounding (for now).  E.g. 5 EUR/MWh, 1 MW,
 # 0.1 MW and EUR 100 if GME asks for rounded numbers.
@@ -121,21 +126,47 @@ def salt():
         return handle.read().strip()
 
 
-def public_units(units, day, sources, secret):
-    """(old index -> new index, the units renamed): no codes or operators."""
-    by_group = {}
+def load_names(day):
+    path = os.path.join(NAMES_DIR, f"{day}.json")
+    return read_json(path) if os.path.exists(path) else {"codes": {}, "next": {}}
+
+
+def save_names(day, store):
+    os.makedirs(NAMES_DIR, exist_ok=True)
+    write_json(store, os.path.join(NAMES_DIR, f"{day}.json"))
+
+
+def public_units(units, day, sources, secret, store=None):
+    """(old index -> new index, the units renamed): no codes or operators.
+    store: the day's names ({"codes": code -> name, "next": group -> the
+    next number}), changed in place: a unit named before keeps its name, the
+    new ones take the next numbers of their group in a random order.  The
+    list is sorted by name, so its order says nothing of the codes."""
+    store = store if store is not None else {"codes": {}, "next": {}}
+    new_by_group, known_units = {}, []
     for index, unit in enumerate(units):
         known = sources.get(unit[0]) or [None, None, None]
         source = known[0] or unit[1] or ("interconnection" if unit[4] in ("import", "export") else "unknown")
         group = GROUP_OF.get(source, "other")
-        by_group.setdefault(group, []).append((index, source, known[2] or unit[3]))
+        known_units.append((index, source, known[2] or unit[3]))
+        if unit[0] not in store["codes"]:
+            new_by_group.setdefault(group, []).append(unit[0])
+    for group in sorted(new_by_group):
+        codes = sorted(set(new_by_group[group]))
+        first = store["next"].get(group, 1)
+        random.Random(f"{secret}|{day}|{group}|{first}").shuffle(codes)
+        for number, code in enumerate(codes, first):
+            store["codes"][code] = f"{PUBLIC_NAMES[group]} {number}"
+        store["next"][group] = first + len(codes)
+
+    def order(item):
+        stem, _, number = store["codes"][units[item[0]][0]].rpartition(" ")
+        return stem, int(number) if number.isdigit() else 0
+
     new_index, renamed = {}, []
-    for group in sorted(by_group):
-        members = by_group[group]
-        random.Random(f"{secret}|{day}|{group}").shuffle(members)
-        for number, (index, source, zone) in enumerate(members, 1):
-            new_index[index] = len(renamed)
-            renamed.append([f"{PUBLIC_NAMES[group]} {number}", source, None, zone, None])
+    for index, source, zone in sorted(known_units, key=order):
+        new_index[index] = len(renamed)
+        renamed.append([store["codes"][units[index][0]], source, None, zone, None])
     return new_index, renamed
 
 
@@ -179,11 +210,11 @@ def public_quarters(quarters, new_index):
     return result
 
 
-def publicise_day(data, sources, secret):
+def publicise_day(data, sources, secret, store=None):
     """A merit-order day file without GME's numbers or the units' identities:
     an MGP day ("quarters") or an MI-A day (the three auctions' quarters in
     "markets", one unit list: a unit has the same name in all three)."""
-    new_index, renamed = public_units(data["units"], data["date"], sources, secret)
+    new_index, renamed = public_units(data["units"], data["date"], sources, secret, store)
     public = {"date": data["date"], "market": data.get("market", "MGP"), "source": NOTE, "units": renamed}
     if "markets" in data:
         public["markets"] = {market: public_quarters(quarters, new_index) for market, quarters in data["markets"].items()}
@@ -192,19 +223,82 @@ def publicise_day(data, sources, secret):
     return public
 
 
+def publicise_offers_day(data, sources, secret, store=None):
+    """An MSD, MB or MI-XBID day file (fetch_market_offers.py) the same way:
+    units renamed and renumbered, the records sorted."""
+    new_index, renamed = public_units(data["units"], data["date"], sources, secret, store)
+
+    def records(flat, size, transform, key):
+        rows = [transform(flat[i:i + size]) for i in range(0, len(flat), size)]
+        rows.sort(key=key)
+        return [value for row in rows for value in row]
+
+    def offer(r):
+        return [new_index[r[0]], r[1], r[2], step(r[3], OFFER_STEP), step(r[4], PRICE_STEP), r[5], step(r[6], OFFER_STEP), r[7]]
+
+    def event(r):
+        return [new_index[r[0]], r[1], r[2]]
+
+    def fill(r):
+        return [new_index[r[0]], r[1], step(r[2], OFFER_STEP), step(r[3], PRICE_STEP), r[4]]
+
+    public = {"date": data["date"], "market": data["market"], "source": NOTE, "units": renamed}
+    if data["market"] == "XBID":
+        for part in ("quarters", "hours"):
+            public[part] = [{"time": item["time"],
+                             "fills": records(item["fills"], 5, fill, lambda r: (-r[4], r[3], r[1], r[0], r[2]))}
+                            for item in data.get(part, [])]
+    else:
+        public["quarters"] = [{"time": item["time"],
+                               "offers": records(item["offers"], 8, offer,
+                                                 lambda r: (r[1], r[5], r[4] if r[4] is not None else 0, r[0], r[3])),
+                               "events": records(item.get("events", []), 3, event, lambda r: (r[1], r[0]))}
+                              for item in data["quarters"]]
+    return public
+
+
+def code_map(directory):
+    """The code map (mgp_merit/units.json) for a folder of the private data."""
+    for path in (os.path.join(directory, "units.json"),
+                 os.path.join(os.path.dirname(os.path.normpath(directory)), "mgp_merit", "units.json")):
+        if os.path.exists(path):
+            return read_json(path)
+    return {}
+
+
+def publicise_offers(directory, secret):
+    """The day files of market_offers/<MARKET>/, in place."""
+    sources = code_map(directory)
+    count = 0
+    for market in sorted(os.listdir(directory)):
+        folder = os.path.join(directory, market)
+        if not os.path.isdir(folder):
+            continue
+        for name in sorted(os.listdir(folder)):
+            if not name.endswith((".json", ".json.gz")):
+                continue
+            path = os.path.join(folder, name)
+            data = read_json(path)
+            store = load_names(data["date"])
+            write_json(publicise_offers_day(data, sources, secret, store), path)
+            save_names(data["date"], store)
+            count += 1
+    return count
+
+
 def publicise_merit(directory, secret):
     """The day files of mgp_merit or mi_merit, in place; the code map
     (mgp_merit/units.json, read for both) is removed."""
-    sources_path = os.path.join(directory, "units.json")
-    if not os.path.exists(sources_path):
-        sources_path = os.path.join(os.path.dirname(os.path.normpath(directory)), "mgp_merit", "units.json")
-    sources = read_json(sources_path) if os.path.exists(sources_path) else {}
+    sources = code_map(directory)
     count = 0
     for name in sorted(os.listdir(directory)):
         if name in ("index.json", "units.json") or not name.endswith((".json", ".json.gz")):
             continue
         path = os.path.join(directory, name)
-        write_json(publicise_day(read_json(path), sources, secret), path)
+        data = read_json(path)
+        store = load_names(data["date"])
+        write_json(publicise_day(data, sources, secret, store), path)
+        save_names(data["date"], store)
         count += 1
     own = os.path.join(directory, "units.json")
     if os.path.exists(own):
@@ -217,6 +311,8 @@ def publicise(path, secret=None):
     name = os.path.basename(os.path.normpath(path))
     if name in ("mgp_merit", "mi_merit"):
         return f"{publicise_merit(path, secret if secret is not None else salt())} day(s)"
+    if name == "market_offers":
+        return f"{publicise_offers(path, secret if secret is not None else salt())} file(s)"
     if name == "balancing_gme":
         for file in sorted(os.listdir(path)):
             if file.endswith(".json"):
