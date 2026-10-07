@@ -15,7 +15,7 @@ TODAY = date(2026, 10, 5)
 def test_days_to_read_newest_first_and_nothing_gme_cannot_have_out(tmp_path):
     out = str(tmp_path)
     full = [{"time": mm.label(q)} for q in range(96)]
-    mm.write_day(out, {"date": "2026-09-27", "units": [], "quarters": full})
+    mm.write_day(out, {"date": "2026-09-27", "version": mm.FORMAT, "units": [], "quarters": full})
     mm.write_index(out)
     state = {"processed": ["2026-09-26", "2026-09-28"], "units": {}}
     days, merit, units = go.days_to_read(state, TODAY, date(2026, 9, 25), out)

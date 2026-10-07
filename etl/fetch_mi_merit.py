@@ -33,7 +33,7 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fetch_gme_units import REQUEST_PAUSE_SECONDS, get_token, request_offers, rows_of  # noqa: E402
-from fetch_mgp_merit import PUBLISHED_AFTER, build, read_day, unit_sources, write_day  # noqa: E402
+from fetch_mgp_merit import FORMAT, PUBLISHED_AFTER, build, read_day, unit_sources, write_day  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "app", "data", "mi_merit")
@@ -60,14 +60,15 @@ def day_data(day, offers, units):
         quarters = build(offers[market], 0, 95, units, registry)["quarters"]
         if quarters:
             markets[market] = quarters
-    return {"date": day.isoformat(), "market": "MI-A",
+    return {"date": day.isoformat(), "market": "MI-A", "version": FORMAT,
             "source": "GME public offers (Offers_PublicDomain, MI-A1, MI-A2, MI-A3); unit sources from gme_units.json",
             "units": registry[1], "markets": markets}
 
 
 def write_index(out_dir):
-    """index.json: per day, each auction's quarter-hours; the file names."""
-    days, files = {}, {}
+    """index.json: per day, each auction's quarter-hours; the file names and
+    formats."""
+    days, files, versions = {}, {}, {}
     for name in sorted(os.listdir(out_dir)):
         if name == "index.json" or not name.endswith((".json", ".json.gz")):
             continue
@@ -75,21 +76,24 @@ def write_index(out_dir):
         days[data["date"]] = {market: [item["time"] for item in quarters]
                               for market, quarters in data["markets"].items()}
         files[data["date"]] = name
+        versions[data["date"]] = data.get("version", 1)
     with open(os.path.join(out_dir, "index.json"), "w", encoding="utf-8") as handle:
-        json.dump({"days": days, "files": files}, handle, separators=(",", ":"))
+        json.dump({"days": days, "files": files, "versions": versions}, handle, separators=(",", ":"))
     return days
 
 
 def missing_days(first, last, out_dir):
-    """The days of first..last without all three auctions on file."""
-    on_file = {}
+    """The days of first..last without all three auctions of this FORMAT on
+    file."""
+    on_file, versions = {}, {}
     index = os.path.join(out_dir, "index.json")
     if os.path.exists(index):
         with open(index, encoding="utf-8") as handle:
-            on_file = json.load(handle).get("days", {})
+            data = json.load(handle)
+        on_file, versions = data.get("days", {}), data.get("versions", {})
     days, day = [], first
     while day <= last:
-        if len(on_file.get(day.isoformat(), {})) < len(MARKETS):
+        if len(on_file.get(day.isoformat(), {})) < len(MARKETS) or versions.get(day.isoformat(), 1) < FORMAT:
             days.append(day)
         day += timedelta(days=1)
     return days
