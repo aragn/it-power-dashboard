@@ -9090,10 +9090,17 @@
           params.filter(item => item.value).map(item => tooltipRow(item.color, item.seriesName, formatEuro(item.value))).join("") +
           tooltipRow(cssVar("--chart-legend"), "Total", formatEuro(params.reduce((sum, item) => sum + (item.value || 0), 0)))
       },
-      grid: { left: 70, right: 24, top: 34, bottom: 40, containLabel: false },
+      grid: { left: 70, right: 24, top: 34, bottom: 52, containLabel: false },
       xAxis: {
         type: "category", data: groups.map(group => group.label),
-        axisLabel: { ...timelineAxisTextStyle(), interval: 0, hideOverlap: true }, axisTick: { show: false },
+        // Every source named: long names on two lines.
+        axisLabel: { ...timelineAxisTextStyle(), interval: 0, lineHeight: 14,
+          formatter: name => {
+            if (name.length <= 12 || !name.includes(" ")) return name;
+            const cut = name.includes(" (") ? name.indexOf(" (") : name.lastIndexOf(" ");
+            return `${name.slice(0, cut)}\n${name.slice(cut + 1)}`;
+          } },
+        axisTick: { show: false },
         axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }
       },
       yAxis: timelineYAxis("€", { nameGap: 54, axisLabel: { ...timelineAxisTextStyle(),
