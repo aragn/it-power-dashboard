@@ -39,28 +39,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "app", "data", "mi_merit")
 
 MARKETS = ["MI-A1", "MI-A2", "MI-A3"]
-# The segment names tried for each auction's offers, in turn: the price
-# data's ("MI-A1") first.
-SEGMENTS = {market: [market, market.replace("-", ""), market.replace("-A", "")] for market in MARKETS}
 MAX_DAYS = 4
 
 
 def request_market(token, day, market):
-    """(segment, file name, bytes) of an auction's offers; the last error if
-    no segment name has them."""
-    error = None
-    for index, segment in enumerate(SEGMENTS[market]):
-        if index:
-            time.sleep(REQUEST_PAUSE_SECONDS)
-        try:
-            name, content = request_offers(token, day, segment=segment)
-            return segment, name, content
-        except PermissionError:
-            raise
-        except Exception as failure:  # e.g. "No data": the next name
-            error = failure
-            print(f"    {market} as {segment}: {failure}")
-    raise error
+    """(segment, file name, bytes) of an auction's offers (the segment is
+    the auction's name, as for its prices)."""
+    name, content = request_offers(token, day, segment=market)
+    return market, name, content
 
 
 def day_data(day, offers, units):
@@ -169,7 +155,9 @@ def main():
     if os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
             handle.write(message + "\n")
-    if days and not done:
+    # One day asked for by hand must be read; a range may find nothing new
+    # (GME has not published the next day yet).
+    if args.date and not done:
         raise SystemExit("No MI-A offers read")
 
 
