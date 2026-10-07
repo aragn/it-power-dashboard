@@ -114,14 +114,16 @@ def unit_sources(path=UNITS_PATH):
     return units
 
 
-def build(rows, first, last, units):
-    """The day's merit order data for the quarter-hours first..last."""
+def build(rows, first, last, units, registry=None):
+    """The day's merit order data for the quarter-hours first..last.
+    registry: (code -> index, unit list) shared by several markets' builds
+    (the MI-A auctions of a day share one unit list); else a new one."""
     wanted = set(range(first, last + 1))
     prices = defaultdict(Counter)                     # (quarter, zone) -> awarded prices
     supply = defaultdict(list)
     demand = defaultdict(lambda: defaultdict(lambda: [0.0, 0.0]))
     others = defaultdict(lambda: defaultdict(float))  # quarter -> (unit, status) -> MW
-    unit_index, unit_list = {}, []
+    unit_index, unit_list = registry if registry is not None else ({}, [])
 
     def unit_of(row):
         code = row.get("UNIT_REFERENCE_NO") or ""

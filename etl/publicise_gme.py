@@ -18,11 +18,14 @@ its data shown publicly only re-elaborated):
   not published     the unit list (gme_units.json, its state) and the code
                     map (mgp_merit/units.json): removed here
 
+The merit orders: mgp_merit (MGP) and mi_merit (the MI-A auctions, a unit
+under one name in the three auctions of a day).
+
 Run in the private repository after a GME job has published its private
 files, on the paths that job writes, in place (the runner's copy); the job
 then publishes them to the public repository's data branch.
 
-  publicise_gme.py app/data/pun.json app/data/mgp_merit ...
+  publicise_gme.py app/data/pun.json app/data/mgp_merit app/data/mi_merit ...
 """
 
 import argparse
@@ -118,25 +121,30 @@ def salt():
         return handle.read().strip()
 
 
-def publicise_day(data, sources, secret):
-    """A merit-order day file without GME's numbers or the units' identities."""
-    units = data["units"]
+def public_units(units, day, sources, secret):
+    """(old index -> new index, the units renamed): no codes or operators."""
     by_group = {}
     for index, unit in enumerate(units):
         known = sources.get(unit[0]) or [None, None, None]
         source = known[0] or unit[1] or "unknown"
         group = GROUP_OF.get(source, "other")
         by_group.setdefault(group, []).append((index, source, known[2] or unit[3]))
-    new_index, public_units = {}, []
+    new_index, renamed = {}, []
     for group in sorted(by_group):
         members = by_group[group]
-        random.Random(f"{secret}|{data['date']}|{group}").shuffle(members)
+        random.Random(f"{secret}|{day}|{group}").shuffle(members)
         for number, (index, source, zone) in enumerate(members, 1):
-            new_index[index] = len(public_units)
-            public_units.append([f"{PUBLIC_NAMES[group]} {number}", source, None, zone, None])
+            new_index[index] = len(renamed)
+            renamed.append([f"{PUBLIC_NAMES[group]} {number}", source, None, zone, None])
+    return new_index, renamed
 
-    quarters = []
-    for quarter in data["quarters"]:
+
+def public_quarters(quarters, new_index):
+    """A market's quarter-hours with the units renumbered (and the numbers
+    rounded, with the steps set); the offers sorted, so their order says
+    nothing of the units."""
+    result = []
+    for quarter in quarters:
         flat = quarter["supply"]
         supply = [[new_index[flat[i]], step(flat[i + 1], OFFER_STEP), step(flat[i + 2], PRICE_STEP), flat[i + 3],
                    step(flat[i + 4], OFFER_STEP), step(flat[i + 5], PRICE_STEP), flat[i + 6]]
@@ -167,13 +175,29 @@ def publicise_day(data, sources, secret):
         elif "status" in quarter:
             public["status"] = {source: {status: step(mw, OFFER_STEP) for status, mw in by_status.items()}
                                 for source, by_status in quarter["status"].items()}
-        quarters.append(public)
-    return {"date": data["date"], "market": data.get("market", "MGP"), "source": NOTE,
-            "units": public_units, "quarters": quarters}
+        result.append(public)
+    return result
+
+
+def publicise_day(data, sources, secret):
+    """A merit-order day file without GME's numbers or the units' identities:
+    an MGP day ("quarters") or an MI-A day (the three auctions' quarters in
+    "markets", one unit list: a unit has the same name in all three)."""
+    new_index, renamed = public_units(data["units"], data["date"], sources, secret)
+    public = {"date": data["date"], "market": data.get("market", "MGP"), "source": NOTE, "units": renamed}
+    if "markets" in data:
+        public["markets"] = {market: public_quarters(quarters, new_index) for market, quarters in data["markets"].items()}
+    else:
+        public["quarters"] = public_quarters(data["quarters"], new_index)
+    return public
 
 
 def publicise_merit(directory, secret):
+    """The day files of mgp_merit or mi_merit, in place; the code map
+    (mgp_merit/units.json, read for both) is removed."""
     sources_path = os.path.join(directory, "units.json")
+    if not os.path.exists(sources_path):
+        sources_path = os.path.join(os.path.dirname(os.path.normpath(directory)), "mgp_merit", "units.json")
     sources = read_json(sources_path) if os.path.exists(sources_path) else {}
     count = 0
     for name in sorted(os.listdir(directory)):
@@ -182,15 +206,16 @@ def publicise_merit(directory, secret):
         path = os.path.join(directory, name)
         write_json(publicise_day(read_json(path), sources, secret), path)
         count += 1
-    if os.path.exists(sources_path):
-        os.remove(sources_path)
+    own = os.path.join(directory, "units.json")
+    if os.path.exists(own):
+        os.remove(own)
     return count
 
 
 def publicise(path, secret=None):
     """One file or directory of the private data, in place."""
     name = os.path.basename(os.path.normpath(path))
-    if name == "mgp_merit":
+    if name in ("mgp_merit", "mi_merit"):
         return f"{publicise_merit(path, secret if secret is not None else salt())} day(s)"
     if name == "balancing_gme":
         for file in sorted(os.listdir(path)):
