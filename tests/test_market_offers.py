@@ -80,3 +80,15 @@ def test_index(tmp_path):
     assert index["XBID"]["files"]["2026-09-17"] == "XBID/2026-09-17.json.gz"
     assert json.loads((tmp_path / "index.json").read_text())["MSD"]["files"]
     assert mo.on_file(str(tmp_path), "MSD") == {"2026-09-17"}
+    mo.write_day(str(tmp_path / "MB"), {"date": "2026-08-15", "market": "MB", "units": [], "quarters": []})
+    mo.write_index(str(tmp_path))
+    assert mo.on_file(str(tmp_path), "MB") == set()          # an empty day is read again
+
+
+def test_mb_rows_give_the_hour_and_its_quarter():
+    row = msd("UP_GAS_1", 1, "OFF", "AS", "ACC", 0, 31.5, "300")
+    del row["PERIOD"]
+    row.update({"INTERVAL_NO": "16", "QUARTER_NO": "2"})
+    quarter, = mo.build_balancing([row], UNITS)["quarters"]
+    assert quarter["time"] == "15:15"                       # hour 16 = 15:00-16:00, its second quarter
+    assert quarter["offers"][3] == 31.5                     # 0 MW offered: what was taken

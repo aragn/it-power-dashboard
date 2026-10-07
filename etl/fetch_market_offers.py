@@ -78,12 +78,21 @@ class Units:
         return self.index[code]
 
 
+def period_of(row):
+    """The quarter-hour (1-96) of an MSD row (PERIOD) or an MB row (hour
+    INTERVAL_NO and QUARTER_NO in it)."""
+    if row.get("PERIOD"):
+        return int(number(row["PERIOD"]) or 0)
+    hour, quarter = number(row.get("INTERVAL_NO")), number(row.get("QUARTER_NO"))
+    return int((hour - 1) * 4 + quarter) if hour and quarter else 0
+
+
 def build_balancing(rows, sources):
     """MSD or MB: the quarter-hours' energy offers and accepted events."""
     units = Units(sources)
     offers, events = defaultdict(list), defaultdict(list)
     for row in rows:
-        period = int(number(row.get("PERIOD")) or 0)
+        period = period_of(row)
         if not 1 <= period <= 100:
             continue
         status, scope = row.get("STATUS_CD"), row.get("SCOPE")
@@ -96,8 +105,9 @@ def build_balancing(rows, sources):
             continue
         if scope not in ENERGY_SCOPES or status not in STATUSES or (quantity <= 0 and accepted <= 0):
             continue
+        # MB's accepted offers can show 0 MW offered: at least what was taken.
         offers[period - 1].append([units.of(row), 0 if row.get("PURPOSE_CD") == "OFF" else 1,
-                                   ENERGY_SCOPES.index(scope), round_mw(quantity), price, STATUSES[status],
+                                   ENERGY_SCOPES.index(scope), round_mw(max(quantity, accepted)), price, STATUSES[status],
                                    round_mw(accepted) if status == "ACC" else 0,
                                    STANDARD if row.get("TYPE_CD") == "STND" else 0])
     quarters = []
@@ -191,8 +201,13 @@ def write_index(out_dir):
 
 
 def on_file(out_dir, market):
-    folder = os.path.join(out_dir, market)
-    return {name.split(".")[0] for name in os.listdir(folder)} if os.path.isdir(folder) else set()
+    """The days of a market on file with at least one quarter-hour."""
+    path = os.path.join(out_dir, "index.json")
+    if not os.path.exists(path):
+        return set()
+    with open(path, encoding="utf-8") as handle:
+        days = json.load(handle).get(market, {}).get("days", {})
+    return {day for day, times in days.items() if times}
 
 
 def main():
