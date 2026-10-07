@@ -33,7 +33,7 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fetch_gme_units import REQUEST_PAUSE_SECONDS, get_token, request_offers, rows_of  # noqa: E402
-from fetch_mgp_merit import FORMAT, PUBLISHED_AFTER, build, read_day, unit_sources, write_day  # noqa: E402
+from fetch_mgp_merit import FORMAT, PUBLISHED_AFTER, build, day_quarters, read_day, unit_sources, write_day  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "app", "data", "mi_merit")
@@ -57,7 +57,7 @@ def day_data(day, offers, units):
     for market in MARKETS:
         if market not in offers:
             continue
-        quarters = build(offers[market], 0, 95, units, registry)["quarters"]
+        quarters = build(offers[market], 0, day_quarters(day) - 1, units, day, registry)["quarters"]
         if quarters:
             markets[market] = quarters
     return {"date": day.isoformat(), "market": "MI-A", "version": FORMAT,
@@ -119,7 +119,7 @@ def read_days(days, out_dir, max_days):
                 print(f"  {day} {market}: {error}")
                 continue
             # Built as the rows stream in, into the day's one unit list.
-            quarters = build(rows_of(name, content), 0, 95, units, registry)["quarters"]
+            quarters = build(rows_of(name, content), 0, day_quarters(day) - 1, units, day, registry)["quarters"]
             print(f"  {day} {market} (segment {segment}): {name}, {len(content) / 1e6:.0f} MB, "
                   f"{len(quarters)} quarter-hours")
             del content

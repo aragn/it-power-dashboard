@@ -264,11 +264,11 @@ def publicise_offers_day(data, sources, secret, store=None):
     public = {"date": data["date"], "market": data["market"], "source": NOTE, "units": renamed}
     if data["market"] == "XBID":
         for part in ("quarters", "hours"):
-            public[part] = [{"time": item["time"],
+            public[part] = [{"time": item["time"], **({"period": item["period"]} if "period" in item else {}),
                              "fills": records(item["fills"], 5, fill, lambda r: (-r[4], r[3], r[1], r[0], r[2]))}
                             for item in data.get(part, [])]
     else:
-        public["quarters"] = [{"time": item["time"],
+        public["quarters"] = [{"time": item["time"], **({"period": item["period"]} if "period" in item else {}),
                                "offers": records(item["offers"], 8, offer,
                                                  lambda r: (r[1], r[5], r[4] if r[4] is not None else 0, r[0], r[3])),
                                "events": records(item.get("events", []), 3, event, lambda r: (r[1], r[0]))}
