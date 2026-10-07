@@ -34,6 +34,8 @@ app/data/gme_units.json
 app/data/gme_units_state.json
 app/data/mgp_merit/
 app/data/mi_merit/
+app/data/market_offers/
+app/data/public_names/
 app/data/*.recent.json
 app/data/balancing_gme/
 app/data/public_salt.txt
