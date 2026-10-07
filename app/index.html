@@ -457,7 +457,7 @@
           <section id="income-ida1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 1 Congestion Income</div><div id="income-ida1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="income-ida1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida1-chart" class="timeline-chart"></div><div id="income-ida1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 1, signed like the spreads.</div></section>
           <section id="income-ida2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 2 Congestion Income</div><div id="income-ida2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="income-ida2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida2-chart" class="timeline-chart"></div><div id="income-ida2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 2, signed like the spreads.</div></section>
           <section id="income-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Congestion Income</div><div id="income-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="income-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida3-chart" class="timeline-chart"></div><div id="income-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 3 (afternoon and evening), signed like the spreads.</div></section>
-        </div><div id="chart-mount-market" style="display:none"><div id="market-bar" class="panel market-bar"><span class="legend-title">Quarter-hour</span><div class="depth-controls"><button id="mgp-prev" type="button" aria-label="Previous quarter-hour">‹</button><div class="depth-track"><input id="mgp-slider" type="range" min="0" max="0" value="0" step="1" aria-label="Quarter-hour shown in the MGP merit order"><div id="mgp-availability" class="depth-availability"></div></div><button id="mgp-next" type="button" aria-label="Next quarter-hour">›</button><div id="mgp-label" class="depth-label"></div></div><div class="market-period" role="group" aria-label="Totals and unit table for"><span>Totals</span><button type="button" data-period="quarter" class="active">Quarter-hour</button><button type="button" data-period="day">Whole day</button></div></div>
+        </div><div id="chart-mount-market" style="display:none"><div id="market-bar" class="panel market-bar"><span class="legend-title">Quarter-hour</span><div class="depth-controls"><button id="mgp-prev" type="button" aria-label="Previous quarter-hour">‹</button><div class="depth-track"><input id="mgp-slider" type="range" min="0" max="0" value="0" step="1" aria-label="Quarter-hour shown in the MGP merit order"><div id="mgp-availability" class="depth-availability"></div></div><button id="mgp-next" type="button" aria-label="Next quarter-hour">›</button><div id="mgp-label" class="depth-label"></div></div><div class="market-period" role="group" aria-label="Totals and unit table for"><span>Totals</span><button type="button" data-period="quarter" class="active">Quarter-hour</button><button type="button" data-period="day">Whole day</button></div><label class="market-period"><input type="checkbox" id="market-show-consumption"> Consumption units in the charts</label></div>
           <h3 class="capacity-heading">Day-ahead market (MGP)</h3>
           <section id="mgp-merit-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MGP Merit Order</div><div id="mgp-merit-subtitle" class="chart-subtitle">Day-ahead market, Italy</div></div></div><div class="mgp-chart-wrap"><div id="mgp-merit-chart" class="timeline-chart"></div></div><div id="mgp-merit-help" class="chart-help"></div></section>
           <section id="mgp-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MGP Estimated Revenues by Unit</div><div id="mgp-revenue-subtitle" class="chart-subtitle">Accepted sale offers of the quarter-hour</div></div><label class="mgp-source-filter">Source <select id="mgp-revenue-source" aria-label="Show the units of one source only"><option value="">All sources</option></select></label></div><div id="mgp-revenue-table" class="mgp-table-host"></div><div class="chart-help">Estimated: per unit, its sale offers accepted in the quarter-hour chosen above, MW accepted × the zonal price awarded × ¼ h, before fees, imbalances and any hedge. Hourly orders are paid the hour's average price. Bilateral schedules (GME operator &ldquo;Bilateralista&rdquo;) are registered at the zonal price but settled between the parties, so their part of the revenue is notional. Click a column to sort.</div></section>
@@ -9526,11 +9526,16 @@
       name: market.kind === "balancing" ? `${market.label} down` : `${market.label} purchases`, color: MARKET_COLORS[market.key], faded: true,
       values: new Map([...flowsBySource(flows[market.key], "bought")].map(([group, value]) => [group, -value]))
     })));
-    const groupsOf = series => MGP_GROUPS.filter(group => series.some(item => Math.abs(item.values.get(group) || 0) >= 0.5));
+    // The consumption units (the MGP's buyers, all of Italy's demand) dwarf
+    // the rest: left out of the charts unless asked for.
+    const showConsumption = document.getElementById("market-show-consumption").checked;
+    const groupsOf = series => MGP_GROUPS.filter(group => (showConsumption || group.key !== "consumption") &&
+      series.some(item => Math.abs(item.values.get(group) || 0) >= 0.5));
+    const consumptionText = showConsumption ? "" : " · consumption units left out (tick the box above)";
     stackedSourceChart(volumeChart, groupsOf(volumeSeries), volumeSeries, "MWh", value => `${formatNumber(value, 0)} MWh`);
     const totalSold = volumeSeries.slice(0, TOTAL_MARKETS.length).reduce((sum, item) => sum + [...item.values.values()].reduce((a, b) => a + b, 0), 0);
-    setText("market-volume-subtitle", PUBLIC_MODE ? `MWh accepted by source and market in ${when}${missingText}`
-      : `${formatNumber(totalSold, 0)} MWh sold or upward in ${when}${missingText}`);
+    setText("market-volume-subtitle", (PUBLIC_MODE ? `MWh accepted by source and market in ${when}${missingText}`
+      : `${formatNumber(totalSold, 0)} MWh sold or upward in ${when}${missingText}`) + consumptionText);
 
     // Energy markets' revenues (sales).
     const energyMarkets = TOTAL_MARKETS.filter(market => market.kind !== "balancing");
@@ -9544,12 +9549,12 @@
     const energyTotal = field => energyMarkets.reduce((sum, market) =>
       sum + [...flowsBySource(flows[market.key], field).values()].reduce((a, b) => a + b, 0), 0);
     setText("market-revenue-subtitle", PUBLIC_MODE
-      ? `Estimated revenues (above zero) and costs (below) by source in ${when}: the MGP, the MI-A auctions and MI-XBID stacked${missingText}`
+      ? `Estimated revenues (above zero) and costs (below) by source in ${when}: the MGP, the MI-A auctions and MI-XBID stacked${missingText}${consumptionText}`
       : `${when}: about ${formatEuro(energyTotal("soldEuro"))} of sales and ${formatEuro(energyTotal("boughtEuro"))} of purchases estimated · ` +
         energyMarkets.map(market => {
           const sold = [...flowsBySource(flows[market.key], "soldEuro").values()].reduce((a, b) => a + b, 0);
           return `${market.label} ${formatEuro(sold)}`;
-        }).join(" · ") + " sold" + missingText);
+        }).join(" · ") + " sold" + missingText + consumptionText);
 
     // Balancing: upward revenue above zero, downward payments below.
     const balancing = ["MSD", "MB"].flatMap(key => [
@@ -9661,6 +9666,9 @@
       document.querySelectorAll("#market-bar .market-period button").forEach(item => item.classList.toggle("active", item === button));
       if (marketContext) drawMarketTotals();
     });
+  });
+  document.getElementById("market-show-consumption").addEventListener("change", () => {
+    if (marketContext) drawMarketTotals();
   });
   document.getElementById("unit-revenue-market").addEventListener("change", event => {
     Object.assign(unitRevenueState, { market: event.target.value, page: 0 });
