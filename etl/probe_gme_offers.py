@@ -1,9 +1,9 @@
 """
-TEMPORARY probe: what GME's public offers (Offers_PublicDomain) hold for
-the markets without a merit order yet (MSD, MB, MI-XBID).  Run only in the
-private repository (the log shows GME's data).
+Probe: what GME's public offers (Offers_PublicDomain) of a segment hold
+(fields, codes, ranges, samples), in the log only.  Run only in the private
+repository (the log shows GME's data): update-market-offers.yml, mode probe.
 
-  probe_gme_offers.py 2026-09-17 MSD MB XBID MI-XBID
+  probe_gme_offers.py 2026-09-17 MSD XBID MB@2026-08-15
 """
 
 import json
