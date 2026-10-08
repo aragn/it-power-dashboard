@@ -11547,8 +11547,9 @@
   function loadBidFile(zone, day) {
     const key = `${zone}|${day}`;
     if (!depthFiles[key]) {
-      depthFiles[key] = fetch(`./data/balancing_bids/${zone}/${day}.json`, { cache: "no-cache" })
-        .then(response => (response.ok ? response.json() : null))
+      // Gzipped since the longer retention (the plain .json of before as a fallback).
+      depthFiles[key] = fetchMarketFile(`./data/balancing_bids/${zone}/${day}.json.gz`, false)
+        .then(file => file || fetchMarketFile(`./data/balancing_bids/${zone}/${day}.json`, false))
         .catch(() => null);
     }
     return depthFiles[key];

@@ -72,7 +72,8 @@ Bids (ENTSO-E 12.3.B&C, A37 B74): every balancing energy bid of a zone for
 each quarter-hour, merged by price and sorted in merit order (up: cheapest
 first; down: highest price first).  Products: afrr_picasso_* (standard
 aFRR product, offered to PICASSO), afrr_* (specific aFRR product, local),
-rr_*.  Kept for BID_RETENTION_DAYS.
+rr_*.  Gzipped (<ZONE>/<YYYY-MM-DD>.json.gz, about 11 kB a zone and day,
+some 30 MB a year for the seven zones), kept for BID_RETENTION_DAYS.
 
 Italian market time, labelled by elapsed time since local midnight like the
 other series.  Credentials: ENTSOE_API_KEY, TERNA_KEY / TERNA_SECRET (then
@@ -83,6 +84,7 @@ GME_API_PASSWORD.
 
 import argparse
 import glob
+import gzip
 import json
 import os
 import time
@@ -133,7 +135,7 @@ HISTORY_START = date(2025, 1, 1)
 TERNA_CATCH_UP_DAYS = 28
 TERNA_CATCH_UP_CALLS = 220
 TERNA_CATCH_UP_DAYS_SHARED_KEY = 7
-BID_RETENTION_DAYS = 35
+BID_RETENTION_DAYS = 400      # about 13 months: a year back and the same weeks of the year before
 
 # Request sizes: ENTSO-E allows a year per request (the PICASSO prices one
 # day), Terna 60 days, GME is paced per request.
@@ -499,7 +501,17 @@ def fetch_bids(token, zone, eic, day):
 
 
 def bid_path(zone, day):
-    return os.path.join(BIDS_DIR, zone, f"{day.isoformat()}.json")
+    return os.path.join(BIDS_DIR, zone, f"{day.isoformat()}.json.gz")
+
+
+def bid_files():
+    """Every bid file on file: gzipped, and the plain .json of before."""
+    return sorted(glob.glob(os.path.join(BIDS_DIR, "*", "*.json.gz")) + glob.glob(os.path.join(BIDS_DIR, "*", "*.json")))
+
+
+def write_bid_file(path, payload):
+    with gzip.open(path, "wt", encoding="utf-8") as f:
+        json.dump(payload, f, separators=(",", ":"))
 
 
 def update_bids(start_day, end_day):
@@ -512,8 +524,9 @@ def update_bids(start_day, end_day):
         if count:
             path = bid_path(zone, day)
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path, "w", encoding="utf-8") as f:
-                json.dump({"zone": zone, "date": day.isoformat(), "products": curves}, f, separators=(",", ":"))
+            write_bid_file(path, {"zone": zone, "date": day.isoformat(), "products": curves})
+            if os.path.exists(path[:-3]):
+                os.remove(path[:-3])                 # the plain file of before
         return zone, day, count
 
     tasks = [(zone, eic, day) for day in market_days(start_day, end_day) for zone, eic in ZONES.items()]
@@ -523,17 +536,23 @@ def update_bids(start_day, end_day):
 
 
 def prune_bids(today):
+    """Drops the files older than BID_RETENTION_DAYS and gzips the plain ones."""
     cutoff = (today - timedelta(days=BID_RETENTION_DAYS)).isoformat()
-    for path in glob.glob(os.path.join(BIDS_DIR, "*", "*.json")):
+    for path in bid_files():
         if os.path.basename(path)[:10] < cutoff:
+            os.remove(path)
+        elif path.endswith(".json"):
+            with open(path, encoding="utf-8") as f:
+                payload = json.load(f)
+            write_bid_file(path + ".gz", payload)
             os.remove(path)
 
 
 def bid_days():
-    days = defaultdict(list)
-    for path in sorted(glob.glob(os.path.join(BIDS_DIR, "*", "*.json"))):
-        days[os.path.basename(os.path.dirname(path))].append(os.path.basename(path)[:10])
-    return dict(days)
+    days = defaultdict(set)
+    for path in bid_files():
+        days[os.path.basename(os.path.dirname(path))].add(os.path.basename(path)[:10])
+    return {zone: sorted(found) for zone, found in days.items()}
 
 
 # ============================================================================
