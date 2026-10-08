@@ -58,6 +58,7 @@ def test_kinds_from_the_code():
     assert bu.kind_of("UC_DP0114_NORD") == "legacy_consumption"
     assert bu.kind_of("UC_0000066_01") == "consumption"
     assert bu.kind_of("UVZi_00001_2634_NOC") == "aggregate_injection"
+    assert bu.TYPOLOGY_LETTERS["UVZi"] == {"J", "K", "L"} and bu.AGGREGATE_LETTERS["UVZi"]["K"] == "battery"
     assert bu.kind_of("UVZp_00001_0156_CSQ") == "aggregate_withdrawal"
     assert bu.kind_of("UPV_SWGD108373O") == "import"
     assert bu.kind_of("UCV_SWGD003171O") == "export"

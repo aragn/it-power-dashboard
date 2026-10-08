@@ -13978,8 +13978,11 @@
     legacy_production: "UP_DI", legacy_consumption: "UC_DP", import: "UPV", export: "UCV"
   };
   const UNIT_ORIGINS = {
-    entsoe: "ENTSO-E unit lists", research: "Research", name: "Read from the unit's name", bids: "Read from the bids"
+    entsoe: "ENTSO-E unit lists", research: "Research", name: "Read from the unit's name", bids: "Read from the bids",
+    typology: "Terna's typology in the code"
   };
+  // Terna's typologies of the units (TIDE section 2.4.3), the last letter of a zonal aggregate's code.
+  const TIDE_TYPOLOGIES = { J: "storage only, in the capacity market", K: "storage only", L: "auxiliary services" };
   const UNIT_ZONES = { NORD: "North", CNOR: "Centre-North", CSUD: "Centre-South", SUD: "South", CALA: "Calabria", SICI: "Sicily", SARD: "Sardinia",
     SVIZ: "Switzerland", MONT: "Montenegro", FRAN: "France", MALT: "Malta", CORS: "Corsica", COAC: "Corsica (AC)" };
   const isLoadUnit = row => ["consumption", "aggregate_withdrawal", "legacy_consumption", "export"].includes(row.kind) ||
@@ -14086,7 +14089,10 @@
   function unitDetail(row) {
     const fact = (label, value) => `<div><span>${label}</span>${isEmpty(value) ? "—" : value}</div>`;
     const sideLabel = { sell: "Sells", buy: "Buys", both: "Buys and sells" }[row.side];
-    const origin = row.source_origin ? ` <span class="muted">(${escapeHtml(UNIT_ORIGINS[row.source_origin] || row.source_origin)})</span>` : "";
+    const originText = row.source_origin === "typology" && TIDE_TYPOLOGIES[row.tech_code]
+      ? `from the code: Terna typology ${row.tech_code}, ${TIDE_TYPOLOGIES[row.tech_code]}`
+      : UNIT_ORIGINS[row.source_origin] || row.source_origin;
+    const origin = row.source_origin ? ` <span class="muted">(${escapeHtml(originText)})</span>` : "";
     const sourceKey = unitSourceKey(row);
     const sourceText = sourceKey !== "unknown" ? unitSourceLabel(sourceKey) : row.tech_code ? `Technology letter ${row.tech_code}` : null;
     const codes = row.codes.length ? `<p><b>Codes</b><br><span class="muted">${escapeHtml(row.codes.join(", "))}</span></p>` : "";

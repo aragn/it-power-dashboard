@@ -51,11 +51,16 @@ REGIONS = {
 }
 
 # Technology letters of the zonal aggregates whose bids leave no doubt;
-# the others are shown as their letter.
+# the others are shown as their letter.  An aggregate's last letter is
+# Terna's typology of its units (TIDE section 2.4.3, letters a-n): those in
+# TYPOLOGY_LETTERS are taken from it ("typology"), the others are read from
+# the bids.
 AGGREGATE_LETTERS = {
     "UVZi": {"C": "solar", "Z": "solar", "K": "battery", "J": "battery", "L": "auxiliaries"},
     "UP_DI": {"C": "solar", "Y": "solar", "F": "battery", "J": "auxiliaries"},
 }
+# TIDE 2.4.3: j storage only, in the capacity market; k storage only (other); l auxiliary services.
+TYPOLOGY_LETTERS = {"UVZi": {"J", "K", "L"}}
 
 # Words in a unit's name that give its type away (the first that matches).
 GEOTHERMAL_PLANTS = (r"BAGNORE|PIANCAST|FARINELLO|NUOVA_RAD|NUOVA_SER|NUOVA_GAB|NUOVA_LAR|NUOVA_CAS|NUOVA_LAG|"
@@ -208,7 +213,8 @@ def build(store, registries, reference=None, last_day=None):
             family = "UVZi" if kind == "aggregate_injection" else "UP_DI"
             row["tech_code"] = code[-1]
             row["source"] = AGGREGATE_LETTERS[family].get(code[-1])
-            row["source_origin"] = "bids" if row["source"] else None
+            typology = code[-1] in TYPOLOGY_LETTERS.get(family, ())
+            row["source_origin"] = ("typology" if typology else "bids") if row["source"] else None
         elif kind in ("aggregate_withdrawal", "legacy_consumption"):
             row["category"] = "retail"
         if kind == "production":
