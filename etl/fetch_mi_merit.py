@@ -33,13 +33,14 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from fetch_gme_units import REQUEST_PAUSE_SECONDS, get_token, request_offers, rows_of  # noqa: E402
-from fetch_mgp_merit import FORMAT, PUBLISHED_AFTER, build, day_quarters, read_day, unit_sources, write_day  # noqa: E402
+from fetch_mgp_merit import PUBLISHED_AFTER, build, day_quarters, read_day, unit_sources, write_day  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "app", "data", "mi_merit")
 
 MARKETS = ["MI-A1", "MI-A2", "MI-A3"]
 MAX_DAYS = 4
+FORMAT = 2       # purchases per unit (the MGP's format 3, its bids per unit, not taken here)
 
 
 def request_market(token, day, market):

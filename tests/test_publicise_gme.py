@@ -167,3 +167,46 @@ def test_purchases_are_renamed_and_consumption_units_named_as_such():
     flat = public["quarters"][0]["purchases"]
     rows = {public["units"][flat[i]][0]: flat[i + 1:i + 4] for i in range(0, len(flat), 4)}
     assert rows == {"Battery 1": [20.0, 100.0, 0], "Consumption unit 1": [900.0, 101.0, 2]}
+
+
+def test_bids_are_renamed():
+    day = {"date": "2026-09-17", "units": [["UP_BESS_1", "battery", "OP", "SUD", "production"]],
+           "quarters": [{"time": "12:00", "prices": {}, "demand": [], "supply": [], "purchases": [],
+                         "bids": [0, 20.0, 60.0, 0, 15.0, 0, 0, 10.0, 20.0, 1, 0, 0]}]}
+    public = pg.publicise_day(day, {}, "salt")
+    assert public["units"][0][0] == "Battery 1"
+    assert public["quarters"][0]["bids"] == [0, 20.0, 60.0, 0, 15.0, 0, 0, 10.0, 20.0, 1, 0, 0]
+
+
+def test_storage_units_keep_one_name_over_the_days(tmp_path, monkeypatch):
+    monkeypatch.setattr(pg, "NAMES_DIR", str(tmp_path / "names"))
+    monkeypatch.setattr(pg, "STORAGE_NAMES_PATH", str(tmp_path / "names" / "storage.json"))
+    folder = tmp_path / "storage"
+    folder.mkdir()
+    row = lambda unit, euro: [unit, 1.0, euro, 0.0, 0.0, 5.0, 100.0, None, None, 0.0, 0.0, 0.0, 0.0, 5.0]
+    days = {"2026-09-17": [["UP_ZBESS_1", "battery", "OP", "SUD", 10.0], ["UP_POMPA_1", "pumped_hydro", "ENEL", "NORD", 500.0]],
+            "2026-09-18": [["UP_POMPA_1", "pumped_hydro", "ENEL", "NORD", 500.0], ["UP_ABESS_1", "battery", "OP2", "SARD", 20.0],
+                           ["UP_ZBESS_1", "battery", "OP", "SUD", 10.0]]}
+    units, daily = {}, {}
+    for day, day_units in days.items():
+        rows = [value for index in range(len(day_units)) for value in row(index, 10.0 * (index + 1))]
+        pg.write_json({"date": day, "units": day_units, "quarters": [{"time": "12:00", "period": 49, "rows": rows}]},
+                      str(folder / f"{day}.json.gz"))
+        for code, technology, operator, zone, mw in day_units:
+            units[code] = [technology, operator, zone, mw, code != "UP_POMPA_1"]
+        daily[day] = {code: [1.0, 2.0, 3.0] for code, *_ in day_units}
+    pg.write_json({"days": {day: {} for day in days}, "files": {}, "units": units, "daily": daily, "signatures": {}},
+                  str(folder / "index.json"))
+    assert pg.publicise(str(folder), "salt") == "2 day(s)"
+    first, second = (pg.read_json(str(folder / f"{day}.json.gz")) for day in days)
+    name = lambda data, code_euro: next(data["units"][data["quarters"][0]["rows"][i]][0]
+                                        for i in range(0, len(data["quarters"][0]["rows"]), 14)
+                                        if data["quarters"][0]["rows"][i + 2] == code_euro)
+    assert name(first, 10.0) == name(second, 30.0)          # UP_ZBESS_1 on both days
+    assert name(first, 20.0) == name(second, 10.0) == "Pumped hydro plant 1"
+    assert sorted(unit[0] for unit in second["units"]) == ["Battery storage 1", "Battery storage 2", "Pumped hydro plant 1"]
+    assert not any("UP_" in str(unit) or "OP" in str(unit) for data in (first, second) for unit in data["units"])
+    index = pg.read_json(str(folder / "index.json"))
+    assert "signatures" not in index and all(not code.startswith("UP_") for code in index["units"])
+    assert set(index["daily"]["2026-09-18"]) == set(index["units"])
+    assert index["units"]["Pumped hydro plant 1"] == ["pumped_hydro", None, "NORD", 500.0, False]

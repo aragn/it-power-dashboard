@@ -235,3 +235,21 @@ def test_the_backfill_reads_the_whole_autumn_day(tmp_path, monkeypatch):
     mm.backfill(AUTUMN, AUTUMN, str(tmp_path), 8)
     times = mm.read_day(os.path.join(str(tmp_path), "index.json"))["days"]["2026-10-25"]
     assert len(times) == 100 and times[12] == "02:00*" and times[-1] == "23:45"
+
+
+def test_the_purchase_bids_of_storage_and_production_units_are_kept_per_unit():
+    units = {**UNITS, "UP_BESS_1": ("battery", "BESS SPA", "SUD", "production")}
+    rows = [row("UP_BESS_1", 45, 20, awarded=15, purpose="BID", price="60", awarded_price="55"),
+            row("UP_BESS_1", 45, 10, status="REJ", purpose="BID", price="20", awarded_price=""),
+            row("UP_BESS_1", 45, 5, status="REV", purpose="BID", price="10"),
+            row("UC_0000001_01", 45, 400, awarded=400, purpose="BID", price="3000", zone="NORD"),
+            row("UC_0000001_01", 46, 300, status="REJ", purpose="BID", price="1", zone="NORD")]
+    data = mm.build(rows, 44, 45, units, DAY, bids=True)
+    first, second = data["quarters"]
+    bids = [first["bids"][index:index + 6] for index in range(0, len(first["bids"]), 6)]
+    bess = [code for code, *_ in data["units"]].index("UP_BESS_1")
+    assert sorted(bids) == [[bess, 10, 20.0, 1, 0, 0], [bess, 20, 60.0, 0, 15, 0]]    # standing bids only
+    assert second["bids"] == []                                                        # consumption: not kept
+    assert [code for code, *_ in data["units"]] == ["UP_BESS_1", "UC_0000001_01"]    # the rejected UC bid adds no unit
+    assert "bids" not in mm.build(rows, 44, 44, units, DAY)["quarters"][0]           # MI-A: no bids
+    assert mm.day_data(DAY, rows, units)["version"] == mm.FORMAT == 3

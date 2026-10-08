@@ -14,6 +14,10 @@ Per quarter-hour:
   purchases  the accepted purchase bids per unit (consumption units, storage
            and pumping buying, units buying back), as [unit, MW accepted,
            price awarded, flags] (since FORMAT 2)
+  bids     the purchase bids that stood at the close of the units that are
+           not consumption or virtual units (storage charging, pumping,
+           production units buying back), per unit: [unit, MW, bid price,
+           status, MW accepted, flags] (since FORMAT 3; MGP only)
   others   the sale offers that did not stand, per unit and status:
            [unit, status, MW], status 3 replaced (REP), 4 revoked (REV),
            5 invalid (INC); with "supply", the MW offered by status (the page
@@ -82,7 +86,10 @@ PUBLISHED_AFTER = 7            # days after the market before GME may have the o
 MAX_DAYS = 8                   # days a run (each file is 500-650 MB)
 MARKET_TZ = ZoneInfo("Europe/Rome")
 REPEATED = "*"                 # marks the second 02:00-02:45 of the autumn clock change
-FORMAT = 2                     # day files of an older format are read again (2: purchases per unit)
+FORMAT = 3                     # day files of an older format are read again (2: purchases per unit, 3: bids)
+# The units whose purchase bids are not kept one by one ("bids"): the
+# consumption units' (all of Italy's demand) and the virtual units'.
+NO_BIDS_KINDS = ("consumption", "aggregate_withdrawal", "legacy_consumption", "import", "export")
 
 
 def period_of(row):
@@ -148,17 +155,24 @@ def unit_sources(path=UNITS_PATH):
     return units
 
 
-def build(rows, first, last, units, day, registry=None):
+def build(rows, first, last, units, day, registry=None, bids=False):
     """The day's merit order data for its quarter-hours first..last (indexes).
     registry: (code -> index, unit list) shared by several markets' builds
-    (the MI-A auctions of a day share one unit list); else a new one."""
+    (the MI-A auctions of a day share one unit list); else a new one.
+    bids: also the purchase bids per unit ("bids") of the units not of
+    NO_BIDS_KINDS."""
     wanted = set(range(first, last + 1))
     prices = defaultdict(Counter)                     # (quarter, zone) -> awarded prices
     supply = defaultdict(list)
     demand = defaultdict(lambda: defaultdict(lambda: [0.0, 0.0]))
     others = defaultdict(lambda: defaultdict(float))  # quarter -> (unit, status) -> MW
     purchases = defaultdict(list)
+    unit_bids = defaultdict(list)
     unit_index, unit_list = registry if registry is not None else ({}, [])
+
+    def keeps_bids(code):
+        known = units.get(code)
+        return ((known and known[3]) or kind_of(code)) not in NO_BIDS_KINDS
 
     def unit_of(row):
         code = row.get("UNIT_REFERENCE_NO") or ""
@@ -207,11 +221,15 @@ def build(rows, first, last, units, day, registry=None):
                 step = demand[index][price if price is not None else 0.0]
                 step[0] += accepted
                 step[1] += quantity - accepted
+            flags = (HOURLY if hourly else 0) | (BILATERAL if row.get("BILATERAL_IN") == "true" else 0)
             if accepted > 0:
-                record = [unit_of(row), round_mw(accepted), awarded_price,
-                          (HOURLY if hourly else 0) | (BILATERAL if row.get("BILATERAL_IN") == "true" else 0)]
+                record = [unit_of(row), round_mw(accepted), awarded_price, flags]
                 for index in covered:
                     purchases[index].append(record)
+            if bids and keeps_bids(row.get("UNIT_REFERENCE_NO") or ""):
+                record = [unit_of(row), round_mw(quantity), price, STANDING[code_status], round_mw(accepted), flags]
+                for index in covered:
+                    unit_bids[index].append(record)
 
     quarters = []
     for index in sorted(wanted):
@@ -223,7 +241,7 @@ def build(rows, first, last, units, day, registry=None):
             if counts:
                 zone_prices[zone] = counts.most_common(1)[0][0]
         steps = sorted(demand[index].items(), key=lambda item: -item[0])
-        quarters.append({
+        quarter_data = {
             "time": label(index, day),
             "period": index + 1,
             "prices": zone_prices,
@@ -233,7 +251,10 @@ def build(rows, first, last, units, day, registry=None):
             "others": [value for (unit, code), mw in sorted(others[index].items())
                        for value in (unit, code, round_mw(mw))],
             "purchases": [value for record in purchases[index] for value in record],
-        })
+        }
+        if bids:
+            quarter_data["bids"] = [value for record in unit_bids[index] for value in record]
+        quarters.append(quarter_data)
     return {"units": unit_list, "quarters": quarters}
 
 
@@ -322,7 +343,7 @@ def day_data(day, rows, units, first=0, last=None):
     """The day's file for its quarter-hours first..last (all of them by default)."""
     if last is None:
         last = day_quarters(day) - 1
-    data = build(rows, first, last, units, day)
+    data = build(rows, first, last, units, day, bids=True)
     return {"date": day.isoformat(), "market": "MGP", "version": FORMAT,
             "source": "GME public offers (Offers_PublicDomain, MGP); unit sources from gme_units.json", **data}
 
