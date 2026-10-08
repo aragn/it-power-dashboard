@@ -431,3 +431,25 @@ def test_gme_series_go_to_their_own_files(tmp_path, monkeypatch):
     assert not any(fb.is_gme(group) for group in fb.load_existing("public")["quarter_hourly"])
     assert fb.load_existing("gme")["quarter_hourly"] and all(
         fb.is_gme(group) for group in fb.load_existing("gme")["quarter_hourly"])
+
+
+def test_bid_files_are_gzipped_kept_400_days_and_the_old_plain_ones_converted(tmp_path, monkeypatch):
+    import gzip
+    import json
+    from datetime import date, timedelta
+    monkeypatch.setattr(fb, "BIDS_DIR", str(tmp_path))
+    today = date(2026, 10, 8)
+    (tmp_path / "NORD").mkdir()
+    payload = {"zone": "NORD", "date": "2026-10-01", "products": {"rr_up": {"12:00": [250, 10]}}}
+    (tmp_path / "NORD" / "2026-10-01.json").write_text(json.dumps(payload))            # a plain file of before
+    old = (today - timedelta(days=fb.BID_RETENTION_DAYS + 1)).isoformat()
+    fb.write_bid_file(str(tmp_path / "NORD" / f"{old}.json.gz"), {**payload, "date": old})
+    kept = (today - timedelta(days=fb.BID_RETENTION_DAYS - 1)).isoformat()
+    fb.write_bid_file(str(tmp_path / "NORD" / f"{kept}.json.gz"), {**payload, "date": kept})
+    assert fb.BID_RETENTION_DAYS == 400
+    fb.prune_bids(today)
+    assert sorted(p.name for p in (tmp_path / "NORD").iterdir()) == [f"{kept}.json.gz", "2026-10-01.json.gz"]
+    with gzip.open(tmp_path / "NORD" / "2026-10-01.json.gz", "rt") as f:
+        assert json.load(f) == payload
+    assert fb.bid_days() == {"NORD": [kept, "2026-10-01"]}
+    assert fb.bid_path("NORD", today).endswith("2026-10-08.json.gz")
