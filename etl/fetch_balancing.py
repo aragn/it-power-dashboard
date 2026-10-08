@@ -482,9 +482,16 @@ def fetch_bids(token, zone, eic, day):
     bids = defaultdict(lambda: defaultdict(list))
     for process, product in BID_PROCESSES:
         for offset in range(0, 100_000, 100):
-            root = entsoe_get(token, {"documentType": "A37", "businessType": "B74", "processType": process,
-                                      "connecting_Domain": eic, "periodStart": start, "periodEnd": end,
-                                      "offset": offset})
+            try:
+                root = entsoe_get(token, {"documentType": "A37", "businessType": "B74", "processType": process,
+                                          "connecting_Domain": eic, "periodStart": start, "periodEnd": end,
+                                          "offset": offset})
+            except requests.HTTPError as error:
+                # A page past the last one (the bids filling whole pages of 100) is
+                # refused with a 400 that does not always say "No matching data".
+                if offset and error.response is not None and error.response.status_code == 400:
+                    break
+                raise
             series = _series(root, "Bid_TimeSeries")
             for ts in series:
                 key = bid_product(ts, product)

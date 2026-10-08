@@ -453,3 +453,34 @@ def test_bid_files_are_gzipped_kept_400_days_and_the_old_plain_ones_converted(tm
         assert json.load(f) == payload
     assert fb.bid_days() == {"NORD": [kept, "2026-10-01"]}
     assert fb.bid_path("NORD", today).endswith("2026-10-08.json.gz")
+
+
+def test_bid_paging_ends_on_a_refused_page_past_the_last(monkeypatch):
+    import requests
+    from datetime import date
+    pages = []
+
+    def fake_get(token, params):
+        pages.append((params["processType"], params["offset"]))
+        if params["offset"] >= 100:
+            response = requests.Response()
+            response.status_code = 400
+            raise requests.HTTPError("400 Client Error: Bad Request", response=response)
+        return "page"
+
+    monkeypatch.setattr(fb, "entsoe_get", fake_get)
+    monkeypatch.setattr(fb, "_series", lambda root, tag: [object()] * 100 if root == "page" else [])
+    monkeypatch.setattr(fb, "bid_product", lambda ts, product: "rr_up")
+    monkeypatch.setattr(fb, "expand_points", lambda ts, read: [])
+    assert fb.fetch_bids("token", "NORD", "eic", date(2026, 7, 2)) == fb.merit_curves({})
+    assert all(offset in (0, 100) for _, offset in pages)          # a full first page, then the refused one ends it
+
+    def broken(token, params):
+        response = requests.Response()
+        response.status_code = 400
+        raise requests.HTTPError("400", response=response)
+
+    monkeypatch.setattr(fb, "entsoe_get", broken)
+    import pytest
+    with pytest.raises(requests.HTTPError):                         # a refused first page is still an error
+        fb.fetch_bids("token", "NORD", "eic", date(2026, 7, 2))
