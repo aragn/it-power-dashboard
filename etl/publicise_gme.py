@@ -72,7 +72,6 @@ PUBLIC_NAMES = {
 }
 STORAGE_NAMES_PATH = os.path.join(NAMES_DIR, "storage.json")
 STORAGE_NAMES = {"battery": "Battery storage", "pumped_hydro": "Pumped hydro plant"}
-STORAGE_FIELDS = 14     # values in a storage record (build_storage.FIELDS)
 
 NOTE = "Re-elaborated for the public site: units renamed, unit list not published (GME's terms); source GME."
 
@@ -362,9 +361,10 @@ def publicise_storage_day(data, names):
     public = {**data, "source": NOTE,
               "units": [[names[data["units"][old][0]], data["units"][old][1], None, data["units"][old][3],
                          data["units"][old][4]] for old in units], "quarters": []}
+    size = data.get("fields", 14)       # values in a record (build_storage.FIELDS)
     for item in data["quarters"]:
         flat = item["rows"]
-        rows = [[new_index[flat[i]]] + flat[i + 1:i + STORAGE_FIELDS] for i in range(0, len(flat), STORAGE_FIELDS)]
+        rows = [[new_index[flat[i]]] + flat[i + 1:i + size] for i in range(0, len(flat), size)]
         rows.sort(key=lambda row: row[0])
         public["quarters"].append({**item, "rows": [value for row in rows for value in row]})
     return public

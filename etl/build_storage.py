@@ -14,7 +14,7 @@ in it:
    MW offered for sale (MGP), its average bid price (EUR/MWh, by MW),
    MW bid to buy (MGP), its average bid price,
    MI-A net EUR, MI-XBID net EUR, MSD net EUR, MB net EUR,
-   MW offered in all markets]
+   MW offered in all markets, MI-A net MW, MI-XBID net MW]
 
   MW of the quarter-hour; EUR of the quarter-hour (MW x price x 0.25 h):
   sales above zero, purchases below in the net columns.  MGP and MI-A at
@@ -25,7 +25,9 @@ in it:
   the Market tab.  The MGP bids to buy per unit are on file from its format
   3 (null before).  MW offered in all markets: the MGP's and MI-A's sale
   offers and bids (the MI-A purchases accepted, its bids not being kept),
-  MSD's and MB's energy offers both ways, MI-XBID's trades.
+  MSD's and MB's energy offers both ways, MI-XBID's trades.  Net MW: sold
+  minus bought (with the MGP's, a unit's net position across the energy
+  markets).  "fields": the values in a record (16 since VERSION 2, 14 before).
 
 app/data/storage/index.json: the days on file (the markets each had, the
 quarter-hours), the units (technology, operator, zone, MW: the database's
@@ -60,10 +62,10 @@ OUT_DIR = os.path.join(DATA, "storage")
 UNITS_PATH = os.path.join(DATA, "gme_units.json")
 TECHNOLOGIES = {"battery": "battery", "pumped_hydro": "pumped_hydro"}
 OTHER_MARKETS = ["XBID", "MSD", "MB"]
-FIELDS = 14                     # values in a record
+FIELDS = 16                     # values in a record
 RS = 5                          # the secondary reserve's scope in MSD/MB files
 PORTFOLIO = "portfolio"         # a unit's category: plants bid as one (left out of the benchmark)
-VERSION = 1
+VERSION = 2                     # 2: MI-A and MI-XBID net MW
 
 
 def unit_database(path=None):
@@ -146,6 +148,8 @@ class Day:
                         row[2] += euro
                 else:
                     row[9] += euro
+                    if euro:
+                        row[14] += accepted
             flat = item.get("purchases") or []
             for i in range(0, len(flat), 4):
                 unit = unit_of(flat[i])
@@ -161,6 +165,7 @@ class Day:
                 else:
                     row[9] -= euro
                     row[13] += flat[i + 1]
+                    row[14] -= flat[i + 1]
             if market == "MGP" and "bids" in item:
                 flat = item["bids"]
                 for i in range(0, len(flat), 6):
@@ -188,6 +193,7 @@ class Day:
                 sign = 1 if flat[i + 1] == 0 else -1
                 row[10] += sign * flat[i + 2] * flat[i + 3] * 0.25
                 row[13] += flat[i + 2]
+                row[15] += sign * flat[i + 2]
 
         for item in file.get("quarters", []):
             add(position(item, self.day), item["fills"])
@@ -224,7 +230,7 @@ class Day:
             quarters.append({"time": time, "period": period,
                              "rows": [round(value, 3) if isinstance(value, float) else value
                                       for row in rows for value in row]})
-        return {"date": self.day.isoformat(), "version": VERSION, "markets": markets, "bids": bids,
+        return {"date": self.day.isoformat(), "version": VERSION, "fields": FIELDS, "markets": markets, "bids": bids,
                 "units": self.units, "quarters": quarters}
 
 
@@ -248,8 +254,8 @@ def input_files(day):
 
 
 def signature(files, units_key):
-    """The day's inputs: its market files' contents and the storage units."""
-    digest = hashlib.sha1(units_key.encode())
+    """The day's inputs: its market files' contents, the storage units and the format."""
+    digest = hashlib.sha1(f"{units_key}|{VERSION}".encode())
     for market, path in sorted(files.items()):
         digest.update(market.encode())
         with open(path, "rb") as handle:
@@ -284,9 +290,10 @@ def build_day(day, files, database):
 def day_totals(data):
     """unit code -> [net EUR all markets, MWh offered, MGP net EUR] of a day file."""
     totals = {}
+    size = data.get("fields", 14)
     for item in data["quarters"]:
         flat = item["rows"]
-        for i in range(0, len(flat), FIELDS):
+        for i in range(0, len(flat), size):
             code = data["units"][flat[i]][0]
             sums = totals.setdefault(code, [0.0, 0.0, 0.0])
             mgp = flat[i + 2] - flat[i + 4]
