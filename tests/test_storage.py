@@ -90,7 +90,10 @@ def test_a_day_of_all_markets(data):
     assert evening[11] == 375.0                                             # MSD 5 x 300 x 0.25; RS left out
     assert evening[13] == 50.0 + 6.0
     totals = index["daily"]["2026-09-17"]
-    assert totals["UP_BESS_1"] == [round(-250.0 - 100.0 + 1500.0 + 375.0, 1), round((80.0 + 56.0) * 0.25, 1), 1250.0]
+    assert totals["UP_BESS_1"][:3] == [round(-250.0 - 100.0 + 1500.0 + 375.0, 1), round((80.0 + 56.0) * 0.25, 1), 1250.0]
+    # By market; then discharged (19:00: 40 MW sold, 1500 EUR) and charged (12:00: 20 MW in the MGP + 10 in MI-A, 350 EUR).
+    assert totals["UP_BESS_1"][3:] == [-100.0, 0.0, 375.0, 0.0, 10.0, 1500.0, 7.5, 350.0]
+    assert index["totals"] == bs.TOTALS
     assert index["units"]["UP_POMPA_1"] == ["pumped_hydro", "ENEL", "NORD", 1000.0, False]    # a portfolio: no benchmark
     assert index["units"]["UP_BESS_1"][4] is True
     assert "UP_SOLE_1" not in index["units"]

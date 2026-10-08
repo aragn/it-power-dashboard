@@ -33,9 +33,12 @@ app/data/storage/index.json: the days on file (the markets each had, the
 quarter-hours), the units (technology, operator, zone, MW: the database's
 installed capacity, else the largest MW offered; in the benchmark or not:
 not a unit the database's research marks as a portfolio of plants bid as
-one, category "portfolio") and per day and unit the
-totals [net EUR all markets, MWh offered in all markets, MGP net EUR]
-for the weekly benchmark.
+one, category "portfolio") and per day and unit the totals (TOTALS) for
+the weekly charts: net EUR in all markets, MWh offered, the net EUR of
+each market, and the MWh discharged and charged with their EUR, taken
+quarter-hour by quarter-hour from the unit's net position across the MGP,
+MI-A and MI-XBID (sold minus bought: above zero discharging, below zero
+charging; with the EUR of those three markets).
 
 The units' technology is the database's (gme_units.json) as it is now: a
 day is built again when its market files or the storage units change.
@@ -287,19 +290,34 @@ def build_day(day, files, database):
     return result.data(markets, bids)
 
 
+TOTALS = ["net_eur", "offered_mwh", "mgp_eur", "mi_eur", "xbid_eur", "msd_eur", "mb_eur",
+          "discharged_mwh", "discharged_eur", "charged_mwh", "charged_eur"]
+
+
 def day_totals(data):
-    """unit code -> [net EUR all markets, MWh offered, MGP net EUR] of a day file."""
+    """unit code -> its TOTALS of a day file."""
     totals = {}
     size = data.get("fields", 14)
     for item in data["quarters"]:
         flat = item["rows"]
         for i in range(0, len(flat), size):
             code = data["units"][flat[i]][0]
-            sums = totals.setdefault(code, [0.0, 0.0, 0.0])
+            sums = totals.setdefault(code, [0.0] * len(TOTALS))
             mgp = flat[i + 2] - flat[i + 4]
             sums[0] += mgp + flat[i + 9] + flat[i + 10] + flat[i + 11] + flat[i + 12]
             sums[1] += flat[i + 13] * 0.25
             sums[2] += mgp
+            for column, field in ((3, 9), (4, 10), (5, 11), (6, 12)):
+                sums[column] += flat[i + field]
+            # The net position across the energy markets (MI-A and MI-XBID MW since VERSION 2).
+            position = flat[i + 1] - flat[i + 3] + (flat[i + 14] + flat[i + 15] if size > 15 else 0.0)
+            euro = mgp + flat[i + 9] + flat[i + 10]
+            if position > 0:
+                sums[7] += position * 0.25
+                sums[8] += euro
+            elif position < 0:
+                sums[9] -= position * 0.25
+                sums[10] -= euro
     return {code: [round(value, 1) for value in sums] for code, sums in sorted(totals.items())}
 
 
@@ -343,7 +361,7 @@ def write_index(out_dir, signatures, database):
         for code, technology, operator, zone, mw in data["units"]:
             category = (database.get(code) or (None,) * 5)[4]
             units[code] = [technology, operator, zone, mw, category != PORTFOLIO]
-    index = {"days": days, "files": files, "units": dict(sorted(units.items())), "daily": daily,
+    index = {"days": days, "files": files, "units": dict(sorted(units.items())), "totals": TOTALS, "daily": daily,
              "signatures": {day: signatures[day] for day in days if day in signatures}}
     write_json(index, os.path.join(out_dir, "index.json"))
     return index
