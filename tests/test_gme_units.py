@@ -76,6 +76,8 @@ def test_type_from_the_name_then_only_solar_and_storage_from_the_bids():
     solar = [0.0] * 7 + [10.0] * 12 + [0.0] * 5
     assert bu.infer_source("UP_PRCOEOLICO_1", purposes(flat)) == ("wind_onshore", "name")
     assert bu.infer_source("UP_TRINOBESS2_1", purposes(flat)) == ("battery", "name")
+    assert bu.infer_source("UP_XYZBATTERY_1", purposes(flat)) == ("battery", "name")
+    assert bu.infer_source("UP_BATTIGGIO_1", purposes(flat)) == (None, None)      # a hydro plant's place name
     assert bu.infer_source("UP_BAGNORE4_1", purposes(flat)) == ("geothermal", "name")
     assert bu.infer_source("UP_TRMVLRZZTR_3", purposes(flat)) == ("waste", "name")
     assert bu.infer_source("UP_XYZ_1", purposes(solar)) == ("solar", "bids")
