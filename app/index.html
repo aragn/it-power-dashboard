@@ -10281,12 +10281,11 @@
       `All plants (total)</label><hr>` + plantList.map(plant =>
         `<label class="queue-option"><input type="checkbox" data-plant="${escapeHtml(plant.code)}"${chosen.has(plant.code) ? " checked" : ""}>` +
         `<span>${escapeHtml(storageName(plant.code))}${PUBLIC_MODE || !plant.operator ? "" : ` <small>${escapeHtml(plant.operator)}</small>`}</span>` +
-        `<span class="count">${PUBLIC_MODE ? "" : formatEuro(plant.net)}</span></label>`).join("") + `</div>`;
+        `<span class="count">${PUBLIC_MODE ? "" : plant.label}</span></label>`).join("") + `</div>`;
   }
 
   function renderStorageRevenue(collected, panel, plantList) {
     const { chart, timeline, tech, kind } = panel;
-    storagePlantFilter(panel, plantList);
     const rows = resetTimeline(timeline);
     const buckets = collected[tech.key];
     const chosen = storageState.plants[`${kind}-${tech.id}`];
@@ -10313,6 +10312,16 @@
     const netOf = kind === "mgp" ? measure.mgp
       : sums => measure.mgp(sums) + measure["MI-A"](sums) + measure.XBID(sums) + measure.MSD(sums) + measure.MB(sums);
     const format = value => (volumes ? `${formatNumber(value, 0)} ${unit}` : formatEuro(value));
+    // The list follows its chart: each plant's net over the dates in this chart's market(s), €, or MWh in MW mode.
+    const plantTotals = new Map();
+    buckets.forEach(plants => plants.units.forEach((sums, code) => {
+      plantTotals.set(code, (plantTotals.get(code) || 0) + netOf(sums) / (volumes ? scale : 1));
+    }));
+    plantList = plantList.map(plant => {
+      const net = plantTotals.get(plant.code) || 0;
+      return { ...plant, net, label: volumes ? `${formatNumber(net, 0)} MWh` : formatEuro(net) };
+    }).sort((a, b) => b.net - a.net);
+    storagePlantFilter(panel, plantList);
     let series;
     if (!chosen.size) {
       const parts = kind === "mgp"
