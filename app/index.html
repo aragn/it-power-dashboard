@@ -10181,9 +10181,11 @@
   function storageBidPoint(plants, mode) {
     if (!plants) return null;
     const sides = [];
+    // A plant buys or sells when its net position averages at least 1 MW over the period
+    // (a few kWh traded do not make a side, nor carry a bid at the price cap into the line).
     plants.units.forEach(sums => {
-      const position = storagePosition(sums);
-      sides.push([position > 1e-6 ? 1 : position < -1e-6 ? -1 : 0, sums]);
+      const mw = storagePosition(sums) * 4 / plants.quarters;
+      sides.push([mw >= 1 ? 1 : mw <= -1 ? -1 : 0, sums]);
     });
     let sellers = sides.filter(([side]) => side === 1).length, buyers = sides.filter(([side]) => side === -1).length;
     let chosen = sides;
@@ -10832,7 +10834,8 @@
     storageKpis(files.filter(Boolean));
     const help = (selector, text) => document.querySelectorAll(selector).forEach(item => { item.textContent = text; });
     help(".storage-bid-help", "Each plant buying or selling by its net position in the period across the MGP, MI-A and MI-XBID (sold minus bought): " +
-      "the line follows the side most plants are on (the side with more MW offered or bid in the MGP where no plant traded), the median over those " +
+      "a plant counting when its net position averages at least 1 MW; the line follows the side most plants are on (the side with more MW " +
+      "offered or bid in the MGP where no plant traded), the median over those " +
       "plants of their MGP bid (a few plants offering far above the market to stay out do not swing it): in €/MWh the " +
       "price of their sale offers (above zero) or of their bids to buy (below zero), each plant's averaged by MW; in MW the MW they offered or bid on " +
       "average; all offers that stood at the close, accepted or not. Without the bids per plant on file, the buying side is estimated from what " +
