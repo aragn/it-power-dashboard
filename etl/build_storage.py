@@ -14,7 +14,7 @@ in it:
    MW offered for sale (MGP), its average bid price (EUR/MWh, by MW),
    MW bid to buy (MGP), its average bid price,
    MI-A net EUR, MI-XBID net EUR, MSD net EUR, MB net EUR,
-   MW offered in all markets, MI-A net MW, MI-XBID net MW]
+   MW offered in all markets, MI-A net MW, MI-XBID net MW, MSD net MW, MB net MW]
 
   MW of the quarter-hour; EUR of the quarter-hour (MW x price x 0.25 h):
   sales above zero, purchases below in the net columns.  MGP and MI-A at
@@ -27,7 +27,8 @@ in it:
   offers and bids (the MI-A purchases accepted, its bids not being kept),
   MSD's and MB's energy offers both ways, MI-XBID's trades.  Net MW: sold
   minus bought (with the MGP's, a unit's net position across the energy
-  markets).  "fields": the values in a record (16 since VERSION 2, 14 before).
+  markets).  "fields": the values in a record (18 since VERSION 3, 16 in VERSION 2,
+  14 before); MSD and MB net MW: upward minus downward accepted, RS left out.
 
 app/data/storage/index.json: the days on file (the markets each had, the
 quarter-hours), the units (technology, operator, zone, MW: the database's
@@ -65,10 +66,10 @@ OUT_DIR = os.path.join(DATA, "storage")
 UNITS_PATH = os.path.join(DATA, "gme_units.json")
 TECHNOLOGIES = {"battery": "battery", "pumped_hydro": "pumped_hydro"}
 OTHER_MARKETS = ["XBID", "MSD", "MB"]
-FIELDS = 16                     # values in a record
+FIELDS = 18                     # values in a record
 RS = 5                          # the secondary reserve's scope in MSD/MB files
 PORTFOLIO = "portfolio"         # a unit's category: plants bid as one (left out of the benchmark)
-VERSION = 2                     # 2: MI-A and MI-XBID net MW
+VERSION = 3                     # 2: MI-A and MI-XBID net MW; 3: MSD and MB net MW
 
 
 def unit_database(path=None):
@@ -222,6 +223,7 @@ class Day:
                 if flat[i + 5] == 0 and flat[i + 6] > 0:
                     sign = 1 if flat[i + 1] == 0 else -1
                     row[column] += sign * flat[i + 6] * (flat[i + 4] or 0) * 0.25
+                    row[column + 5] += sign * flat[i + 6]                  # MSD 11 -> 16, MB 12 -> 17
 
     def data(self, markets, bids):
         quarters = []

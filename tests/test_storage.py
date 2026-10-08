@@ -84,10 +84,11 @@ def test_a_day_of_all_markets(data):
     assert pump[1:7] == [100.0, 1250.0, 0.0, 0.0, 100.0, 10.0]
     assert rows[("19:00", "UP_POMPA_1")][10] == 200.0                       # 8 x 100 x 0.25 each quarter-hour
     assert rows[("19:00", "UP_POMPA_1")][15] == 8.0                         # MI-XBID net MW sold
-    assert day["fields"] == bs.FIELDS == 16 and day["version"] == 2
+    assert day["fields"] == bs.FIELDS == 18 and day["version"] == 3
     evening = rows[("19:00", "UP_BESS_1")]
     assert evening[1:3] == [40.0, 1500.0] and evening[5:7] == [50.0, (40 * 120 + 10 * 300) / 50]
     assert evening[11] == 375.0                                             # MSD 5 x 300 x 0.25; RS left out
+    assert evening[16:18] == [5.0, 0.0]                                     # MSD net MW up; MB none
     assert evening[13] == 50.0 + 6.0
     totals = index["daily"]["2026-09-17"]
     assert totals["UP_BESS_1"][:3] == [round(-250.0 - 100.0 + 1500.0 + 375.0, 1), round((80.0 + 56.0) * 0.25, 1), 1250.0]
