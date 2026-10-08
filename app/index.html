@@ -10186,7 +10186,7 @@
       if (!offered && !bid) return null;
       side = offered >= bid ? 1 : -1;
     }
-    let estimated = false;
+    let estimated = 0;
     const values = chosen.map(([, sums]) => {
       if (side === 1) {
         if (mode === "mw") return sums.offer ? sums.offer / plants.quarters : null;
@@ -10200,7 +10200,7 @@
       // paid where they were bought (the MGP's purchases, MI-A's and MI-XBID's net purchases).
       const bought = -storagePosition(sums);
       if (!(bought > 0)) return null;
-      estimated = true;
+      estimated += 1;
       if (mode === "mw") return bought * 4 / plants.quarters;
       let cost = sums.boughtEuro, energy = sums.bought;
       [[sums.miNet, sums.mi], [sums.xbidNet, sums.xbid]].forEach(([mwh, euro]) => {
@@ -10213,7 +10213,8 @@
     values.sort((a, b) => a - b);
     const middle = Math.floor(values.length / 2);
     const median = values.length % 2 ? values[middle] : (values[middle - 1] + values[middle]) / 2;
-    return { value: side * median, side, plants: values.length, estimated };
+    // Estimated: most of the plants shown bought without a bid of their own on file.
+    return { value: side * median, side, plants: values.length, estimated: estimated * 2 > values.length };
   }
 
   function renderStorageBids(collected, panel) {
@@ -10224,10 +10225,12 @@
     const points = rows.map(row => storageBidPoint(buckets.get(row.key), mode));
     const unit = mode === "mw" ? "MW" : "€/MWh";
     const estimated = points.some(point => point && point.estimated);
+    const noBids = storageRangeDays().some(day => !storageIndex.days[day].bids);
     const sellColor = cssVar("--queue-approved"), buyColor = cssVar("--blue");
     const subtitleId = `storage-bid-${tech.id}-subtitle`;
     setText(subtitleId, `${mode === "mw" ? "MW offered or bid per plant" : "€/MWh offered or bid per plant"}, above zero selling, below zero buying` +
-      (estimated ? " · buying side estimated from the price paid (bids per unit not on file for these days)" : ""));
+      (!estimated ? "" : noBids ? " · buying side estimated from the price paid (bids per unit not on file for some of these days)"
+        : " · where most buyers had no MGP bid (they bought in MI-A or MI-XBID), the buying side is estimated from the price paid"));
     chart.setOption({
       animation: false,
       backgroundColor: "transparent",
