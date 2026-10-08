@@ -1,4 +1,4 @@
-name: Update Installed Capacity & Unavailability
+name: Update Installed Capacity, Unavailability & Hydro Reservoirs
 
 on:
   schedule:
@@ -69,8 +69,17 @@ jobs:
           echo "Running: python etl/fetch_outages.py ${ARGS[*]}"
           python etl/fetch_outages.py "${ARGS[@]}"
 
+      - name: Fetch the hydro reservoirs (ENTSO-E 16.1.D)
+        # Weekly data: the last weeks daily, the whole history when the file
+        # is missing; a failure here does not hold back the rest.
+        continue-on-error: true
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        run: python etl/fetch_reservoirs.py
+
       - name: Publish updated data to the data branch
         run: |
           FILES=(app/data/outages.json app/data/outage_units.json)
           if [ -f app/data/capacity.json ]; then FILES+=(app/data/capacity.json); fi
+          if [ -f app/data/reservoirs.json ]; then FILES+=(app/data/reservoirs.json); fi
           bash .github/scripts/data-branch.sh publish "${FILES[@]}"

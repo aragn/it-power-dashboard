@@ -384,7 +384,7 @@ def publicise_storage(directory, secret):
         path = os.path.join(directory, name)
         write_json(publicise_storage_day(read_json(path), names), path)
         count += 1
-    public = {"days": index["days"], "files": index["files"], "source": NOTE,
+    public = {"days": index["days"], "files": index["files"], "source": NOTE, "totals": index.get("totals"),
               "units": {names[code]: [entry[0], None, entry[2], entry[3], entry[4] if len(entry) > 4 else True]
                         for code, entry in sorted(index["units"].items(), key=lambda item: names[item[0]])},
               "daily": {day: {names[code]: totals for code, totals in sorted(units.items(), key=lambda item: names[item[0]])}
