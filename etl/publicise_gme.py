@@ -21,7 +21,10 @@ its data shown publicly only re-elaborated):
 The merit orders, mgp_merit (MGP) and mi_merit (MI-A), and the other
 markets' offers, market_offers (MSD, MB, MI-XBID): a unit has one name in
 every market of a day, kept in the private data (NAMES_DIR, which the jobs
-publish to the private data branch only).
+publish to the private data branch only).  The storage units (storage,
+build_storage.py) keep one name over all days ("Battery storage 3"), the
+Storage tab following each plant through time; named in a random order as
+they first appear (STORAGE_NAMES_PATH), without operators.
 
 Run in the private repository after a GME job has published its private
 files, on the paths that job writes, in place (the runner's copy); the job
@@ -67,6 +70,10 @@ PUBLIC_NAMES = {
     "oil": "Oil plant", "battery": "Battery", "imports": "Cross-border unit", "consumption": "Consumption unit",
     "other": "Other power plant",
 }
+STORAGE_NAMES_PATH = os.path.join(NAMES_DIR, "storage.json")
+STORAGE_NAMES = {"battery": "Battery storage", "pumped_hydro": "Pumped hydro plant"}
+STORAGE_FIELDS = 14     # values in a storage record (build_storage.FIELDS)
+
 NOTE = "Re-elaborated for the public site: units renamed, unit list not published (GME's terms); source GME."
 
 
@@ -213,6 +220,12 @@ def public_quarters(quarters, new_index):
                     for i in range(0, len(flat), 4)]
             rows.sort(key=lambda record: (record[2] if record[2] is not None else 0, record[0], record[1], record[3]))
             public["purchases"] = [value for record in rows for value in record]
+        if "bids" in quarter:
+            flat = quarter["bids"]
+            rows = [[new_index[flat[i]], step(flat[i + 1], OFFER_STEP), step(flat[i + 2], PRICE_STEP), flat[i + 3],
+                     step(flat[i + 4], OFFER_STEP), flat[i + 5]] for i in range(0, len(flat), 6)]
+            rows.sort(key=lambda record: (record[3], record[2] if record[2] is not None else 0, record[0], record[1]))
+            public["bids"] = [value for record in rows for value in record]
         if "period" in quarter:
             public["period"] = quarter["period"]
         if "others" in quarter:
@@ -325,9 +338,68 @@ def publicise_merit(directory, secret):
     return count
 
 
+def storage_names(units, secret, store):
+    """Names the storage units not named yet (code -> [technology, ...]),
+    in store ({"codes", "next"}), changed in place."""
+    new = {}
+    for code, entry in units.items():
+        if code not in store["codes"]:
+            new.setdefault(entry[0], []).append(code)
+    for technology in sorted(new):
+        codes = sorted(new[technology])
+        first = store["next"].get(technology, 1)
+        random.Random(f"{secret}|storage|{technology}|{first}").shuffle(codes)
+        for number, code in enumerate(codes, first):
+            store["codes"][code] = f"{STORAGE_NAMES.get(technology, 'Storage')} {number}"
+        store["next"][technology] = first + len(codes)
+
+
+def publicise_storage_day(data, names):
+    """A storage day file: units renamed (no operators), listed and
+    numbered by name."""
+    units = sorted(range(len(data["units"])), key=lambda index: names[data["units"][index][0]])
+    new_index = {old: new for new, old in enumerate(units)}
+    public = {**data, "source": NOTE,
+              "units": [[names[data["units"][old][0]], data["units"][old][1], None, data["units"][old][3],
+                         data["units"][old][4]] for old in units], "quarters": []}
+    for item in data["quarters"]:
+        flat = item["rows"]
+        rows = [[new_index[flat[i]]] + flat[i + 1:i + STORAGE_FIELDS] for i in range(0, len(flat), STORAGE_FIELDS)]
+        rows.sort(key=lambda row: row[0])
+        public["quarters"].append({**item, "rows": [value for row in rows for value in row]})
+    return public
+
+
+def publicise_storage(directory, secret):
+    """storage/: the day files and the index, in place."""
+    store = read_json(STORAGE_NAMES_PATH) if os.path.exists(STORAGE_NAMES_PATH) else {"codes": {}, "next": {}}
+    index_path = os.path.join(directory, "index.json")
+    index = read_json(index_path)
+    storage_names(index["units"], secret, store)
+    names = store["codes"]
+    count = 0
+    for name in sorted(os.listdir(directory)):
+        if not name[:4].isdigit() or not name.endswith((".json", ".json.gz")):
+            continue
+        path = os.path.join(directory, name)
+        write_json(publicise_storage_day(read_json(path), names), path)
+        count += 1
+    public = {"days": index["days"], "files": index["files"], "source": NOTE,
+              "units": {names[code]: [entry[0], None, entry[2], entry[3], entry[4] if len(entry) > 4 else True]
+                        for code, entry in sorted(index["units"].items(), key=lambda item: names[item[0]])},
+              "daily": {day: {names[code]: totals for code, totals in sorted(units.items(), key=lambda item: names[item[0]])}
+                        for day, units in index["daily"].items()}}
+    write_json(public, index_path)
+    os.makedirs(NAMES_DIR, exist_ok=True)
+    write_json(store, STORAGE_NAMES_PATH)
+    return count
+
+
 def publicise(path, secret=None):
     """One file or directory of the private data, in place."""
     name = os.path.basename(os.path.normpath(path))
+    if name == "storage":
+        return f"{publicise_storage(path, secret if secret is not None else salt())} day(s)"
     if name in ("mgp_merit", "mi_merit"):
         return f"{publicise_merit(path, secret if secret is not None else salt())} day(s)"
     if name == "market_offers":
