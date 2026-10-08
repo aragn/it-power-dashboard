@@ -10689,11 +10689,11 @@
         : "Not on file yet: the ENTSO-E job reads the weekly reservoir data (16.1.D) once this is merged.");
       return;
     }
-    // Week of the year (1-53) of a week's first day, each year its own line.
+    // Week of the year (1-52; a 53rd week counts as the 52nd) of a week's first day, each year its own line.
     const weekOf = day => {
       const date = parseDate(day);
       const start = new Date(date.getFullYear(), 0, 1);
-      return Math.min(53, Math.floor((date - start) / 86400000 / 7) + 1);
+      return Math.min(52, Math.floor((date - start) / 86400000 / 7) + 1);
     };
     const byYear = new Map();
     reservoirData.weeks.forEach(([day, mwh]) => {
@@ -10701,11 +10701,22 @@
       if (!byYear.has(year)) byYear.set(year, new Map());
       byYear.get(year).set(weekOf(day), mwh / 1e6);
     });
+    // A week a year did not report, between two it did: drawn as the line between them,
+    // so the range and the average compare the same weeks every year.
+    byYear.forEach(weeks => {
+      const known = [...weeks.keys()].sort((a, b) => a - b);
+      known.slice(1).forEach((week, index) => {
+        const before = known[index];
+        for (let gap = before + 1; gap < week; gap += 1) {
+          weeks.set(gap, weeks.get(before) + (weeks.get(week) - weeks.get(before)) * (gap - before) / (week - before));
+        }
+      });
+    });
     const years = [...byYear.keys()].sort();
     const current = years[years.length - 1];
     const shown = [current - 1, current].filter(year => byYear.has(year));
     const band = years.filter(year => year < shown[0]).slice(-5);
-    const slots = Array.from({ length: 53 }, (_, index) => index + 1);
+    const slots = Array.from({ length: 52 }, (_, index) => index + 1);
     const value = (year, week) => (byYear.get(year).has(week) ? byYear.get(year).get(week) : null);
     const bandValues = slots.map(week => band.map(year => value(year, week)).filter(entry => entry !== null));
     const low = bandValues.map(values => (values.length ? Math.min(...values) : null));
