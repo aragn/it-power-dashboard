@@ -9769,9 +9769,11 @@
       publicName: "Pumped hydro plant", id: "pumped", charge: "pumping" }
   ];
   // A record's values (etl/build_storage.py).
-  const STORAGE_FIELDS = 14;
   const ST_SOLD = 1, ST_SOLD_EUR = 2, ST_BOUGHT = 3, ST_BOUGHT_EUR = 4, ST_OFFER = 5, ST_OFFER_PRICE = 6,
-    ST_BID = 7, ST_BID_PRICE = 8, ST_MI = 9, ST_XBID = 10, ST_MSD = 11, ST_MB = 12, ST_OFFERED = 13;
+    ST_BID = 7, ST_BID_PRICE = 8, ST_MI = 9, ST_XBID = 10, ST_MSD = 11, ST_MB = 12, ST_OFFERED = 13,
+    ST_MI_MW = 14, ST_XBID_MW = 15;
+  // Values in a record: the file says (16 with the MI-A and MI-XBID net MW; 14 before).
+  const storageFields = file => file.fields || 14;
   const STORAGE_MARKETS = [
     { key: "MGP", label: "MGP", color: "--blue" },
     { key: "MI-A", label: "MI-A", color: "--bal-picasso" },
@@ -9883,10 +9885,11 @@
     const result = Object.fromEntries(STORAGE_TECHS.map(tech => [tech.key, new Map()]));
     files.forEach(file => {
       if (!file) return;
+      const size = storageFields(file);
       file.quarters.forEach(quarter => {
         const key = storageBucketKey(file.date, quarter.period);
         const flat = quarter.rows;
-        for (let index = 0; index < flat.length; index += STORAGE_FIELDS) {
+        for (let index = 0; index < flat.length; index += size) {
           const unit = file.units[flat[index]];
           const buckets = result[unit[1]];
           if (!buckets) continue;
@@ -9895,7 +9898,8 @@
           let sums = plants.units.get(unit[0]);
           if (!sums) {
             plants.units.set(unit[0], sums = { sold: 0, soldEuro: 0, bought: 0, boughtEuro: 0, offer: 0, offerValue: 0,
-              offerPriced: 0, bid: 0, bidValue: 0, bidPriced: 0, bidsKnown: true, mi: 0, xbid: 0, msd: 0, mb: 0, offered: 0 });
+              offerPriced: 0, bid: 0, bidValue: 0, bidPriced: 0, bidsKnown: true, mi: 0, xbid: 0, msd: 0, mb: 0, offered: 0,
+              miNet: 0, xbidNet: 0 });
           }
           sums.sold += flat[index + ST_SOLD] * 0.25;
           sums.soldEuro += flat[index + ST_SOLD_EUR];
@@ -9919,6 +9923,10 @@
           sums.msd += flat[index + ST_MSD];
           sums.mb += flat[index + ST_MB];
           sums.offered += flat[index + ST_OFFERED] * 0.25;
+          if (size > ST_XBID_MW) {
+            sums.miNet += flat[index + ST_MI_MW] * 0.25;
+            sums.xbidNet += flat[index + ST_XBID_MW] * 0.25;
+          }
         }
       });
     });
@@ -9972,10 +9980,11 @@
       const plants = new Map();
       (files || []).forEach(file => {
         if (!file) return;
+        const size = storageFields(file);
         file.quarters.forEach(quarter => {
           const time = quarter.time.replace("*", "");
           if (time < STORAGE_EVENING[0] || time >= STORAGE_EVENING[1]) return;
-          for (let index = 0; index < quarter.rows.length; index += STORAGE_FIELDS) {
+          for (let index = 0; index < quarter.rows.length; index += size) {
             const unit = file.units[quarter.rows[index]];
             const mw = quarter.rows[index + ST_OFFER], price = quarter.rows[index + ST_OFFER_PRICE];
             if (unit[1] !== tech.key || !(mw > 0) || price === null) continue;
@@ -10152,28 +10161,31 @@
 
   /* ---------- Average bid per plant ---------- */
   /*
-   * Each plant in a period is buying (more bought than sold in the MGP),
-   * selling, or neither; the side most plants are on is the period's (by
-   * the MW offered and bid where no plant was accepted).  Plotted: the
+   * Each plant in a period is buying (its net position across the MGP, MI-A
+   * and MI-XBID, sold minus bought, below zero), selling, or neither; the
+   * side most plants are on is the period's (by the MW offered and bid in
+   * the MGP where no plant traded).  Plotted: the
    * average over the plants on that side of their bid, €/MWh (the MW-weighted
    * price of their sale offers, or of their bids to buy) or MW (their MW
    * offered or bid on average over the period), above zero when they sell,
    * below zero when they buy.  Without the bids per unit on file, the buying
-   * side is estimated from the price paid and the MW bought.
+   * side is estimated from the price paid and the MW bought (net, in the
+   * three markets).
    */
+  const storagePosition = sums => sums.sold - sums.bought + sums.miNet + sums.xbidNet;
   function storageBidPoint(plants, mode) {
     if (!plants) return null;
     const sides = [];
     plants.units.forEach(sums => {
-      const side = sums.sold > sums.bought + 1e-9 ? 1 : sums.bought > sums.sold + 1e-9 ? -1 : 0;
-      sides.push([side, sums]);
+      const position = storagePosition(sums);
+      sides.push([position > 1e-6 ? 1 : position < -1e-6 ? -1 : 0, sums]);
     });
     let sellers = sides.filter(([side]) => side === 1).length, buyers = sides.filter(([side]) => side === -1).length;
     let chosen = sides;
     let side;
     if (sellers || buyers) {
       side = sellers > buyers ? 1 : buyers > sellers ? -1
-        : (sides.reduce((sum, [, sums]) => sum + sums.sold - sums.bought, 0) >= 0 ? 1 : -1);
+        : (sides.reduce((sum, [, sums]) => sum + storagePosition(sums), 0) >= 0 ? 1 : -1);
       chosen = sides.filter(([plantSide]) => plantSide === side);
     } else {
       // Nobody accepted: the side with more MW offered or bid.
@@ -10191,9 +10203,12 @@
         if (mode === "mw") return sums.bid / plants.quarters;
         return sums.bidPriced ? sums.bidValue / sums.bidPriced : null;
       }
-      if (!(sums.bought > 0)) return null;
+      // No bids on file: the MWh bought net in the three markets and their price.
+      const bought = -storagePosition(sums);
+      if (!(bought > 0)) return null;
       estimated = true;
-      return mode === "mw" ? sums.bought * 4 / plants.quarters : sums.boughtEuro / sums.bought;
+      return mode === "mw" ? bought * 4 / plants.quarters
+        : (sums.boughtEuro - sums.soldEuro - sums.mi - sums.xbid) / bought;
     }).filter(value => value !== null);
     if (!values.length) return null;
     return { value: side * values.reduce((a, b) => a + b, 0) / values.length, side, plants: values.length, estimated };
@@ -10433,10 +10448,12 @@
     storageLast = null;
     storageKpis(files.filter(Boolean));
     const help = (selector, text) => document.querySelectorAll(selector).forEach(item => { item.textContent = text; });
-    help(".storage-bid-help", "Each plant buying (more bought than sold in the MGP in the period), selling, or neither: the line follows the side most " +
-      "plants are on (the side with more MW offered or bid where no plant was accepted), the average over those plants of their bid: in €/MWh the " +
+    help(".storage-bid-help", "Each plant buying or selling by its net position in the period across the MGP, MI-A and MI-XBID (sold minus bought): " +
+      "the line follows the side most plants are on (the side with more MW offered or bid in the MGP where no plant traded), the average over those " +
+      "plants of their MGP bid: in €/MWh the " +
       "price of their sale offers (above zero) or of their bids to buy (below zero), each plant's averaged by MW; in MW the MW they offered or bid on " +
-      "average. MGP, all offers that stood at the close, accepted or not. Hourly and daily: over the period's quarter-hours.");
+      "average; all offers that stood at the close, accepted or not. Without the bids per plant on file, the buying side is estimated from what " +
+      "the plants bought net in the three markets and its price. Hourly and daily: over the period's quarter-hours.");
     help(".storage-mgp-help", "Estimated: the MGP sales accepted (above zero) and purchases (below zero) of the plants, MW × the zonal price × the hours, " +
       "summed per period; the line, the net. Choose plants in the list to stack them one by one (each plant's net). Before fees, imbalances and any hedge.");
     help(".storage-all-help", "Estimated net revenue in every market on file: the MGP, MI-A and MI-XBID sales minus purchases (at the zonal price or the " +
