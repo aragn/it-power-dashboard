@@ -11119,8 +11119,10 @@
     };
   }
 
-  /* The dispatching cost estimate over the selected dates, from the daily values. */
+  /* The dispatching cost estimate over the selected dates, from the daily values
+     (GME's MSD and MB: not in the public version's subtitles). */
   function dispatchCostSummary() {
+    if (PUBLIC_MODE) return "";
     const first = currentStart ? isoDay(currentStart) : "0000";
     const last = currentEnd ? isoDay(currentEnd) : "9999";
     const total = market => ["up", "down"].reduce((sum, direction) =>
