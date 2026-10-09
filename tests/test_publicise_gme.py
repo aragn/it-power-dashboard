@@ -193,7 +193,7 @@ def test_storage_units_keep_one_name_over_the_days(tmp_path, monkeypatch):
         pg.write_json({"date": day, "units": day_units, "quarters": [{"time": "12:00", "period": 49, "rows": rows}]},
                       str(folder / f"{day}.json.gz"))
         for code, technology, operator, zone, mw in day_units:
-            units[code] = [technology, operator, zone, mw, code != "UP_POMPA_1"]
+            units[code] = [technology, operator, zone, mw, code != "UP_POMPA_1", 587.0 if code == "UP_POMPA_1" else mw]
         daily[day] = {code: [1.0, 2.0, 3.0] for code, *_ in day_units}
     pg.write_json({"days": {day: {} for day in days}, "files": {}, "units": units, "daily": daily, "signatures": {}},
                   str(folder / "index.json"))
@@ -209,4 +209,4 @@ def test_storage_units_keep_one_name_over_the_days(tmp_path, monkeypatch):
     index = pg.read_json(str(folder / "index.json"))
     assert "signatures" not in index and all(not code.startswith("UP_") for code in index["units"])
     assert set(index["daily"]["2026-09-18"]) == set(index["units"])
-    assert index["units"]["Pumped hydro plant 1"] == ["pumped_hydro", None, "NORD", 500.0, False]
+    assert index["units"]["Pumped hydro plant 1"] == ["pumped_hydro", None, "NORD", 500.0, False, 587.0]   # power kept

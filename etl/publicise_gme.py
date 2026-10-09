@@ -385,7 +385,8 @@ def publicise_storage(directory, secret):
         write_json(publicise_storage_day(read_json(path), names), path)
         count += 1
     public = {"days": index["days"], "files": index["files"], "source": NOTE, "totals": index.get("totals"),
-              "units": {names[code]: [entry[0], None, entry[2], entry[3], entry[4] if len(entry) > 4 else True]
+              # [technology, no operator, zone, MW, in the benchmark, power (since build_storage gives it)]
+              "units": {names[code]: [entry[0], None, entry[2], entry[3], entry[4] if len(entry) > 4 else True, *entry[5:6]]
                         for code, entry in sorted(index["units"].items(), key=lambda item: names[item[0]])},
               "daily": {day: {names[code]: totals for code, totals in sorted(units.items(), key=lambda item: names[item[0]])}
                         for day, units in index["daily"].items()}}
