@@ -129,3 +129,40 @@ def test_untouched_days_are_left_alone():
     later = entsoe_api.merge_resolutions(existing, quarter_records("2026-09-26", [10] * 4))
     assert [r["date"] for r in later["daily"]["A"]] == ["2026-09-20", "2026-09-26"]
     assert later["daily"]["A"][0]["value"] == 50.0
+
+
+class _Response:
+    def __init__(self, status, text=""):
+        self.status_code = status
+        self.text = text
+        self.content = text.encode()
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise entsoe_api.requests.HTTPError(f"{self.status_code}", response=self)
+
+
+def test_gateway_timeouts_are_retried_then_given_up(monkeypatch):
+    calls = []
+    answers = [_Response(599), entsoe_api.requests.ConnectionError(), _Response(200, "<a><b/></a>")]
+
+    def get(*args, **kwargs):
+        calls.append(1)
+        answer = answers.pop(0)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    monkeypatch.setattr(entsoe_api.requests, "get", get)
+    monkeypatch.setattr(entsoe_api.time, "sleep", lambda seconds: None)
+    assert entsoe_api.request_entsoe("token", {}).tag == "a"
+    assert len(calls) == 3
+
+    calls.clear()
+    monkeypatch.setattr(entsoe_api.requests, "get", lambda *args, **kwargs: calls.append(1) or _Response(503))
+    try:
+        entsoe_api.request_entsoe("token", {})
+        raise AssertionError("expected an HTTP error")
+    except entsoe_api.requests.HTTPError:
+        pass
+    assert len(calls) == entsoe_api.SERVER_RETRIES + 1

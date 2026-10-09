@@ -42,6 +42,9 @@ MARKET_TZ = ZoneInfo("Europe/Rome")
 REQUEST_PAUSE_SECONDS = 0.5
 MAX_RETRIES = 6
 INITIAL_RETRY_SECONDS = 20
+# The platform's gateway sometimes times out (HTTP 5xx, 599 "Unable to access
+# service within time limit") or drops the connection; a few retries usually do.
+SERVER_RETRIES = 3
 
 
 # ============================================================================
@@ -124,20 +127,41 @@ def parse_response(content):
 def request_entsoe(token, params):
     """
     Call the Restful API and return the parsed XML root, or None when the
-    platform reports "No matching data".  Retries HTTP 429 with backoff.
+    platform reports "No matching data".  Retries HTTP 429, and a few times
+    HTTP 5xx and dropped connections, with backoff.
     """
     query = dict(params)
     query["securityToken"] = token
 
     retry_seconds = INITIAL_RETRY_SECONDS
 
+    server_failures = 0
+
     for attempt in range(MAX_RETRIES + 1):
-        response = requests.get(API_URL, params=query, timeout=120)
+        try:
+            response = requests.get(API_URL, params=query, timeout=120)
+        except (requests.ConnectionError, requests.Timeout) as error:
+            server_failures += 1
+            if server_failures > SERVER_RETRIES or attempt >= MAX_RETRIES:
+                raise
+            print(f"    {type(error).__name__}. Waiting {retry_seconds}s...")
+            time.sleep(retry_seconds)
+            retry_seconds *= 2
+            continue
 
         if response.status_code == 429:
             if attempt >= MAX_RETRIES:
                 response.raise_for_status()
             print(f"    HTTP 429 rate limit. Waiting {retry_seconds}s...")
+            time.sleep(retry_seconds)
+            retry_seconds *= 2
+            continue
+
+        if response.status_code >= 500:
+            server_failures += 1
+            if server_failures > SERVER_RETRIES or attempt >= MAX_RETRIES:
+                response.raise_for_status()
+            print(f"    HTTP {response.status_code}. Waiting {retry_seconds}s...")
             time.sleep(retry_seconds)
             retry_seconds *= 2
             continue
