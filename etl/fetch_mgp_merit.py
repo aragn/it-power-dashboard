@@ -17,7 +17,7 @@ Per quarter-hour:
   bids     the purchase bids that stood at the close of the units that are
            not consumption or virtual units (storage charging, pumping,
            production units buying back), per unit: [unit, MW, bid price,
-           status, MW accepted, flags] (since FORMAT 3; MGP only)
+           status, MW accepted, flags] (since FORMAT 3; MI-A's since its FORMAT 3)
   others   the sale offers that did not stand, per unit and status:
            [unit, status, MW], status 3 replaced (REP), 4 revoked (REV),
            5 invalid (INC); with "supply", the MW offered by status (the page

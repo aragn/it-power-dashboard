@@ -5,8 +5,8 @@ app/data/mi_merit/<date>.json.gz with the index of days, auctions,
 quarter-hours and files, app/data/mi_merit/index.json.
 
 A day file holds the three auctions of the market day, in the MGP merit
-order's format per quarter-hour (prices, supply, demand, others: see
-fetch_mgp_merit.py), with one unit list for the three:
+order's format per quarter-hour (prices, supply, demand, purchases, bids,
+others: see fetch_mgp_merit.py), with one unit list for the three:
 
   {"date", "market": "MI-A", "units": [...],
    "markets": {"MI-A1": [quarter, ...], "MI-A2": [...], "MI-A3": [...]}}
@@ -40,7 +40,7 @@ OUT_DIR = os.path.join(ROOT, "app", "data", "mi_merit")
 
 MARKETS = ["MI-A1", "MI-A2", "MI-A3"]
 MAX_DAYS = 4
-FORMAT = 2       # purchases per unit (the MGP's format 3, its bids per unit, not taken here)
+FORMAT = 3       # day files of an older format are read again (2: purchases per unit, 3: bids per unit, as the MGP's)
 
 
 def request_market(token, day, market):
@@ -58,7 +58,7 @@ def day_data(day, offers, units):
     for market in MARKETS:
         if market not in offers:
             continue
-        quarters = build(offers[market], 0, day_quarters(day) - 1, units, day, registry)["quarters"]
+        quarters = build(offers[market], 0, day_quarters(day) - 1, units, day, registry, bids=True)["quarters"]
         if quarters:
             markets[market] = quarters
     return {"date": day.isoformat(), "market": "MI-A", "version": FORMAT,

@@ -14,7 +14,8 @@ in it:
    MW offered for sale (MGP), its average bid price (EUR/MWh, by MW),
    MW bid to buy (MGP), its average bid price,
    MI-A net EUR, MI-XBID net EUR, MSD net EUR, MB net EUR,
-   MW offered in all markets, MI-A net MW, MI-XBID net MW, MSD net MW, MB net MW]
+   MW offered in all markets, MI-A net MW, MI-XBID net MW, MSD net MW, MB net MW,
+   MW bid to buy (MI-A: the most in one of its auctions), its average bid price]
 
   MW of the quarter-hour; EUR of the quarter-hour (MW x price x 0.25 h):
   sales above zero, purchases below in the net columns.  MGP and MI-A at
@@ -23,12 +24,14 @@ in it:
   (upward paid to the unit, downward paid by it), the secondary reserve
   (RS, a band) and the start-up and change-of-mode events left out, as on
   the Market tab.  The MGP bids to buy per unit are on file from its format
-  3 (null before).  MW offered in all markets: the MGP's and MI-A's sale
-  offers and bids (the MI-A purchases accepted, its bids not being kept),
+  3 (null before), MI-A's from its format 3 (null before).  MW offered in
+  all markets: the MGP's and MI-A's sale offers and bids (the purchases
+  accepted where the bids are not on file),
   MSD's and MB's energy offers both ways, MI-XBID's trades.  Net MW: sold
   minus bought (with the MGP's, a unit's net position across the energy
-  markets).  "fields": the values in a record (18 since VERSION 3, 16 in VERSION 2,
-  14 before); MSD and MB net MW: upward minus downward accepted, RS left out.
+  markets).  "fields": the values in a record (20 since VERSION 4, 18 in VERSION 3,
+  16 in VERSION 2, 14 before); MSD and MB net MW: upward minus downward
+  accepted, RS left out.
 
 app/data/storage/index.json: the days on file (the markets each had, the
 quarter-hours), the units (technology, operator, zone, MW: the database's
@@ -69,10 +72,10 @@ OUT_DIR = os.path.join(DATA, "storage")
 UNITS_PATH = os.path.join(DATA, "gme_units.json")
 TECHNOLOGIES = {"battery": "battery", "pumped_hydro": "pumped_hydro"}
 OTHER_MARKETS = ["XBID", "MSD", "MB"]
-FIELDS = 18                     # values in a record
+FIELDS = 20                     # values in a record
 RS = 5                          # the secondary reserve's scope in MSD/MB files
 PORTFOLIO = "portfolio"         # a unit's category: plants bid as one (left out of the benchmark)
-VERSION = 3                     # 2: MI-A and MI-XBID net MW; 3: MSD and MB net MW
+VERSION = 4                     # 2: MI-A and MI-XBID net MW; 3: MSD and MB net MW; 4: MI-A bids
 
 
 def unit_database(path=None):
@@ -108,6 +111,7 @@ class Day:
         self.units, self.index = [], {}
         self.rows = defaultdict(dict)        # quarter index -> unit index -> record
         self.times = {}                      # quarter index -> (clock time, period)
+        self.mi_bids = defaultdict(lambda: [defaultdict(float), 0.0, 0.0])   # (quarter, unit) -> [MW per auction, EUR x MW, MW priced]
 
     def unit(self, file, index):
         """The storage unit index of a market file's unit, or None."""
@@ -126,7 +130,7 @@ class Day:
         rows = self.rows[quarter]
         if unit not in rows:
             row = [unit] + [0.0] * (FIELDS - 1)
-            row[6] = row[7] = row[8] = None      # no offers or bids (yet)
+            row[6] = row[7] = row[8] = row[18] = row[19] = None      # no offers or bids (yet)
             rows[unit] = row
         return rows[unit]
 
@@ -171,9 +175,10 @@ class Day:
                         row[13] += flat[i + 1]      # no bids on file: the purchases at least
                 else:
                     row[9] -= euro
-                    row[13] += flat[i + 1]
+                    if "bids" not in item:
+                        row[13] += flat[i + 1]      # no bids on file: the purchases at least
                     row[14] -= flat[i + 1]
-            if market == "MGP" and "bids" in item:
+            if "bids" in item:
                 flat = item["bids"]
                 for i in range(0, len(flat), 6):
                     unit = unit_of(flat[i])
@@ -181,11 +186,20 @@ class Day:
                         continue
                     row = self.record(q, unit)
                     mw, price = flat[i + 1], flat[i + 2]
+                    row[13] += mw
+                    if market != "MGP":
+                        # MI-A (values 18-19): a unit can bid the same MW again in each auction, so the
+                        # most it bid in one, at the price of all its bids (set in data()).
+                        bids = self.mi_bids[(q, unit)]
+                        bids[0][market] += mw
+                        if price is not None and mw > 0:
+                            bids[1] += price * mw
+                            bids[2] += mw
+                        continue
                     offered = row[7] or 0.0
                     if price is not None and mw > 0:
                         row[8] = ((row[8] or 0) * offered + price * mw) / (offered + mw)
                     row[7] = offered + mw
-                    row[13] += mw
 
     def xbid(self, file):
         cache = {}
@@ -229,6 +243,10 @@ class Day:
                     row[column + 5] += sign * flat[i + 6]                  # MSD 11 -> 16, MB 12 -> 17
 
     def data(self, markets, bids):
+        for (q, unit), (per_auction, value, priced) in self.mi_bids.items():
+            row = self.rows[q][unit]
+            row[18] = max(per_auction.values())
+            row[19] = value / priced if priced else None
         quarters = []
         for q in sorted(self.rows):
             time, period = self.times.get(q) or (None, q + 1)
