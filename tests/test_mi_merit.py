@@ -25,6 +25,17 @@ def test_the_three_auctions_share_one_unit_list():
     assert a3["supply"][0] == codes.index("UP_GAS_1") and a3["prices"] == {"SUD": 120.0}
 
 
+def test_an_auction_keeps_the_purchase_bids_per_unit():
+    units = {**UNITS, "UP_BESS_1": ("battery", "BESS SPA", "SUD", "production")}
+    offers = {"MI-A2": iter([row("UP_BESS_1", 49, 20, awarded=15, purpose="BID", price="60", awarded_price="55"),
+                             row("UP_BESS_1", 49, 10, status="REJ", purpose="BID", price="20", awarded_price="")])}
+    data = mi.day_data(mi.date(2026, 9, 17), offers, units)
+    assert data["version"] == mi.FORMAT == 3
+    quarter = data["markets"]["MI-A2"][0]
+    bids = sorted(quarter["bids"][index:index + 6] for index in range(0, len(quarter["bids"]), 6))
+    assert bids == [[0, 10, 20.0, 1, 0, 0], [0, 20, 60.0, 0, 15, 0]]
+
+
 def test_index_and_missing_days(tmp_path):
     day = {"date": "2026-09-17", "market": "MI-A", "version": mi.FORMAT, "units": [],
            "markets": {"MI-A1": [{"time": "00:00"}], "MI-A2": [{"time": "00:00"}], "MI-A3": [{"time": "12:00"}]}}
