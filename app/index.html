@@ -9776,6 +9776,10 @@
   const storageFields = file => file.fields || 14;
   // The MGP's price cap: a bid to buy at it is a bid at any price, no valuation (left out of the average bid in €/MWh).
   const MGP_PRICE_CAP = 4000;
+  // A quarter-hour whose net across all markets passes the plant's power on file (by more than 1% and 0.5 MW) is flagged.
+  const STORAGE_OVER_NAME = "Above the plant's power";
+  // A plant's power: the index's (the larger of its MW and the most it offered or bid in one period), else its MW.
+  const storagePower = code => { const unit = storageIndex.units[code] || []; return unit[5] || unit[3]; };
   const STORAGE_MARKETS = [
     { key: "MGP", label: "MGP", color: "--blue" },
     { key: "MI-A", label: "MI-A", color: "--bal-picasso" },
@@ -9903,7 +9907,7 @@
           if (!sums) {
             plants.units.set(unit[0], sums = { sold: 0, soldEuro: 0, bought: 0, boughtEuro: 0, offer: 0, offerValue: 0,
               offerPriced: 0, bid: 0, bidValue: 0, bidPriced: 0, bidsKnown: true, mi: 0, xbid: 0, msd: 0, mb: 0, offered: 0,
-              miNet: 0, xbidNet: 0, msdNet: 0, mbNet: 0 });
+              miNet: 0, xbidNet: 0, msdNet: 0, mbNet: 0, over: 0, overNet: 0 });
           }
           sums.sold += flat[index + ST_SOLD] * 0.25;
           sums.soldEuro += flat[index + ST_SOLD_EUR];
@@ -9934,6 +9938,14 @@
           if (size > ST_MB_MW) {
             sums.msdNet += flat[index + ST_MSD_MW] * 0.25;
             sums.mbNet += flat[index + ST_MB_MW] * 0.25;
+            // The quarter-hour's net across all markets beyond the plant's power: not deliverable in full.
+            const power = storagePower(unit[0]);
+            const net = flat[index + ST_SOLD] - flat[index + ST_BOUGHT] + flat[index + ST_MI_MW] + flat[index + ST_XBID_MW] +
+              flat[index + ST_MSD_MW] + flat[index + ST_MB_MW];
+            if (power > 0 && Math.abs(net) > power * 1.01 + 0.5) {
+              sums.over += 1;
+              if (Math.abs(net) > Math.abs(sums.overNet)) sums.overNet = net;
+            }
           }
         }
       });
@@ -10350,6 +10362,31 @@
     // Not sampled: a sampled line drops flat points, and with them the net's row in the tooltip.
     series.push({ name: "Net", type: "line", data: net, showSymbol: false, z: 10,
       lineStyle: { width: 1.2, color: cssVar("--chart-pun") }, itemStyle: { color: cssVar("--chart-pun") } });
+    // Flagged on the net line (all markets): the periods with a quarter-hour in which a plant's net passed its power.
+    const over = rows.map(row => {
+      const plants = kind === "all" && buckets.get(row.key);
+      if (!plants) return null;
+      let quarters = 0, units = 0, worst = null;
+      plants.units.forEach((sums, code) => {
+        if (!pick(code) || !sums.over) return;
+        quarters += sums.over;
+        units += 1;
+        if (!worst || Math.abs(sums.overNet) > Math.abs(worst.net)) worst = { code, net: sums.overNet };
+      });
+      return quarters ? { quarters, units, worst } : null;
+    });
+    const overQuarters = over.reduce((sum, item) => sum + (item ? item.quarters : 0), 0);
+    if (overQuarters) {
+      series.push({ name: STORAGE_OVER_NAME, type: "scatter", symbol: "triangle", symbolSize: 9, z: 11,
+        data: over.map((item, index) => (item ? net[index] : null)), itemStyle: { color: cssVar("--border-4") } });
+    }
+    const overText = item => {
+      const quarters = `${formatNumber(item.quarters)} quarter-hour${item.quarters === 1 ? "" : "s"}`;
+      if (item.units > 1) return `${formatNumber(item.units)} plants, ${quarters}`;
+      const power = storagePower(item.worst.code);
+      return `${item.quarters > 1 ? "net up to" : "net"} ${formatNumber(item.worst.net, 0)} MW, power ${formatNumber(power, 0)} MW` +
+        (item.quarters > 1 ? ` (${quarters})` : "") + (chosen.size ? "" : ` · ${escapeHtml(storageName(item.worst.code))}`);
+    };
     const total = net.reduce((sum, value) => sum + (value || 0), 0);
     const markets = new Set(storageRangeDays().flatMap(day => storageIndex.days[day].markets));
     const missing = kind === "all" ? STORAGE_MARKETS.filter(market => market.key !== "MGP" && !markets.has(market.key)).map(market => market.label) : [];
@@ -10362,7 +10399,8 @@
         : `net ${energy < 0 ? "bought" : "sold"} about ${formatNumber(Math.abs(energy), 0)} MWh, ${who}`}`
       : PUBLIC_MODE ? `€ per ${per}, ${who}`
       : `${total < 0 ? "Net cost" : "Net revenue"} of about ${formatEuro(Math.abs(total))}, ${who}`) +
-      (missing.length ? ` · not on file for these dates: ${missing.join(", ")}` : ""));
+      (missing.length ? ` · not on file for these dates: ${missing.join(", ")}` : "") +
+      (overQuarters ? ` · ${formatNumber(overQuarters)} quarter-hour${overQuarters === 1 ? "" : "s"} above the plant's power (▲)` : ""));
     chart.setOption({
       animation: false,
       backgroundColor: "transparent",
@@ -10372,9 +10410,12 @@
         const row = rows[params[0].dataIndex];
         if (!row) return "";
         // The net always shown, at zero too: markets that cancel out (an MSD upward offer undoing an MGP purchase) leave the plant idle.
-        return tooltipHeader(row) + params.filter(item => item.value !== null && item.value !== undefined && (item.value !== 0 || item.seriesName === "Net"))
-          .map(item => tooltipRow(item.color, escapeHtml(item.seriesName), format(Math.abs(item.value) < 0.5 ? 0 : item.value),
-            item.seriesName === "Net" ? "line" : "area")).join("");
+        return tooltipHeader(row) + params.filter(item => item.value !== null && item.value !== undefined &&
+            (item.value !== 0 || item.seriesName === "Net" || item.seriesName === STORAGE_OVER_NAME))
+          .map(item => (item.seriesName === STORAGE_OVER_NAME
+            ? tooltipRow(item.color, `▲ ${STORAGE_OVER_NAME}`, overText(over[params[0].dataIndex]), "area")
+            : tooltipRow(item.color, escapeHtml(item.seriesName), format(Math.abs(item.value) < 0.5 ? 0 : item.value),
+              item.seriesName === "Net" ? "line" : "area"))).join("");
       }),
       grid: { left: 64, right: 16, top: 32, bottom: CHART_GRID.bottom },
       xAxis: { ...timelineXAxis(timeline), boundaryGap: true },
@@ -10851,7 +10892,10 @@
       "plants together or the one chosen in the list. The line: the net. MW: the volumes accepted, each market's net (sold minus bought; MSD and MB " +
       "upward minus downward; MW for a quarter-hour or an hour, MWh for a day). Bars above and below zero in the same period can cancel out: an MSD " +
       "upward offer accepted on a plant due to charge means it takes less from the grid, undoing its MGP purchase (it stays idle, paid the MSD price " +
-      "for the energy it had bought); the line is the net, in MW the plant's final position. A market not on file for a day adds nothing.");
+      "for the energy it had bought); the line is the net, in MW the plant's final position. A triangle on it: a quarter-hour in which a plant's net " +
+      "passed its power (the larger of its capacity on file and the most it offered or bid in one quarter-hour, GME taking offers only within " +
+      "a unit's registered power), which it could not deliver in full (the shortfall settled as " +
+      "imbalance; the estimate still counts every MW accepted). A market not on file for a day adds nothing.");
     if (!days.length) {
       Object.values(storagePanels).forEach(panel => storageMessage(panel.chart, `storage-${panel.kind}-${panel.tech.id}-subtitle`, storageNotOnFileText()));
     } else {

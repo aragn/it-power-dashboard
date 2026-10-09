@@ -27,7 +27,7 @@ def data(tmp_path, monkeypatch):
     monkeypatch.setattr(bs, "DATA", str(tmp_path))
     database = {"columns": ["code", "codes", "source", "operator", "zone", "capacity_mw", "offered_mw", "category"],
                 "units": [["UP_BESS_1", None, "battery", "BESS SPA", "SUD", None, 50.0, None],
-                          ["UP_POMPA_1", None, "pumped_hydro", "ENEL", "NORD", 1000.0, 980.0, "portfolio"],
+                          ["UP_POMPA_1", None, "pumped_hydro", "ENEL", "NORD", 1000.0, 1100.0, "portfolio"],
                           ["UP_SOLE_1", None, "solar", "SOLE", "SUD", 10.0, 10.0, None]]}
     with open(tmp_path / "gme_units.json", "w", encoding="utf-8") as handle:
         json.dump(database, handle)
@@ -95,8 +95,9 @@ def test_a_day_of_all_markets(data):
     # By market; then discharged (19:00: 40 MW sold, 1500 EUR) and charged (12:00: 20 MW in the MGP + 10 in MI-A, 350 EUR).
     assert totals["UP_BESS_1"][3:] == [-100.0, 0.0, 375.0, 0.0, 10.0, 1500.0, 7.5, 350.0]
     assert index["totals"] == bs.TOTALS
-    assert index["units"]["UP_POMPA_1"] == ["pumped_hydro", "ENEL", "NORD", 1000.0, False]    # a portfolio: no benchmark
-    assert index["units"]["UP_BESS_1"][4] is True
+    # A portfolio: no benchmark; its power, the most it bid (pumping 1,100 MW) above its 1,000 MW installed.
+    assert index["units"]["UP_POMPA_1"] == ["pumped_hydro", "ENEL", "NORD", 1000.0, False, 1100.0]
+    assert index["units"]["UP_BESS_1"][4] is True and index["units"]["UP_BESS_1"][5] == 50.0
     assert "UP_SOLE_1" not in index["units"]
 
 
