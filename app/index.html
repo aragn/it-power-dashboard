@@ -4689,7 +4689,9 @@
   }
 
   function formatChartNumber(value) {
-    return Number(value).toLocaleString(undefined, { maximumFractionDigits: 0 });
+    // Under half a unit: 0, not "-0".
+    const number = Math.abs(Number(value)) < 0.5 ? 0 : Number(value);
+    return number.toLocaleString(undefined, { maximumFractionDigits: 0 });
   }
 
   function labelMinutes(label) {
@@ -10090,7 +10092,7 @@
       if (!row) return "";
       return tooltipHeader(row) + params.filter(item => item.value !== null && item.value !== undefined).map(item =>
         tooltipRow(item.color, item.seriesName, item.seriesName === PUN_INDEX_NAME
-          ? `${formatPrice(item.value)} €/MWh` : `${formatChartNumber(item.value)} ${unit}`,
+          ? `${formatPrice(item.value)}` : `${formatChartNumber(item.value)} ${unit}`,
           item.seriesName === PUN_INDEX_NAME || item.seriesName === MIX_LOAD_NAME ? "line" : "area")).join("");
     };
     chart.setOption({
@@ -10148,7 +10150,7 @@
     const all = ZONAL_ORDER.flatMap(zone => dates.map(day => spread(zone, day))).filter(value => value !== null);
     const mean = all.length ? all.reduce((a, b) => a + b, 0) / all.length : null;
     setText("storage-arbitrage-subtitle", PUBLIC_MODE || mean === null ? "€/MWh, evening high minus the day's low"
-      : `€/MWh, evening high minus the day's low · average ${formatPrice(mean)} €/MWh over the zones and days`);
+      : `€/MWh, evening high minus the day's low · average ${formatPrice(mean)} over the zones and days`);
     chart.setOption({
       animation: false,
       backgroundColor: "transparent",
@@ -10167,7 +10169,7 @@
               const detail = zones[zone].get(day);
               return tooltipRow(item.color, `${item.seriesName} <span style="color:${cssVar("--chart-tooltip-muted")}">` +
                 `${formatPrice(detail.high)} at ${detail.highTime} − ${formatPrice(detail.low)} at ${detail.lowTime}</span>`,
-                `${formatPrice(item.value)} €/MWh`, "line");
+                `${formatPrice(item.value)}`, "line");
             }).join("");
         }
       },
@@ -10613,7 +10615,7 @@
         axisPointer: { type: "line", lineStyle: { color: cssVar("--chart-pointer"), width: 1 } },
         formatter: params => {
           const point = points[params[0].dataIndex];
-          const price = value => (value === null ? "—" : `${formatPrice(value)} €/MWh`);
+          const price = value => (value === null ? "—" : `${formatPrice(value)}`);
           return `<div style="margin-bottom:6px;color:${cssVar("--chart-tooltip-muted")};">${formatDate(parseDate(point.day))}</div>` +
             tooltipRow(colors.tb2, "PUN TB2 spread", price(point.theoretical), "dashed") +
             tooltipRow(colors.spread, "Captured spread", price(point.spread), "line") +
