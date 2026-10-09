@@ -8347,7 +8347,8 @@
       mgpIndex = await response.json();
       // Each code's source, operator and zone as the unit database has them
       // now (the day files keep them as they were when the day was read).
-      mgpUnitMap = await fetch("./data/mgp_merit/units.json", { cache: "no-cache" })
+      // (Not published: the public version keeps the day files' own.)
+      mgpUnitMap = PUBLIC_MODE ? {} : await fetch("./data/mgp_merit/units.json", { cache: "no-cache" })
         .then(reply => (reply.ok ? reply.json() : {}))
         .catch(() => ({}));
       mgpStatus = "ready";
@@ -8870,9 +8871,10 @@
     select.value = chosen ? chosen.key : "";
     const rows = chosen ? allRows.filter(row => mgpGroup(row.source) === chosen) : allRows;
     const total = rows.reduce((sum, row) => sum + row.revenue, 0);
+    // The public version: no GME totals in the subtitle.
     setText(subtitleId,
-      `About ${formatEuro(total)} estimated for ${formatNumber(rows.length)} units${chosen ? ` (${chosen.label})` : ""} ` +
-      `in ${scope ? `${scope}, ` : ""}${mgpSlotLabel(slot)} · 10 a page, the highest first`);
+      `${PUBLIC_MODE ? "Estimated per unit" : `About ${formatEuro(total)} estimated for ${formatNumber(rows.length)} units`}` +
+      `${chosen ? ` (${chosen.label})` : ""} in ${scope ? `${scope}, ` : ""}${mgpSlotLabel(slot)} · 10 a page, the highest first`);
     const number = (value, digits = 1) => isEmpty(value) ? "—" : formatNumber(value, digits);
     const revenueColumn = { key: "revenue", label: "Est. gross revenue (€)", num: true, value: row => row.revenue,
       cell: row => number(row.revenue, 0) };
@@ -9695,7 +9697,9 @@
     if (!columns.some(column => column.key === state.sort)) Object.assign(state, { sort: "total", direction: "desc" });
     const total = rows.reduce((sum, row) => sum + row.total, 0);
     // A net above zero is a revenue, below zero a cost.
-    setText("unit-revenue-subtitle", `${total < 0 ? "Estimated net cost" : "Estimated net revenue"} of about ${formatEuro(Math.abs(total))} for ${formatNumber(rows.length)} units` +
+    // The public version: no GME totals in the subtitle.
+    setText("unit-revenue-subtitle", `${PUBLIC_MODE ? "Estimated net revenue or cost per unit"
+      : `${total < 0 ? "Estimated net cost" : "Estimated net revenue"} of about ${formatEuro(Math.abs(total))} for ${formatNumber(rows.length)} units`}` +
       `${chosen ? ` (${chosen.label})` : ""} in ${what}, ${when} · 10 a page, the highest first`);
     queueTable(document.getElementById("unit-revenue-table"), {
       columns, rows, state, pageSize: 10,
