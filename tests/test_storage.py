@@ -84,7 +84,7 @@ def test_a_day_of_all_markets(data):
     assert pump[1:7] == [100.0, 1250.0, 0.0, 0.0, 100.0, 10.0]
     assert rows[("19:00", "UP_POMPA_1")][10] == 200.0                       # 8 x 100 x 0.25 each quarter-hour
     assert rows[("19:00", "UP_POMPA_1")][15] == 8.0                         # MI-XBID net MW sold
-    assert day["fields"] == bs.FIELDS == 20 and day["version"] == 4
+    assert day["fields"] == bs.FIELDS == 20 and day["version"] == bs.VERSION == 5
     evening = rows[("19:00", "UP_BESS_1")]
     assert evening[1:3] == [40.0, 1500.0] and evening[5:7] == [50.0, (40 * 120 + 10 * 300) / 50]
     assert evening[11] == 375.0                                             # MSD 5 x 300 x 0.25; RS left out
@@ -115,13 +115,16 @@ def test_a_day_is_built_again_only_when_its_inputs_change(data):
 
 def test_mi_a_bids_kept_apart_from_the_mgp_bids(data):
     write(str(data / "mgp_merit" / "2026-09-17.json.gz"), mgp_day())
-    # 12:00: the battery bids 15 MW at 45 in MI-A1 (10 taken) and 5 MW at 60 in MI-A2 (not taken).
+    # 12:00: the battery bids 15 MW at 45 in MI-A1 (10 taken), 5 MW at 60 in MI-A2 (not taken) and 10 MW at the
+    # price cap in MI-A3 (to buy at any price: its MW counted, left out of the price).
     write(str(data / "mi_merit" / "2026-09-17.json.gz"),
           {"date": "2026-09-17", "version": 3, "units": UNITS, "markets": {
               "MI-A1": [{"time": "12:00", "supply": [], "demand": [], "purchases": [0, 10.0, 40.0, 0],
                          "bids": [0, 15.0, 45.0, 0, 10.0, 0]}],
               "MI-A2": [{"time": "12:00", "supply": [], "demand": [], "purchases": [],
-                         "bids": [0, 5.0, 60.0, 1, 0.0, 0]}]}})
+                         "bids": [0, 5.0, 60.0, 1, 0.0, 0]}],
+              "MI-A3": [{"time": "12:00", "supply": [], "demand": [], "purchases": [],
+                         "bids": [0, 10.0, 4000.0, 1, 0.0, 0]}]}})
     bs.build(str(data / "storage"))
     day = json.load(gzip.open(data / "storage" / "2026-09-17.json.gz", "rt"))
     assert day["fields"] == bs.FIELDS == 20
@@ -130,6 +133,16 @@ def test_mi_a_bids_kept_apart_from_the_mgp_bids(data):
     noon = rows[("12:00", "UP_BESS_1")]
     assert noon[7:9] == [30.0, 60.0]                                        # the MGP's bid, as before
     assert noon[18:20] == [15.0, (15 * 45 + 5 * 60) / 20]                   # MI-A's: the most in one auction
-    assert noon[13] == 40.0 + 30.0 + 20.0                                   # offered, bid in the MGP, bid in MI-A
+    assert noon[13] == 40.0 + 30.0 + 30.0                                   # offered, bid in the MGP, bid in MI-A
     assert noon[14] == -10.0
     assert rows[("19:00", "UP_BESS_1")][18:20] == [None, None]
+
+
+def test_mgp_bids_at_the_price_cap_count_their_mw_not_their_price(data):
+    day = mgp_day()
+    day["quarters"][0]["bids"] += [0, 10.0, 4000.0, 1, 0.0, 0]          # 10 MW more, to buy at any price
+    write(str(data / "mgp_merit" / "2026-09-17.json.gz"), day)
+    bs.build(str(data / "storage"))
+    stored = json.load(gzip.open(data / "storage" / "2026-09-17.json.gz", "rt"))
+    noon = next(item for item in stored["quarters"] if item["time"] == "12:00")["rows"]
+    assert noon[7:9] == [40.0, 60.0]
