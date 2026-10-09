@@ -10344,7 +10344,8 @@
         }), itemStyle: { color: cssVar(STORAGE_PALETTE[index % STORAGE_PALETTE.length]) } }));
     }
     const net = rows.map(row => sumOver(row, netOf));
-    series.push({ name: "Net", type: "line", data: net, showSymbol: false, z: 10, sampling: "lttb",
+    // Not sampled: a sampled line drops flat points, and with them the net's row in the tooltip.
+    series.push({ name: "Net", type: "line", data: net, showSymbol: false, z: 10,
       lineStyle: { width: 1.2, color: cssVar("--chart-pun") }, itemStyle: { color: cssVar("--chart-pun") } });
     const total = net.reduce((sum, value) => sum + (value || 0), 0);
     const markets = new Set(storageRangeDays().flatMap(day => storageIndex.days[day].markets));
@@ -10367,8 +10368,10 @@
       tooltip: timelineTooltip(params => {
         const row = rows[params[0].dataIndex];
         if (!row) return "";
-        return tooltipHeader(row) + params.filter(item => item.value !== null && item.value !== undefined && item.value !== 0)
-          .map(item => tooltipRow(item.color, escapeHtml(item.seriesName), format(item.value), item.seriesName === "Net" ? "line" : "area")).join("");
+        // The net always shown, at zero too: markets that cancel out (an MSD upward offer undoing an MGP purchase) leave the plant idle.
+        return tooltipHeader(row) + params.filter(item => item.value !== null && item.value !== undefined && (item.value !== 0 || item.seriesName === "Net"))
+          .map(item => tooltipRow(item.color, escapeHtml(item.seriesName), format(Math.abs(item.value) < 0.5 ? 0 : item.value),
+            item.seriesName === "Net" ? "line" : "area")).join("");
       }),
       grid: { left: 64, right: 16, top: 32, bottom: CHART_GRID.bottom },
       xAxis: { ...timelineXAxis(timeline), boundaryGap: true },
@@ -10843,7 +10846,9 @@
     help(".storage-all-help", "Estimated net revenue in every market on file: the MGP, MI-A and MI-XBID sales minus purchases (at the zonal price or the " +
       "price traded), MSD and MB upward minus downward (pay-as-bid), secondary reserve bands and start-ups left out; stacked by market, for all the " +
       "plants together or the one chosen in the list. The line: the net. MW: the volumes accepted, each market's net (sold minus bought; MSD and MB " +
-      "upward minus downward; MW for a quarter-hour or an hour, MWh for a day). A market not on file for a day adds nothing.");
+      "upward minus downward; MW for a quarter-hour or an hour, MWh for a day). Bars above and below zero in the same period can cancel out: an MSD " +
+      "upward offer accepted on a plant due to charge means it takes less from the grid, undoing its MGP purchase (it stays idle, paid the MSD price " +
+      "for the energy it had bought); the line is the net, in MW the plant's final position. A market not on file for a day adds nothing.");
     if (!days.length) {
       Object.values(storagePanels).forEach(panel => storageMessage(panel.chart, `storage-${panel.kind}-${panel.tech.id}-subtitle`, storageNotOnFileText()));
     } else {
