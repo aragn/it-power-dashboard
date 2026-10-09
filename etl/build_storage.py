@@ -17,6 +17,9 @@ in it:
    MW offered in all markets, MI-A net MW, MI-XBID net MW, MSD net MW, MB net MW,
    MW bid to buy (MI-A: the most in one of its auctions), its average bid price]
 
+  The average bid prices leave out the bids at the price cap (PRICE_CAP: to
+  buy at any price), their MW counted; null when all were at it.
+
   MW of the quarter-hour; EUR of the quarter-hour (MW x price x 0.25 h):
   sales above zero, purchases below in the net columns.  MGP and MI-A at
   the price awarded (the zone's), MI-XBID at the price traded (an hourly
@@ -74,8 +77,9 @@ TECHNOLOGIES = {"battery": "battery", "pumped_hydro": "pumped_hydro"}
 OTHER_MARKETS = ["XBID", "MSD", "MB"]
 FIELDS = 20                     # values in a record
 RS = 5                          # the secondary reserve's scope in MSD/MB files
+PRICE_CAP = 4000                # EUR/MWh, the MGP's and MI-A's: a bid at it buys at any price (no valuation)
 PORTFOLIO = "portfolio"         # a unit's category: plants bid as one (left out of the benchmark)
-VERSION = 4                     # 2: MI-A and MI-XBID net MW; 3: MSD and MB net MW; 4: MI-A bids
+VERSION = 5                     # 2: MI-A and MI-XBID net MW; 3: MSD and MB net MW; 4: MI-A bids; 5: bid prices without the cap
 
 
 def unit_database(path=None):
@@ -111,7 +115,8 @@ class Day:
         self.units, self.index = [], {}
         self.rows = defaultdict(dict)        # quarter index -> unit index -> record
         self.times = {}                      # quarter index -> (clock time, period)
-        self.mi_bids = defaultdict(lambda: [defaultdict(float), 0.0, 0.0])   # (quarter, unit) -> [MW per auction, EUR x MW, MW priced]
+        self.mi_bids = defaultdict(lambda: defaultdict(float))   # (quarter, unit) -> MI-A auction -> MW bid
+        self.bid_prices = defaultdict(lambda: [0.0, 0.0])        # (quarter, unit, price value) -> [EUR x MW, MW priced]
 
     def unit(self, file, index):
         """The storage unit index of a market file's unit, or None."""
@@ -187,19 +192,17 @@ class Day:
                     row = self.record(q, unit)
                     mw, price = flat[i + 1], flat[i + 2]
                     row[13] += mw
-                    if market != "MGP":
+                    if market == "MGP":
+                        row[7] = (row[7] or 0.0) + mw
+                    else:
                         # MI-A (values 18-19): a unit can bid the same MW again in each auction, so the
-                        # most it bid in one, at the price of all its bids (set in data()).
-                        bids = self.mi_bids[(q, unit)]
-                        bids[0][market] += mw
-                        if price is not None and mw > 0:
-                            bids[1] += price * mw
-                            bids[2] += mw
-                        continue
-                    offered = row[7] or 0.0
-                    if price is not None and mw > 0:
-                        row[8] = ((row[8] or 0) * offered + price * mw) / (offered + mw)
-                    row[7] = offered + mw
+                        # most it bid in one (set in data()).
+                        self.mi_bids[(q, unit)][market] += mw
+                    # The average bid price (set in data()): bids at the price cap left out, their MW counted above.
+                    if price is not None and mw > 0 and price < PRICE_CAP:
+                        prices = self.bid_prices[(q, unit, 8 if market == "MGP" else 19)]
+                        prices[0] += price * mw
+                        prices[1] += mw
 
     def xbid(self, file):
         cache = {}
@@ -243,10 +246,10 @@ class Day:
                     row[column + 5] += sign * flat[i + 6]                  # MSD 11 -> 16, MB 12 -> 17
 
     def data(self, markets, bids):
-        for (q, unit), (per_auction, value, priced) in self.mi_bids.items():
-            row = self.rows[q][unit]
-            row[18] = max(per_auction.values())
-            row[19] = value / priced if priced else None
+        for (q, unit), per_auction in self.mi_bids.items():
+            self.rows[q][unit][18] = max(per_auction.values())
+        for (q, unit, column), (value, priced) in self.bid_prices.items():
+            self.rows[q][unit][column] = value / priced
         quarters = []
         for q in sorted(self.rows):
             time, period = self.times.get(q) or (None, q + 1)
