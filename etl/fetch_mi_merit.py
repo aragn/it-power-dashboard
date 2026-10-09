@@ -13,7 +13,9 @@ others: see fetch_mgp_merit.py), with one unit list for the three:
 
 MI-A1 and MI-A2 (held the day before) cover the whole day, MI-A3 (held on
 the day) the afternoon and evening only.  An auction GME has no offers for
-is left out of the day.
+is left out of the day; "read", the date the day was read: an auction still
+missing READ_GRACE_DAYS after the market day was not held (it did not
+clear), and the day is not read again for it.
 
   fetch_mi_merit.py --date 2026-09-17
   fetch_mi_merit.py [--from 2026-09-01 --to 2026-09-30 --max-days 4]
@@ -40,7 +42,9 @@ OUT_DIR = os.path.join(ROOT, "app", "data", "mi_merit")
 
 MARKETS = ["MI-A1", "MI-A2", "MI-A3"]
 MAX_DAYS = 4
-FORMAT = 3       # day files of an older format are read again (2: purchases per unit, 3: bids per unit, as the MGP's)
+FORMAT = 4       # day files of an older format are read again (2: purchases per unit; 4: bids per unit, as the MGP's,
+                 # 3 having been written without them)
+READ_GRACE_DAYS = 14   # an auction missing this long after the market day was not held
 
 
 def request_market(token, day, market):
@@ -69,7 +73,7 @@ def day_data(day, offers, units):
 def write_index(out_dir):
     """index.json: per day, each auction's quarter-hours; the file names and
     formats."""
-    days, files, versions = {}, {}, {}
+    days, files, versions, reads = {}, {}, {}, {}
     for name in sorted(os.listdir(out_dir)):
         if name == "index.json" or not name.endswith((".json", ".json.gz")):
             continue
@@ -78,23 +82,28 @@ def write_index(out_dir):
                               for market, quarters in data["markets"].items()}
         files[data["date"]] = name
         versions[data["date"]] = data.get("version", 1)
+        if data.get("read"):
+            reads[data["date"]] = data["read"]
     with open(os.path.join(out_dir, "index.json"), "w", encoding="utf-8") as handle:
-        json.dump({"days": days, "files": files, "versions": versions}, handle, separators=(",", ":"))
+        json.dump({"days": days, "files": files, "versions": versions, "reads": reads}, handle, separators=(",", ":"))
     return days
 
 
 def missing_days(first, last, out_dir):
-    """The days of first..last without all three auctions of this FORMAT on
-    file."""
-    on_file, versions = {}, {}
+    """The days of first..last not on file in this FORMAT, or without all three
+    auctions unless read READ_GRACE_DAYS or more after the market day (the
+    missing auction was not held)."""
+    on_file, versions, reads = {}, {}, {}
     index = os.path.join(out_dir, "index.json")
     if os.path.exists(index):
         with open(index, encoding="utf-8") as handle:
             data = json.load(handle)
-        on_file, versions = data.get("days", {}), data.get("versions", {})
+        on_file, versions, reads = data.get("days", {}), data.get("versions", {}), data.get("reads", {})
     days, day = [], first
     while day <= last:
-        if len(on_file.get(day.isoformat(), {})) < len(MARKETS) or versions.get(day.isoformat(), 1) < FORMAT:
+        key = day.isoformat()
+        settled = key in reads and date.fromisoformat(reads[key]) - day >= timedelta(days=READ_GRACE_DAYS)
+        if versions.get(key, 1) < FORMAT or (len(on_file.get(key, {})) < len(MARKETS) and not settled):
             days.append(day)
         day += timedelta(days=1)
     return days
@@ -120,7 +129,7 @@ def read_days(days, out_dir, max_days):
                 print(f"  {day} {market}: {error}")
                 continue
             # Built as the rows stream in, into the day's one unit list.
-            quarters = build(rows_of(name, content), 0, day_quarters(day) - 1, units, day, registry)["quarters"]
+            quarters = build(rows_of(name, content), 0, day_quarters(day) - 1, units, day, registry, bids=True)["quarters"]
             print(f"  {day} {market} (segment {segment}): {name}, {len(content) / 1e6:.0f} MB, "
                   f"{len(quarters)} quarter-hours")
             del content
@@ -128,7 +137,7 @@ def read_days(days, out_dir, max_days):
                 markets[market] = quarters
         if not markets:
             continue
-        data = {**day_data(day, {}, units), "units": registry[1], "markets": markets}
+        data = {**day_data(day, {}, units), "units": registry[1], "markets": markets, "read": date.today().isoformat()}
         path = write_day(out_dir, data)
         print(f"  {day}: {', '.join(markets)}; {len(data['units']):,} units, {os.path.getsize(path) / 1e6:.1f} MB")
         done.append(day)

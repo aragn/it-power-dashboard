@@ -30,7 +30,7 @@ def test_an_auction_keeps_the_purchase_bids_per_unit():
     offers = {"MI-A2": iter([row("UP_BESS_1", 49, 20, awarded=15, purpose="BID", price="60", awarded_price="55"),
                              row("UP_BESS_1", 49, 10, status="REJ", purpose="BID", price="20", awarded_price="")])}
     data = mi.day_data(mi.date(2026, 9, 17), offers, units)
-    assert data["version"] == mi.FORMAT == 3
+    assert data["version"] == mi.FORMAT == 4
     quarter = data["markets"]["MI-A2"][0]
     bids = sorted(quarter["bids"][index:index + 6] for index in range(0, len(quarter["bids"]), 6))
     assert bids == [[0, 10, 20.0, 1, 0, 0], [0, 20, 60.0, 0, 15, 0]]
@@ -48,6 +48,42 @@ def test_index_and_missing_days(tmp_path):
     # 18 Sept lacks two auctions: read again; 17 Sept is complete.
     assert mi.missing_days(mi.date(2026, 9, 17), mi.date(2026, 9, 19), str(tmp_path)) == [
         mi.date(2026, 9, 18), mi.date(2026, 9, 19)]
+
+
+def test_an_auction_still_missing_two_weeks_on_was_not_held(tmp_path):
+    full = {"MI-A1": [{"time": "00:00"}], "MI-A2": [{"time": "00:00"}], "MI-A3": [{"time": "12:00"}]}
+    no_a1 = {"MI-A2": [{"time": "00:00"}], "MI-A3": [{"time": "12:00"}]}
+    for key, markets, read, version in (("2026-08-04", no_a1, "2026-08-19", mi.FORMAT),   # read 15 days on: settled
+                                        ("2026-08-05", no_a1, "2026-08-12", mi.FORMAT),   # 7 days on: may come yet
+                                        ("2026-08-06", full, "2026-08-14", 3),            # an older format
+                                        ("2026-08-07", no_a1, None, mi.FORMAT)):          # no read date: read again
+        day = {"date": key, "market": "MI-A", "version": version, "units": [], "markets": markets}
+        mi.write_day(str(tmp_path), {**day, "read": read} if read else day)
+    mi.write_index(str(tmp_path))
+    assert mi.missing_days(mi.date(2026, 8, 4), mi.date(2026, 8, 7), str(tmp_path)) == [
+        mi.date(2026, 8, 5), mi.date(2026, 8, 6), mi.date(2026, 8, 7)]
+
+
+def test_the_job_keeps_the_purchase_bids(tmp_path, monkeypatch):
+    units = {**UNITS, "UP_BESS_1": ("battery", "BESS SPA", "SUD", "production")}
+    rows = {"MI-A2": [row("UP_BESS_1", 49, 20, awarded=15, purpose="BID", price="60", awarded_price="55")]}
+    monkeypatch.setenv("GME_API_LOGIN", "user")
+    monkeypatch.setenv("GME_API_PASSWORD", "test")
+    monkeypatch.setattr(mi, "get_token", lambda login, password: "token")
+    monkeypatch.setattr(mi, "unit_sources", lambda: units)
+    monkeypatch.setattr(mi, "REQUEST_PAUSE_SECONDS", 0)
+
+    def request_market(token, day, market):
+        if market not in rows:
+            raise RuntimeError("no offers")
+        return market, f"{market}.csv", market
+
+    monkeypatch.setattr(mi, "request_market", request_market)
+    monkeypatch.setattr(mi, "rows_of", lambda name, content: iter(rows[content]))
+    assert mi.read_days([mi.date(2026, 9, 17)], str(tmp_path), 1) == [mi.date(2026, 9, 17)]
+    data = mi.read_day(str(tmp_path / "2026-09-17.json.gz"))
+    assert data["version"] == mi.FORMAT and data["read"] == mi.date.today().isoformat()
+    assert data["markets"]["MI-A2"][0]["bids"] == [0, 20, 60.0, 0, 15, 0]
 
 
 def test_an_mi_day_is_publicised_with_one_name_per_unit():
