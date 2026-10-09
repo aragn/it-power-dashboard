@@ -34,7 +34,10 @@ app/data/storage/index.json: the days on file (the markets each had, the
 quarter-hours), the units (technology, operator, zone, MW: the database's
 installed capacity, else the largest MW offered; in the benchmark or not:
 not a unit the database's research marks as a portfolio of plants bid as
-one, category "portfolio") and per day and unit the totals (TOTALS) for
+one, category "portfolio"; its power: the larger of that MW and the most it
+offered or bid in one period, as GME takes offers only within a unit's
+registered power, pumping included, which can pass the generating capacity)
+and per day and unit the totals (TOTALS) for
 the weekly charts: net EUR in all markets, MWh offered, the net EUR of
 each market, and the MWh discharged and charged with their EUR, taken
 quarter-hour by quarter-hour from the unit's net position across the MGP,
@@ -73,7 +76,7 @@ VERSION = 3                     # 2: MI-A and MI-XBID net MW; 3: MSD and MB net 
 
 
 def unit_database(path=None):
-    """code -> (technology or None, operator, zone, MW, category) from the unit database."""
+    """code -> (technology or None, operator, zone, MW, category, largest MW offered or bid) from the unit database."""
     try:
         with open(path or UNITS_PATH, encoding="utf-8") as handle:
             data = json.load(handle)
@@ -84,7 +87,7 @@ def unit_database(path=None):
     for values in data["units"]:
         row = dict(zip(columns, values))
         entry = (TECHNOLOGIES.get(row.get("source")), row.get("operator"), row.get("zone"),
-                 row.get("capacity_mw") or row.get("offered_mw"), row.get("category"))
+                 row.get("capacity_mw") or row.get("offered_mw"), row.get("category"), row.get("offered_mw"))
         units[row["code"]] = entry
         for code in row.get("codes") or []:
             units.setdefault(code, entry)
@@ -361,8 +364,9 @@ def write_index(out_dir, signatures, database):
         files[data["date"]] = name
         daily[data["date"]] = day_totals(data)
         for code, technology, operator, zone, mw in data["units"]:
-            category = (database.get(code) or (None,) * 5)[4]
-            units[code] = [technology, operator, zone, mw, category != PORTFOLIO]
+            known = database.get(code) or (None,) * 6
+            power = max([value for value in (mw, known[5]) if value] or [0]) or None
+            units[code] = [technology, operator, zone, mw, known[4] != PORTFOLIO, power]
     index = {"days": days, "files": files, "units": dict(sorted(units.items())), "totals": TOTALS, "daily": daily,
              "signatures": {day: signatures[day] for day in days if day in signatures}}
     write_json(index, os.path.join(out_dir, "index.json"))
