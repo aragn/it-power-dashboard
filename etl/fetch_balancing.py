@@ -136,6 +136,7 @@ TERNA_CATCH_UP_DAYS = 28
 TERNA_CATCH_UP_CALLS = 220
 TERNA_CATCH_UP_DAYS_SHARED_KEY = 7
 BID_RETENTION_DAYS = 400      # about 13 months: a year back and the same weeks of the year before
+BID_CATCH_UP_DAYS = 7         # routine runs also fetch the days this far back with a zone's bids missing
 
 # Request sizes: ENTSO-E allows a year per request (the PICASSO prices one
 # day), Terna 60 days, GME is paced per request.
@@ -207,7 +208,12 @@ def entsoe_get(token, params):
         time.sleep(ENTSOE_PAUSE_SECONDS)
         if response.status_code == 400 and "No matching data" in response.text:
             return None
-        response.raise_for_status()
+        if response.status_code >= 400:
+            # ENTSO-E says why in the body (an XML acknowledgement): keep it in the log.
+            reason = " ".join(response.text.split())[:300]
+            raise requests.HTTPError(f"HTTP {response.status_code} for {params.get('documentType')} "
+                                     f"{params.get('processType', '')} offset {params.get('offset', 0)}: {reason}",
+                                     response=response)
         root = parse_response(response.content)
         if root.tag.endswith("Acknowledgement_MarketDocument"):
             return None
@@ -521,12 +527,19 @@ def write_bid_file(path, payload):
         json.dump(payload, f, separators=(",", ":"))
 
 
-def update_bids(start_day, end_day):
+def update_bids(start_day, end_day, catch_up_from=None):
+    """The bids of start_day..end_day, and of the days from catch_up_from on
+    with a zone's file missing.  A zone and day that fails is left as it is
+    (kept, or missing: fetched again by a later run), the others go on."""
     token = os.environ["ENTSOE_API_KEY"]
 
     def run(task):
         zone, eic, day = task
-        curves = fetch_bids(token, zone, eic, day)
+        try:
+            curves = fetch_bids(token, zone, eic, day)
+        except (requests.RequestException, RuntimeError) as error:
+            print(f"  bids {zone} {day}: failed, left for a later run ({error})")
+            return zone, day, None
         count = sum(len(v) // 2 for by_time in curves.values() for v in by_time.values())
         if count:
             path = bid_path(zone, day)
@@ -537,9 +550,16 @@ def update_bids(start_day, end_day):
         return zone, day, count
 
     tasks = [(zone, eic, day) for day in market_days(start_day, end_day) for zone, eic in ZONES.items()]
+    if catch_up_from and catch_up_from < start_day:
+        missing = [(zone, eic, day) for day in market_days(catch_up_from, start_day - timedelta(days=1))
+                   for zone, eic in ZONES.items() if not os.path.exists(bid_path(zone, day))]
+        if missing:
+            print(f"  bids: {len(missing)} zone-day(s) missing since {catch_up_from}, fetched again")
+        tasks = missing + tasks
     with ThreadPoolExecutor(PARALLEL_REQUESTS) as pool:
         for zone, day, count in pool.map(run, tasks):
-            print(f"  bids {zone} {day}: {count} price steps")
+            if count is not None:
+                print(f"  bids {zone} {day}: {count} price steps")
 
 
 def prune_bids(today):
@@ -1233,7 +1253,9 @@ def main():
         # BID_RETENTION_DAYS.
         bid_start = max(start_day if args.start else today - timedelta(days=1),
                         today - timedelta(days=BID_RETENTION_DAYS))
-        update_bids(bid_start, min(end_day, today))
+        update_bids(bid_start, min(end_day, today),
+                    catch_up_from=None if args.start else max(today - timedelta(days=BID_CATCH_UP_DAYS),
+                                                              today - timedelta(days=BID_RETENTION_DAYS)))
         prune_bids(today)
 
     series = weight_activation_prices(series)

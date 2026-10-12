@@ -484,3 +484,30 @@ def test_bid_paging_ends_on_a_refused_page_past_the_last(monkeypatch):
     import pytest
     with pytest.raises(requests.HTTPError):                         # a refused first page is still an error
         fb.fetch_bids("token", "NORD", "eic", date(2026, 7, 2))
+
+
+def test_a_failed_zone_day_is_skipped_and_missing_days_are_fetched_again(tmp_path, monkeypatch):
+    import requests
+    from datetime import date
+    monkeypatch.setenv("ENTSOE_API_KEY", "test")
+    monkeypatch.setattr(fb, "BIDS_DIR", str(tmp_path))
+    monkeypatch.setattr(fb, "ZONES", {"NORD": "eic-n", "SUD": "eic-s"})
+    asked = []
+
+    def fake_fetch(token, zone, eic, day):
+        asked.append((zone, day.isoformat()))
+        if (zone, day) == ("SUD", date(2026, 10, 12)):
+            raise requests.HTTPError("HTTP 400 for A37 A46 offset 0: refused")
+        return {"rr_up": {"12:00": [100.0, 5.0]}}
+
+    monkeypatch.setattr(fb, "fetch_bids", fake_fetch)
+    # 10 Oct on file for both zones, 11 Oct for NORD only: SUD's 11 Oct is fetched again, nothing else before 12 Oct.
+    for zone, day in (("NORD", "2026-10-10"), ("SUD", "2026-10-10"), ("NORD", "2026-10-11")):
+        (tmp_path / zone).mkdir(exist_ok=True)
+        fb.write_bid_file(fb.bid_path(zone, date.fromisoformat(day)), {"zone": zone, "date": day, "products": {}})
+    fb.update_bids(date(2026, 10, 12), date(2026, 10, 13), catch_up_from=date(2026, 10, 10))
+    assert sorted(asked) == [("NORD", "2026-10-12"), ("NORD", "2026-10-13"), ("SUD", "2026-10-11"),
+                             ("SUD", "2026-10-12"), ("SUD", "2026-10-13")]
+    days = fb.bid_days()
+    assert days["SUD"] == ["2026-10-10", "2026-10-11", "2026-10-13"]          # 12 Oct failed: left for a later run
+    assert days["NORD"] == ["2026-10-10", "2026-10-11", "2026-10-12", "2026-10-13"]
