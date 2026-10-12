@@ -52,3 +52,10 @@ def test_output_round_trips_through_compact_format():
     decoded = compact.decode_tree(coupling.build_output(flows, coupling.empty()))
     assert len(decoded["flows"]["quarter_hourly"]["XFRA"]["import_flow"]) == 96
     assert decoded["flows"]["daily"]["XFRA"]["import_flow"] == [{"date": "2026-09-27", "value": 2400.0}]
+
+
+def test_tomorrow_is_asked_for_once_the_results_are_out():
+    from datetime import datetime, timezone
+    assert coupling.default_end(datetime(2026, 10, 12, 10, 59, tzinfo=timezone.utc)).isoformat() == "2026-10-12"
+    assert coupling.default_end(datetime(2026, 10, 12, 11, 0, tzinfo=timezone.utc)).isoformat() == "2026-10-13"
+    assert coupling.default_end(datetime(2026, 10, 12, 23, 30, tzinfo=timezone.utc)).isoformat() == "2026-10-13"
