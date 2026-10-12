@@ -28,7 +28,7 @@ Credentials come from GME_API_LOGIN / GME_API_PASSWORD.
 import argparse
 import os
 import time
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import compact
 from entsoe_api import merge_resolutions
@@ -201,6 +201,17 @@ def build_output(flows, prices):
 # ============================================================================
 
 
+# GME publishes the next day's MGP results at about 12:45 Italian time
+# (10:45-11:45 UTC), coupling included: from 11:00 UTC tomorrow is asked for
+# too, as the PUN and zonal price jobs do.
+RESULTS_HOUR_UTC = 11
+
+
+def default_end(now=None):
+    now = now or datetime.now(timezone.utc)
+    return now.date() + timedelta(days=1) if now.hour >= RESULTS_HOUR_UTC else now.date()
+
+
 def main():
     parser = argparse.ArgumentParser(description="Fetch GME MGP market coupling results.")
     parser.add_argument("--start", default=None)
@@ -209,7 +220,7 @@ def main():
                         help="Rebuild from 2025-01-01 instead of merging onto existing data")
     args = parser.parse_args()
 
-    end_date = parse_date(args.end) if args.end else date.today()
+    end_date = parse_date(args.end) if args.end else default_end()
     if args.start:
         start_date = parse_date(args.start)
     elif args.full_history:
