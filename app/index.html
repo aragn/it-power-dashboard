@@ -5127,8 +5127,10 @@
       const liveSeries = live.reduce((sum, country) =>
         sum + (entry.imports[country.code].size ? 1 : 0) + (entry.exports[country.code].size ? 1 : 0), 0);
       let lastComplete = "";
+      // A day's total only once the day is over (today's would show as a drop).
+      const today = resolution === "daily" ? dateKey(new Date()) : null;
       counts.forEach((count, key) => {
-        if (count === liveSeries && key > lastComplete) lastComplete = key;
+        if (count === liveSeries && key > lastComplete && (!today || key < today)) lastComplete = key;
       });
       sums.forEach((value, key) => {
         if (key <= lastComplete) entry.net.set(key, Math.round(value * 100) / 100);
@@ -10577,8 +10579,10 @@
     ];
     const loadMap = new Map((((rawGenerationLoadData.total_load || {})[resolution] || {}).TOTAL || [])
       .map(row => [timelineBucketKey(row), Number(row.value)]));
-    // A layer missing where the others report counts as 0 (storage reports nothing while idle).
-    const reported = rows.map(row => layers.some(layer => layer.map.has(row.key)));
+    // A layer missing where the others report counts as 0 (storage reports nothing while idle);
+    // a day's total only once the day is over (today's would show as a drop).
+    const today = resolution === "daily" ? dateKey(new Date()) : null;
+    const reported = rows.map(row => (!today || row.key < today) && layers.some(layer => layer.map.has(row.key)));
     const values = layer => rows.map((row, index) => (reported[index] ? layer.sign * (layer.map.get(row.key) || 0) : null));
     setText("storage-generation-subtitle", `${timelineMeasure()} · ${zoneLabel()}`);
     const series = layers.map(layer => ({
@@ -10587,7 +10591,8 @@
       areaStyle: { color: cssVar(layer.color), opacity: layer.faded ? 0.45 : 0.8 }, connectNulls: false
     })).concat([{
       // Italy's actual total load (ENTSO-E 6.1.A), on the MW axis with the stack.
-      name: MIX_LOAD_NAME, type: "line", yAxisIndex: 0, data: rows.map(row => (loadMap.has(row.key) ? loadMap.get(row.key) : null)),
+      name: MIX_LOAD_NAME, type: "line", yAxisIndex: 0,
+      data: rows.map(row => (loadMap.has(row.key) && (!today || row.key < today) ? loadMap.get(row.key) : null)),
       showSymbol: false, sampling: "lttb", lineStyle: { width: 1.4, color: cssVar("--chart-load") }, itemStyle: { color: cssVar("--chart-load") }, z: 6
     }, {
       name: PUN_INDEX_NAME, type: "line", yAxisIndex: 1, data: rows.map(row => row.pun), showSymbol: false, sampling: "lttb",
@@ -15369,6 +15374,7 @@ move the slider above to another one`,
         "and the countries" + (code === "SARD" || code === "CNOR" ? " (none published on the SACOI direct-current link to Corsica: its schedules " +
         "are in the charts above)" : "") + ". Click a neighbour above to hide or show it on all charts. Drag horizontally across the chart to " +
         "select a narrower range."],
+      ["#storage-generation-section .chart-title", code && `Storage Output, ${name} Price, Solar and Wind`],
       ["#storage-generation-section .chart-help", code && `ENTSO-E 16.1.B&C for ${name}, stacked from solar up: solar, wind, battery storage and ` +
         `pumped hydro output above zero; battery charging and pumping below; the zone's actual load (6.1.A, line); ${name}'s MGP price ` +
         "(right axis). Click a series in the legend to hide or show it."]
