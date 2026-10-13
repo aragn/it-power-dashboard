@@ -577,7 +577,7 @@
     north: "NORD", "center-north": "CNOR", "center-south": "CSUD", south: "SUD",
     calabria: "CALA", sicily: "SICI", sardinia: "SARD"
   };
-  const ZONE_NAMES = { NORD: "North", CNOR: "Centre-North", CSUD: "Centre-South", SUD: "South", CALA: "Calabria",
+  const ZONE_NAMES = { NORD: "North", CNOR: "Center North", CSUD: "Center South", SUD: "South", CALA: "Calabria",
     SICI: "Sicily", SARD: "Sardinia" };
   // null on Italy's page.
   const zoneCode = () => ZONE_CODES[currentZone] || null;
@@ -7420,15 +7420,15 @@
 
   /* Each zone's borders in GME's transits: [pair as GME names it, neighbour, title]. */
   const ZONE_TRANSITS = {
-    NORD: [["CNOR|NORD", "CNOR", "Centre-North"], ["NORD|COUP", "COUP", "Coupled borders (Austria, France, Slovenia)"],
+    NORD: [["CNOR|NORD", "CNOR", "Center North"], ["NORD|COUP", "COUP", "Coupled borders (Austria, France, Slovenia)"],
       ["NORD|SVIZ", "SVIZ", "Switzerland"]],
-    CNOR: [["CNOR|NORD", "NORD", "North"], ["CNOR|CSUD", "CSUD", "Centre-South"], ["CNOR|CORS", "CORS", "Corsica DC (SACOI)"]],
-    CSUD: [["CNOR|CSUD", "CNOR", "Centre-North"], ["CSUD|SUD", "SUD", "South"], ["CSUD|SARD", "SARD", "Sardinia"],
+    CNOR: [["CNOR|NORD", "NORD", "North"], ["CNOR|CSUD", "CSUD", "Center South"], ["CNOR|CORS", "CORS", "Corsica DC (SACOI)"]],
+    CSUD: [["CNOR|CSUD", "CNOR", "Center North"], ["CSUD|SUD", "SUD", "South"], ["CSUD|SARD", "SARD", "Sardinia"],
       ["CSUD|MONT", "MONT", "Montenegro"]],
-    SUD: [["CSUD|SUD", "CSUD", "Centre-South"], ["CALA|SUD", "CALA", "Calabria"], ["SUD|XGRE", "XGRE", "Greece (coupled)"]],
+    SUD: [["CSUD|SUD", "CSUD", "Center South"], ["CALA|SUD", "CALA", "Calabria"], ["SUD|XGRE", "XGRE", "Greece (coupled)"]],
     CALA: [["CALA|SUD", "SUD", "South"], ["CALA|SICI", "SICI", "Sicily"]],
     SICI: [["CALA|SICI", "CALA", "Calabria"], ["SICI|MALT", "MALT", "Malta"]],
-    SARD: [["CSUD|SARD", "CSUD", "Centre-South (SAPEI)"], ["SARD|CORS", "CORS", "Corsica DC (SACOI)"],
+    SARD: [["CSUD|SARD", "CSUD", "Center South (SAPEI)"], ["SARD|CORS", "CORS", "Corsica DC (SACOI)"],
       ["SARD|COAC", "COAC", "Corsica AC (SARCO)"]]
   };
   const TRANSIT_SERIES = [
@@ -7497,8 +7497,8 @@
       "below, against the transmission limit each way that GME applies (none drawn where GME sets no limit of its own, e.g. on the " +
       "borders coupled with Europe, whose capacity is in the charts above). Where the flow reaches its limit the zones' prices split." +
       (code === "NORD" ? " Italia Coupling is GME's hub of the coupled northern borders (Austria, France, Slovenia); Switzerland is not coupled." : "") +
-      (code === "SARD" ? " The SACOI direct-current link runs Sardinia – Corsica – Centre-North (Corsica DC); SARCO is the alternating-current " +
-        "cable to Corsica (Corsica AC); SAPEI the direct-current link to Centre-South." : "") +
+      (code === "SARD" ? " The SACOI direct-current link runs Sardinia – Corsica – Center North (Corsica DC); SARCO is the alternating-current " +
+        "cable to Corsica (Corsica AC); SAPEI the direct-current link to Center South." : "") +
       " Drag horizontally across a chart to select a narrower range.";
     const lookups = getTransitLookups(code);
     // A border without flow or capacity in the dates chosen (a link out of
@@ -8714,7 +8714,7 @@
       `${ZONE_NAMES[code]} exported to it as far as the link allowed; below zero it was cheaper; at zero no transmission limit ` +
       "bound between the two and they shared one price." +
       (code === "SARD" || code === "CNOR" ? " Corsica DC and AC: GME's virtual zones at the Corsican ends of the SACOI " +
-        "(direct current, Sardinia – Corsica – Centre-North) and SARCO (alternating current, Sardinia – Corsica) links, no price " +
+        "(direct current, Sardinia – Corsica – Center North) and SARCO (alternating current, Sardinia – Corsica) links, no price " +
         "while a link has no capacity (SACOI has had none in the day-ahead market since 9 September 2026)." : "") +
       (code === "NORD" || code === "SUD" ? " The neighbouring countries are in the JAO charts below." : "") +
       " Drag horizontally across the chart to select a narrower range.";
