@@ -186,8 +186,13 @@ def main():
     if not token:
         raise RuntimeError("ENTSOE_API_KEY environment variable must be set.")
 
+    # An area without a file yet (a zone's first run) reads its whole history.
+    explicit = bool(args.start) or args.full_history
     run_areas(targets(args.zone, OUTPUT_PATH, "res_forecasts.json"),
-              lambda label, domain, path: fetch_area(token, label, domain, path, start_date, end_date, args.full_history))
+              lambda label, domain, path: fetch_area(
+                  token, label, domain, path,
+                  start_date if explicit or os.path.exists(path) else DEFAULT_HISTORY_START,
+                  end_date, args.full_history))
 
 
 def fetch_area(token, label, domain, path, start_date, end_date, full_history):

@@ -63,3 +63,24 @@ jobs:
 
       - name: Publish updated data to the data branch
         run: bash .github/scripts/data-branch.sh publish app/data/forecasts.json
+
+      - name: Fetch day-ahead forecasts per bidding zone
+        # The zone pages (app/data/zones/<ZONE>/forecasts.json): the seven zones one
+        # after the other, a zone's first run reading its whole history.  A
+        # failure here does not hold back Italy's file, published above.
+        continue-on-error: true
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        run: |
+          ARGS=(--zone all)
+          if [ -n "${{ inputs.start }}" ]; then ARGS+=(--start "${{ inputs.start }}"); fi
+          if [ -n "${{ inputs.end }}" ]; then ARGS+=(--end "${{ inputs.end }}"); fi
+          if [ "${{ inputs.full_history }}" = "true" ]; then ARGS+=(--full-history); fi
+          echo "Running: python etl/fetch_forecasts.py ${ARGS[*]}"
+          python etl/fetch_forecasts.py "${ARGS[@]}"
+
+      - name: Publish the zones' files to the data branch
+        run: |
+          shopt -s nullglob
+          FILES=(app/data/zones/*/forecasts.json)
+          if [ ${#FILES[@]} -gt 0 ]; then bash .github/scripts/data-branch.sh publish "${FILES[@]}"; fi

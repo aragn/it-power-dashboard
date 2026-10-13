@@ -77,9 +77,20 @@ jobs:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
         run: python etl/fetch_reservoirs.py
 
+      - name: Fetch the hydro reservoirs per bidding zone
+        # The zone pages (app/data/zones/<ZONE>/reservoirs.json); a zone's
+        # first run reads its whole history.
+        continue-on-error: true
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        run: python etl/fetch_reservoirs.py --zone all
+
       - name: Publish updated data to the data branch
         run: |
           FILES=(app/data/outages.json app/data/outage_units.json)
           if [ -f app/data/capacity.json ]; then FILES+=(app/data/capacity.json); fi
           if [ -f app/data/reservoirs.json ]; then FILES+=(app/data/reservoirs.json); fi
+          for file in app/data/zones/*/reservoirs.json; do
+            if [ -f "$file" ]; then FILES+=("$file"); fi
+          done
           bash .github/scripts/data-branch.sh publish "${FILES[@]}"
