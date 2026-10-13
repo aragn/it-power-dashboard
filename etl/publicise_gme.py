@@ -109,7 +109,7 @@ def balancing_kind(path):
 
 def series_kind(name):
     """How the series of a GME file are rounded, by file."""
-    if name.startswith("coupling"):
+    if name.startswith(("coupling", "transits")):
         return lambda path: "price" if "/prices/" in path else "volume"
     return lambda path: "price"
 

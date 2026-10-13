@@ -1,8 +1,9 @@
 """
 Fetch Actual Generation per Production Type (ENTSO-E 16.1.B&C, A75) and
-Actual Total Load (ENTSO-E 6.1.A&B, A65) for Italy from the ENTSO-E
-Transparency Platform Restful API, and build 15-minute / hourly / daily
-series for the it-power-dashboard.
+Actual Total Load (ENTSO-E 6.1.A&B, A65) for Italy, or with --zone for the
+Italian bidding zones (app/data/zones/<ZONE>/generation_load.json, etl/zones.py),
+from the ENTSO-E Transparency Platform Restful API, and build 15-minute /
+hourly / daily series for the it-power-dashboard.
 
 API docs: https://transparency.entsoe.eu (Restful API, single GET
 endpoint at https://web-api.tp.entsoe.eu/api).
@@ -29,14 +30,11 @@ from entsoe_api import (
     request_entsoe,
     to_api_datetime,
 )
+from zones import IT_DOMAIN, area_label, run_areas, targets
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-
-# Italy control area (used both as in_Domain for generation and
-# outBiddingZone_Domain for total load).
-IT_DOMAIN = "10YIT-GRTN-----B"
 
 OUTPUT_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
@@ -102,7 +100,7 @@ def is_consumption(ts):
     return ts.find("{*}outBiddingZone_Domain.mRID") is not None
 
 
-def download_generation_and_consumption(token, start_date, end_date):
+def download_generation_and_consumption(token, start_date, end_date, domain=IT_DOMAIN):
     gen_records, cons_records = [], []
 
     for chunk_start, chunk_end in day_chunks(start_date, end_date, GENERATION_CHUNK_DAYS):
@@ -111,7 +109,7 @@ def download_generation_and_consumption(token, start_date, end_date):
         root = request_entsoe(token, {
             "documentType": "A75",
             "processType": "A16",
-            "in_Domain": IT_DOMAIN,
+            "in_Domain": domain,
             "periodStart": to_api_datetime(chunk_start),
             "periodEnd": to_api_datetime(chunk_end, end_of_day=True),
         })
@@ -124,7 +122,7 @@ def download_generation_and_consumption(token, start_date, end_date):
     return gen_records, cons_records
 
 
-def download_total_load(token, start_date, end_date):
+def download_total_load(token, start_date, end_date, domain=IT_DOMAIN):
     load_records = []
 
     for chunk_start, chunk_end in day_chunks(start_date, end_date, LOAD_CHUNK_DAYS):
@@ -133,7 +131,7 @@ def download_total_load(token, start_date, end_date):
         root = request_entsoe(token, {
             "documentType": "A65",
             "processType": "A16",
-            "outBiddingZone_Domain": IT_DOMAIN,
+            "outBiddingZone_Domain": domain,
             "periodStart": to_api_datetime(chunk_start),
             "periodEnd": to_api_datetime(chunk_end, end_of_day=True),
         })
@@ -162,11 +160,11 @@ def empty_existing():
     }
 
 
-def load_existing():
-    if not os.path.exists(OUTPUT_PATH):
+def load_existing(path=OUTPUT_PATH):
+    if not os.path.exists(path):
         return empty_existing()
 
-    payload = compact.load(OUTPUT_PATH)
+    payload = compact.load(path)
 
     def normalize_dataset(dataset):
         normalized = {}
@@ -228,13 +226,13 @@ def encode_groups(by_group, resolution):
     }
 
 
-def build_output(generation, consumption, total_load):
+def build_output(generation, consumption, total_load, area=f"IT ({IT_DOMAIN})"):
     return {
         "source": "ENTSO-E Transparency Platform",
-        "control_area": f"IT ({IT_DOMAIN})",
+        "control_area": area,
         "description": (
             "16.1.B&C Actual Generation per Production Type (A75) and "
-            "6.1.A&B Actual Total Load (A65) for Italy. Native "
+            f"6.1.A&B Actual Total Load (A65) for {area}. Native "
             "quarter-hourly resolution from 1 October 2025 onward "
             "(hourly data before that is expanded into four identical "
             "quarter-hour points). Hourly values are the average of the "
@@ -275,6 +273,8 @@ def main():
     parser.add_argument("--start", required=False, default=None)
     parser.add_argument("--end", required=False, default=None)
     parser.add_argument("--full-history", action="store_true")
+    parser.add_argument("--zone", default=None,
+                        help="A bidding zone (NORD, CNOR, CSUD, SUD, CALA, SICI, SARD) or 'all'; default Italy")
     args = parser.parse_args()
 
     end_date = parse_date(args.end) if args.end else market_today()
@@ -295,27 +295,33 @@ def main():
     if not token:
         raise RuntimeError("ENTSOE_API_KEY environment variable must be set.")
 
+    run_areas(targets(args.zone, OUTPUT_PATH, "generation_load.json"),
+              lambda label, domain, path: fetch_area(token, label, domain, path, start_date, end_date, args.full_history))
+
+
+def fetch_area(token, label, domain, path, start_date, end_date, full_history):
+    area = area_label(label, domain)
     print()
     print("=" * 70)
-    print("ENTSO-E GENERATION & LOAD FETCH (Italy)")
+    print(f"ENTSO-E GENERATION & LOAD FETCH ({area})")
     print("=" * 70)
     print(f"Date range: {start_date} -> {end_date}")
     print()
 
     # A full-history run rebuilds the file from scratch, so no points from
     # an earlier run (e.g. with a different time basis) survive.
-    existing = empty_existing() if args.full_history else load_existing()
+    existing = empty_existing() if full_history else load_existing(path)
 
     print("Downloading generation (16.1.B&C, A75)...")
     gen_records, cons_records = download_generation_and_consumption(
-        token, start_date, end_date
+        token, start_date, end_date, domain
     )
     print(f"  {len(gen_records):,} generation points, "
           f"{len(cons_records):,} consumption points")
 
     print()
     print("Downloading actual total load (6.1.A&B, A65)...")
-    load_records = download_total_load(token, start_date, end_date)
+    load_records = download_total_load(token, start_date, end_date, domain)
     print(f"  {len(load_records):,} load points")
 
     print()
@@ -326,17 +332,16 @@ def main():
     total_load = merge_resolutions(existing["total_load"], load_records)
 
     if not generation["daily"] or not total_load["daily"]:
-        raise RuntimeError("No generation or load data downloaded; not writing output.")
+        raise RuntimeError(f"No generation or load data downloaded for {area}; not writing output.")
 
     compact.dump(
-        build_output(generation, consumption, total_load), OUTPUT_PATH
+        build_output(generation, consumption, total_load, area), path
     )
 
     print()
     print("=" * 70)
-    print(f"Wrote: {OUTPUT_PATH}")
+    print(f"Wrote: {path}")
     print("=" * 70)
-
 
 if __name__ == "__main__":
     main()

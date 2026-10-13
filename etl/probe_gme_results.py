@@ -41,8 +41,34 @@ def probe_results(token, day, segment, data_name, granularity=None):
     print("notes", notes.most_common(5))
 
 
+def dump_transits(start, end):
+    """The transits file of a range, gzipped and in base64 in the log (for a
+    preview of the zone pages before the job publishes it)."""
+    import base64
+    import gzip
+    import json
+    import os
+    from datetime import date
+
+    import compact
+    import fetch_transits
+    flows, prices = fetch_transits.fetch(os.environ["GME_API_LOGIN"], os.environ["GME_API_PASSWORD"],
+                                         date.fromisoformat(start), date.fromisoformat(end),
+                                         (fetch_transits.empty(), fetch_transits.empty()))
+    payload = {"format": compact.FORMAT, **fetch_transits.build_output(flows, prices)}
+    text = base64.b64encode(gzip.compress(json.dumps(payload, separators=(",", ":")).encode())).decode()
+    print(f"TRANSITSDUMP-BEGIN {len(text)}")
+    for offset in range(0, len(text), 4000):
+        print("TRANSITSDUMP " + text[offset:offset + 4000])
+    print("TRANSITSDUMP-END")
+
+
 def run(token, day, items):
     for index, item in enumerate(items):
+        if item.startswith("TRANSITS:"):
+            _, start, end = item.split(":")
+            dump_transits(start, end)
+            continue
         if index:
             time.sleep(REQUEST_PAUSE_SECONDS)
         parts = item.split(":")

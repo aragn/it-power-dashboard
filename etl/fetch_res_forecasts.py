@@ -35,7 +35,8 @@ from entsoe_api import (
     request_entsoe,
     to_api_datetime,
 )
-from fetch_forecasts import CHUNK_DAYS, DEFAULT_HISTORY_START, IT_DOMAIN, LOOKBACK_DAYS, RESOLUTIONS
+from fetch_forecasts import CHUNK_DAYS, DEFAULT_HISTORY_START, LOOKBACK_DAYS, RESOLUTIONS, area_params
+from zones import IT_DOMAIN, area_label, run_areas, targets
 
 # ============================================================================
 # CONFIGURATION
@@ -76,7 +77,7 @@ def is_wind_or_solar(ts):
 # ============================================================================
 
 
-def download(token, name, start_date, end_date):
+def download(token, name, start_date, end_date, domain=IT_DOMAIN):
     """Point records of one forecast, or None if every request failed."""
     records = []
     failures = 0
@@ -87,7 +88,7 @@ def download(token, name, start_date, end_date):
         requests_made += 1
         try:
             root = request_entsoe(token, {
-                **FORECASTS[name]["params"],
+                **area_params(FORECASTS[name]["params"], domain),
                 "periodStart": to_api_datetime(chunk_start),
                 "periodEnd": to_api_datetime(chunk_end, end_of_day=True),
             })
@@ -113,25 +114,25 @@ def empty():
     return {resolution: {} for resolution in RESOLUTIONS}
 
 
-def load_existing():
+def load_existing(path=OUTPUT_PATH):
     """{forecast: {resolution: {psrType: rows}}}."""
     existing = {name: empty() for name in FORECASTS}
-    if not os.path.exists(OUTPUT_PATH):
+    if not os.path.exists(path):
         return existing
 
-    payload = compact.load(OUTPUT_PATH)
+    payload = compact.load(path)
     for name in FORECASTS:
         for resolution in RESOLUTIONS:
             existing[name][resolution] = dict(payload.get(name, {}).get(resolution, {}))
     return existing
 
 
-def build_output(forecasts):
+def build_output(forecasts, area=f"IT ({IT_DOMAIN})"):
     return {
         "source": "ENTSO-E Transparency Platform",
-        "control_area": f"IT ({IT_DOMAIN})",
+        "control_area": area,
         "description": (
-            "Wind onshore (B19) and solar (B16) generation forecasts for Italy "
+            f"Wind onshore (B19) and solar (B16) generation forecasts for {area} "
             "(14.1.D, A69): day-ahead (A01) and intraday (A40), MW; hourly = "
             "average of the quarter-hours, daily = sum of the hours (MWh/day). "
             "Italian market time (Europe/Rome), labelled by elapsed time since "
@@ -163,6 +164,8 @@ def main():
     parser.add_argument("--end", default=None)
     parser.add_argument("--full-history", action="store_true",
                         help="Rebuild from 2025-01-01 instead of merging onto existing data")
+    parser.add_argument("--zone", default=None,
+                        help="A bidding zone (NORD, CNOR, CSUD, SUD, CALA, SICI, SARD) or 'all'; default Italy")
     args = parser.parse_args()
 
     # Tomorrow's day-ahead forecast is published the day before.
@@ -183,19 +186,25 @@ def main():
     if not token:
         raise RuntimeError("ENTSOE_API_KEY environment variable must be set.")
 
+    run_areas(targets(args.zone, OUTPUT_PATH, "res_forecasts.json"),
+              lambda label, domain, path: fetch_area(token, label, domain, path, start_date, end_date, args.full_history))
+
+
+def fetch_area(token, label, domain, path, start_date, end_date, full_history):
+    area = area_label(label, domain)
     print()
     print("=" * 70)
-    print("ENTSO-E WIND AND SOLAR FORECASTS (Italy)")
+    print(f"ENTSO-E WIND AND SOLAR FORECASTS ({area})")
     print("=" * 70)
     print(f"Date range: {start_date} -> {end_date}")
     print()
 
-    existing = {name: empty() for name in FORECASTS} if args.full_history else load_existing()
+    existing = {name: empty() for name in FORECASTS} if full_history else load_existing(path)
     forecasts = {}
     downloaded = False
 
     for name in FORECASTS:
-        records = download(token, name, start_date, end_date)
+        records = download(token, name, start_date, end_date, domain)
         if records is None:
             # Keep what we have; the next run tries again.
             print(f"  Every {name} request failed; keeping the existing data.")
@@ -204,20 +213,19 @@ def main():
         downloaded = True
         print(f"  {len(records):,} points")
         forecasts[name] = merge_resolutions(existing[name], records, RESOLUTIONS)
-        for code, label in PRODUCTION_TYPES.items():
+        for code, label_ in PRODUCTION_TYPES.items():
             days = forecasts[name]["daily"].get(code, [])
-            print(f"  {name} {label}: {len(days):,} days" + (f", last {days[-1]['date']}" if days else ""))
+            print(f"  {name} {label_}: {len(days):,} days" + (f", last {days[-1]['date']}" if days else ""))
         print()
 
     if not downloaded:
-        raise RuntimeError("Every forecast request failed; not writing output.")
+        raise RuntimeError(f"Every forecast request failed for {area}; not writing output.")
 
-    compact.dump(build_output(forecasts), OUTPUT_PATH)
+    compact.dump(build_output(forecasts, area), path)
 
     print("=" * 70)
-    print(f"Wrote: {OUTPUT_PATH}")
+    print(f"Wrote: {path}")
     print("=" * 70)
-
 
 if __name__ == "__main__":
     main()
