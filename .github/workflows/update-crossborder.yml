@@ -27,9 +27,9 @@ concurrency:
 jobs:
   update-crossborder:
     runs-on: ubuntu-latest
-    # A zone's first run reads its whole history (about 40 minutes for
-    # the seven zones); the hourly runs take a couple of minutes.
-    timeout-minutes: 120
+    # A zone's first run reads its whole history (the zones side by side,
+    # about 10 minutes); the hourly runs take a couple of minutes.
+    timeout-minutes: 60
 
     steps:
       - name: Checkout repository
@@ -64,19 +64,27 @@ jobs:
         run: bash .github/scripts/data-branch.sh publish app/data/crossborder.json
 
       - name: Fetch cross-border exchanges per bidding zone
-        # The zone pages (app/data/zones/<ZONE>/crossborder.json): the seven zones one
-        # after the other, a zone's first run reading its whole history.  A
+        # The zone pages (app/data/zones/<ZONE>/crossborder.json), the seven
+        # zones side by side; a
         # failure here does not hold back Italy's file, published above.
         continue-on-error: true
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
         run: |
-          ARGS=(--zone all)
+          ARGS=()
           if [ -n "${{ inputs.start }}" ]; then ARGS+=(--start "${{ inputs.start }}"); fi
           if [ -n "${{ inputs.end }}" ]; then ARGS+=(--end "${{ inputs.end }}"); fi
           if [ "${{ inputs.full_history }}" = "true" ]; then ARGS+=(--full-history); fi
-          echo "Running: python etl/fetch_crossborder.py ${ARGS[*]}"
-          python etl/fetch_crossborder.py "${ARGS[@]}"
+          # The zones side by side (a zone's first run reads its whole
+          # history), each writing its own file; one failing is logged and
+          # left for a later run.
+          for ZONE in NORD CNOR CSUD SUD CALA SICI SARD; do
+            python etl/fetch_crossborder.py --zone "$ZONE" "${ARGS[@]}" > "zone-$ZONE.log" 2>&1 &
+          done
+          FAILED=0
+          for JOB in $(jobs -p); do wait "$JOB" || FAILED=$((FAILED + 1)); done
+          for ZONE in NORD CNOR CSUD SUD CALA SICI SARD; do echo "::group::$ZONE"; cat "zone-$ZONE.log"; echo "::endgroup::"; done
+          echo "$FAILED zone(s) failed"
 
       - name: Publish the zones' files to the data branch
         run: |
