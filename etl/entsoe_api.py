@@ -194,11 +194,12 @@ RESOLUTION_MINUTES = {"PT15M": 15, "PT30M": 30, "PT60M": 60}
 
 
 def point_value(point):
-    """Volumes are published as <quantity>, prices as <price.amount>."""
+    """Volumes are published as <quantity>, prices as <price.amount>; None
+    for a point published without a value (seen on a Calabria border)."""
     value = _text(point, "quantity")
     if value is None:
         value = _text(point, "price.amount")
-    return float(value)
+    return None if value in (None, "") else float(value)
 
 
 def parse_points(root, group_of=lambda ts: "TOTAL", keep=lambda ts: True):
@@ -229,9 +230,12 @@ def parse_points(root, group_of=lambda ts: "TOTAL", keep=lambda ts: True):
             step = RESOLUTION_MINUTES.get(_text(period, "resolution"), 60)
             positions = int((end - start).total_seconds() // 60 // step)
 
+            # A point without a value is left out: a gap, or (A03) the
+            # value before it holding on.
             points = sorted(
-                (int(_text(point, "position")), point_value(point))
+                (int(_text(point, "position")), value)
                 for point in period.findall("{*}Point")
+                if (value := point_value(point)) is not None
             )
 
             for i, (position, value) in enumerate(points):
