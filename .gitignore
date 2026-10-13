@@ -21,6 +21,8 @@ app/data/balancing/
 app/data/balancing_bids/
 app/data/neighbour_prices.json
 app/data/coupling.json
+app/data/transits.json
+app/data/zones/
 app/data/forecasts.json
 app/data/res_forecasts.json
 app/data/eua.json

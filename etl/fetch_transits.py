@@ -55,6 +55,11 @@ ZONE_LABELS = {
 
 PRICE_ZONES = ["CORS", "COAC"]
 
+# A Corsica zone's price stands only while its links have capacity: with
+# none (the link out of service, e.g. SACOI from September 2026) GME lists a
+# placeholder price (1,700 or 1,750 EUR/MWh), left out (mask_prices).
+CORSICA_LINKS = {"CORS": ("SARD|CORS", "CNOR|CORS"), "COAC": ("SARD|COAC",)}
+
 # At or above this GME sets no limit of its own.
 NO_LIMIT_MW = 10000
 
@@ -107,6 +112,21 @@ def price_records(rows):
     return records
 
 
+def mask_prices(price_points, limit_points):
+    """The Corsica zones' price points of the periods in which a link of the
+    zone had a limit above zero, either way."""
+    open_slots = {zone: set() for zone in CORSICA_LINKS}
+    for record in limit_points:
+        if record["value"] <= 0:
+            continue
+        pair = record["group"].rsplit("|", 1)[0]
+        for zone, pairs in CORSICA_LINKS.items():
+            if pair in pairs:
+                open_slots[zone].add((record["date"], record["time"]))
+    return [record for record in price_points
+            if record["group"] not in CORSICA_LINKS or (record["date"], record["time"]) in open_slots[record["group"]]]
+
+
 # ============================================================================
 # LOAD / SAVE
 # ============================================================================
@@ -151,7 +171,7 @@ def build_output(flows, prices):
             "limits of both directions (limit_forward from the first zone to the second, limit_back the other "
             "way; left out where GME sets none, its 10,000 MW). Daily values are MWh/day. MGP prices of the "
             "virtual zones of the links to Corsica (CORS: SACOI, DC; COAC: SARCO, AC), EUR/MWh, daily values "
-            "averages. Italian market time, labelled by elapsed time since local midnight like GME periods. "
+            "averages, only for the periods in which the zone's links have capacity. Italian market time, labelled by elapsed time since local midnight like GME periods. "
             "Quarter-hourly series start at quarter_hourly_native_from; earlier quarter-hours repeat the "
             "hourly value."
         ),
@@ -185,8 +205,8 @@ def fetch(login, password, start_date, end_date, existing):
     time.sleep(REQUEST_PAUSE_SECONDS)
 
     print("Downloading the Corsica zones' MGP prices...")
-    price_points = price_records(request_data(login, password, start_date, end_date))
-    print(f"  {len(price_points):,} points")
+    price_points = mask_prices(price_records(request_data(login, password, start_date, end_date)), limit_points)
+    print(f"  {len(price_points):,} points (while the links have capacity)")
 
     flows = merge_resolutions(flows, flow_points + limit_points, RESOLUTIONS)
     prices = merge_resolutions(prices, price_points, RESOLUTIONS, daily="mean")
@@ -207,7 +227,8 @@ def main():
     end_date = parse_date(args.end) if args.end else default_end()
     if args.start:
         start_date = parse_date(args.start)
-    elif args.full_history:
+    elif args.full_history or not os.path.exists(args.output):
+        # The first run (no file yet) reads the whole history.
         start_date = DEFAULT_HISTORY_START
     else:
         start_date = end_date - timedelta(days=LOOKBACK_DAYS)

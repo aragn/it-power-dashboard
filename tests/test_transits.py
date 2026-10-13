@@ -56,3 +56,12 @@ def test_output_round_trips_through_compact_format():
     assert sorted(pair) == ["flow", "limit_back", "limit_forward"]
     assert pair["flow"][0] == {"date": "2026-10-11", "time": "00:00", "value": -250.0}
     assert decoded["flows"]["daily"]["CSUD|SARD"]["limit_forward"] == [{"date": "2026-10-11", "value": 720.0 * 24}]
+
+
+def test_a_corsica_price_without_link_capacity_is_left_out():
+    prices = transits.price_records([{"FlowDate": "20261011", "Hour": "1", "Period": str(p), "Zone": "CORS", "Price": "1700"}
+                                     for p in (1, 2)])
+    limits = transits.limit_records([limit("20261011", 1, "SARD", "CORS", 0, 0), limit("20261011", 2, "CNOR", "CORS", 150, 0)],
+                                    {"SARD|CORS", "CNOR|CORS"})
+    kept = transits.mask_prices(prices, limits)
+    assert [record["time"] for record in kept] == ["00:15"]

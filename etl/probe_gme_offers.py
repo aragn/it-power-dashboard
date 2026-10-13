@@ -62,10 +62,6 @@ def main():
     """Arguments: a date, then segments; SEGMENT@YYYY-MM-DD for another date."""
     day = date.fromisoformat(sys.argv[1])
     token = get_token(os.environ["GME_API_LOGIN"], os.environ["GME_API_PASSWORD"])
-    if sys.argv[2].startswith(("RESULTS:", "TRANSITS:")):
-        from probe_gme_results import run
-        run(token, day, sys.argv[2:])
-        return
     for index, segment in enumerate(sys.argv[2:]):
         if index:
             time.sleep(REQUEST_PAUSE_SECONDS)
