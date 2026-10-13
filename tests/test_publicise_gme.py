@@ -210,3 +210,8 @@ def test_storage_units_keep_one_name_over_the_days(tmp_path, monkeypatch):
     assert "signatures" not in index and all(not code.startswith("UP_") for code in index["units"])
     assert set(index["daily"]["2026-09-18"]) == set(index["units"])
     assert index["units"]["Pumped hydro plant 1"] == ["pumped_hydro", None, "NORD", 500.0, False, 587.0]   # power kept
+
+
+def test_a_merit_day_keeps_its_format_version():
+    assert pg.publicise_day({**DAY, "version": 3}, {}, "secret")["version"] == 3
+    assert "version" not in pg.publicise_day({k: v for k, v in DAY.items() if k != "version"}, {}, "secret")
