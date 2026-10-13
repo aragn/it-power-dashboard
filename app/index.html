@@ -9570,8 +9570,8 @@
     const when = marketPeriod === "day" ? formatDate(parseDate(slot.date)) : mgpSlotLabel(slot);
     const flows = Object.fromEntries(TOTAL_MARKETS.map(market => [market.key, marketFlows(market.key, marketFile(market.key), time)]));
     const missing = TOTAL_MARKETS.filter(market => !flows[market.key]).map(market => market.label);
-    // Day files of before the purchases per unit (format 1): sales only.
-    const salesOnly = ["MGP", "MI-A1"].filter(key => flows[key] && (marketFile(key) || {}).version !== 2)
+    // Day files of before the purchases per unit (format 1, no version): sales only.
+    const salesOnly = ["MGP", "MI-A1"].filter(key => flows[key] && ((marketFile(key) || {}).version || 1) < 2)
       .map(key => (key === "MGP" ? "MGP" : "MI-A"));
     const missingText = (missing.length ? ` · not on file: ${missing.join(", ")}` : "") +
       (salesOnly.length ? ` · ${salesOnly.join(" and ")}: purchases not on file yet for this day` : "");

@@ -247,6 +247,8 @@ def publicise_day(data, sources, secret, store=None):
     "markets", one unit list: a unit has the same name in all three)."""
     new_index, renamed = public_units(data["units"], data["date"], sources, secret, store)
     public = {"date": data["date"], "market": data.get("market", "MGP"), "source": NOTE, "units": renamed}
+    if "version" in data:
+        public["version"] = data["version"]          # the page reads which parts a day has from it
     if "markets" in data:
         public["markets"] = {market: public_quarters(quarters, new_index) for market, quarters in data["markets"].items()}
     else:
