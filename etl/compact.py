@@ -41,7 +41,7 @@ RECENT_DAYS = 120
 RECENT_FILES = {
     "zonal_prices.json", "generation_load.json", "intraday_prices.json", "xbid_prices.json",
     "jao_spreads.json", "crossborder.json", "res_forecasts.json", "forecasts.json",
-    "neighbour_prices.json", "coupling.json", "jao_capacity.json",
+    "neighbour_prices.json", "coupling.json", "jao_capacity.json", "transits.json",
 }
 
 STEP_MINUTES = {"quarter_hourly": 15, "hourly": 60, "daily": 1440}

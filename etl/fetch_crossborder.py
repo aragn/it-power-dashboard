@@ -15,6 +15,14 @@ Transparency Platform, per neighbouring control area and direction:
 out of it.  Output: app/data/crossborder.json with 15-minute / hourly /
 daily series on the same Italian market-time basis as the other data.
 
+With --zone, the same for an Italian bidding zone and the zones and
+countries next to it (ZONE_BORDERS): app/data/zones/<ZONE>/crossborder.json
+(etl/zones.py), imports into the zone and exports out of it.  Sardinia's
+links to Corsica are ENTSO-E's areas IT-SACO AC (SARCO, alternating current)
+and IT-SACO DC (SACOI, direct current, which goes on to Centre-North),
+stored under GME's names of the two Corsica zones, COAC and CORS; ENTSO-E
+publishes no physical flow on the DC link, only its schedules.
+
 Quarter-hourly series are stored from 1 October 2025 (15-minute market
 time unit) only; before that the dashboard repeats the hourly value.
 
@@ -39,12 +47,11 @@ from entsoe_api import (
     request_entsoe,
     to_api_datetime,
 )
+from zones import IT_DOMAIN, ZONE_DOMAINS, ZONE_NAMES, area_label, run_areas, targets
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-
-IT_DOMAIN = "10YIT-GRTN-----B"
 
 # Neighbouring control areas (EIC codes).
 BORDERS = {
@@ -55,6 +62,28 @@ BORDERS = {
     "ME": ("Montenegro", "10YCS-CG-TSO---S"),
     "MT": ("Malta", "10Y1001A1001A93C"),
     "SI": ("Slovenia", "10YSI-ELES-----O"),
+}
+
+# The Corsica ends of Sardinia's links (ENTSO-E areas), under GME's zone names.
+CORSICA = {
+    "COAC": ("Corsica AC (SARCO)", "10Y1001A1001A885"),
+    "CORS": ("Corsica DC (SACOI)", "10Y1001A1001A893"),
+}
+
+
+def _zone(code):
+    return (ZONE_NAMES[code], ZONE_DOMAINS[code])
+
+
+# Each bidding zone's neighbours: zones, countries, Corsica.
+ZONE_BORDERS = {
+    "NORD": {"CNOR": _zone("CNOR"), **{code: BORDERS[code] for code in ("FR", "CH", "AT", "SI")}},
+    "CNOR": {"NORD": _zone("NORD"), "CSUD": _zone("CSUD"), "CORS": CORSICA["CORS"]},
+    "CSUD": {"CNOR": _zone("CNOR"), "SUD": _zone("SUD"), "SARD": _zone("SARD"), "ME": BORDERS["ME"]},
+    "SUD": {"CSUD": _zone("CSUD"), "CALA": _zone("CALA"), "GR": BORDERS["GR"]},
+    "CALA": {"SUD": _zone("SUD"), "SICI": _zone("SICI")},
+    "SICI": {"CALA": _zone("CALA"), "MT": BORDERS["MT"]},
+    "SARD": {"CSUD": _zone("CSUD"), "CORS": CORSICA["CORS"], "COAC": CORSICA["COAC"]},
 }
 
 DATASETS = {
@@ -91,20 +120,20 @@ RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
 # ============================================================================
 
 
-def domains(direction, neighbour):
+def domains(direction, neighbour, home=IT_DOMAIN):
     """in_Domain receives the energy, out_Domain sends it."""
     if direction == "imports":
-        return {"in_Domain": IT_DOMAIN, "out_Domain": neighbour}
-    return {"in_Domain": neighbour, "out_Domain": IT_DOMAIN}
+        return {"in_Domain": home, "out_Domain": neighbour}
+    return {"in_Domain": neighbour, "out_Domain": home}
 
 
-def download_dataset(token, dataset, start_date, end_date):
+def download_dataset(token, dataset, start_date, end_date, borders=BORDERS, home=IT_DOMAIN):
     """Point records grouped as "<direction>|<country>"."""
     records = []
     failures = 0
     requests_made = 0
 
-    for country, (label, eic) in BORDERS.items():
+    for country, (label, eic) in borders.items():
         for direction in DIRECTIONS:
             group = f"{direction}|{country}"
 
@@ -114,7 +143,7 @@ def download_dataset(token, dataset, start_date, end_date):
 
                 params = {
                     **DATASETS[dataset],
-                    **domains(direction, eic),
+                    **domains(direction, eic, home),
                     "periodStart": to_api_datetime(chunk_start),
                     "periodEnd": to_api_datetime(chunk_end, end_of_day=True),
                 }
@@ -146,14 +175,14 @@ def empty_dataset():
     return {resolution: {} for resolution in RESOLUTIONS}
 
 
-def load_existing():
+def load_existing(path=OUTPUT_PATH):
     """{dataset: {resolution: {"<direction>|<country>": rows}}}."""
     existing = {name: empty_dataset() for name in DATASETS}
 
-    if not os.path.exists(OUTPUT_PATH):
+    if not os.path.exists(path):
         return existing
 
-    payload = compact.load(OUTPUT_PATH)
+    payload = compact.load(path)
 
     for name in DATASETS:
         for resolution in RESOLUTIONS:
@@ -180,13 +209,13 @@ def encode_dataset(dataset):
     return output
 
 
-def build_output(datasets):
+def build_output(datasets, borders=BORDERS, area=f"IT ({IT_DOMAIN})"):
     return {
         "source": "ENTSO-E Transparency Platform",
-        "control_area": f"IT ({IT_DOMAIN})",
+        "control_area": area,
         "description": (
-            "Cross-border exchanges between the Italian control area and "
-            "each neighbouring control area, per direction: physical flows "
+            f"Cross-border exchanges between {area} and "
+            "each neighbouring area, per direction: physical flows "
             "(12.1.G) and scheduled commercial exchanges (12.1.F), day-ahead "
             "(long-term + day-ahead allocations) and total (all allocations "
             "including intraday). Values in MW; hourly = average of the "
@@ -197,7 +226,7 @@ def build_output(datasets):
             "repeat the hourly value."
         ),
         "quarter_hourly_native_from": PT15_START.isoformat(),
-        "borders": {country: label for country, (label, _) in BORDERS.items()},
+        "borders": {country: label for country, (label, _) in borders.items()},
         **{name: encode_dataset(dataset) for name, dataset in datasets.items()},
     }
 
@@ -218,6 +247,8 @@ def main():
         action="store_true",
         help="Rebuild from 2025-01-01 instead of merging onto existing data",
     )
+    parser.add_argument("--zone", default=None,
+                        help="A bidding zone (NORD, CNOR, CSUD, SUD, CALA, SICI, SARD) or 'all'; default Italy")
     args = parser.parse_args()
 
     end_date = parse_date(args.end) if args.end else market_today()
@@ -238,37 +269,48 @@ def main():
     if not token:
         raise RuntimeError("ENTSOE_API_KEY environment variable must be set.")
 
+    # An area without a file yet (a zone's first run) reads its whole history.
+    explicit = bool(args.start) or args.full_history
+    run_areas(targets(args.zone, OUTPUT_PATH, "crossborder.json"),
+              lambda label, domain, path: fetch_area(
+                  token, label, domain, path,
+                  start_date if explicit or os.path.exists(path) else DEFAULT_HISTORY_START,
+                  end_date, args.full_history))
+
+
+def fetch_area(token, label, domain, path, start_date, end_date, full_history):
+    area = area_label(label, domain)
+    borders = BORDERS if label == "IT" else ZONE_BORDERS[label]
     print()
     print("=" * 70)
-    print("ENTSO-E CROSS-BORDER EXCHANGES (Italy)")
+    print(f"ENTSO-E CROSS-BORDER EXCHANGES ({area})")
     print("=" * 70)
     print(f"Date range: {start_date} -> {end_date}")
     print()
 
     existing = (
         {name: empty_dataset() for name in DATASETS}
-        if args.full_history
-        else load_existing()
+        if full_history
+        else load_existing(path)
     )
 
     datasets = {}
     for name in DATASETS:
         print(f"Downloading {name}...")
-        records = download_dataset(token, name, start_date, end_date)
+        records = download_dataset(token, name, start_date, end_date, borders, domain)
         print(f"  {len(records):,} points")
 
         datasets[name] = merge_resolutions(existing[name], records, RESOLUTIONS)
         print()
 
     if not any(datasets["physical_flows"]["daily"].values()):
-        raise RuntimeError("No physical flow data downloaded; not writing output.")
+        raise RuntimeError(f"No physical flow data downloaded for {area}; not writing output.")
 
-    compact.dump(build_output(datasets), OUTPUT_PATH)
+    compact.dump(build_output(datasets, borders, area), path)
 
     print("=" * 70)
-    print(f"Wrote: {OUTPUT_PATH}")
+    print(f"Wrote: {path}")
     print("=" * 70)
-
 
 if __name__ == "__main__":
     main()

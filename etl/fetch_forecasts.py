@@ -1,6 +1,7 @@
 """
-Fetch the day-ahead forecasts for Italy from the ENTSO-E Transparency
-Platform and write app/data/forecasts.json:
+Fetch the day-ahead forecasts for Italy (or with --zone the Italian bidding
+zones: app/data/zones/<ZONE>/forecasts.json, etl/zones.py) from the ENTSO-E
+Transparency Platform and write app/data/forecasts.json:
 
   - Day-ahead Total Load Forecast        [6.1.B]   documentType A65,
                                                    processType A01
@@ -36,12 +37,11 @@ from entsoe_api import (
     request_entsoe,
     to_api_datetime,
 )
+from zones import IT_DOMAIN, area_label, run_areas, targets
 
 # ============================================================================
 # CONFIGURATION
 # ============================================================================
-
-IT_DOMAIN = "10YIT-GRTN-----B"
 
 OUTPUT_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
@@ -83,7 +83,13 @@ def is_generation(ts):
 # ============================================================================
 
 
-def download(token, name, start_date, end_date):
+def area_params(params, domain):
+    """A forecast's request parameters for another area: its domain fields
+    (in_Domain, outBiddingZone_Domain) set to the area's code."""
+    return {key: (domain if value == IT_DOMAIN else value) for key, value in params.items()}
+
+
+def download(token, name, start_date, end_date, domain=IT_DOMAIN):
     """Point records of one forecast, or None if every request failed."""
     records = []
     failures = 0
@@ -94,7 +100,7 @@ def download(token, name, start_date, end_date):
         requests_made += 1
         try:
             root = request_entsoe(token, {
-                **FORECASTS[name]["params"],
+                **area_params(FORECASTS[name]["params"], domain),
                 "periodStart": to_api_datetime(chunk_start),
                 "periodEnd": to_api_datetime(chunk_end, end_of_day=True),
             })
@@ -121,25 +127,25 @@ def empty():
     return {resolution: {} for resolution in RESOLUTIONS}
 
 
-def load_existing():
+def load_existing(path=OUTPUT_PATH):
     """{forecast: {resolution: {"TOTAL": rows}}}."""
     existing = {name: empty() for name in FORECASTS}
-    if not os.path.exists(OUTPUT_PATH):
+    if not os.path.exists(path):
         return existing
 
-    payload = compact.load(OUTPUT_PATH)
+    payload = compact.load(path)
     for name in FORECASTS:
         for resolution in RESOLUTIONS:
             existing[name][resolution] = dict(payload.get(name, {}).get(resolution, {}))
     return existing
 
 
-def build_output(forecasts):
+def build_output(forecasts, area=f"IT ({IT_DOMAIN})"):
     return {
         "source": "ENTSO-E Transparency Platform",
-        "control_area": f"IT ({IT_DOMAIN})",
+        "control_area": area,
         "description": (
-            "Day-ahead forecasts for Italy: total load (6.1.B, A65) and "
+            f"Day-ahead forecasts for {area}: total load (6.1.B, A65) and "
             "generation (14.1.C, A71), MW; hourly = average of the "
             "quarter-hours, daily = sum of the hours (MWh/day). Italian market "
             "time (Europe/Rome), labelled by elapsed time since local midnight "
@@ -170,6 +176,8 @@ def main():
     parser.add_argument("--end", default=None)
     parser.add_argument("--full-history", action="store_true",
                         help="Rebuild from 2025-01-01 instead of merging onto existing data")
+    parser.add_argument("--zone", default=None,
+                        help="A bidding zone (NORD, CNOR, CSUD, SUD, CALA, SICI, SARD) or 'all'; default Italy")
     args = parser.parse_args()
 
     # Tomorrow's forecasts are published the day before.
@@ -190,19 +198,30 @@ def main():
     if not token:
         raise RuntimeError("ENTSOE_API_KEY environment variable must be set.")
 
+    # An area without a file yet (a zone's first run) reads its whole history.
+    explicit = bool(args.start) or args.full_history
+    run_areas(targets(args.zone, OUTPUT_PATH, "forecasts.json"),
+              lambda label, domain, path: fetch_area(
+                  token, label, domain, path,
+                  start_date if explicit or os.path.exists(path) else DEFAULT_HISTORY_START,
+                  end_date, args.full_history))
+
+
+def fetch_area(token, label, domain, path, start_date, end_date, full_history):
+    area = area_label(label, domain)
     print()
     print("=" * 70)
-    print("ENTSO-E DAY-AHEAD FORECASTS (Italy)")
+    print(f"ENTSO-E DAY-AHEAD FORECASTS ({area})")
     print("=" * 70)
     print(f"Date range: {start_date} -> {end_date}")
     print()
 
-    existing = {name: empty() for name in FORECASTS} if args.full_history else load_existing()
+    existing = {name: empty() for name in FORECASTS} if full_history else load_existing(path)
     forecasts = {}
     downloaded = False
 
     for name in FORECASTS:
-        records = download(token, name, start_date, end_date)
+        records = download(token, name, start_date, end_date, domain)
         if records is None:
             # Keep what we have; the next run tries again.
             print(f"  Every {name} request failed; keeping the existing data.")
@@ -216,14 +235,13 @@ def main():
         print()
 
     if not downloaded:
-        raise RuntimeError("Every forecast request failed; not writing output.")
+        raise RuntimeError(f"Every forecast request failed for {area}; not writing output.")
 
-    compact.dump(build_output(forecasts), OUTPUT_PATH)
+    compact.dump(build_output(forecasts, area), path)
 
     print("=" * 70)
-    print(f"Wrote: {OUTPUT_PATH}")
+    print(f"Wrote: {path}")
     print("=" * 70)
-
 
 if __name__ == "__main__":
     main()

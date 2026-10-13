@@ -166,3 +166,13 @@ def test_gateway_timeouts_are_retried_then_given_up(monkeypatch):
     except entsoe_api.requests.HTTPError:
         pass
     assert len(calls) == entsoe_api.SERVER_RETRIES + 1
+
+
+def test_a_point_without_a_value_is_left_out():
+    import xml.etree.ElementTree as ET
+    root = ET.fromstring(
+        '<Doc xmlns="urn:x"><TimeSeries><Period><timeInterval><start>2026-10-10T22:00Z</start>'
+        '<end>2026-10-10T23:00Z</end></timeInterval><resolution>PT15M</resolution>'
+        '<Point><position>1</position><quantity>5</quantity></Point><Point><position>2</position></Point>'
+        '<Point><position>3</position><quantity>7</quantity></Point></Period></TimeSeries></Doc>')
+    assert [(row["time"], row["value"]) for row in entsoe_api.parse_points(root)] == [("00:00", 5.0), ("00:30", 7.0)]
