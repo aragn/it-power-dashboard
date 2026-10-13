@@ -5086,36 +5086,49 @@
     if (crossBorderCache[resolution]) return crossBorderCache[resolution];
 
     const lookups = {};
+    const lastKey = map => { let last = ""; map.forEach((value, key) => { if (key > last) last = key; }); return last; };
     CROSS_BORDER_DATASETS.forEach(dataset => {
-      const entry = { imports: {}, exports: {}, net: new Map() };
-      const sums = new Map();
-      const counts = new Map();
-      let seriesWithData = 0;
-
+      const entry = { imports: {}, exports: {}, net: new Map(), last: {} };
       ["imports", "exports"].forEach(direction => {
-        const sign = direction === "imports" ? 1 : -1;
         CROSS_BORDER_COUNTRIES.forEach(country => {
           const map = new Map();
-          crossBorderRows(dataset, direction, country.code).forEach(row => {
-            const key = timelineBucketKey(row);
-            const value = Number(row.value);
-            map.set(key, value);
-            sums.set(key, (sums.get(key) || 0) + sign * value);
-            counts.set(key, (counts.get(key) || 0) + 1);
-          });
-          if (map.size) seriesWithData += 1;
+          crossBorderRows(dataset, direction, country.code).forEach(row => map.set(timelineBucketKey(row), Number(row.value)));
           entry[direction][country.code] = map;
         });
       });
+      // A border's last slot reported (either direction).
+      CROSS_BORDER_COUNTRIES.forEach(country => {
+        const last = [lastKey(entry.imports[country.code]), lastKey(entry.exports[country.code])].sort().pop();
+        entry.last[country.code] = last;
+      });
+      // A border that stopped reporting days before the others (e.g. a link
+      // out of service, like SACOI to Corsica from September 2026) must not
+      // hold the others back: it is left out of "every border reported".
+      const newest = Object.values(entry.last).sort().pop() || "";
+      const cutoff = newest ? dateKey(addDays(parseDate(newest.slice(0, 10)), -2)) : "";
+      entry.stale = CROSS_BORDER_COUNTRIES.filter(country => entry.last[country.code] && entry.last[country.code].slice(0, 10) < cutoff);
+      const live = CROSS_BORDER_COUNTRIES.filter(country => entry.last[country.code] && !entry.stale.includes(country));
 
       // The most recent slots are often reported for some borders before
       // others, and a partial sum shows as a false drop, so the net stops
-      // at the last slot every border has reported.  (Older gaps, mostly
-      // Malta's, stay summed from the borders that are there.)  Keys sort
-      // chronologically as "YYYY-MM-DD|HH:MM" strings.
+      // at the last slot every live border has reported.  (Older gaps,
+      // mostly Malta's, stay summed from the borders that are there.)  Keys
+      // sort chronologically as "YYYY-MM-DD|HH:MM" strings.
+      const sums = new Map(), counts = new Map();
+      ["imports", "exports"].forEach(direction => {
+        const sign = direction === "imports" ? 1 : -1;
+        CROSS_BORDER_COUNTRIES.forEach(country => {
+          entry[direction][country.code].forEach((value, key) => {
+            sums.set(key, (sums.get(key) || 0) + sign * value);
+            if (live.includes(country)) counts.set(key, (counts.get(key) || 0) + 1);
+          });
+        });
+      });
+      const liveSeries = live.reduce((sum, country) =>
+        sum + (entry.imports[country.code].size ? 1 : 0) + (entry.exports[country.code].size ? 1 : 0), 0);
       let lastComplete = "";
       counts.forEach((count, key) => {
-        if (count === seriesWithData && key > lastComplete) lastComplete = key;
+        if (count === liveSeries && key > lastComplete) lastComplete = key;
       });
       sums.forEach((value, key) => {
         if (key <= lastComplete) entry.net.set(key, Math.round(value * 100) / 100);
@@ -5124,17 +5137,19 @@
       lookups[dataset] = entry;
     });
 
-    // A border without published physical flows (Sardinia's SACOI link to
-    // Corsica, on a zone's page): its total schedule stands in for it in the
-    // physical net, so the net covers every border.
+    // A border without physical flows published (Sardinia's SACOI link to
+    // Corsica), or no longer published: its total schedule stands in for it
+    // in the physical net after its last physical slot, so the net covers
+    // every border.
     const physical = lookups.physical_flows, scheduled = lookups.scheduled_total;
     physical.standIns = CROSS_BORDER_COUNTRIES.filter(country =>
-      !physical.imports[country.code].size && !physical.exports[country.code].size &&
+      (!physical.last[country.code] || physical.stale.includes(country)) &&
       (scheduled.imports[country.code].size || scheduled.exports[country.code].size));
+    physical.standInFrom = Object.fromEntries(physical.standIns.map(country => [country.code, physical.last[country.code] || ""]));
     if (physical.standIns.length) {
       physical.net.forEach((value, key) => {
-        const added = physical.standIns.reduce((sum, country) =>
-          sum + (scheduled.imports[country.code].get(key) || 0) - (scheduled.exports[country.code].get(key) || 0), 0);
+        const added = physical.standIns.reduce((sum, country) => (key <= physical.standInFrom[country.code] ? sum
+          : sum + (scheduled.imports[country.code].get(key) || 0) - (scheduled.exports[country.code].get(key) || 0)), 0);
         physical.net.set(key, Math.round((value + added) * 100) / 100);
       });
     }
@@ -5989,10 +6004,13 @@
 
   /* Per resolution: "<kind>|<source>" and "<kind>|area|<area>" -> (bucket key -> MW). */
   /* Terna's macro-area of the zone on a zone's page (Terna publishes two:
-     North, and South & islands), else null (Italy). */
+     Nord, and Sud e isole), else null (Italy); undefined for Centre-North and
+     Centre-South, which Terna does not say which they are in (the chart is
+     left out there). */
+  const AVAILABLE_ZONE_AREA = { NORD: "NORD", SUD: "SUD", CALA: "SUD", SICI: "SUD", SARD: "SUD" };
   function availableArea() {
     if (!zoneCode()) return null;
-    return zoneCode() === "NORD" ? "NORD" : "SUD";
+    return AVAILABLE_ZONE_AREA[zoneCode()];
   }
 
   function getAvailableLookups() {
@@ -6048,6 +6066,8 @@
   let availableRows = [];
 
   function renderAvailableChart() {
+    availableSection.style.display = availableArea() === undefined ? "none" : "";
+    if (availableArea() === undefined) return;
     const lookups = getAvailableLookups();
     if (!lookups || !rawData) {
       availableChart.clear();
@@ -6681,7 +6701,8 @@
     CROSS_BORDER_COUNTRIES.forEach(country => {
       if (crossBorderCountrySelected[country.name] === false) return;
       // A border without physical flows counts with its schedule (getCrossBorderLookups).
-      const source = (entry.standIns || []).includes(country) ? lookups.scheduled_total : entry;
+      const source = (entry.standIns || []).includes(country) && key > entry.standInFrom[country.code]
+        ? lookups.scheduled_total : entry;
       const imports = source.imports[country.code].get(key);
       const exports = source.exports[country.code].get(key);
       if (Number.isFinite(imports)) { sum += imports; found = true; }
@@ -6697,7 +6718,8 @@
     const standIns = ((getCrossBorderLookups() || {}).physical_flows || {}).standIns || [];
     return `${timelineMeasure()} · positive = net import` +
       (hidden.length ? ` · excl. ${hidden.join(", ")}` : "") +
-      (standIns.length ? ` · ${standIns.map(country => country.name).join(", ")}: schedule in the physical net (no physical flow published)` : "");
+      (standIns.length ? ` · ${standIns.map(country => country.name).join(", ")}: schedule in the physical net (no physical flow published` +
+        `${standIns.some(country => ((getCrossBorderLookups() || {}).physical_flows || {}).standInFrom[country.code]) ? " lately" : ""})` : "");
   }
 
   function crossBorderNetSeriesData(lookups) {
@@ -7477,7 +7499,26 @@
         "cable to Corsica (Corsica AC); SAPEI the direct-current link to Centre-South." : "") +
       " Drag horizontally across a chart to select a narrower range.";
     const lookups = getTransitLookups(code);
+    // A border without flow or capacity in the dates chosen (a link out of
+    // service, e.g. SACOI from September 2026): left out, named in the note.
+    const closed = [];
     transitPanels.forEach(panel => {
+      panel.section.style.display = "";
+      if (!lookups || !rawData) return;
+      const entry = lookups[panel.pair];
+      const keys = resetTimeline(panel.timeline).map(row => row.key);
+      const anything = map => keys.some(key => Math.abs(lookupValue(map, key) || 0) >= 0.5);
+      if (!anything(entry.flow) && !anything(entry.importLimit) && !anything(entry.exportLimit)) {
+        panel.section.style.display = "none";
+        closed.push(panel.title);
+      }
+    });
+    if (closed.length) {
+      transitsNote.textContent += ` No day-ahead flow or capacity in the dates chosen on the border with ${closed.join(", ")}` +
+        " (its chart left out).";
+    }
+    transitPanels.forEach(panel => {
+      if (panel.section.style.display === "none") return;
       if (!lookups || !rawData) {
         panel.chart.clear();
         setChartSubtitle(panel.subtitleId, transitsStatus === "loading" ? "Loading the flows between zones…" : "Flows between zones not available yet");
@@ -8834,7 +8875,9 @@
     // The latest day with the other markets' offers on file too, else the latest.
     const withAll = days.filter(day => marketIndex && ["XBID", "MSD"].every(market => ((marketIndex[market] || {}).days || {})[day]));
     const lastDay = withAll.length ? withAll[withAll.length - 1] : days[days.length - 1];
-    const start = lastDay ? mgpSlots.findIndex(slot => slot.date === lastDay && slot.time === "12:00") : -1;
+    // The evening peak (19:00), when every market is busy (at midday MSD can
+    // have nothing accepted).
+    const start = lastDay ? mgpSlots.findIndex(slot => slot.date === lastDay && slot.time === "19:00") : -1;
     mgpSlider.value = String(start >= 0 ? start : Math.max(0, mgpSlots.findIndex(slot => slot.date === lastDay)));
     const onFile = Object.keys((mgpIndex || {}).days || {}).sort();
     document.getElementById("mgp-merit-help").textContent = zoneCode()
@@ -10074,6 +10117,11 @@
         values: new Map([...flowsBySource(flows[key], "boughtEuro")].map(([group, value]) => [group, -value])) }
     ]);
     stackedSourceChart(balancingRevenueChart, groupsOf(balancing), balancing, "€", value => formatEuro(value));
+    if (!groupsOf(balancing).length) {
+      balancingRevenueChart.setOption({ graphic: [{ type: "text", left: "center", top: "middle", silent: true,
+        style: { text: flows.MSD || flows.MB ? `No MSD or MB offer accepted${zoneCode() ? ` from units in ${ZONE_NAMES[zoneCode()]}` : ""} ` +
+          `in ${when}` : "MSD and MB offers not on file for this day", fill: cssVar("--muted"), fontSize: 12 } }] });
+    }
     const balancingTotals = balancing.map(item => [...item.values.values()].reduce((a, b) => a + b, 0));
     setText("balancing-revenue-subtitle", PUBLIC_MODE ? `Estimated upward revenues and downward payments by source in ${when}` +
       (flows.MSD || flows.MB ? "" : " · MSD and MB not on file")
@@ -11341,8 +11389,26 @@
     else renderStorageRevenue(storageLast.collected, panel, storageLast.plantLists[panel.tech.key]);
   }
 
+  /* A zone's page: a technology without plants in the zone keeps no charts
+     (its heading neither); the reservoirs stay (hydro in general). */
+  const STORAGE_TECH_SECTIONS = {
+    battery: ["bid-battery", "mgp-battery", "all-battery", "benchmark", "capture", "heatmap-battery", "stack"],
+    pumped_hydro: ["bid-pumped", "mgp-pumped", "all-pumped", "heatmap-pumped"]
+  };
+  function showStorageTechs() {
+    const headings = [...document.querySelectorAll("#chart-mount-storage > h3.capacity-heading")];
+    STORAGE_TECHS.forEach((tech, index) => {
+      const plants = storageIndex ? Object.entries(storageIndex.units || {})
+        .filter(([code, unit]) => unit[0] === tech.key && storageInZone(code)).length : 1;
+      const shown = !zoneCode() || plants > 0;
+      STORAGE_TECH_SECTIONS[tech.key].forEach(id => { document.getElementById(`storage-${id}-section`).style.display = shown ? "" : "none"; });
+      if (headings[index]) headings[index].style.display = shown ? "" : "none";
+    });
+  }
+
   async function renderStorage() {
     const token = ++storageRenderToken;
+    showStorageTechs();
     renderStorageArbitrage();
     renderStorageGeneration();
     renderReservoirs();
@@ -11904,16 +11970,20 @@
         z: 2
       };
     }
+    // A price exists only where something was accepted or activated: the
+    // line joins those periods, a dot on each (where there is room).
+    const price = item.unit === "price" && !item.area;
     return {
       name: item.name,
       type: "line",
       yAxisIndex: item.axis || 0,
       data,
       // Activations are intermittent: isolated quarter-hours need a dot.
-      showSymbol: !!item.sparse,
+      showSymbol: !!item.sparse || price,
+      showAllSymbol: item.sparse ? true : "auto",
       symbol: "circle",
       symbolSize: 3,
-      connectNulls: false,
+      connectNulls: price,
       lineStyle: { color, width: item.width || 1.5, type: item.line || "solid" },
       itemStyle: { color },
       // Capacities are bands rather than bars.
@@ -11951,7 +12021,11 @@
     });
 
     const subtitleId = `bal-${spec.id}-subtitle`;
-    document.getElementById(`bal-${spec.id}-help`).textContent = spec.help(zone);
+    // The price lines join the periods with a price (balancingSeriesOption).
+    const joined = items.some((item, index) => item.unit === "price" && !item.area && item.type !== "bar" &&
+      data[index].some(value => value === null) && data[index].some(value => value !== null));
+    document.getElementById(`bal-${spec.id}-help`).textContent = spec.help(zone) +
+      (joined ? " A price exists only for the periods with offers accepted or energy activated; the lines join those periods (dots)." : "");
     const own = items.map((item, index) => item.map && !item.own ? [] : data[index]).flat();
     if (!own.some(value => value !== null)) {
       chart.clear();
@@ -12179,8 +12253,12 @@
     strip.innerHTML = days.map((date, index) => available.has(date)
       ? `<span style="left:${(index / days.length) * 100}%;width:${100 / days.length}%"></span>` : "").join("");
 
-    // Start at the latest day with bids; the midday quarter-hour of it.
-    const lastDay = days.filter(date => available.has(date)).pop();
+    // Start at the latest day with bids, the midday quarter-hour of it: a
+    // day before today where there is one (today's file holds only the
+    // quarter-hours ENTSO-E has published so far).
+    const today = dateKey(new Date());
+    const withBids = days.filter(date => available.has(date));
+    const lastDay = withBids.filter(date => date < today).pop() || withBids.pop();
     const start = lastDay ? depthSlots.findIndex(slot => slot.date === lastDay && slot.time === "12:00") : depthSlots.length - 1;
     depthSlider.value = String(Math.max(0, start));
     const shown = days.filter(date => available.has(date));
@@ -12190,7 +12268,7 @@
         ? "All zones' bids (ENTSO-E 12.3.B&C) stacked in merit order for the quarter-hour chosen: cumulative MW against the bid price, up cheapest first, down highest price first; log price scale. Bids go to one national platform, but only PICASSO settles them at one price for Italy (its cross-border marginal price, the horizontal line): Terna activates local aFRR per regulation area (Continent, Sicily, Sardinia) and RR within the transmission limits, each accepted bid paid its own price. Vertical line: the MW activated in Italy. "
         : "The zone's bids (ENTSO-E 12.3.B&C) in merit order for the quarter-hour chosen: cumulative MW against the bid price, up cheapest first, down highest price first; log price scale. Horizontal line: the activation price of that quarter-hour; vertical line: the MW activated in the zone. With less than 1 MW activated the price (an average over that energy) can be extreme: it is then given in the label and left off the scale. ") +
         `Bids are on file from 4 June 2026 (the first ENTSO-E has for Italy) and kept for 400 days; the strip under the slider marks the days with bids in the date range (${shown.length} of ${days.length}).`
-      : "No bids in the date range: bids are kept for the last 35 days.";
+      : "No bids in the date range: bids are on file from 4 June 2026 and kept for 400 days.";
   }
 
   function depthProductsFor(zone) {
@@ -12212,6 +12290,11 @@
       if (!flat || !flat.length) {
         product.chart.clear();
         product.subtitle.textContent = slot ? "No bids for this quarter-hour" : "";
+        // Said in the chart too, so the empty panel does not look broken.
+        if (slot) product.chart.setOption({ graphic: [{ type: "text", left: "center", top: "middle", silent: true,
+          style: { text: `No bids from ${ZONE_LABELS[currentZone]} in this quarter-hour:
+move the slider above to another one`,
+            fill: cssVar("--muted"), fontSize: 12, align: "center", lineHeight: 18 } }] });
         return;
       }
       const points = depthCurve(flat);
@@ -15290,8 +15373,15 @@
         `pumped hydro output above zero; battery charging and pumping below; the zone's actual load (6.1.A, line); ${name}'s MGP price ` +
         "(right axis). Click a series in the legend to hide or show it."]
     ];
+    // The Overview's sections are out of the page while another tab is open:
+    // found through their own elements.
+    const roots = { "pun-chart-section": punChartSection, "generation-load-chart-section": generationLoadChartSection,
+      "generation-mix-chart-section": generationMixChartSection, "capacity-section": capacitySection,
+      "available-section": availableSection, "outages-section": outagesSection };
     texts.forEach(([selector, zoneText]) => {
-      const element = document.querySelector(selector);
+      const [id, rest] = selector.slice(1).split(" ");
+      const root = roots[id] || document.getElementById(id);
+      const element = root && root.querySelector(rest);
       if (!element) return;
       if (element.dataset.italyText === undefined) element.dataset.italyText = element.textContent;
       element.textContent = zoneText || element.dataset.italyText;
@@ -15342,7 +15432,7 @@
   };
 
   // The zones whose pages are drawn (the others say not yet).
-  const ZONES_WITH_DATA = ["italy", "north", "south", "sardinia"];
+  const ZONES_WITH_DATA = ["italy", "north", "center-north", "center-south", "south", "calabria", "sicily", "sardinia"];
 
   let currentSection = "data";
   let granularityBeforeGas = null;
@@ -15617,6 +15707,8 @@
       mount.appendChild(outagesSection);
       mount.appendChild(availableSection);
       mount.appendChild(capacitySection);
+      // Shown before the blocks draw (a hidden section is never drawn).
+      availableSection.style.display = availableArea() === undefined ? "none" : "";
 
       setTimeout(() => {
         // Another tab may have been opened in the meantime.
