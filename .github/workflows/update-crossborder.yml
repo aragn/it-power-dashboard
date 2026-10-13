@@ -65,8 +65,8 @@ jobs:
 
       - name: Fetch cross-border exchanges per bidding zone
         # The zone pages (app/data/zones/<ZONE>/crossborder.json), the seven
-        # zones side by side; a
-        # failure here does not hold back Italy's file, published above.
+        # zones side by side; a failure here does not hold back Italy's file,
+        # published above.
         continue-on-error: true
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
