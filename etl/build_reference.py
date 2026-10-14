@@ -9,8 +9,14 @@ they need refreshing; both are committed):
                                merged ones, with its ISTAT code and the
                                coordinates Wikidata gives it (CC0); the
                                provinces' ISTAT codes and names
+  etl/neighbours.json          the countries around Italy (Natural Earth
+                               1:10m, public domain), cut to NEIGHBOUR_BOX:
+                               fine, for etl/fetch_grid.py to tell which
+                               country a line ends in
+  app/geo/neighbours.json      the same, coarse, drawn round Italy on the
+                               grid map
 
-Run: python etl/build_reference.py
+Run: python etl/build_reference.py [regions|municipalities|neighbours ...]
 """
 
 import json
@@ -26,6 +32,12 @@ WIKIDATA_URL = "https://query.wikidata.org/sparql"
 USER_AGENT = "it-power-dashboard/1.0 (+https://github.com/aragn/it-power-dashboard)"
 TOLERANCE = 0.008      # degrees, about 0.8 km
 MIN_RING_POINTS = 4    # rings that simplify below this (tiny islets) are dropped
+COUNTRIES_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_0_countries.geojson"
+NEIGHBOURS_ETL_PATH = os.path.join(HERE, "neighbours.json")
+NEIGHBOURS_MAP_PATH = os.path.join(HERE, "..", "app", "geo", "neighbours.json")
+NEIGHBOUR_BOX = (2.0, 33.0, 23.0, 49.5)   # west, south, east, north
+NEIGHBOUR_TOLERANCE = {"etl": 0.002, "map": 0.01}   # degrees
+NOT_NEIGHBOURS = {"IT", "SM", "VA"}       # San Marino and the Vatican are on Italy's grid
 
 MUNICIPALITY_QUERY = """
 SELECT ?istat ?name ?coord ?end WHERE {
@@ -88,6 +100,65 @@ def build_regions():
     print(f"Wrote {REGIONS_PATH} ({os.path.getsize(REGIONS_PATH) // 1024} KB)")
 
 
+def clip_ring(ring, box):
+    """Sutherland-Hodgman: the part of a ring inside the box (west, south, east, north)."""
+    west, south, east, north = box
+    edges = [(lambda p: p[0] >= west, lambda a, b: (west, a[1] + (b[1] - a[1]) * (west - a[0]) / (b[0] - a[0]))),
+             (lambda p: p[0] <= east, lambda a, b: (east, a[1] + (b[1] - a[1]) * (east - a[0]) / (b[0] - a[0]))),
+             (lambda p: p[1] >= south, lambda a, b: (a[0] + (b[0] - a[0]) * (south - a[1]) / (b[1] - a[1]), south)),
+             (lambda p: p[1] <= north, lambda a, b: (a[0] + (b[0] - a[0]) * (north - a[1]) / (b[1] - a[1]), north))]
+    points = [tuple(point) for point in ring]
+    for inside, cross in edges:
+        if not points:
+            break
+        out = []
+        for index, current in enumerate(points):
+            previous = points[index - 1]
+            if inside(current):
+                if not inside(previous):
+                    out.append(cross(previous, current))
+                out.append(current)
+            elif inside(previous):
+                out.append(cross(previous, current))
+        points = out
+    if points and points[0] != points[-1]:
+        points.append(points[0])
+    return [list(point) for point in points]
+
+
+def build_neighbours():
+    data = requests.get(COUNTRIES_URL, timeout=300, headers={"User-Agent": USER_AGENT}).json()
+    for target, path in (("etl", NEIGHBOURS_ETL_PATH), ("map", NEIGHBOURS_MAP_PATH)):
+        tolerance = NEIGHBOUR_TOLERANCE[target]
+        digits = 4 if target == "etl" else 3
+        features = []
+        for feature in data["features"]:
+            properties = feature["properties"]
+            code = properties.get("ISO_A2_EH") or properties.get("ISO_A2")
+            if code in NOT_NEIGHBOURS or not code or code == "-99":
+                continue
+            geometry = feature["geometry"]
+            polygons = geometry["coordinates"] if geometry["type"] == "MultiPolygon" else [geometry["coordinates"]]
+            kept = []
+            for polygon in polygons:
+                ring = clip_ring(polygon[0], NEIGHBOUR_BOX)
+                if len(ring) < MIN_RING_POINTS:
+                    continue
+                half = len(ring) // 2
+                ring = simplify(ring[:half + 1], tolerance)[:-1] + simplify(ring[half:], tolerance)
+                if len(ring) >= MIN_RING_POINTS:
+                    kept.append([[[round(x, digits), round(y, digits)] for x, y in ring]])
+            if kept:
+                features.append({"type": "Feature", "properties": {"name": properties["NAME_EN"], "code": code},
+                                 "geometry": {"type": "MultiPolygon", "coordinates": kept}})
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump({"type": "FeatureCollection", "source": "Natural Earth 1:10m admin 0 countries (public domain), "
+                       "outer rings cut to the area round Italy and simplified", "features": features},
+                      handle, ensure_ascii=False, separators=(",", ":"))
+        print(f"Wrote {path} ({os.path.getsize(path) // 1024} KB): {', '.join(f['properties']['code'] for f in features)}")
+
+
 def sparql(query):
     response = requests.get(WIKIDATA_URL, params={"query": query}, timeout=180,
                             headers={"Accept": "application/sparql-results+json", "User-Agent": USER_AGENT})
@@ -115,5 +186,11 @@ def build_municipalities():
 
 
 if __name__ == "__main__":
-    build_regions()
-    build_municipalities()
+    import sys
+    chosen = set(sys.argv[1:]) or {"regions", "municipalities", "neighbours"}
+    if "regions" in chosen:
+        build_regions()
+    if "municipalities" in chosen:
+        build_municipalities()
+    if "neighbours" in chosen:
+        build_neighbours()
