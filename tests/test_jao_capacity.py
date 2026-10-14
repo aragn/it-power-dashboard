@@ -56,3 +56,19 @@ def test_limiting_elements_and_their_country():
     assert fc.element_area("[CH-IT] Robbia-Fiorano [DIR] [CH]", []) == "CH"
     assert fc.element_area("[IT-IT] Bovisio-Verderio [DIR][IT]", []) == "IT"
     assert fc.element_area("PST DIVACA - DIR", ["SI", "SI"]) == "SI"
+
+
+def test_a_failing_limiting_elements_request_does_not_stop_the_rest(monkeypatch):
+    import requests
+    calls = []
+
+    def fake_get(session, endpoint, first, last, extra=None):
+        calls.append(endpoint)
+        if endpoint == "CCR_cnecInfo":
+            raise requests.HTTPError("500 Server Error")
+        return []
+
+    monkeypatch.setattr(fc, "jao_get", fake_get)
+    monkeypatch.setattr(fc, "PAUSE_SECONDS", 0)
+    records, limiting = fc.download(fc.parse_date("2026-10-10"), fc.parse_date("2026-10-11"))
+    assert limiting == [] and "CCR_finalTtcNtc" in calls
