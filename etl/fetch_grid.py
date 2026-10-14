@@ -5,8 +5,11 @@ Build the grid map's data from OpenStreetMap and Terna's development plan:
                                   in service and under construction
   app/data/grid/substations.json  substations of 220 kV and more
   app/data/grid/plants.json       power plants
-  app/data/grid/plans.json        Terna's planned projects (from
-                                  etl/grid_plans.json, see build_plans)
+  app/data/grid/plans.json        Terna's planned projects: etl/grid_plans.json
+                                  (curated: codes, stations, routes) with the
+                                  phases and dates of Terna's summary tables
+                                  (Excel, linked from its Development Plan
+                                  page), see build_plans
 
 OpenStreetMap: Geofabrik's daily extract of Italy (italy-latest.osm.pbf,
 about 2 GB, ODbL; it also holds the parts of foreign lines and cables near
@@ -28,9 +31,10 @@ reads that with the node locations:
     farms often are only their turbines (power=generator): turbines more
     than WIND_CLUSTER km from any mapped wind plant are grouped into farms.
 
-Run: python etl/fetch_grid.py [--pbf FILE] [--keep]
-  --pbf FILE   read a local extract instead of downloading it
-  --keep       keep the download (in --work, default a temporary folder)
+Run: python etl/fetch_grid.py [--pbf FILE] [--keep] [--plans-only]
+  --pbf FILE    read a local extract instead of downloading it
+  --keep        keep the download (in --work, default a temporary folder)
+  --plans-only  only plans.json (Terna's tables and the curated file)
 """
 
 import argparse
@@ -536,10 +540,216 @@ def build_plants(entries, countries):
 
 # ---------------------------------------------------------------- plans
 
+# Terna's work phases ("Fase 1".."Fase 5" in its summary tables: planning,
+# consultation and/or design, authorisation, executive design, works) and
+# the progress report's words for them.
+TABLE_PHASES = {1: "planned", 2: "consultation", 3: "authorisation", 4: "authorised", 5: "construction"}
+PHASE_ORDER = ["study", "planned", "consultation", "authorisation", "authorised", "construction", "completed"]
+TEXT_PHASES = [("valutazione", "study"), ("cancellat", "cancelled"), ("costruzione", "construction"),
+               ("realizzazione", "construction"), ("progettazione esecutiva", "authorised"),
+               ("autorizzazione", "authorisation"), ("concertazione", "planned"), ("pianificat", "planned"),
+               ("completat", "completed")]
+
+
+def terna_id(value):
+    """Terna's intervention code as in its tables, normalised: '723 / E-P' -> '723-E-P',
+    '360-N (ex 337-P)' -> '360-N', '554-p' -> '554-P'."""
+    text = re.sub(r"\(.*?\)", "", str(value or "")).upper().replace(" ", "")
+    text = re.sub(r"/(?=[A-Z])", "-", text)
+    return text if re.match(r"^\d+", text) else None
+
+
+def table_date(name):
+    """The date a Terna table describes: a Development Plan's summary (PdS YYYY) is at
+    31 December of the year before; its progress report's, at 31 December of YYYY."""
+    match = re.search(r"(?:sviluppo|pds)\D{0,4}(20\d\d)", name, re.I)
+    if not match:
+        return None
+    year = int(match.group(1))
+    return f"{year}-12-31" if re.search(r"avanzamento", name, re.I) else f"{year - 1}-12-31"
+
+
+def header_name(value):
+    return re.sub(r"\s+", " ", str(value or "")).strip().lower()
+
+
+def table_columns(cells):
+    """Header cells -> {field: column}, for the fields the map uses."""
+    columns = {"shares": {}}
+    for index, cell in enumerate(cells):
+        phase = re.match(r"fase\s*([1-5])\b", cell)
+        if cell in ("identificativo pds", "codice intervento", "codice pds"):
+            columns["id"] = index
+        elif cell.startswith(("nome intervento", "denominazione intervento")):
+            columns["name"] = index
+        elif phase:
+            columns["shares"][TABLE_PHASES[int(phase.group(1))]] = index
+        elif cell.startswith("completato"):
+            columns["shares"]["completed"] = index
+        elif cell.startswith("fase di avanzamento"):
+            columns["phase_text"] = index
+        elif cell.startswith("progresso"):
+            columns["progress"] = index
+        elif cell.startswith(("avvio cantieri", "avvio realizzazione")):
+            columns["works_start"] = index
+        elif cell.startswith("completamento"):
+            columns["completion"] = index
+        elif cell.startswith("impatto"):
+            columns["capacity_gain"] = index
+    return columns if "id" in columns and ("completion" in columns or columns["shares"] or "phase_text" in columns) else None
+
+
+def text_phase(value):
+    """'Completato / In costruzione' -> construction (what is still to do)."""
+    found = [phase for part in re.split(r"[/;]", str(value or "").lower())
+             for key, phase in TEXT_PHASES if key in part][:3]
+    open_phases = [phase for phase in found if phase != "completed"]
+    return open_phases[0] if open_phases else (found[0] if found else None)
+
+
+def share_phase(shares):
+    """The phase of most of the main works still to do (the more advanced one on a tie);
+    'completed' when all are done."""
+    open_shares = {phase: share for phase, share in shares.items() if phase != "completed" and share}
+    if not open_shares:
+        return "completed" if shares.get("completed") else None
+    return max(open_shares, key=lambda phase: (round(open_shares[phase], 6), PHASE_ORDER.index(phase)))
+
+
+def cell_text(value):
+    if value is None or str(value).strip() in ("", "-"):
+        return None
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return re.sub(r"\s+", " ", re.sub(r"\s*/\s*", "/", str(value).strip()))
+
+
+def parse_terna_table(content, name):
+    """A Terna summary table (Excel) -> {code: facts}."""
+    import io
+    import warnings
+    import openpyxl
+    # openpyxl warns about Excel extensions it drops, while it reads the sheets.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        book = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+        return table_rows(book)
+
+
+def table_rows(book):
+    rows = {}
+    for sheet in book.worksheets:
+        columns = None
+        for row in sheet.iter_rows(values_only=True):
+            if columns is None:
+                columns = table_columns([header_name(cell) for cell in row])
+                continue
+            code = terna_id(row[columns["id"]]) if columns["id"] < len(row) else None
+            if not code or code in rows:
+                continue
+            value = lambda field: cell_text(row[columns[field]]) if field in columns and columns[field] < len(row) else None
+            shares = {}
+            for phase, index in columns["shares"].items():
+                try:
+                    shares[phase] = float(row[index] or 0)
+                except (TypeError, ValueError):
+                    shares[phase] = 0.0
+            rows[code] = {"name": value("name"), "shares": shares if any(shares.values()) else None,
+                          "phase": share_phase(shares) if any(shares.values()) else text_phase(value("phase_text")),
+                          "progress": value("progress"), "works_start": value("works_start"),
+                          "completion": value("completion"), "capacity_gain": value("capacity_gain")}
+    return rows
+
+
+def terna_tables(plans):
+    """Terna's summary tables: the Excel files linked from its Development Plan page
+    (a summary table or a progress report's), with those listed in the plans file."""
+    from urllib.parse import unquote
+    urls = list(plans.get("tables") or [])
+    try:
+        page = requests.get(plans["plan_page"], timeout=60, headers={"User-Agent": USER_AGENT})
+        page.raise_for_status()
+        for link in re.findall(r"https://download\.terna\.it/terna/[^\"'\\\s<>]+?\.xlsx?", page.text):
+            if link not in urls and re.search(r"sintesi|avanzamento", unquote(link), re.I):
+                urls.append(link)
+    except requests.RequestException as error:
+        print(f"Terna's plan page unavailable ({error}): the tables listed in the plans file only")
+    tables = []
+    for url in urls:
+        name = unquote(url.rsplit("/", 1)[-1])
+        as_of = table_date(name)
+        try:
+            response = requests.get(url, timeout=120, headers={"User-Agent": USER_AGENT})
+            response.raise_for_status()
+            rows = parse_terna_table(response.content, name)
+        except Exception as error:  # a table that cannot be read leaves the curated facts
+            print(f"Terna table {name} unreadable: {error}")
+            continue
+        if not as_of or not rows:
+            print(f"Terna table {name}: no date or no interventions, left out")
+            continue
+        print(f"Terna table {name}: {len(rows)} interventions at {as_of}")
+        tables.append({"name": name, "url": url, "as_of": as_of, "rows": rows})
+    return sorted(tables, key=lambda table: table["as_of"], reverse=True)
+
+
+def first_year(text):
+    match = re.search(r"20\d\d", str(text or ""))
+    return int(match.group(0)) if match else None
+
+
+def merge_plan(project, tables, fallback_as_of):
+    """A curated project with Terna's newest facts on it: the newest table that has
+    it, unless the project's update (the progress report) is newer; the curated
+    phase and in-service year where neither has one.  A project that is only part
+    of Terna's intervention ("part": its other works may be far behind or ahead)
+    never takes the table's phase, and its year only where the curated file has none."""
+    out = {key: value for key, value in project.items() if key not in ("update", "phase", "in_service")}
+    facts = {key: (project.get(key), fallback_as_of, "curated") for key in ("phase", "in_service")}
+    table = next((t for t in tables if any(code in t["rows"] for code in project.get("terna_ids", []))), None)
+    table_as_of = None
+    if table:
+        rows = [table["rows"][code] for code in project["terna_ids"] if code in table["rows"]]
+        table_as_of = table["as_of"]
+        shares = defaultdict(float)
+        for row in rows:
+            for phase, share in (row["shares"] or {}).items():
+                shares[phase] += share / len(rows)
+        phase = share_phase(shares) if shares else next((row["phase"] for row in rows if row["phase"]), None)
+        completions = sorted({row["completion"] for row in rows if row["completion"]}, key=lambda text: first_year(text) or 0)
+        part = project.get("part")
+        # The phase of the whole intervention is not a part's.
+        if phase and not part:
+            facts["phase"] = (phase, table_as_of, "table")
+        if completions and not (part and (project.get("in_service") or "in_service" in (project.get("update") or {}))):
+            facts["in_service"] = (" and ".join(completions), table_as_of, "table")
+        out["shares"] = {phase: round(share) for phase, share in shares.items() if round(share)} or None
+        for key in ("works_start", "capacity_gain", "progress"):
+            out[key] = next((row[key] for row in rows if row[key]), None)
+        out["table"] = {"name": table["name"], "as_of": table_as_of}
+    update = project.get("update")
+    if update and (table_as_of is None or update["as_of"] > table_as_of or project.get("part")):
+        for key in ("phase", "in_service"):
+            if key in update:
+                facts[key] = (update[key], update["as_of"], update["source"])
+    for key in ("phase", "in_service"):
+        out[key], out[f"{key}_as_of"], out[f"{key}_source"] = facts[key]
+    out["year"] = first_year(out["in_service"])
+    return out
+
+
 def build_plans():
-    """etl/grid_plans.json as the page reads it (the curated file is the source)."""
+    """etl/grid_plans.json with Terna's tables read in: app/data/grid/plans.json."""
     with open(PLANS_PATH, encoding="utf-8") as handle:
-        return json.load(handle)
+        plans = json.load(handle)
+    tables = terna_tables(plans)
+    projects = [merge_plan(project, tables, plans["fallback_as_of"]) for project in plans["projects"]]
+    return {
+        "description": "Terna's main planned transmission projects (etl/grid_plans.json, etl/fetch_grid.py build_plans)",
+        "updated": plans["updated"], "sources": plans["sources"], "phases": plans["phases"],
+        "tables": [{"name": t["name"], "url": t["url"], "as_of": t["as_of"], "interventions": len(t["rows"])} for t in tables],
+        "projects": projects,
+    }
 
 
 # ---------------------------------------------------------------- main
@@ -557,7 +767,11 @@ def main():
     parser.add_argument("--pbf", help="a local OSM extract of Italy instead of the download")
     parser.add_argument("--work", help="folder for the download and the power file (default: temporary)")
     parser.add_argument("--keep", action="store_true", help="keep the work folder")
+    parser.add_argument("--plans-only", action="store_true", help="only Terna's plans (plans.json), no OpenStreetMap")
     args = parser.parse_args()
+    if args.plans_only:
+        write("plans.json", build_plans())
+        return
 
     work = args.work or tempfile.mkdtemp(prefix="grid-")
     os.makedirs(work, exist_ok=True)

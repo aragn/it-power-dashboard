@@ -15344,20 +15344,27 @@ move the slider above to another one`,
     { key: "other", label: "Other", color: "--map-grid" }
   ];
   const gridTechnology = key => GRID_TECHNOLOGIES.find(entry => entry.key === key) || GRID_TECHNOLOGIES[GRID_TECHNOLOGIES.length - 1];
+  // Terna's phases (its tables' Fase 1-5 and the progress report's words); the
+  // labels the plans file gives win.
   const GRID_PHASES = {
     construction: { label: "Under construction", dash: [10, 4] },
-    authorised: { label: "Authorised", dash: [10, 4] },
+    authorised: { label: "Authorised, in executive design", dash: [10, 4] },
     authorisation: { label: "In authorisation", dash: [5, 5] },
+    consultation: { label: "In consultation and design", dash: [5, 5] },
     planned: { label: "Planned", dash: [2, 5] },
-    study: { label: "Under study", dash: [2, 5] }
+    study: { label: "Under evaluation", dash: [2, 5] },
+    completed: { label: "Completed", dash: [0] }
   };
+  const GRID_SHARE_ORDER = ["completed", "construction", "authorised", "authorisation", "consultation", "planned"];
   const gridPhase = key => GRID_PHASES[key] || { label: "Phase not stated", dash: [5, 5] };
+  const gridDay = date => date ? new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
   const GRID_COUNTRIES = { FR: "France", CH: "Switzerland", AT: "Austria", SI: "Slovenia", GR: "Greece", ME: "Montenegro",
     MT: "Malta", TN: "Tunisia", AL: "Albania", HR: "Croatia" };
   const GRID_MIN_MW = [0, 1, 10, 50, 100, 500];
-  const GRID_LAST_YEAR = 2035; // "after 2034", and the projects without a date
+  const GRID_FIRST_YEAR = 2026;
+  // year: the last year of the projects shown; null: all, those without a date too.
   const gridState = { lines: true, substations: false, plants: true, interconnectors: false, future: false,
-    hidden: new Set(), minMw: 10, unsized: false, year: GRID_LAST_YEAR, region: null, selected: null };
+    hidden: new Set(), minMw: 10, unsized: false, year: null, region: null, selected: null };
   let neighboursGeo = null;
   let neighboursStatus = null; // null | "loading" | "ready" | "missing"
   let gridCache = null;
@@ -15441,7 +15448,6 @@ move the slider above to another one`,
   const osmUrl = id => `https://www.openstreetmap.org/${{ n: "node", w: "way", r: "relation", t: "node" }[id[0]] || "way"}/${id.slice(1)}`;
   const lineUrl = id => `https://www.openstreetmap.org/way/${id}`;
   const gridKv = voltages => (voltages || []).map(kv => formatNumber(kv)).join(" / ") + " kV";
-  const gridYearLabel = year => year >= GRID_LAST_YEAR ? "after 2034" : String(year);
 
   function renderGridMap() {
     GRID_FILES.forEach(loadQueueFile);
@@ -15475,6 +15481,8 @@ move the slider above to another one`,
     }
     registerGridMap();
     const data = gridData();
+    // The slider's last step (after the latest in-service year) shows every project.
+    const lastYear = Math.max(GRID_FIRST_YEAR, ...data.plans.map(project => project.year || 0)) + 1;
     const neighbourNames = new Set((neighboursGeo ? neighboursGeo.features : []).map(feature => feature.properties.name));
     const sizeNote = `${[10, 100, 1000].map(mw => {
       const size = gridPlantSize(mw);
@@ -15505,7 +15513,7 @@ move the slider above to another one`,
       `<div class="queue-note">Click a technology to hide or show it.</div></div>` +
       `<div class="map-box grid-future"><h3>Terna's planned projects</h3>` +
       `<div class="map-year"><span style="color:var(--muted);font-size:12px">In service by</span>` +
-      `<input type="range" min="2026" max="${GRID_LAST_YEAR}" step="1" aria-label="In service by"><b></b></div>` +
+      `<input type="range" min="${GRID_FIRST_YEAR}" max="${lastYear}" step="1" aria-label="In service by"><b></b></div>` +
       `<div class="grid-projects"></div>` +
       `<div class="queue-note">On the map with "Include future developments". Long dashes: under construction or authorised; ` +
       `short: in authorisation or phase not stated; dots: planned or under study. Colour: the voltage, as for today's lines. ` +
@@ -15525,14 +15533,14 @@ move the slider above to another one`,
     const minMw = body.querySelector(".grid-min-mw");
     const unsized = body.querySelector(".grid-unsized");
     body.querySelectorAll("[data-layer]").forEach(input => { input.checked = gridState[input.dataset.layer]; });
-    slider.value = gridState.year;
+    slider.value = gridState.year === null ? lastYear : gridState.year;
     minMw.value = gridState.minMw;
     unsized.checked = gridState.unsized;
 
     const inRegion = entry => !gridState.region || entry.region === gridState.region;
     const plantShown = plant => !gridState.hidden.has(`t:${plant.technology}`) && inRegion(plant) &&
       (isEmpty(plant.size) ? gridState.unsized : plant.size >= gridState.minMw);
-    const projectShown = project => (project.year || GRID_LAST_YEAR) <= gridState.year;
+    const projectShown = project => gridState.year === null || (project.year !== null && project.year <= gridState.year);
     const futureColor = project => cssVar(project.kind === "hvdc" ? "--grid-dc"
       : project.kv >= 300 ? "--grid-380" : project.kv >= 200 ? "--grid-220" : project.kv ? "--grid-hv" : "--grid-380");
 
@@ -15665,6 +15673,19 @@ move the slider above to another one`,
       return isEmpty(value) ? "" : `<dt>${escapeHtml(label)}</dt><dd>${value}</dd>`;
     }
 
+    /* " (Terna's table, 31 Dec 2024)": where a phase or date comes from. */
+    function gridAsOf(date, source) {
+      if (!date) return "";
+      const from = source === "table" ? "Terna's table" : source === "rda2026" ? "Terna's progress report" : "Terna's plan";
+      return ` <span style="color:var(--muted)">(${from}, ${gridDay(date)})</span>`;
+    }
+
+    /* Terna's shares of the main works by phase: "70% under construction, 20% completed". */
+    function gridShares(shares) {
+      if (!shares) return null;
+      return GRID_SHARE_ORDER.filter(phase => shares[phase]).map(phase => `${shares[phase]}% ${gridPhase(phase).label.toLowerCase()}`).join(", ");
+    }
+
     function drawDetails() {
       const selected = gridState.selected;
       if (!selected) {
@@ -15711,12 +15732,18 @@ move the slider above to another one`,
           row("Status", item.status === "service" ? null : "under construction") +
           row("Source", `<a href="${osmUrl(item.id)}" target="_blank" rel="noopener">OpenStreetMap ↗</a>`) + `</dl>`;
       } else {
-        const sources = (item.sources || []).map(key => escapeHtml((data.plansFile.sources || {})[key] || key)).join("; ");
+        const sources = [...(item.sources || []).map(key => escapeHtml((data.plansFile.sources || {})[key] || key)),
+          ...(item.table ? [`<a href="${escapeHtml((data.plansFile.tables.find(table => table.name === item.table.name) || {}).url || "#")}" ` +
+            `target="_blank" rel="noopener">${escapeHtml(item.table.name.replace(/_[0-9a-f]{12,}(?=\.xlsx?$)/, ""))} ↗</a>`] : [])].join("; ");
         details.innerHTML = `<div class="title">${escapeHtml(item.name)}</div><dl>` +
           row("Terna code", item.code ? escapeHtml(item.code) : null) +
           row("Programme", item.programme ? escapeHtml(item.programme) : null) +
-          row("Phase", escapeHtml(gridPhase(item.phase).label)) +
-          row("In service", escapeHtml(item.in_service || "no date given")) +
+          row("Phase", escapeHtml(gridPhase(item.phase).label) + gridAsOf(item.phase && item.phase_as_of, item.phase_source)) +
+          row("In service", escapeHtml(item.in_service || "no date given") + gridAsOf(item.in_service && item.in_service_as_of, item.in_service_source)) +
+          row(item.part ? "Whole intervention" : "Main works", gridShares(item.shares)) +
+          row("Works start", item.works_start ? escapeHtml(item.works_start) : null) +
+          row("Capacity gain", item.capacity_gain ? `${escapeHtml(item.capacity_gain)} MW <span style="color:var(--muted)">(Terna)</span>` : null) +
+          row("Progress", item.progress ? escapeHtml(item.progress) : null) +
           row("Type", escapeHtml(item.kind === "hvdc" ? "HVDC link" : item.kind === "station" ? "Station" : "AC line") +
             (item.kv ? `, ${item.kind === "hvdc" ? "±" : ""}${formatNumber(item.kv)} kV` : "")) +
           row("Capacity", isEmpty(item.mw) ? null : `${formatNumber(item.mw)} MW`) +
@@ -15729,7 +15756,7 @@ move the slider above to another one`,
     function drawSide() {
       back.style.display = gridState.region ? "" : "none";
       hint.style.display = gridState.region ? "none" : "";
-      yearLabel.textContent = gridYearLabel(gridState.year);
+      yearLabel.textContent = gridState.year === null ? "all" : String(gridState.year);
       // Lines: count and km of each voltage, all of Italy.
       const lineRows = GRID_VOLTAGES.slice().reverse().map(voltage => {
         const lines = data.lines.filter(line => line.voltage === voltage.key && line.status === "service");
@@ -15808,6 +15835,9 @@ move the slider above to another one`,
     }
 
     // The note under the map: sources and what the data leave out.
+    const tablesNote = data.plansFile && data.plansFile.tables && data.plansFile.tables.length
+      ? `summary tables, read every week (${data.plansFile.tables.map(table => `${escapeHtml(table.name.replace(/_[0-9a-f]{12,}(?=\.xlsx?$)/, ""))}, ` +
+        `at ${gridDay(table.as_of)}`).join("; ")}), ` : "Development Plan 2025 ";
     const plantsFile = queueData["grid/plants.json"];
     const matchedCount = data.matches.size;
     body.querySelector(".grid-note").innerHTML =
@@ -15816,8 +15846,8 @@ move the slider above to another one`,
       `the 132-150 kV grid mostly so, while many plants give no capacity. Solar farms without one are sized from their area (about 0.5 MW a hectare), ` +
       `wind farms mapped only as turbines from their turbines (1.5 MW each where not stated): both marked as estimates. Rooftop solar and plants ` +
       `mapped only as single generators are not shown. Interconnectors: lines with an end in a neighbouring country (outlines: Natural Earth). ` +
-      `Future developments: Terna's Development Plan 2025 and its progress report of February 2026; stations at their OpenStreetMap ` +
-      `positions, routes drawn by the author. ` +
+      `Future developments: Terna's ${tablesNote}and its progress report of February 2026 (at 31 Dec 2025, where newer); ` +
+      `stations at their OpenStreetMap positions, routes drawn by the author. ` +
       `Boundaries: ISTAT (CC BY 4.0) via openpolis.` +
       (PUBLIC_MODE ? "" : ` <b>Full version:</b> ${formatNumber(matchedCount)} plants matched to GME market units` +
         `${queueStatus[GRID_UNITS_FILE] === "missing" ? " (the match file is not on this machine)" : ""}; their codes are not shown in the public version.`) +
@@ -15829,7 +15859,11 @@ move the slider above to another one`,
         (input.dataset.layer === "plants" && gridState.selected.type === "plant"))) gridState.selected = null;
       draw(false);
     }));
-    slider.addEventListener("input", () => { gridState.year = Number(slider.value); draw(false); });
+    slider.addEventListener("input", () => {
+      // The end of the slider: every project, those without a date too.
+      gridState.year = Number(slider.value) >= lastYear ? null : Number(slider.value);
+      draw(false);
+    });
     minMw.addEventListener("change", () => { gridState.minMw = Number(minMw.value); draw(false); });
     unsized.addEventListener("change", () => { gridState.unsized = unsized.checked; draw(false); });
     [linesLegend, plantsLegend].forEach(table => table.addEventListener("click", event => {

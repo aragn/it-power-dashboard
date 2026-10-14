@@ -113,13 +113,77 @@ def test_match_needs_a_name_or_place_and_capacity(tmp_path):
     assert mg.match({**sermide, "zone": "SICI"}, [{**plants[0], "zones": {"NORD"}}], set()) is None
 
 
+def test_terna_codes_and_table_dates():
+    assert fg.terna_id("723 / E-P") == "723-E-P"
+    assert fg.terna_id("360-N (ex 337-P)") == "360-N"
+    assert fg.terna_id("554-p") == "554-P"
+    assert fg.terna_id("563/1-P") == "563/1-P"
+    assert fg.terna_id("Identificativo PdS") is None
+    # A Development Plan's summary describes the end of the year before; its progress report's, that year's end.
+    assert fg.table_date("Sintesi tabellare Piano di Sviluppo 2025_8dd62ee49f5b0f4.xlsx") == "2024-12-31"
+    assert fg.table_date("Tabella sintesi Rapporto di avanzamento Piano di Sviluppo 2025.xlsx") == "2025-12-31"
+    assert fg.table_date("tabella.xlsx") is None
+
+
+def test_phase_of_most_works_still_to_do():
+    assert fg.share_phase({"authorised": 75, "construction": 25}) == "authorised"
+    assert fg.share_phase({"authorised": 50, "construction": 50}) == "construction"
+    assert fg.share_phase({"authorisation": 25, "completed": 75}) == "authorisation"
+    assert fg.share_phase({"completed": 100}) == "completed"
+    assert fg.text_phase("Completato / In costruzione") == "construction"
+    assert fg.text_phase("Autorizzata e in fase di progettazione esecutiva") == "authorised"
+    assert fg.text_phase("In fase di autorizzazione") == "authorisation"
+
+
+def test_terna_table_is_read_from_its_headers():
+    import io
+    import openpyxl
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.append([None, "Area Territoriale", None, "Stato avanzamento opere principali"])
+    sheet.append(["Categoria", "Identificativo PdS", "Nome Intervento", "Fase 1 [%]", "Fase 2 [%]", "Fase 3 [%]", "Fase 4 [%]",
+                  "Fase 5 [%]", "Completato [%]", "Avvio attività", "Avvio cantieri", "Completamento",
+                  "Impatto in termini di aumento della capacità di interconnessione [MW]"])
+    sheet.append(["Intervento", "723 / E-P", "HVDC east", 0, 0, 0, 17, 83, 0, 2021, 2022, 2028, 1000])
+    sheet.append(["Intervento", "302-P", "Colunga - Calenzano", 0, 0, 0, 10, 70, 20, 2009, 2020, "2026 / 2035", None])
+    content = io.BytesIO()
+    book.save(content)
+    rows = fg.parse_terna_table(content.getvalue(), "Sintesi tabellare Piano di Sviluppo 2025.xlsx")
+    assert rows["723-E-P"]["phase"] == "construction"
+    assert rows["723-E-P"]["completion"] == "2028" and rows["723-E-P"]["capacity_gain"] == "1000"
+    assert rows["302-P"]["completion"] == "2026/2035" and rows["302-P"]["works_start"] == "2020"
+
+
+def test_newest_facts_win():
+    table = {"name": "t.xlsx", "url": "u", "as_of": "2024-12-31",
+             "rows": {"1-P": {"shares": {"authorised": 75, "construction": 25}, "phase": "authorised", "completion": "2029",
+                              "works_start": "2024", "capacity_gain": "1000", "progress": None, "name": "x"}}}
+    project = {"id": "a", "terna_ids": ["1-P"], "phase": "planned", "in_service": "2030",
+               "update": {"as_of": "2025-12-31", "source": "rda2026", "phase": "construction"}}
+    merged = fg.merge_plan(project, [table], "2024-12-31")
+    # The progress report is newer than the table: its phase; the table's year, which it does not give.
+    assert (merged["phase"], merged["phase_source"]) == ("construction", "rda2026")
+    assert (merged["in_service"], merged["year"], merged["in_service_source"]) == ("2029", 2029, "table")
+    assert merged["shares"] == {"authorised": 75, "construction": 25}
+    # A newer table wins over the report.
+    newer = {**table, "as_of": "2026-12-31"}
+    assert fg.merge_plan(project, [newer], "2024-12-31")["phase"] == "authorised"
+    # Without a table: the curated fallback.
+    assert fg.merge_plan({**project, "update": None}, [], "2024-12-31")["phase"] == "planned"
+    # A part of the intervention never takes the intervention's phase.
+    part = fg.merge_plan({"id": "b", "terna_ids": ["1-P"], "part": True}, [table], "2024-12-31")
+    assert part["phase"] is None and part["in_service"] == "2029"
+
+
 def test_plans_file_is_consistent():
     with open(fg.PLANS_PATH, encoding="utf-8") as handle:
         plans = json.load(handle)
     ids = [project["id"] for project in plans["projects"]]
     assert len(ids) == len(set(ids))
     for project in plans["projects"]:
-        assert project["phase"] in (None, *plans["phases"])
+        assert project.get("phase") in (None, *plans["phases"])
+        assert (project.get("update") or {}).get("phase") in (None, *plans["phases"])
+        assert all(fg.terna_id(code) == code for code in project["terna_ids"])
         assert project["kind"] in ("hvdc", "ac", "station")
         assert all(source in plans["sources"] for source in project["sources"])
         assert project["paths"] or project["stations"]
