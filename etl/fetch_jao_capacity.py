@@ -209,7 +209,14 @@ def download(start_day, end_day):
                 else:
                     records += to_records(job.result())
             records += sum_by_slot(ida)
-            limiting += limiting_rows(limiting_job.result())
+            # The limiting elements' endpoint (CCR_cnecInfo) is the one JAO
+            # most often fails on (HTTP 500 after the retries): those days
+            # keep the elements on file, the next run asks again, and the
+            # capacity data still goes out.
+            try:
+                limiting += limiting_rows(limiting_job.result())
+            except requests.RequestException as error:
+                print(f"    limiting elements {first} -> {last} not read ({error}); kept as on file, asked again next run")
             print(f"  {first} -> {last} ({time.time() - began:.1f}s)")
             time.sleep(PAUSE_SECONDS)
     return records, limiting
