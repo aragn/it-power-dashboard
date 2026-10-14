@@ -43,6 +43,8 @@
       --map-solar:#d9a800; --map-agrivoltaic:#e07b1a; --map-wind:#2ca76a; --map-offshore:#3f93d8; --map-hydro:#22b3c6; --map-pumped:#6f7fd6;
       --map-geothermal:#b06a3b; --map-thermal:#d6453a; --map-storage:#a07be0; --map-datacentre:#e07bbf; --map-grid:#9aa2ab; --map-other:#b5b83a;
       --map-land:#1a1f25; --map-border:#2c323a;
+      --map-coal:#a59d92; --map-oil:#e07bbf; --map-neighbour:#121519; --map-sea:#0e1114;
+      --grid-380:#d05ce3; --grid-220:#ec9a3c; --grid-hv:#4d8fe6; --grid-dc:#2fc4a0; --grid-substation:#c9ced6; --grid-selected:#ffffff;
     }
     :root[data-theme="light"] {
       color-scheme:light;
@@ -71,6 +73,8 @@
       --map-solar:#c99a00; --map-agrivoltaic:#d06a00; --map-wind:#1a8f55; --map-offshore:#2a78c6; --map-hydro:#0f97a8; --map-pumped:#4d5cc0;
       --map-geothermal:#9a5426; --map-thermal:#c23a2c; --map-storage:#7e57c2; --map-datacentre:#c2569e; --map-grid:#7a838e; --map-other:#949712;
       --map-land:#eef0f3; --map-border:#c9cfd6;
+      --map-coal:#6e665c; --map-oil:#c2569e; --map-neighbour:#f8f9fa; --map-sea:#ffffff;
+      --grid-380:#a43cc0; --grid-220:#d07a10; --grid-hv:#2f6fdb; --grid-dc:#109678; --grid-substation:#4a525c; --grid-selected:#14171a;
     }
     #theme-toggle { position:fixed; left:16px; bottom:16px; z-index:150; display:flex; align-items:center; gap:8px; border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:999px; padding:8px 14px 8px 11px; font-size:12px; cursor:pointer; box-shadow:0 6px 18px var(--shadow); }
     #theme-toggle:hover { background:var(--hover); }
@@ -260,6 +264,39 @@
     .map-sizes { display:flex; align-items:flex-end; gap:16px; color:var(--muted); font-size:11px; }
     .map-sizes div { display:flex; flex-direction:column; align-items:center; gap:4px; }
     .map-sizes i { display:inline-block; border-radius:50%; border:1px solid var(--muted); }
+    .map-switch { display:flex; align-items:center; gap:10px; padding:5px 0; font-size:12.5px; cursor:pointer; user-select:none; }
+    .map-switch input { position:absolute; opacity:0; pointer-events:none; }
+    .map-switch i { position:relative; flex-shrink:0; width:30px; height:17px; border-radius:9px; background:var(--range); transition:background .15s; }
+    .map-switch i::after { content:""; position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%; background:var(--muted); transition:left .15s, background .15s; }
+    .map-switch input:checked + i { background:var(--blue); }
+    .map-switch input:checked + i::after { left:15px; background:#fff; }
+    .map-switch input:focus-visible + i { outline:2px solid var(--blue); outline-offset:2px; }
+    .map-switch small { margin-left:auto; color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums; }
+    .map-switch.future { margin-top:6px; padding:9px 10px; border:1px solid var(--border); border-radius:7px; background:var(--panel); font-weight:600; }
+    .grid-legend td:nth-child(n+2), .grid-legend th:nth-child(n+2) { text-align:right; font-variant-numeric:tabular-nums; }
+    .grid-legend td { color:var(--text); }
+    .grid-legend th { cursor:default; text-align:right; }
+    .grid-legend .swatch { display:inline-block; width:18px; height:0; border-top:3px solid; vertical-align:middle; margin-right:7px; }
+    .grid-legend .swatch.dashed { border-top-style:dashed; }
+    .grid-controls { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; margin-bottom:8px; color:var(--muted); font-size:12px; }
+    .grid-controls select { border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:6px; padding:4px 6px; font-size:12px; }
+    .grid-details-body { font-size:12px; line-height:1.5; }
+    .grid-details-body .title { font-size:13px; font-weight:600; margin-bottom:6px; }
+    .grid-details-body dl { display:grid; grid-template-columns:auto 1fr; gap:3px 12px; margin:0; }
+    .grid-details-body dt { color:var(--muted); }
+    .grid-details-body dd { margin:0; overflow-wrap:anywhere; }
+    .grid-details-body p { margin:8px 0 0; color:var(--muted); }
+    .grid-details-body a { color:var(--blue); }
+    .grid-projects { max-height:420px; overflow:auto; margin:8px -14px 0; border-top:1px solid var(--border); }
+    .grid-projects button { display:flex; width:100%; align-items:baseline; gap:8px; border:0; border-bottom:1px solid var(--border); background:transparent; color:var(--text); padding:6px 14px; font-size:12px; text-align:left; cursor:pointer; }
+    .grid-projects button:hover, .grid-projects button.active { background:var(--hover); }
+    .grid-projects b { min-width:66px; color:var(--muted); font-weight:500; font-variant-numeric:tabular-nums; font-size:11px; }
+    .grid-projects span { flex:1; }
+    .grid-projects small { color:var(--muted); font-size:10.5px; white-space:nowrap; }
+    .grid-lower { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:18px; align-items:start; }
+    @media (max-width: 1050px) { .grid-lower { grid-template-columns:1fr; } }
+    .grid-countries { margin-top:8px; color:var(--muted); font-size:11.5px; line-height:1.6; }
+    .grid-countries b { color:var(--text); font-weight:500; }
     .gas-empty { padding:18px; color:var(--muted); font-size:12px; }
     #chart-mount-balancing { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     @media (max-width: 1050px) { #chart-mount-balancing { grid-template-columns:1fr; } }
@@ -496,7 +533,7 @@
           <section id="unit-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Estimated Revenues and Costs by Unit, All Markets</div><div id="unit-revenue-subtitle" class="chart-subtitle">Each unit across the markets</div></div><div class="merit-filters"><label class="mgp-source-filter">Market <select id="unit-revenue-market" aria-label="Show one market"><option value="">All markets</option><option value="MGP">MGP</option><option value="MI-A1">ID1 · MI-A1</option><option value="MI-A2">ID2 · MI-A2</option><option value="MI-A3">ID3 · MI-A3</option><option value="XBID">MI-XBID</option><option value="MSD">MSD</option><option value="MB">MB</option></select></label><label class="mgp-source-filter">Source <select id="unit-revenue-source" aria-label="Show the units of one source only"><option value="">All sources</option></select></label></div></div><div id="unit-revenue-table" class="mgp-table-host"></div><div id="unit-revenue-help" class="chart-help">Estimated, for the quarter-hour or the whole day chosen above, at the prices GME awarded (zonal for both sales and purchases; in MSD and MB the unit's own price): MGP, MI-A and MI-XBID, sales minus purchases; MSD and MB, upward minus downward (what Terna paid the unit minus what the unit paid Terna), start-ups and reserve bands not counted. Bilateral schedules registered in the MGP count at the zonal price, though settled between the parties. Before fees, imbalances, any hedge and the fuel saved or burnt. Each figure is revenue minus cost: above zero a net revenue, below zero a net cost. Volumes: MW for a quarter-hour, MWh for a day. Click a column to sort.</div></section>
         </div><div id="chart-mount-storage" style="display:none"><section id="storage-kpis-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Storage at a Glance</div><div id="storage-kpis-subtitle" class="chart-subtitle">Batteries and pumped hydro, Italy</div></div></div><div id="storage-kpis" class="gas-kpis storage-kpis"></div><div id="storage-kpis-help" class="chart-help" style="margin-left:0"></div></section><section id="storage-generation-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Storage Output, PUN, Solar and Wind</div><div id="storage-generation-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap tall"><div id="storage-generation-chart" class="timeline-chart"></div></div><div class="chart-help">ENTSO-E 16.1.B&amp;C, stacked from solar up: solar, wind (onshore and offshore), battery storage and pumped hydro output above zero; battery charging and pumping below; Italy's actual load (6.1.A, line); the PUN Index (right axis). Click a series in the legend to hide or show it.</div></section><section id="storage-arbitrage-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MGP Daily Arbitrage Spread by Zone</div><div id="storage-arbitrage-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap tall"><div id="storage-arbitrage-chart" class="timeline-chart"></div></div><div class="chart-help">Each day and bidding zone: the highest MGP quarter-hour price of the evening (18:00–21:00) minus the lowest of the whole day, the most a storage plant could earn per MWh moved in the day-ahead market by buying at the bottom and selling at the evening peak, before losses (a battery returns about 85–90% of what it takes, pumped hydro about 75%). Daily, whatever the resolution chosen above. Click a zone in the legend to hide or show it.</div></section><h3 class="capacity-heading">Battery storage</h3><section id="storage-bid-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated Average Bid per Plant</div><div id="storage-bid-battery-subtitle" class="chart-subtitle"></div></div><div class="market-period storage-bid-mode" role="group" aria-label="Bid shown as"><button type="button" data-mode="price" class="active">€/MWh</button><button type="button" data-mode="mw">MW</button></div></div><div class="storage-chart-wrap"><div id="storage-bid-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-bid-help"></div></section><section id="storage-mgp-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated MGP Revenues and Costs</div><div id="storage-mgp-battery-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="mgp-battery" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-mgp-battery-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-mgp-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-mgp-help"></div></section><section id="storage-all-battery-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated Revenues and Costs, All Markets</div><div id="storage-all-battery-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="all-battery" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-all-battery-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-all-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-all-help"></div></section><section id="storage-capture-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: TB2 Spread and Captured Spread</div><div id="storage-capture-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-capture-chart" class="timeline-chart"></div></div><div class="chart-help">Each day: the PUN's TB2 spread (dashed), the average price of its eight dearest quarter-hours (two hours) minus that of its eight cheapest, the most a two-hour battery cycling once could earn per MWh in the day-ahead market, before losses; the spread the batteries captured (solid), the average price of what they discharged minus that of what they charged, taken quarter-hour by quarter-hour from their net position across the MGP, MI-A and MI-XBID; the capture rate (bars, right axis), the captured spread as a share of the TB2 spread. The batteries trade at zonal prices and can cycle twice a day, so the rate can pass 100%. Daily, whatever the resolution chosen above.</div></section><section id="storage-heatmap-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Dispatch by Hour of the Day</div><div id="storage-heatmap-battery-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-heatmap-battery-chart" class="timeline-chart"></div></div><div class="chart-help">Each day (row) and clock hour (column): the batteries' net position together across the MGP, MI-A and MI-XBID, sold minus bought, averaged over the hour's quarter-hours; green selling (discharging), blue buying (charging). The schedules the markets accepted, not the metered output.</div></section><section id="storage-stack-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Battery Storage: Revenue Stack by Market</div><div id="storage-stack-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-stack-chart" class="timeline-chart"></div></div><div class="chart-help">The batteries' estimated net revenue in each market, all of them together, per MW of their capacity, week by week (Monday to Sunday) and scaled to a year (÷ the days on file × 365): MGP, MI-A and MI-XBID sales minus purchases, MSD and MB upward minus downward; the line, the total. Units that bid a portfolio of plants as one are left out. Before fees, imbalances, capacity payments (MACSE, capacity market) and any hedge. Every week on file, not linked to the dates chosen.</div></section><section id="storage-benchmark-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Weekly Empirical Benchmark: Top 10 Battery Storage Plants</div><div id="storage-benchmark-subtitle" class="chart-subtitle">€/MW/year</div></div></div><div class="storage-chart-wrap tall"><div id="storage-benchmark-chart" class="timeline-chart"></div></div><div id="storage-benchmark-help" class="chart-help"></div></section><h3 class="capacity-heading">Pumped hydro</h3><section id="storage-bid-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated Average Bid per Plant</div><div id="storage-bid-pumped-subtitle" class="chart-subtitle"></div></div><div class="market-period storage-bid-mode" role="group" aria-label="Bid shown as"><button type="button" data-mode="price" class="active">€/MWh</button><button type="button" data-mode="mw">MW</button></div></div><div class="storage-chart-wrap"><div id="storage-bid-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-bid-help"></div></section><section id="storage-mgp-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated MGP Revenues and Costs</div><div id="storage-mgp-pumped-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="mgp-pumped" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-mgp-pumped-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-mgp-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-mgp-help"></div></section><section id="storage-all-pumped-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated Revenues and Costs, All Markets</div><div id="storage-all-pumped-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="all-pumped" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-all-pumped-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-all-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-all-help"></div></section><section id="storage-heatmap-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Dispatch by Hour of the Day</div><div id="storage-heatmap-pumped-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-heatmap-pumped-chart" class="timeline-chart"></div></div><div class="chart-help">Each day (row) and clock hour (column): the pumped hydro plants' net position together across the MGP, MI-A and MI-XBID, sold minus bought, averaged over the hour's quarter-hours; green selling (generating), blue buying (pumping, or buying back what was sold earlier).</div></section><section id="storage-reservoirs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Hydro Reservoirs: Stored Energy</div><div id="storage-reservoirs-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-reservoirs-chart" class="timeline-chart"></div></div><div class="chart-help">ENTSO-E 16.1.D: the energy stored in Italy's water reservoirs and hydro storage plants, week by week: the last two years against the range (shaded) and the average (dashed) of the five years before. What the hydro and pumped hydro plants have in hand for the coming weeks. Not linked to the dates chosen.</div></section></div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net scheduled commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Scheduled commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Scheduled commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div id="transits-grid" class="coupling-grid" style="display:none"><div id="transits-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the flows between zones"><span class="legend-title">Day-ahead flows on each border (MGP)</span></div><p id="transits-note" class="coupling-note"></p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
         <div id="gas-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Gas storage and LNG</p></div><nav id="gas-subnav" class="subnav"><button class="subnav-tab active" data-gas-tab="overview" type="button">Overview</button><button class="subnav-tab" data-gas-tab="storage" type="button">Storage</button><button class="subnav-tab" data-gas-tab="lng" type="button">LNG</button><button class="subnav-tab" data-gas-tab="outages" type="button">Outages</button><button class="subnav-tab" data-gas-tab="tariffs" type="button">Tariffs</button></nav><div id="gas-mount"></div></div>
-        <div id="maps-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Maps</p></div><div id="maps-mount"></div></div>
+        <div id="maps-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Maps</p></div><nav id="maps-subnav" class="subnav"><button class="subnav-tab active" data-maps-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-maps-tab="grid" type="button">Grid and power plants</button></nav><div id="maps-mount"></div></div>
         <div id="queue-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Project pipeline, grid-connection queue and market units</p></div><nav id="queue-subnav" class="subnav"><button class="subnav-tab active" data-queue-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-queue-tab="connections" type="button">Grid connections (Terna, e-distribuzione)</button><button class="subnav-tab" data-queue-tab="units" type="button">Market connections (GME)</button></nav><div id="queue-mount"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO), GIE (AGSI+, ALSI, IIP), MASE, e-distribuzione.<p class="gme-notice"><strong>Notice on GME data.</strong> The data of Gestore dei Mercati Energetici S.p.A. (GME) shown on this site are re-elaborations and estimates made by the author, for information only; they are not GME's official data, which GME publishes on www.mercatoelettrico.org under its own terms. GME is not responsible for these elaborations nor for any use of them. They may not be extracted, downloaded, copied, reproduced or redistributed, in whole or in part, nor used for commercial purposes, without the prior written consent of the author and of GME.</p></footer>
@@ -15074,8 +15111,7 @@ move the slider above to another one`,
     window.scrollTo(0, 0);
   }
 
-  function renderMaps() {
-    if (currentSection !== "maps") return;
+  function renderProjectMap() {
     loadQueueFile("mase_projects.json");
     loadItalyGeo();
     stopMapPlay();
@@ -15245,6 +15281,623 @@ move the slider above to another one`,
         mapState.region = params.name;
         draw(true);
       }
+    });
+    draw(true);
+  }
+
+  /* ---------- The tabs of the Maps section ---------- */
+
+  let mapsTab = "projects";
+
+  function renderMaps() {
+    if (currentSection !== "maps") return;
+    document.querySelectorAll("#maps-subnav .subnav-tab").forEach(button =>
+      button.classList.toggle("active", button.dataset.mapsTab === mapsTab));
+    if (mapsTab === "grid") renderGridMap();
+    else renderProjectMap();
+  }
+
+  document.querySelectorAll("#maps-subnav .subnav-tab").forEach(button => {
+    button.addEventListener("click", () => {
+      mapsTab = button.dataset.mapsTab;
+      renderMaps();
+    });
+  });
+
+
+  /* ============================================================
+     MAPS: THE GRID, THE POWER PLANTS AND TERNA'S PLANS
+     ============================================================ */
+
+  /*
+   * Power lines, substations and plants from OpenStreetMap
+   * (etl/fetch_grid.py, data/grid/), Terna's planned projects from its
+   * Development Plan (etl/grid_plans.json, as data/grid/plans.json), over
+   * Italy's regions and the countries around (app/geo/neighbours.json).
+   * A click on a line, station, plant or project shows it in the side
+   * panel, in both versions (the public one has no hover windows).  The
+   * GME units matched to the plants (data/grid/plant_units.json) are made
+   * and kept in the private repository: the full version only.
+   */
+  const GRID_FILES = ["grid/lines.json", "grid/substations.json", "grid/plants.json", "grid/plans.json"];
+  const GRID_UNITS_FILE = "grid/plant_units.json";
+  // Drawn in this order, so the higher voltages stay on top.
+  const GRID_VOLTAGES = [
+    { key: "hv", label: "110–150 kV", color: "--grid-hv", width: 0.55 },
+    { key: "220", label: "220 kV", color: "--grid-220", width: 0.95 },
+    { key: "380", label: "380 kV", color: "--grid-380", width: 1.35 },
+    { key: "dc", label: "HVDC", color: "--grid-dc", width: 1.8 }
+  ];
+  const gridVoltage = line => line.dc ? "dc" : line.kv >= 300 ? "380" : line.kv >= 200 ? "220" : "hv";
+  const GRID_TECHNOLOGIES = [
+    { key: "solar", label: "Solar PV", color: "--map-solar" },
+    { key: "wind", label: "Onshore wind", color: "--map-wind" },
+    { key: "wind_offshore", label: "Offshore wind", color: "--map-offshore" },
+    { key: "hydro", label: "Hydro", color: "--map-hydro" },
+    { key: "pumped_hydro", label: "Pumped hydro", color: "--map-pumped" },
+    { key: "geothermal", label: "Geothermal", color: "--map-geothermal" },
+    { key: "gas", label: "Gas", color: "--map-thermal" },
+    { key: "coal", label: "Coal", color: "--map-coal" },
+    { key: "oil", label: "Oil", color: "--map-oil" },
+    { key: "bioenergy", label: "Bioenergy and waste", color: "--map-other" },
+    { key: "storage", label: "Battery storage", color: "--map-storage" },
+    { key: "other", label: "Other", color: "--map-grid" }
+  ];
+  const gridTechnology = key => GRID_TECHNOLOGIES.find(entry => entry.key === key) || GRID_TECHNOLOGIES[GRID_TECHNOLOGIES.length - 1];
+  // Terna's phases (its tables' Fase 1-5 and the progress report's words); the
+  // labels the plans file gives win.
+  const GRID_PHASES = {
+    construction: { label: "Under construction", dash: [10, 4] },
+    authorised: { label: "Authorised, in executive design", dash: [10, 4] },
+    authorisation: { label: "In authorisation", dash: [5, 5] },
+    consultation: { label: "In consultation and design", dash: [5, 5] },
+    planned: { label: "Planned", dash: [2, 5] },
+    study: { label: "Under evaluation", dash: [2, 5] },
+    completed: { label: "Completed", dash: [0] }
+  };
+  const GRID_SHARE_ORDER = ["completed", "construction", "authorised", "authorisation", "consultation", "planned"];
+  const gridPhase = key => GRID_PHASES[key] || { label: "Phase not stated", dash: [5, 5] };
+  const gridDay = date => date ? new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "";
+  const GRID_COUNTRIES = { FR: "France", CH: "Switzerland", AT: "Austria", SI: "Slovenia", GR: "Greece", ME: "Montenegro",
+    MT: "Malta", TN: "Tunisia", AL: "Albania", HR: "Croatia" };
+  const GRID_MIN_MW = [0, 1, 10, 50, 100, 500];
+  const GRID_FIRST_YEAR = 2026;
+  // year: the last year of the projects shown; null: all, those without a date too.
+  const gridState = { lines: true, substations: false, plants: true, interconnectors: false, future: false,
+    hidden: new Set(), minMw: 10, unsized: false, year: null, region: null, selected: null };
+  let neighboursGeo = null;
+  let neighboursStatus = null; // null | "loading" | "ready" | "missing"
+  let gridCache = null;
+
+  async function loadNeighbours() {
+    if (neighboursStatus) return;
+    neighboursStatus = "loading";
+    try {
+      const response = await fetch("./geo/neighbours.json");
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      neighboursGeo = await response.json();
+      neighboursStatus = "ready";
+    } catch (error) {
+      console.warn("Neighbouring countries unavailable:", error);
+      neighboursStatus = "missing";
+    }
+    if (currentSection === "maps") renderMaps();
+  }
+
+  /* The region a point is in (ISTAT's simplified outlines), or null. */
+  function regionAt(lon, lat) {
+    for (const feature of italyGeo.features) {
+      for (const polygon of feature.geometry.coordinates) {
+        const ring = polygon[0];
+        let inside = false;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+          const [xi, yi] = ring[i], [xj, yj] = ring[j];
+          if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+        }
+        if (inside) return feature.properties.name;
+      }
+    }
+    return null;
+  }
+
+  /* The files as the map draws them, made once per download. */
+  function gridData() {
+    const files = GRID_FILES.map(file => queueData[file]);
+    const units = PUBLIC_MODE ? null : queueData[GRID_UNITS_FILE] || null;
+    if (gridCache && gridCache.units === units && gridCache.files.every((file, index) => file === files[index])) return gridCache;
+    const [linesFile, substationsFile, plantsFile, plansFile] = files;
+    const scale = linesFile.scale;
+    const lines = queueRecords(linesFile.columns, linesFile.lines).map(line => {
+      const coords = [];
+      let x = 0, y = 0;
+      for (let index = 0; index < line.coords.length; index += 2) {
+        x += line.coords[index];
+        y += line.coords[index + 1];
+        coords.push([x / scale, y / scale]);
+      }
+      return { ...line, coords, voltage: gridVoltage(line) };
+    }).filter(line => line.coords.length > 1);
+    // plant id -> [{ code, mw, zone, ... }] (full version)
+    const matches = new Map();
+    if (units) queueRecords(units.columns, units.matches).forEach(match => matches.set(match.plant, match));
+    const plants = queueRecords(plantsFile.columns, plantsFile.plants).map(plant => {
+      const match = matches.get(plant.id) || null;
+      // Where OSM gives no output, the GME units' (full version).
+      const gmeMw = match && !isEmpty(match.mw) ? match.mw : null;
+      const mw = !isEmpty(plant.mw) && !(plant.estimated && gmeMw) ? plant.mw : gmeMw;
+      return { ...plant, match, size: mw, sizeFrom: mw === null ? null : mw === plant.mw ? (plant.estimated ? "estimate" : "osm") : "gme",
+        region: regionAt(plant.lon, plant.lat) };
+    });
+    const substations = queueRecords(substationsFile.columns, substationsFile.substations)
+      .map(station => ({ ...station, region: regionAt(station.lon, station.lat) }));
+    const plans = plansFile ? plansFile.projects : [];
+    gridCache = { files, units, lines, plants, substations, plans, plansFile, matches };
+    return gridCache;
+  }
+
+  /* Italy's regions and the countries around, as one map (registered once). */
+  let gridMapRegistered = false;
+  function registerGridMap() {
+    if (gridMapRegistered) return;
+    const neighbours = neighboursGeo ? neighboursGeo.features : [];
+    echarts.registerMap("italy-grid", { type: "FeatureCollection", features: [...italyGeo.features, ...neighbours] });
+    gridMapRegistered = true;
+  }
+
+  const gridPlantSize = mw => isEmpty(mw) ? 3 : Math.min(30, 2.5 + 0.7 * Math.sqrt(mw));
+  const osmUrl = id => `https://www.openstreetmap.org/${{ n: "node", w: "way", r: "relation", t: "node" }[id[0]] || "way"}/${id.slice(1)}`;
+  const lineUrl = id => `https://www.openstreetmap.org/way/${id}`;
+  const gridKv = voltages => (voltages || []).map(kv => formatNumber(kv)).join(" / ") + " kV";
+
+  function renderGridMap() {
+    GRID_FILES.forEach(loadQueueFile);
+    if (!PUBLIC_MODE) loadQueueFile(GRID_UNITS_FILE);
+    loadItalyGeo();
+    loadNeighbours();
+    stopMapPlay();
+    if (mapsChart) mapsChart.dispose();
+    mapsChart = null;
+    mapsMount.innerHTML = "";
+    const linesFile = queueData["grid/lines.json"];
+    const plansFile = queueData["grid/plans.json"];
+    const section = document.createElement("section");
+    section.className = "panel chart-panel";
+    const osmDate = linesFile && linesFile.osm_timestamp
+      ? new Date(linesFile.osm_timestamp).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : null;
+    section.innerHTML = `<div class="chart-header"><div><div class="chart-title">Transmission grid and power plants</div>` +
+      `<div class="chart-subtitle">${osmDate ? `OpenStreetMap as of ${osmDate}` : ""}` +
+      `${plansFile ? ` · Terna's plans as of ${new Date(plansFile.updated).toLocaleDateString("en-GB", { month: "short", year: "numeric" })}` : ""}` +
+      `</div></div></div><div class="queue-body"></div>`;
+    mapsMount.appendChild(section);
+    const body = section.querySelector(".queue-body");
+    const required = ["grid/lines.json", "grid/substations.json", "grid/plants.json"];
+    const settled = file => queueStatus[file] === "ready" || queueStatus[file] === "missing";
+    const waiting = !required.every(file => queueData[file]) || italyGeoStatus !== "ready" || !settled("grid/plans.json") ||
+      (neighboursStatus !== "ready" && neighboursStatus !== "missing") || (!PUBLIC_MODE && !settled(GRID_UNITS_FILE));
+    if (waiting) {
+      const missing = required.some(file => queueStatus[file] === "missing") || italyGeoStatus === "missing";
+      body.innerHTML = `<div class="queue-empty">${missing ? "The grid map is not available yet." : "Loading the grid map…"}</div>`;
+      return;
+    }
+    registerGridMap();
+    const data = gridData();
+    // The slider's last step (after the latest in-service year) shows every project.
+    const lastYear = Math.max(GRID_FIRST_YEAR, ...data.plans.map(project => project.year || 0)) + 1;
+    const neighbourNames = new Set((neighboursGeo ? neighboursGeo.features : []).map(feature => feature.properties.name));
+    const sizeNote = `${[10, 100, 1000].map(mw => {
+      const size = gridPlantSize(mw);
+      return `<div><i style="width:${size}px;height:${size}px"></i>${formatNumber(mw)} MW</div>`;
+    }).join("")}<div><i style="width:3px;height:3px"></i>not stated</div>`;
+
+    body.innerHTML = `<div class="map-layout"><div class="map-wrap"><div class="map-canvas"></div>` +
+      `<button type="button" class="map-back">← Back to Italy</button>` +
+      `<div class="map-hint">Scroll to zoom, drag to move, click a region to see it on its own</div></div>` +
+      `<div class="map-side">` +
+      `<div class="map-box"><h3>Layers</h3>` +
+      `<label class="map-switch"><input type="checkbox" data-layer="lines"><i></i>Power lines</label>` +
+      `<label class="map-switch"><input type="checkbox" data-layer="interconnectors"><i></i>Highlight the interconnectors</label>` +
+      `<label class="map-switch"><input type="checkbox" data-layer="substations"><i></i>Substations of 220 kV and more</label>` +
+      `<label class="map-switch"><input type="checkbox" data-layer="plants"><i></i>Power plants</label>` +
+      `<label class="map-switch future"><input type="checkbox" data-layer="future"${data.plans.length ? "" : " disabled"}><i></i>Include future developments</label>` +
+      `</div>` +
+      `<div class="map-box"><h3>Details</h3><div class="grid-details-body"></div></div>` +
+      `<div class="map-box"><h3>Power lines</h3><table class="map-legend grid-legend grid-lines-legend"></table>` +
+      `<div class="grid-countries"></div>` +
+      `<div class="queue-note">Click a voltage to hide or show it. Lengths are of the lines as mapped, not of their circuits.</div></div>` +
+      `</div></div><div class="grid-lower">` +
+      `<div class="map-box"><h3>Power plants</h3><div class="grid-controls"><label>At least <select class="grid-min-mw">` +
+      GRID_MIN_MW.map(mw => `<option value="${mw}">${mw ? `${formatNumber(mw)} MW` : "any size"}</option>`).join("") +
+      `</select></label><label class="queue-option" style="padding:0"><input type="checkbox" class="grid-unsized"> and those of no stated size</label></div>` +
+      `<table class="map-legend grid-legend grid-plants-legend"></table>` +
+      `<div class="map-sizes" style="margin-top:10px">${sizeNote}</div>` +
+      `<div class="queue-note">Click a technology to hide or show it.</div></div>` +
+      `<div class="map-box grid-future"><h3>Terna's planned projects</h3>` +
+      `<div class="map-year"><span style="color:var(--muted);font-size:12px">In service by</span>` +
+      `<input type="range" min="${GRID_FIRST_YEAR}" max="${lastYear}" step="1" aria-label="In service by"><b></b></div>` +
+      `<div class="grid-projects"></div>` +
+      `<div class="queue-note">On the map with "Include future developments". Long dashes: under construction or authorised; ` +
+      `short: in authorisation or phase not stated; dots: planned or under study. Colour: the voltage, as for today's lines. ` +
+      `Routes are schematic: Terna publishes the stations, not the routes. Click a project to see it.</div></div>` +
+      `</div><div class="queue-note grid-note"></div>`;
+
+    const chart = mapsChart = echarts.init(body.querySelector(".map-canvas"));
+    const back = body.querySelector(".map-back");
+    const hint = body.querySelector(".map-hint");
+    const futureBox = body.querySelector(".grid-future");
+    const slider = futureBox.querySelector("input[type=range]");
+    const yearLabel = futureBox.querySelector(".map-year b");
+    const projectList = futureBox.querySelector(".grid-projects");
+    const details = body.querySelector(".grid-details-body");
+    const linesLegend = body.querySelector(".grid-lines-legend");
+    const plantsLegend = body.querySelector(".grid-plants-legend");
+    const minMw = body.querySelector(".grid-min-mw");
+    const unsized = body.querySelector(".grid-unsized");
+    body.querySelectorAll("[data-layer]").forEach(input => { input.checked = gridState[input.dataset.layer]; });
+    slider.value = gridState.year === null ? lastYear : gridState.year;
+    minMw.value = gridState.minMw;
+    unsized.checked = gridState.unsized;
+
+    const inRegion = entry => !gridState.region || entry.region === gridState.region;
+    const plantShown = plant => !gridState.hidden.has(`t:${plant.technology}`) && inRegion(plant) &&
+      (isEmpty(plant.size) ? gridState.unsized : plant.size >= gridState.minMw);
+    const projectShown = project => gridState.year === null || (project.year !== null && project.year <= gridState.year);
+    const futureColor = project => cssVar(project.kind === "hvdc" ? "--grid-dc"
+      : project.kv >= 300 ? "--grid-380" : project.kv >= 200 ? "--grid-220" : project.kv ? "--grid-hv" : "--grid-380");
+
+    function selectedSeries() {
+      const selected = gridState.selected;
+      if (!selected) return [];
+      const color = cssVar("--grid-selected");
+      if (selected.type === "line") {
+        return [{ type: "lines", coordinateSystem: "geo", polyline: true, silent: true, z: 9,
+          data: [{ coords: selected.item.coords }],
+          lineStyle: { color, width: 4, opacity: 0.9, shadowBlur: 10, shadowColor: color } }];
+      }
+      if (selected.type === "project") {
+        return [{ type: "lines", coordinateSystem: "geo", polyline: true, silent: true, z: 9,
+          data: selected.item.paths.map(path => ({ coords: path })),
+          lineStyle: { color, width: 5, opacity: 0.55, shadowBlur: 12, shadowColor: color } }];
+      }
+      const { lon, lat } = selected.item;
+      const size = selected.type === "plant" ? gridPlantSize(selected.item.size) + 8 : 14;
+      return [{ type: "scatter", coordinateSystem: "geo", silent: true, z: 9, data: [[lon, lat]], symbolSize: size,
+        itemStyle: { color: "transparent", borderColor: color, borderWidth: 2 } }];
+    }
+
+    function series() {
+      const out = [];
+      // With the future developments on, today's grid and plants step back.
+      const faded = gridState.future;
+      if (gridState.lines) {
+        GRID_VOLTAGES.forEach(voltage => {
+          if (gridState.hidden.has(`v:${voltage.key}`)) return;
+          const color = cssVar(voltage.color);
+          out.push({
+            type: "lines", name: voltage.key, coordinateSystem: "geo", polyline: true, progressive: 0, z: 2,
+            data: data.lines.filter(line => line.voltage === voltage.key && (line.status === "service" || !gridState.hidden.has("v:construction")))
+              .map(line => ({ coords: line.coords, line, ...(line.status === "service" ? {} : { lineStyle: { type: [4, 3] } }) })),
+            lineStyle: { color, width: voltage.width, opacity: faded ? 0.4 : 0.9, cap: "round" },
+            emphasis: { lineStyle: { width: voltage.width + 2.5, opacity: 1 } }
+          });
+        });
+        if (gridState.interconnectors) {
+          out.push({
+            type: "lines", name: "interconnectors", coordinateSystem: "geo", polyline: true, z: 3,
+            data: data.lines.filter(line => line.country && !gridState.hidden.has(`v:${line.voltage}`)).map(line => {
+              const color = cssVar(GRID_VOLTAGES.find(voltage => voltage.key === line.voltage).color);
+              return { coords: line.coords, line, lineStyle: { color, shadowColor: color } };
+            }),
+            lineStyle: { width: 3.6, opacity: 1, shadowBlur: 10, cap: "round" },
+            emphasis: { lineStyle: { width: 5 } }
+          });
+        }
+      }
+      if (gridState.substations) {
+        out.push({
+          type: "scatter", name: "substations", coordinateSystem: "geo", symbol: "rect", z: 4,
+          data: data.substations.filter(inRegion).map(station => ({ value: [station.lon, station.lat], station })),
+          symbolSize: 4, itemStyle: { color: cssVar("--grid-substation"), borderColor: cssVar("--panel"), borderWidth: 0.5 },
+          emphasis: { scale: 2 }
+        });
+      }
+      if (gridState.plants) {
+        out.push({
+          type: "scatter", name: "plants", coordinateSystem: "geo", z: 5, progressive: 0,
+          data: data.plants.filter(plantShown).sort((a, b) => (b.size || 0) - (a.size || 0)).map(plant => ({
+            value: [plant.lon, plant.lat, gridPlantSize(plant.size)], plant,
+            itemStyle: { color: cssVar(gridTechnology(plant.technology).color) }
+          })),
+          symbolSize: value => value[2],
+          itemStyle: { borderColor: cssVar("--panel"), borderWidth: 0.6, opacity: faded ? 0.35 : 0.9 },
+          emphasis: { scale: 1.6, itemStyle: { borderColor: cssVar("--text"), borderWidth: 1, opacity: 1 } }
+        });
+      }
+      if (gridState.future) {
+        const projects = data.plans.filter(projectShown);
+        // A dark casing under each route keeps it apart from today's lines.
+        out.push({
+          type: "lines", name: "future-casing", coordinateSystem: "geo", polyline: true, z: 6, silent: true,
+          data: projects.flatMap(project => project.paths.map(path => ({ coords: path }))),
+          lineStyle: { color: cssVar("--map-sea"), width: 6.5, opacity: 0.85, cap: "round" }
+        });
+        out.push({
+          type: "lines", name: "future", coordinateSystem: "geo", polyline: true, z: 7,
+          data: projects.flatMap(project => project.paths.map(path => ({
+            coords: path, project,
+            lineStyle: { color: futureColor(project), type: gridPhase(project.phase).dash }
+          }))),
+          lineStyle: { width: 3.2, opacity: 1, cap: "butt" },
+          emphasis: { lineStyle: { width: 5 } }
+        });
+        const stations = new Map();
+        projects.forEach(project => project.stations.forEach(([lon, lat, name]) => {
+          const key = `${lon},${lat}`;
+          if (!stations.has(key) || project.kind === "station") stations.set(key, { value: [lon, lat], name, project });
+        }));
+        out.push({
+          type: "scatter", name: "future-stations", coordinateSystem: "geo", symbol: "diamond", z: 8,
+          data: [...stations.values()].map(station => ({ ...station,
+            itemStyle: { color: station.project.kind === "station" ? futureColor(station.project) : cssVar("--panel"),
+              borderColor: futureColor(station.project) } })),
+          symbolSize: 9,
+          itemStyle: { borderWidth: 2 },
+          label: { show: true, position: "right", distance: 4, fontSize: 10, color: cssVar("--muted"), formatter: params => params.data.name },
+          labelLayout: { hideOverlap: true },
+          emphasis: { scale: 1.5 }
+        });
+      }
+      return out.concat(selectedSeries());
+    }
+
+    function tooltip(params) {
+      const item = params.data || {};
+      const muted = cssVar("--chart-tooltip-muted");
+      const head = (title, sub) => `<div style="font-weight:600;margin-bottom:3px">${escapeHtml(title)}</div>` +
+        (sub ? `<div style="color:${muted}">${escapeHtml(sub)}</div>` : "");
+      if (item.line) {
+        const line = item.line;
+        return head(line.name || "Unnamed line", `${gridKv(line.voltages)}${line.dc ? " DC" : ""} · ${line.location === "underwater" ? "submarine cable"
+          : line.kind === "cable" ? "underground cable" : "overhead line"}${line.country ? ` · to ${GRID_COUNTRIES[line.country] || line.country}` : ""}`);
+      }
+      if (item.plant) {
+        const plant = item.plant;
+        return head(plant.name || `Unnamed ${gridTechnology(plant.technology).label.toLowerCase()} plant`,
+          `${gridTechnology(plant.technology).label} · ${isEmpty(plant.size) ? "MW not stated" : `${plant.sizeFrom === "estimate" ? "≈ " : ""}${formatQueueMw(plant.size)} MW`}`);
+      }
+      if (item.station) return head(item.station.name || "Unnamed substation", gridKv(item.station.voltages));
+      if (item.project) return head(item.project.name, `${gridPhase(item.project.phase).label} · in service ${item.project.in_service || "not dated"}`);
+      return "";
+    }
+
+    function row(label, value) {
+      return isEmpty(value) ? "" : `<dt>${escapeHtml(label)}</dt><dd>${value}</dd>`;
+    }
+
+    /* " (Terna's table, 31 Dec 2024)": where a phase or date comes from. */
+    function gridAsOf(date, source) {
+      if (!date) return "";
+      const from = source === "table" ? "Terna's table" : source === "rda2026" ? "Terna's progress report" : "Terna's plan";
+      return ` <span style="color:var(--muted)">(${from}, ${gridDay(date)})</span>`;
+    }
+
+    /* Terna's shares of the main works by phase: "70% under construction, 20% completed". */
+    function gridShares(shares) {
+      if (!shares) return null;
+      return GRID_SHARE_ORDER.filter(phase => shares[phase]).map(phase => `${shares[phase]}% ${gridPhase(phase).label.toLowerCase()}`).join(", ");
+    }
+
+    function drawDetails() {
+      const selected = gridState.selected;
+      if (!selected) {
+        details.innerHTML = `<p style="margin:0">Click a line, a substation, a plant or a planned project to see it here.</p>`;
+        return;
+      }
+      const item = selected.item;
+      if (selected.type === "line") {
+        const kind = item.location === "underwater" ? "Submarine cable" : item.kind === "cable" ? "Underground cable" : "Overhead line";
+        details.innerHTML = `<div class="title">${escapeHtml(item.name || "Unnamed line")}</div><dl>` +
+          row("Voltage", `${gridKv(item.voltages)}${item.dc ? ", direct current" : ""}`) +
+          row("Type", kind + (item.status === "service" ? "" : ", under construction")) +
+          row("Circuits", isEmpty(item.circuits) ? null : formatNumber(item.circuits)) +
+          row("Operator", item.operator ? escapeHtml(item.operator) : null) +
+          row("Terna ref.", item.ref ? escapeHtml(item.ref) : null) +
+          row("Length", `${formatNumber(item.km, item.km < 10 ? 1 : 0)} km as mapped`) +
+          row("Interconnector", item.country ? escapeHtml(GRID_COUNTRIES[item.country] || item.country) : null) +
+          row("Source", `<a href="${lineUrl(item.id)}" target="_blank" rel="noopener">OpenStreetMap ↗</a>`) + `</dl>`;
+      } else if (selected.type === "plant") {
+        const technology = gridTechnology(item.technology);
+        const size = isEmpty(item.size) ? "not stated"
+          : item.sizeFrom === "estimate" ? `≈ ${formatQueueMw(item.size)} MW, estimated from ${item.turbines ? `${formatNumber(item.turbines)} turbines` : "its area"}`
+          : item.sizeFrom === "gme" ? `${formatQueueMw(item.size)} MW (the GME units')` : `${formatQueueMw(item.size)} MW`;
+        const match = item.match;
+        details.innerHTML = `<div class="title">${escapeHtml(item.name || `Unnamed ${technology.label.toLowerCase()} plant`)}</div><dl>` +
+          row("Technology", `<i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${cssVar(technology.color)};margin-right:5px"></i>` +
+            escapeHtml(technology.label) + (item.method ? ` (${escapeHtml(item.method)})` : "")) +
+          row("Capacity", size) +
+          row("Turbines", item.turbines ? formatNumber(item.turbines) : null) +
+          row("Operator", item.operator ? escapeHtml(item.operator) : null) +
+          row("Since", item.start) +
+          row("Region", item.region ? escapeHtml(item.region) : null) +
+          row("GME units", match ? match.codes.map(code => escapeHtml(code)).join(", ") +
+            `<br><span style="color:var(--muted)">${escapeHtml(match.zone || "")}${isEmpty(match.mw) ? "" : ` · ${formatQueueMw(match.mw)} MW`} · ` +
+            `${escapeHtml(match.method)} match</span>` : null) +
+          row("Source", `<a href="${osmUrl(item.id)}" target="_blank" rel="noopener">OpenStreetMap ↗</a>` +
+            (item.wikidata ? ` · <a href="https://www.wikidata.org/wiki/${encodeURIComponent(item.wikidata)}" target="_blank" rel="noopener">Wikidata ↗</a>` : "")) +
+          `</dl>`;
+      } else if (selected.type === "station") {
+        details.innerHTML = `<div class="title">${escapeHtml(item.name || "Unnamed substation")}</div><dl>` +
+          row("Voltage", gridKv(item.voltages)) +
+          row("Type", item.kind ? escapeHtml(item.kind) : null) +
+          row("Operator", item.operator ? escapeHtml(item.operator) : null) +
+          row("Status", item.status === "service" ? null : "under construction") +
+          row("Source", `<a href="${osmUrl(item.id)}" target="_blank" rel="noopener">OpenStreetMap ↗</a>`) + `</dl>`;
+      } else {
+        const sources = [...(item.sources || []).map(key => escapeHtml((data.plansFile.sources || {})[key] || key)),
+          ...(item.table ? [`<a href="${escapeHtml((data.plansFile.tables.find(table => table.name === item.table.name) || {}).url || "#")}" ` +
+            `target="_blank" rel="noopener">${escapeHtml(item.table.name.replace(/_[0-9a-f]{12,}(?=\.xlsx?$)/, ""))} ↗</a>`] : [])].join("; ");
+        details.innerHTML = `<div class="title">${escapeHtml(item.name)}</div><dl>` +
+          row("Terna code", item.code ? escapeHtml(item.code) : null) +
+          row("Programme", item.programme ? escapeHtml(item.programme) : null) +
+          row("Phase", escapeHtml(gridPhase(item.phase).label) + gridAsOf(item.phase && item.phase_as_of, item.phase_source)) +
+          row("In service", escapeHtml(item.in_service || "no date given") + gridAsOf(item.in_service && item.in_service_as_of, item.in_service_source)) +
+          row(item.part ? "Whole intervention" : "Main works", gridShares(item.shares)) +
+          row("Works start", item.works_start ? escapeHtml(item.works_start) : null) +
+          row("Capacity gain", item.capacity_gain ? `${escapeHtml(item.capacity_gain)} MW <span style="color:var(--muted)">(Terna)</span>` : null) +
+          row("Progress", item.progress ? escapeHtml(item.progress) : null) +
+          row("Type", escapeHtml(item.kind === "hvdc" ? "HVDC link" : item.kind === "station" ? "Station" : "AC line") +
+            (item.kv ? `, ${item.kind === "hvdc" ? "±" : ""}${formatNumber(item.kv)} kV` : "")) +
+          row("Capacity", isEmpty(item.mw) ? null : `${formatNumber(item.mw)} MW`) +
+          row("To", item.country ? escapeHtml(GRID_COUNTRIES[item.country] || item.country) : null) +
+          row("Source", sources) + `</dl>` +
+          `<p>${escapeHtml(item.description)}${item.route === "schematic" ? " Route schematic." : ""}</p>`;
+      }
+    }
+
+    function drawSide() {
+      back.style.display = gridState.region ? "" : "none";
+      hint.style.display = gridState.region ? "none" : "";
+      yearLabel.textContent = gridState.year === null ? "all" : String(gridState.year);
+      // Lines: count and km of each voltage, all of Italy.
+      const lineRows = GRID_VOLTAGES.slice().reverse().map(voltage => {
+        const lines = data.lines.filter(line => line.voltage === voltage.key && line.status === "service");
+        const km = lines.reduce((sum, line) => sum + line.km, 0);
+        return `<tr><td data-key="v:${voltage.key}" class="${gridState.hidden.has(`v:${voltage.key}`) ? "off" : ""}">` +
+          `<span class="swatch" style="border-color:${cssVar(voltage.color)}"></span>${voltage.label}</td>` +
+          `<td>${formatNumber(lines.length)}</td><td>${formatNumber(km)}</td></tr>`;
+      });
+      const building = data.lines.filter(line => line.status !== "service");
+      if (building.length) {
+        lineRows.push(`<tr><td data-key="v:construction" class="${gridState.hidden.has("v:construction") ? "off" : ""}">` +
+          `<span class="swatch dashed" style="border-color:${cssVar("--muted")}"></span>Under construction</td>` +
+          `<td>${formatNumber(building.length)}</td><td>${formatNumber(building.reduce((sum, line) => sum + line.km, 0))}</td></tr>`);
+      }
+      linesLegend.innerHTML = `<tr><th></th><th>Lines</th><th>km</th></tr>${lineRows.join("")}`;
+      const countries = {};
+      data.lines.filter(line => line.country).forEach(line => {
+        countries[line.country] = countries[line.country] || new Set();
+        countries[line.country].add(line.name || `#${line.id}`);
+      });
+      body.querySelector(".grid-countries").innerHTML = `Interconnectors mapped (sections crossing the border): ` +
+        Object.entries(countries).sort((a, b) => b[1].size - a[1].size)
+          .map(([code, names]) => `<b>${escapeHtml(GRID_COUNTRIES[code] || code)}</b> ${formatNumber(names.size)}`).join(" · ");
+      // Plants: count and GW of each technology shown.
+      const shownPlants = data.plants.filter(plant => inRegion(plant) && (isEmpty(plant.size) ? gridState.unsized : plant.size >= gridState.minMw));
+      const present = GRID_TECHNOLOGIES.filter(technology => data.plants.some(plant => plant.technology === technology.key));
+      plantsLegend.innerHTML = `<tr><th>${gridState.region ? escapeHtml(gridState.region) : "Italy"}</th><th>Plants</th><th>GW</th></tr>` +
+        present.map(technology => {
+          const plants = shownPlants.filter(plant => plant.technology === technology.key);
+          const gw = plants.reduce((sum, plant) => sum + (plant.size || 0), 0) / 1000;
+          return `<tr><td data-key="t:${technology.key}" class="${gridState.hidden.has(`t:${technology.key}`) ? "off" : ""}">` +
+            `<i style="background:${cssVar(technology.color)};margin-right:6px"></i>${technology.label}</td>` +
+            `<td>${formatNumber(plants.length)}</td><td>${formatNumber(gw, gw < 10 ? 2 : 1)}</td></tr>`;
+        }).join("");
+      // Planned projects in service by the year chosen.
+      const projects = data.plans.filter(projectShown).sort((a, b) => (a.year || 9999) - (b.year || 9999) ||
+        (a.in_service || "").localeCompare(b.in_service || "") || a.name.localeCompare(b.name));
+      projectList.innerHTML = projects.map(project => {
+        const active = gridState.selected && gridState.selected.type === "project" && gridState.selected.item === project;
+        return `<button type="button" data-project="${escapeHtml(project.id)}" class="${active ? "active" : ""}">` +
+          `<b>${escapeHtml(project.in_service || "no date")}</b><span>${escapeHtml(project.name)}</span>` +
+          `<small>${escapeHtml(gridPhase(project.phase).label)}</small></button>`;
+      }).join("") || `<div class="queue-empty">No project due by then.</div>`;
+      drawDetails();
+    }
+
+    function draw(full) {
+      if (full) {
+        const region = gridState.region;
+        const neighbourStyle = { itemStyle: { areaColor: cssVar("--map-neighbour"), borderColor: cssVar("--map-border") },
+          emphasis: { disabled: true }, select: { disabled: true }, label: { show: false } };
+        chart.setOption({
+          animation: false, backgroundColor: cssVar("--map-sea"),
+          tooltip: {
+            trigger: "item", confine: true, backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"),
+            borderWidth: 1, textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 }, formatter: tooltip
+          },
+          geo: {
+            map: "italy-grid", roam: true, scaleLimit: { min: 1, max: 40 }, aspectScale: 0.78, layoutCenter: ["50%", "50%"], layoutSize: "100%",
+            boundingCoords: region ? regionBounds(region) : [[6.2, 47.3], [19.4, 36.4]],
+            itemStyle: { areaColor: cssVar("--map-land"), borderColor: cssVar("--map-border"), borderWidth: 0.8 },
+            regions: [
+              ...[...neighbourNames].map(name => ({ name, ...neighbourStyle })),
+              ...(region ? italyGeo.features.filter(feature => feature.properties.name !== region)
+                .map(feature => ({ name: feature.properties.name, itemStyle: { opacity: 0.35 } })) : [])
+            ],
+            emphasis: { label: { show: false }, itemStyle: { areaColor: cssVar("--hover") } },
+            select: { disabled: true }, tooltip: { show: false }, label: { show: false }
+          },
+          series: series()
+        }, true);
+      } else {
+        chart.setOption({ series: series() }, { replaceMerge: ["series"] });
+      }
+      drawSide();
+    }
+
+    // The note under the map: sources and what the data leave out.
+    const tablesNote = data.plansFile && data.plansFile.tables && data.plansFile.tables.length
+      ? `summary tables, read every week (${data.plansFile.tables.map(table => `${escapeHtml(table.name.replace(/_[0-9a-f]{12,}(?=\.xlsx?$)/, ""))}, ` +
+        `at ${gridDay(table.as_of)}`).join("; ")}), ` : "Development Plan 2025 ";
+    const plantsFile = queueData["grid/plants.json"];
+    const matchedCount = data.matches.size;
+    body.querySelector(".grid-note").innerHTML =
+      `Lines, substations and plants: © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a> ` +
+      `(ODbL), from Geofabrik's extract of Italy, updated every week. OpenStreetMap is mapped by volunteers: the 380 and 220 kV grid is close to complete, ` +
+      `the 132-150 kV grid mostly so, while many plants give no capacity. Solar farms without one are sized from their area (about 0.5 MW a hectare), ` +
+      `wind farms mapped only as turbines from their turbines (1.5 MW each where not stated): both marked as estimates. Rooftop solar and plants ` +
+      `mapped only as single generators are not shown. Interconnectors: lines with an end in a neighbouring country (outlines: Natural Earth). ` +
+      `Future developments: Terna's ${tablesNote}and its progress report of February 2026 (at 31 Dec 2025, where newer); ` +
+      `stations at their OpenStreetMap positions, routes drawn by the author. ` +
+      `Boundaries: ISTAT (CC BY 4.0) via openpolis.` +
+      (PUBLIC_MODE ? "" : ` <b>Full version:</b> ${formatNumber(matchedCount)} plants matched to GME market units` +
+        `${queueStatus[GRID_UNITS_FILE] === "missing" ? " (the match file is not on this machine)" : ""}; their codes are not shown in the public version.`) +
+      (plantsFile ? ` ${formatNumber(plantsFile.plants.length)} plants on file.` : "");
+
+    body.querySelectorAll("[data-layer]").forEach(input => input.addEventListener("change", () => {
+      gridState[input.dataset.layer] = input.checked;
+      if (!input.checked && gridState.selected && ((input.dataset.layer === "future" && gridState.selected.type === "project") ||
+        (input.dataset.layer === "plants" && gridState.selected.type === "plant"))) gridState.selected = null;
+      draw(false);
+    }));
+    slider.addEventListener("input", () => {
+      // The end of the slider: every project, those without a date too.
+      gridState.year = Number(slider.value) >= lastYear ? null : Number(slider.value);
+      draw(false);
+    });
+    minMw.addEventListener("change", () => { gridState.minMw = Number(minMw.value); draw(false); });
+    unsized.addEventListener("change", () => { gridState.unsized = unsized.checked; draw(false); });
+    [linesLegend, plantsLegend].forEach(table => table.addEventListener("click", event => {
+      const target = event.target.closest("[data-key]");
+      if (!target) return;
+      const key = target.dataset.key;
+      if (gridState.hidden.has(key)) gridState.hidden.delete(key); else gridState.hidden.add(key);
+      draw(false);
+    }));
+    projectList.addEventListener("click", event => {
+      const target = event.target.closest("[data-project]");
+      if (!target) return;
+      const project = data.plans.find(entry => entry.id === target.dataset.project);
+      gridState.selected = { type: "project", item: project };
+      // A project picked from the list is shown on the map.
+      if (!gridState.future) {
+        gridState.future = true;
+        body.querySelector('[data-layer="future"]').checked = true;
+      }
+      draw(false);
+    });
+    back.addEventListener("click", () => { gridState.region = null; draw(true); });
+    chart.on("click", params => {
+      const item = params.data || {};
+      if (item.line) gridState.selected = { type: "line", item: item.line };
+      else if (item.plant) gridState.selected = { type: "plant", item: item.plant };
+      else if (item.station) gridState.selected = { type: "station", item: item.station };
+      else if (item.project) gridState.selected = { type: "project", item: item.project };
+      else if (params.componentType === "geo" && params.name && !neighbourNames.has(params.name)) {
+        gridState.region = params.name;
+        draw(true);
+        return;
+      } else return;
+      draw(false);
     });
     draw(true);
   }

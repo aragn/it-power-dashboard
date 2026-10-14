@@ -1,0 +1,49 @@
+name: Update Grid Map (OpenStreetMap, Terna's plans)
+
+# The grid map (Maps › Grid and power plants): power lines, substations and
+# plants from OpenStreetMap, read from Geofabrik's extract of Italy (about
+# 2 GB, refreshed by Geofabrik every day) with pyosmium, and Terna's planned
+# projects from etl/grid_plans.json: etl/fetch_grid.py writes app/data/grid/.
+# Weekly: the grid changes slowly.  The GME units matched to the plants are
+# made from these files by the private repository (update-grid-units), after
+# this job.
+
+on:
+  schedule:
+    # Mondays.
+    - cron: "15 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-grid
+  cancel-in-progress: false
+
+jobs:
+  update-grid:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Restore current data from the data branch
+        run: bash .github/scripts/data-branch.sh restore
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt osmium==4.3.1
+
+      - name: Read OpenStreetMap's power features and Terna's plans
+        run: python -u etl/fetch_grid.py --work "$RUNNER_TEMP/grid"
+
+      - name: Publish updated data to the data branch
+        run: bash .github/scripts/data-branch.sh publish app/data/grid
