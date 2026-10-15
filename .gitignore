@@ -44,3 +44,4 @@ app/data/*.recent.json
 app/data/balancing_gme/
 app/data/public_salt.txt
 app/data/grid/
+app/data/gas_prices.json
