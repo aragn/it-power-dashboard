@@ -21,6 +21,7 @@ The API token is read from ENTSOE_API_KEY.
 
 import argparse
 import os
+import re
 import time
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta, timezone
@@ -55,6 +56,7 @@ WINDOW_DAYS = 31
 PAGE_SIZE = 200         # the API returns at most 200 documents per request
 DROPPED_STATUS = {"A09", "A13"}  # cancelled, withdrawn
 MAX_UNIT_MW = 5000      # no Italian unit is anywhere near this
+BAD_REQUEST_RETRY_SECONDS = 60  # ENTSO-E sometimes answers 400 to a valid request while it is struggling
 STEP = timedelta(minutes=15)
 RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
 
@@ -110,6 +112,12 @@ def parse_document(doc):
     }
 
 
+def entsoe_reason(response_text):
+    """The reason in ENTSO-E's Acknowledgement_MarketDocument, else the reply's start."""
+    found = re.findall(r"<text>(.*?)</text>", response_text or "", re.S)
+    return " ".join(part.strip() for part in found) if found else (response_text or "")[:300]
+
+
 def download(token, start_date, end_date):
     """Latest revision of every outage overlapping the range, per mRID."""
     outages = {}
@@ -118,6 +126,7 @@ def download(token, start_date, end_date):
         while window_start <= end_date:
             window_end = min(window_start + timedelta(days=WINDOW_DAYS - 1), end_date)
             offset = 0
+            retried = False
             while True:
                 try:
                     root = request_entsoe(token, {
@@ -128,9 +137,16 @@ def download(token, start_date, end_date):
                         "offset": offset,
                     })
                 except requests.HTTPError as error:
-                    # Fail the run (a skipped window would read as "no outages"),
-                    # but show ENTSO-E's reason first.
-                    print(f"  {zone} {window_start} offset {offset}: {error}\n  {error.response.text[:500]}")
+                    status = error.response.status_code if error.response is not None else None
+                    reason = entsoe_reason(error.response.text if error.response is not None else "")
+                    print(f"  {zone} {window_start} offset {offset}: HTTP {status}: {reason}")
+                    # A 400 is retried once; after that the run fails (a skipped
+                    # window would read as "no outages").
+                    if status == 400 and not retried:
+                        retried = True
+                        print(f"    Retrying in {BAD_REQUEST_RETRY_SECONDS}s...")
+                        time.sleep(BAD_REQUEST_RETRY_SECONDS)
+                        continue
                     raise
                 docs = [] if root is None else [
                     d for d in ([root] if root.tag.endswith("Unavailability_MarketDocument") else list(root))
