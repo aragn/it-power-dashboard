@@ -85,7 +85,9 @@ def test_output_carries_the_volumes():
 
 
 def test_an_hourly_day_repeats_each_hour_over_its_quarter_hours():
-    rows = volume_rows("20250601", "SUD", [(1, 2000.0, 1800.0), (2, 2100.0, 1900.0)], "MGP")
+    # GME's hourly rows: Period 0, the hour in Hour.
+    rows = [{**row, "Period": "0", "Hour": str(hour)} for hour, row in
+            enumerate(volume_rows("20250601", "SUD", [(1, 2000.0, 1800.0), (2, 2100.0, 1900.0)], "MGP"), start=1)]
     volumes = fetch_intraday.build_volumes(rows)["SUD"]
     assert [r["time"] for r in volumes["sold"]] == ["00:00", "00:15", "00:30", "00:45", "01:00", "01:15", "01:30", "01:45"]
     assert [r["mw"] for r in volumes["bought"]][3:5] == [1800.0, 1900.0]

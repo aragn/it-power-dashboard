@@ -646,6 +646,7 @@
           <section id="income-ida1-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 1 Congestion Income</div><div id="income-ida1-subtitle" class="chart-subtitle">Intraday auction 1</div></div></div><div id="income-ida1-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida1-chart" class="timeline-chart"></div><div id="income-ida1-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 1, signed like the spreads.</div></section>
           <section id="income-ida2-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 2 Congestion Income</div><div id="income-ida2-subtitle" class="chart-subtitle">Intraday auction 2</div></div></div><div id="income-ida2-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida2-chart" class="timeline-chart"></div><div id="income-ida2-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 2, signed like the spreads.</div></section>
           <section id="income-ida3-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">IDA 3 Congestion Income</div><div id="income-ida3-subtitle" class="chart-subtitle">Intraday auction 3</div></div></div><div id="income-ida3-wrap" class="timeline-chart-wrap intraday-chart-wrap"><div id="income-ida3-chart" class="timeline-chart"></div><div id="income-ida3-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Congestion income of the capacity allocated in IDA 3 (afternoon and evening), signed like the spreads.</div></section>
+          <section id="quantities-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Quantities by Market</div><div id="quantities-subtitle" class="chart-subtitle"></div></div><div class="market-period" role="group" aria-label="Quantities shown"><button type="button" data-qty-side="sold" class="active">Sold</button><button type="button" data-qty-side="bought">Bought</button></div></div><div id="quantities-wrap" class="timeline-chart-wrap"><div id="quantities-chart" class="timeline-chart"></div><div id="quantities-drag" class="timeline-drag-selection"></div></div><div class="chart-help">GME's zonal quantities, stacked by market in the order their gates close: the MGP, the intraday auctions MI-A1, MI-A2 and MI-A3, and MI-XBID's 15-minute products (all trades; the 60-minute products are left out). Sold: what the zone's sellers sold; bought: what its buyers bought (the two differ by what flows between zones and across the borders). Italy: the seven bidding zones summed. 15-minute: MW in the quarter-hour; hourly: the hour's average MW; daily: the day's MWh. Before 1 October 2025 the MGP traded hours, repeated over their quarter-hours. Click a market in the legend to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section>
         </div><div id="chart-mount-market" style="display:none"><div id="market-bar" class="panel market-bar"><span class="legend-title">Quarter-hour</span><div class="depth-controls"><button id="mgp-prev" type="button" aria-label="Previous quarter-hour">‹</button><div class="depth-track"><input id="mgp-slider" type="range" min="0" max="0" value="0" step="1" aria-label="Quarter-hour shown in the MGP merit order"><div id="mgp-availability" class="depth-availability"></div></div><button id="mgp-next" type="button" aria-label="Next quarter-hour">›</button><div id="mgp-label" class="depth-label"></div></div><div class="market-period" role="group" aria-label="Totals and unit table for"><span>Totals</span><button type="button" data-period="quarter" class="active">Quarter-hour</button><button type="button" data-period="day">Whole day</button></div><label class="market-period"><input type="checkbox" id="market-show-consumption"> Consumption units in the charts</label></div>
           <h3 class="capacity-heading">Day-ahead market (MGP)</h3>
           <section id="mgp-merit-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">MGP Merit Order</div><div id="mgp-merit-subtitle" class="chart-subtitle">Day-ahead market, Italy</div></div></div><div class="mgp-chart-wrap"><div id="mgp-merit-chart" class="timeline-chart"></div></div><div id="mgp-merit-help" class="chart-help"></div></section>
@@ -8554,6 +8555,147 @@
   XBID_MARKETS.forEach(market => {
     market.chart.on("datazoom", syncXbidAxes);
     attachDragZoom(market.chart, `intraday-${market.id}-wrap`, `intraday-${market.id}-drag`);
+  });
+
+  /* ============================================================
+     QUANTITIES BY MARKET (GME ZONAL VOLUMES)
+     ============================================================ */
+
+  /*
+   * GME's zonal volumes, sold or bought, stacked by market in gate order:
+   * the MGP and the MI-A auctions (ME_ZonalVolumes, in intraday_prices.json)
+   * and MI-XBID's 15-minute products (xbid_prices.json).  Italy: the seven
+   * zones summed.  The files hold quarter-hours: hourly = the hour's average
+   * MW, daily = the day's MWh.  The battery calculator's market colours.
+   */
+  const QTY_MARKETS = [
+    { key: "MGP", label: "MGP", color: "--border-1", group: () => ((rawIntradayData || {}).volumes || {}).MGP },
+    { key: "MI-A1", label: "MI-A1", color: "--border-2", group: () => ((rawIntradayData || {}).volumes || {})["MI-A1"] },
+    { key: "MI-A2", label: "MI-A2", color: "--border-3", group: () => ((rawIntradayData || {}).volumes || {})["MI-A2"] },
+    { key: "MI-A3", label: "MI-A3", color: "--border-5", group: () => ((rawIntradayData || {}).volumes || {})["MI-A3"] },
+    { key: "XBID", label: "MI-XBID", color: "--border-6", group: () => ((rawXbidData || {}).volumes || {})["XBID-15"] }
+  ];
+  const QTY_ZONES = ["NORD", "CNOR", "CSUD", "SUD", "CALA", "SICI", "SARD"];
+  const qtyState = { side: "sold" };
+  const qtyChart = echarts.init(document.getElementById("quantities-chart"));
+  const qtyTimeline = createTimeline(qtyChart);
+  attachDragZoom(qtyChart, "quantities-wrap", "quantities-drag");
+  const qtyCache = new Map();
+
+  /* Bucket key -> MW (MWh daily) of a market, summed over the zones; null without data. */
+  function qtyLookup(market, zones, side, resolution) {
+    const group = market.group();
+    if (!group) return null;
+    const cacheKey = `${market.key}|${zones.join(",")}|${side}|${resolution}`;
+    const cached = qtyCache.get(cacheKey);
+    if (cached && cached.group === group) return cached.values;
+    const values = new Map();
+    zones.forEach(zone => {
+      const buckets = new Map();
+      ((group[zone] || {})[side] || []).forEach(row => {
+        const key = resolution === "daily" ? row.date
+          : resolution === "hourly" ? `${row.date}|${row.time.slice(0, 2)}:00` : `${row.date}|${row.time}`;
+        const bucket = buckets.get(key) || [0, 0];
+        bucket[0] += Number(row.mw);
+        bucket[1] += 1;
+        buckets.set(key, bucket);
+      });
+      buckets.forEach(([sum, count], key) => {
+        const value = resolution === "daily" ? sum * 0.25 : resolution === "hourly" ? sum / count : sum;
+        values.set(key, (values.get(key) || 0) + value);
+      });
+    });
+    qtyCache.set(cacheKey, { group, values });
+    return values;
+  }
+
+  function formatEnergy(mwh) {
+    const abs = Math.abs(mwh);
+    if (abs >= 1e6) return `${(mwh / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })} TWh`;
+    if (abs >= 1e3) return `${(mwh / 1e3).toLocaleString(undefined, { maximumFractionDigits: 1 })} GWh`;
+    return `${formatChartNumber(mwh)} MWh`;
+  }
+
+  function renderQuantitiesChart() {
+    const subtitleId = "quantities-subtitle";
+    if (!rawData || (!rawIntradayData && !rawXbidData)) {
+      qtyChart.clear();
+      setChartSubtitle(subtitleId, intradayStatus === "loading" || xbidStatus === "loading"
+        ? "Loading quantities…" : "Quantities not available yet");
+      return;
+    }
+    const zone = zoneCode();
+    const zones = zone ? [zone] : QTY_ZONES;
+    const resolution = timelineResolutionKey();
+    const rows = resetTimeline(qtyTimeline);
+    const shown = QTY_MARKETS
+      .map(market => ({ market, values: qtyLookup(market, zones, qtyState.side, resolution) }))
+      .filter(item => item.values && rows.some(row => item.values.has(row.key)));
+    if (!rows.length || !shown.length) {
+      qtyChart.clear();
+      setChartSubtitle(subtitleId, "No quantities on file for these dates yet");
+      return;
+    }
+
+    // The energy of each market over the selected dates, from the daily MWh.
+    const first = rows[0].date, last = rows[rows.length - 1].date;
+    let energy = 0;
+    shown.forEach(({ market }) => qtyLookup(market, zones, qtyState.side, "daily").forEach((value, date) => {
+      if (date >= first && date <= last) energy += value;
+    }));
+    const where = zone ? ZONE_NAMES[zone] : "Italy (the seven zones)";
+    const measure = { daily: "Daily MWh", hourly: "Hourly average MW", quarter: "15-minute MW" }[currentGranularity];
+    setChartSubtitle(subtitleId, `${measure} ${qtyState.side} · ${where} · ${formatEnergy(energy)} in the selected dates`);
+
+    const unit = resolution === "daily" ? "MWh" : "MW";
+    const surface = cssVar("--panel");
+    const data = shown.map(({ values }) => rows.map(row => lookupValue(values, row.key)));
+    const series = shown.map(({ market }, index) => ({
+      name: market.label,
+      type: "bar",
+      stack: "quantities",
+      data: data[index],
+      barCategoryGap: "20%",
+      itemStyle: { color: cssVar(market.color), borderColor: surface, borderWidth: 0.5 },
+      emphasis: { focus: "series" }
+    }));
+    const tooltip = params => {
+      const index = params && params.length ? params[0].dataIndex : -1;
+      const row = rows[index];
+      if (!row) return "";
+      let total = 0;
+      const lines = shown.map(({ market }, m) => {
+        const value = data[m][index];
+        if (value !== null) total += value;
+        return tooltipRow(cssVar(market.color), market.label, value === null ? "—" : `${formatChartNumber(value)} ${unit}`);
+      });
+      return tooltipHeader(row) + lines.join("") +
+        `<div style="margin-top:4px;border-top:1px solid ${cssVar("--chart-tooltip-border")};padding-top:4px;">` +
+        tooltipRow("transparent", "Total", `${formatChartNumber(total)} ${unit}`) + "</div>";
+    };
+    qtyChart.setOption({
+      animation: false,
+      backgroundColor: "transparent",
+      legend: {
+        show: true, top: 0, right: 16, itemWidth: 10, itemHeight: 10, icon: "roundRect",
+        textStyle: { color: cssVar("--chart-legend"), fontSize: 11 }, data: series.map(item => item.name)
+      },
+      tooltip: { ...timelineTooltip(tooltip), axisPointer: { type: "shadow", shadowStyle: { color: cssVar("--chart-zoom-filler") } } },
+      grid: { left: CHART_GRID.left, right: 24, top: 32, bottom: CHART_GRID.bottom, containLabel: false },
+      xAxis: { ...timelineXAxis(qtyTimeline), boundaryGap: true },
+      yAxis: timelineYAxis(unit, { axisLabel: { ...timelineAxisTextStyle(), formatter: value => formatChartNumber(value) } }),
+      series,
+      dataZoom: timelineDataZoom(0)
+    }, true);
+  }
+
+  document.querySelectorAll("#quantities-section [data-qty-side]").forEach(button => {
+    button.addEventListener("click", () => {
+      qtyState.side = button.dataset.qtySide;
+      document.querySelectorAll("#quantities-section [data-qty-side]").forEach(other =>
+        other.classList.toggle("active", other === button));
+      renderQuantitiesChart();
+    });
   });
 
   /* Shared zone legend: one click toggles the zone on every price chart.
@@ -20256,7 +20398,8 @@ move the slider above to another one`,
     lazyBlock(["mia1", "mia2", "mia3"].map(id => byId(`intraday-${id}-section`)), renderIntradayCharts, [loadIntradayData]),
     lazyBlock(["xbid60", "xbid15"].map(id => byId(`intraday-${id}-section`)), renderXbidCharts, [loadXbidData]),
     lazyBlock(SPREAD_MARKETS.map(market => byId(`${market.prefix}-section`)), renderSpreadCharts, [loadSpreadData]),
-    lazyBlock([zoneSpreadSection, byId("spread-legend")], renderZoneSpreadChart)
+    lazyBlock([zoneSpreadSection, byId("spread-legend")], renderZoneSpreadChart),
+    lazyBlock([byId("quantities-section")], () => { qtyChart.resize(); renderQuantitiesChart(); }, [loadIntradayData, loadXbidData])
   ];
   const MARKET_BLOCKS = [
     lazyBlock(mgpSections, renderMgpCharts, [loadMgpMeritData, loadMiMeritData, loadMarketOffersData])

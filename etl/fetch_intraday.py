@@ -133,26 +133,40 @@ def build_volumes(rows):
     GME's ME_ZonalVolumes rows.  An hourly day (the MGP before 1 October
     2025) repeats each hour's MW over its four quarter-hours.
     """
+    # Period 0 is an hourly row (the MGP before 1 October 2025): its hour is in Hour.
     by_day = defaultdict(lambda: defaultdict(dict))
     for row in rows:
         zone = str(row.get("Zone") or "").strip().upper()
         if zone not in ITALIAN_ZONES or row.get("FlowDate") is None or row.get("Period") is None:
             continue
+        period = int(row["Period"])
+        if period == 0:
+            if row.get("Hour") is None:
+                continue
+            slot = ("hour", int(row["Hour"]))
+        else:
+            slot = ("quarter", period)
         flow_date = datetime.strptime(str(row["FlowDate"]), "%Y%m%d").date().isoformat()
         for side, field in VOLUME_SIDES.items():
             value = number(row.get(field))
             if value is not None:
-                by_day[(zone, flow_date)][side][int(row["Period"])] = round(value, 1)
+                by_day[(zone, flow_date)][side][slot] = round(value, 1)
 
     output = {zone: {side: [] for side in VOLUME_SIDES} for zone in ITALIAN_ZONES}
     for (zone, day), sides in sorted(by_day.items()):
-        hourly = max((max(values) for values in sides.values() if values), default=0) <= 25
+        quarter_day = any(kind == "quarter" for values in sides.values() for kind, _ in values)
         for side, values in sides.items():
-            for period, value in sorted(values.items()):
-                quarters = range((period - 1) * 4 + 1, period * 4 + 1) if hourly else (period,)
-                output[zone][side].extend(
-                    {"date": day, "time": market_time_from_period(quarter, 15), "mw": value} for quarter in quarters
-                )
+            points = {}
+            for (kind, number_), value in values.items():
+                if quarter_day and kind == "quarter":
+                    points[number_] = value
+                elif not quarter_day:
+                    for quarter in range((number_ - 1) * 4 + 1, number_ * 4 + 1):
+                        points[quarter] = value
+            output[zone][side].extend(
+                {"date": day, "time": market_time_from_period(quarter, 15), "mw": value}
+                for quarter, value in sorted(points.items())
+            )
     return output
 
 
