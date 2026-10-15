@@ -424,7 +424,7 @@
     .bess-field input:focus, .bess-field select:focus, .bess-row2 input:focus { outline:none; border-color:var(--blue); }
     .bess-field input::placeholder, .bess-row2 input::placeholder { color:var(--muted-2); }
     .bess-row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
-    .bess-row2[hidden], .bess-split[hidden] { display:none; }
+    .bess-row2[hidden] { display:none; }
     .bess-sub { display:flex; flex-direction:column; gap:4px; }
     .bess-sub > span { color:var(--muted); font-size:11px; }
     .bess-hint { color:var(--muted-2); font-size:11px; line-height:1.45; }
@@ -16392,15 +16392,14 @@ move the slider above to another one`,
   const BESS_DEFAULTS = {
     zone: "", power: 50, energy: 100, rte: 85, socMin: 0, socMax: 100, soc0: 50, cycles: 2, availability: 97, fade: 2,
     period: "last12", from: "", to: "",
-    strategy: "sequential", splitDayAhead: 80, splitIntraday: 10, splitBalancing: 10,
+    strategy: "sequential",
     MGP: true, MIA1: true, MIA2: true, MIA3: true, XBID: true, MSD: true, MB: true,
-    xbidShare: 25, msdUp: "", msdDown: "", mbUp: "", mbDown: "",
+    xbidShare: 25, volumeShare: 10, msdUp: "", msdDown: "", mbUp: "", mbDown: "",
     throughputCost: 5, fixedOpex: 10, chargeCost: 0, fee: 0.04
   };
   const BESS_STRATEGIES = {
     sequential: "Sequential, gate by gate",
-    joint: "Perfect foresight, all markets jointly",
-    split: "Fixed split"
+    joint: "Perfect foresight, all markets jointly"
   };
   let bessInputs = { ...BESS_DEFAULTS };
   const bessState = {
@@ -16495,8 +16494,16 @@ move the slider above to another one`,
     if (!mgp.some(Number.isFinite)) return null;
     const intraday = market => bessArray(bessRow(((files.intraday.markets || {})[market] || {})[zone]?.quarter_hourly, date), T);
     const gme = name => bessArray(bessRow(bessGmeSeries(zoneFile, zone, name), date), T);
+    // The zone's volumes, MW: sold (the battery's sales are capped on it) and bought (its purchases).
+    const volume = group => {
+      const sides = group && group[zone];
+      return { sold: bessArray(bessRow(sides?.sold, date), T), bought: bessArray(bessRow(sides?.bought, date), T) };
+    };
+    const miVolumes = (files.intraday.volumes || {});
     return {
       date, T, hourlyMgp, factor: 1,
+      volumes: { MIA1: volume(miVolumes["MI-A1"]), MIA2: volume(miVolumes["MI-A2"]), MIA3: volume(miVolumes["MI-A3"]),
+        XBID: volume((files.xbid.volumes || {})["XBID-15"]) },
       prices: {
         MGP: mgp, MIA1: intraday("MI-A1"), MIA2: intraday("MI-A2"), MIA3: intraday("MI-A3"),
         XBID: bessArray(bessRow(((files.xbid.markets || {})["XBID-15"] || {})[zone]?.quarter_hourly, date), T)
@@ -16675,18 +16682,15 @@ move the slider above to another one`,
       `<label class="bess-check"><input type="checkbox" data-field="${market.key}"${bessInputs[market.key] ? " checked" : ""}>` +
       `<span class="bess-swatch" style="background:var(${market.color})"></span>${market.label}</label>`).join("");
     const markets =
-      bessSelect("strategy", "Strategy", Object.entries(BESS_STRATEGIES).map(([key, text]) => [key, key === "sequential" ? `${text} (default)` : key === "joint" ? `${text} (ceiling)` : text]), {
-        help: bessHelp("The three, and which to read", `<p><b>Sequential</b> follows Italy's gates: MGP (D-1 12:00), MI-A1 (15:00), MI-A2 (22:00), MSD, MI-A3 (D 10:00), MI-XBID until an hour before delivery, then MB. At each gate the battery takes the best position knowing that market's prices, on top of what the earlier ones left it, without knowing the later ones; every schedule along the way is one it can run. This is how the recent literature models stacking (each market at its gate closure, on the capacity left), and the estimate to read.</p>` +
-          `<p><b>Perfect foresight</b> knows every price of every market from the start and plans them together: a ceiling no trader reaches, shown to measure what foresight across markets is worth.</p>` +
-          `<p><b>Fixed split</b> gives each group of markets a fixed share of power and energy (say 80% MGP, 10% intraday, 10% MSD and MB), each run on its own. Studies use fixed shares where a service books capacity ahead (FCR, aFRR capacity auctions elsewhere in Europe); Italy's MSD and MB pay for energy accepted, pay-as-bid, with no capacity held, so co-optimising (sequential) needs no split. Shown for comparison.</p>`) }) +
-      `<div class="bess-split"${bessInputs.strategy === "split" ? "" : " hidden"}>` +
-      bessNumber("splitDayAhead", "Day-ahead share (MGP, %)", { placeholder: "e.g. 80", min: 0, max: 100, step: 5 }) +
-      bessNumber("splitIntraday", "Intraday share (MI-A, MI-XBID, %)", { placeholder: "e.g. 10", min: 0, max: 100, step: 5 }) +
-      bessNumber("splitBalancing", "Balancing share (MSD, MB, %)", { placeholder: "e.g. 10", min: 0, max: 100, step: 5 }) + `</div>` +
+      bessSelect("strategy", "Strategy", Object.entries(BESS_STRATEGIES).map(([key, text]) => [key, key === "sequential" ? `${text} (default)` : `${text} (ceiling)`]), {
+        help: bessHelp("The two, and which to read", `<p><b>Sequential</b> follows Italy's gates: MGP (D-1 12:00), MI-A1 (15:00), MI-A2 (22:00), MSD, MI-A3 (D 10:00), MI-XBID until an hour before delivery, then MB. At each gate the battery takes the best position knowing that market's prices, on top of what the earlier ones left it, without knowing the later ones; every schedule along the way is one it can run. This is how the recent literature models stacking (each market at its gate closure, on the capacity left), and the estimate to read.</p>` +
+          `<p><b>Perfect foresight</b> knows every price of every market from the start and plans them together: a ceiling no trader reaches, shown to measure what foresight across markets is worth.</p>`) }) +
       `<div class="bess-field"><span class="bess-label">Markets</span><div class="bess-checks">${marketBoxes}</div>` +
       bessHelp("What switching a market off means", "<p>The battery does not trade in it; the other markets are optimised as before. MI-A3 covers 12:00–24:00 only.</p>") + `</div>` +
       bessNumber("xbidShare", "MI-XBID: most of the power traded (%)", { placeholder: "e.g. 25", min: 0, max: 100, step: 5,
         help: bessHelp("Why a cap", "<p>MI-XBID is continuous trading. The price used is each 15-minute product's reference price (the volume-weighted average of its trades), which a battery could not count on getting for its whole power: the cap keeps the noise of thin trading from turning into profit. Italy's batteries made next to nothing there in Aug–Oct 2026.</p>") }) +
+      bessNumber("volumeShare", "MI-A and MI-XBID: most of the zone's volume (%)", { placeholder: "e.g. 10", min: 0, max: 100, step: 1, hint: true,
+        help: bessHelp("Why a volume cap", "<p>A battery cannot sell more than buyers take, nor count on the auction's price if it makes up much of it. In each quarter-hour the battery's sales in an MI-A auction or MI-XBID are capped at this share of what the zone's sellers sold there, its purchases at this share of what the zone's buyers bought (GME's zonal volumes). 10% is a common bound for treating a trader as a price-taker; MI-XBID keeps its cap on the power as well. The MGP, which clears GW in every zone, has none.</p>") }) +
       bessPair("MSD: share of the zone's accepted volume (%)", "msdUp", "msdDown", { names: ["Upward", "Downward"], hint: "msd", step: 0.01,
         help: bessHelp("How MSD is modelled", "<p>Terna accepts MSD offers for its needs, location included, pay-as-bid: a battery is not accepted whenever its price would do. The battery sells upward and buys downward at the zone's average accepted prices of the quarter-hour, up to this share of the volume Terna accepted in the zone.</p><p>Left blank: what Italy's batteries in the zone were accepted for per MW of their power (Storage tab, the days on file), scaled to this battery's power. Raise it to see the ceiling if Terna took more from batteries.</p>") }) +
       bessPair("MB: share of the zone's accepted volume (%)", "mbUp", "mbDown", { names: ["Upward", "Downward"], hint: "mb", step: 0.01,
@@ -16736,7 +16740,7 @@ move the slider above to another one`,
       `<section id="bess-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Results</div>` +
       `<div id="bess-summary-subtitle" class="chart-subtitle"></div></div><div id="bess-status" class="bess-status"></div></div>` +
       `<div id="bess-kpis" class="gas-kpis bess-kpis"></div><p id="bess-reading" class="bess-reading"></p>` +
-      `<div class="bess-compare"><span class="bess-compare-label">The three strategies on these inputs</span><div id="bess-compare-chips" class="bess-chips"></div>` +
+      `<div class="bess-compare"><span class="bess-compare-label">The two strategies on these inputs</span><div id="bess-compare-chips" class="bess-chips"></div>` +
       `<button type="button" id="bess-compare" class="bess-button">Compare strategies</button></div></section>` +
       section("money", "Revenues and Costs", { wide: true, extra: buckets,
         help: "Revenues vs costs: above zero what the battery was paid, below zero what it paid for energy, O&amp;M, fees and network charges; the markets netted quarter-hour by quarter-hour, so a position sold in the MGP and bought back in an MI-A auction for the same quarter-hour counts once, as the margin between the two. By market: each market's sales minus purchases (MSD and MB: upward minus downward), above or below zero, and the other costs. Solid line: the net margin (left axis, €). Dashed line: the same per MW of power and year (right axis), each day, month or year scaled by its own days, so a part month compares with a whole one. Click a series in the legend to hide or show it." }) +
@@ -16804,9 +16808,9 @@ move the slider above to another one`,
   function bessMethodHtml() {
     return `<div class="bess-method-body">` +
       `<p><b>The optimisation.</b> Each day is a linear programme over its quarter-hours (92, 96 or 100): charge and discharge (within the power), the state of charge (within its window, from and back to the midnight level, with half the round-trip losses on each side), a cap on the energy discharged (the cycles), and a position in each market, sold or bought. The objective is the money earned minus the variable costs. It is solved with <a href="https://highs.dev" target="_blank" rel="noopener">HiGHS</a> 1.15 (University of Edinburgh, MIT licence; <a href="https://github.com/lovasoa/highs-js" target="_blank" rel="noopener">highs-js</a>, run in the browser). Where the answer would charge and discharge in the same quarter-hour (only worth it at prices below zero), the day is solved again as a mixed-integer programme with a binary per quarter-hour that rules it out.</p>` +
-      `<p><b>Prices.</b> MGP: the zonal price (hourly before 1 October 2025, when the battery holds one position per hour; quarter-hourly since). MI-A1, MI-A2, MI-A3: the auctions' zonal prices (MI-A3 covers 12:00–24:00). MI-XBID: each 15-minute product's reference price, the average of its trades weighted by volume, where there were trades. MSD (ex-ante) and MB (other services): the zone's average accepted prices upward and downward and the volumes accepted, quarter-hour by quarter-hour (GME). The battery is a price-taker: its trades do not move the prices.</p>` +
+      `<p><b>Prices.</b> MGP: the zonal price (hourly before 1 October 2025, when the battery holds one position per hour; quarter-hourly since). MI-A1, MI-A2, MI-A3: the auctions' zonal prices (MI-A3 covers 12:00–24:00). MI-XBID: each 15-minute product's reference price, the average of its trades weighted by volume, where there were trades. MSD (ex-ante) and MB (other services): the zone's average accepted prices upward and downward and the volumes accepted, quarter-hour by quarter-hour (GME). The battery is a price-taker: its trades do not move the prices, and it takes at most a share of each market's volume: in MSD and MB the share of the accepted volume set above, in the MI-A auctions and MI-XBID a share of the zone's volume sold (its sales) and bought (its purchases) in the quarter-hour. The MGP has no such cap.</p>` +
       `<p><b>Sequential versus joint.</b> Revenue-stacking models that let a battery plan all markets together with known prices overstate what it earns; the recent literature models each market at its gate closure on the capacity left by the earlier ones, with what is known then (e.g. Kortmann, Sanders and Ulbig, <a href="https://arxiv.org/abs/2607.24075" target="_blank" rel="noopener">arXiv 2607.24075</a>). The sequential strategy here does that, with each market's own prices known at its gate: still an upper bound for that market, as real bids rest on forecasts. Backtests of day-ahead trading on forecasts typically keep 80–90% of what hindsight earns (e.g. Hornek et al., <a href="https://arxiv.org/abs/2501.07121" target="_blank" rel="noopener">arXiv 2501.07121</a>, for intraday). Italy's batteries' actual results, below the charts, are the check.</p>` +
-      `<p><b>Fixed shares.</b> Splitting a battery into fixed shares per market is the usual approach where a service reserves capacity ahead of delivery (FCR or aFRR capacity auctions); Italy's MSD and MB buy energy, pay-as-bid, with no capacity held, so the battery's whole power can move between markets quarter-hour by quarter-hour. The split is offered for comparison.</p>` +
+      `<p><b>Fixed shares.</b> Splitting a battery into fixed shares per market is the usual approach where a service reserves capacity ahead of delivery (FCR or aFRR capacity auctions); Italy's MSD and MB buy energy, pay-as-bid, with no capacity held, so the battery's whole power can move between markets quarter-hour by quarter-hour. The model therefore does not split it.</p>` +
       `<p><b>Left out.</b> Capacity payments (the capacity market, MACSE), imbalance charges, the secondary reserve's band, start-up and mode-change payments in MSD, the effect of the battery's own bids on prices, taxes, CAPEX and financing.</p>` +
       `<p><b>Sources.</b> GME (prices, MSD and MB results, market offers of Italy's batteries; elaborated, not reproduced); ARERA 574/2014/R/eel and 109/2021/R/eel (storage withdrawals); GME's fees.</p></div>`;
   }
@@ -16818,7 +16822,6 @@ move the slider above to another one`,
     if (target.type === "checkbox") bessInputs[field] = target.checked;
     else if (target.type === "number") bessInputs[field] = target.value === "" ? "" : Number(target.value);
     else bessInputs[field] = target.value;
-    if (field === "strategy") document.querySelector("#bess-view .bess-split").hidden = bessInputs.strategy !== "split";
     if (field === "period") document.querySelector("#bess-view .bess-dates").hidden = bessInputs.period !== "custom";
     if (event.type === "input" && target.type !== "number") return;
     bessState.compare = null;
@@ -16861,12 +16864,7 @@ move the slider above to another one`,
     const chargeCost = nonNegative("chargeCost", 0, "Network charges");
     const fee = nonNegative("fee", 0.04, "Market fees");
     const xbidShare = value("xbidShare", 25, x => x >= 0 && x <= 100, "The MI-XBID cap must be between 0 and 100%.");
-    const split = {
-      dayAhead: nonNegative("splitDayAhead", 80, "A share") / 100,
-      intraday: nonNegative("splitIntraday", 10, "A share") / 100,
-      balancing: nonNegative("splitBalancing", 10, "A share") / 100
-    };
-    if (i.strategy === "split" && split.dayAhead + split.intraday + split.balancing > 1.0001) errors.push("The fixed shares add up to more than 100%.");
+    const volumeShare = value("volumeShare", 10, x => x >= 0 && x <= 100, "The share of the zone's volume must be between 0 and 100%.");
     const markets = Object.fromEntries(BESS_MARKETS.map(market => [market.key, Boolean(i[market.key])]));
     if (!Object.values(markets).some(Boolean)) errors.push("Choose at least one market.");
     // MSD and MB: the share entered, else Italy's batteries' share per MW, scaled to this battery.
@@ -16886,7 +16884,7 @@ move the slider above to another one`,
       worker: {
         power, energy, rte: rte / 100, socMin: socMin / 100, socMax: socMax / 100, soc0: soc0 / 100, cycles,
         availability: availability / 100, throughputCost, chargeCost, fee, strategy: i.strategy in BESS_STRATEGIES ? i.strategy : "sequential",
-        markets, xbidShare: xbidShare / 100, shares, split
+        markets, xbidShare: xbidShare / 100, volumeShare: volumeShare / 100, shares
       }
     };
   }
@@ -16957,6 +16955,7 @@ move the slider above to another one`,
     const [from, to] = bessPeriod(lastDay);
     bessHint("period", `${bessDateText(from)} – ${bessDateText(to)}, ${formatNumber(bessDaysBetween(from, to) + 1)} days · on file from ${bessDateText(BESS_FIRST_DAY)} to ${bessDateText(lastDay)}. The MGP traded hours until 30 Sep 2025, quarter-hours since.`);
     bessHint("energy", `Duration ${formatNumber(bessNum(bessInputs.energy, 100) / bessNum(bessInputs.power, 50), 1)} h`);
+    bessShowVolumes(files, zone, from, to, params);
     if (params.errors.length) {
       bessState.running = false;
       bessState.message = params.errors.join(" ");
@@ -17068,6 +17067,31 @@ move the slider above to another one`,
         `${pct(shares.up * observed.mw)} of the upward and ${pct(shares.down * observed.mw)} of the downward volume, ${bessDateText(observed.from)} – ${bessDateText(observed.to)}; ` +
         `scaled to ${formatNumber(power, 0)} MW.`);
     });
+  }
+
+  /*
+   * The zone's MI-A and MI-XBID volumes over the period: the median
+   * quarter-hour sold, and how often the cap holds the battery below its
+   * power (selling).
+   */
+  function bessShowVolumes(files, zone, from, to, params) {
+    const share = params.worker.volumeShare, power = params.worker.power * params.worker.availability;
+    const groups = [["MI-A1", (files.intraday.volumes || {})["MI-A1"]], ["MI-A2", (files.intraday.volumes || {})["MI-A2"]],
+      ["MI-A3", (files.intraday.volumes || {})["MI-A3"]], ["MI-XBID", (files.xbid.volumes || {})["XBID-15"]]];
+    const parts = groups.map(([label, group]) => {
+      const series = group && group[zone] ? group[zone].sold : null;
+      const values = [];
+      for (let date = from; date <= to; date = bessAddDays(date, 1)) {
+        (bessRow(series, date) || []).forEach(value => { if (value !== null && value !== undefined) values.push(value); });
+      }
+      if (!values.length) return null;
+      values.sort((a, b) => a - b);
+      const below = values.filter(value => share * value < power).length / values.length;
+      return `${label} ${formatNumber(values[Math.floor(values.length / 2)], 0)} MW (cap below ${formatNumber(power, 0)} MW in ${formatNumber(below * 100, 0)}% of quarter-hours)`;
+    }).filter(Boolean);
+    bessHint("volumeShare", parts.length
+      ? `${ZONE_NAMES[zone]}, median sold per quarter-hour: ${parts.join(" · ")}.`
+      : "No MI-A or MI-XBID volumes on file for the period: no volume cap.");
   }
 
   /* ----- Showing the view ----- */
@@ -17203,8 +17227,7 @@ move the slider above to another one`,
     if (!chips) return;
     if (!results || bessState.message) { chips.innerHTML = ""; return; }
     const compare = bessState.compare;
-    const split = results.params.worker.split;
-    const label = key => (key === "split" ? `Fixed split ${[split.dayAhead, split.intraday, split.balancing].map(x => formatNumber(x * 100, 0)).join("/")}` : BESS_STRATEGIES[key]);
+    const label = key => BESS_STRATEGIES[key];
     chips.innerHTML = Object.keys(BESS_STRATEGIES).map(key => {
       const value = key === results.strategy ? results.totals.margin : compare ? compare[key] : undefined;
       const text = value === undefined ? "—" : value === null ? "failed" : `${bessMoney(bessPerMwYear(value, results))}/MW/yr`;

@@ -1,6 +1,9 @@
 """
 Fetch GME intraday auction (MI-A1, MI-A2, MI-A3) zonal prices for the
-Italian bidding zones and write app/data/intraday_prices.json.
+Italian bidding zones and write app/data/intraday_prices.json, with each
+auction's zonal volumes (ME_ZonalVolumes: what the zone's sellers sold and
+its buyers bought, MW per quarter-hour) for the battery calculator's cap on
+the share of an auction a battery can take.
 
 The three MI-A auctions replaced the old MI1..MI7 sessions in June 2024
 and are coupled with the European intraday auctions (IDA1-3):
@@ -38,6 +41,10 @@ from fetch_zonal import (
 MARKETS = ["MI-A1", "MI-A2", "MI-A3"]
 
 RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
+
+# GME's zonal volumes: "Sold" and "Purchased" of each period, MW.
+VOLUME_DATA_NAME = "ME_ZonalVolumes"
+VOLUME_SIDES = {"sold": "Sold", "bought": "Purchased"}
 
 OUTPUT_PATH = os.path.join(
     os.path.dirname(os.path.dirname(__file__)),
@@ -105,6 +112,48 @@ def build_series(rows):
     return output
 
 
+def number(value):
+    """GME's numbers come as text, "null" where there is none."""
+    if value is None:
+        return None
+    text = str(value).strip().replace(",", ".")
+    if not text or text.lower() == "null":
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        return None
+
+
+def build_volumes(rows):
+    """
+    {zone: {"sold": [...], "bought": [...]}}, quarter-hourly rows of MW, from
+    GME's ME_ZonalVolumes rows.  Only 15-minute days (the whole MI-A history
+    since 2025).
+    """
+    by_day = defaultdict(lambda: defaultdict(dict))
+    for row in rows:
+        zone = str(row.get("Zone") or "").strip().upper()
+        if zone not in ITALIAN_ZONES or row.get("FlowDate") is None or row.get("Period") is None:
+            continue
+        flow_date = datetime.strptime(str(row["FlowDate"]), "%Y%m%d").date().isoformat()
+        for side, field in VOLUME_SIDES.items():
+            value = number(row.get(field))
+            if value is not None:
+                by_day[(zone, flow_date)][side][int(row["Period"])] = round(value, 1)
+
+    output = {zone: {side: [] for side in VOLUME_SIDES} for zone in ITALIAN_ZONES}
+    for (zone, day), sides in sorted(by_day.items()):
+        if max((max(values) for values in sides.values() if values), default=0) <= 25:
+            continue
+        for side, values in sides.items():
+            output[zone][side].extend(
+                {"date": day, "time": market_time_from_period(period, 15), "mw": value}
+                for period, value in sorted(values.items())
+            )
+    return output
+
+
 def merge_rows(existing, new):
     """Merge by (date, time); new rows win."""
     merged = {(r["date"], r.get("time")): r for r in existing}
@@ -121,10 +170,16 @@ def empty_market():
     return {zone: {resolution: [] for resolution in RESOLUTIONS} for zone in ITALIAN_ZONES}
 
 
+def empty_volumes():
+    return {zone: {side: [] for side in VOLUME_SIDES} for zone in ITALIAN_ZONES}
+
+
 def load_existing():
+    """(prices, volumes) of the file on disk."""
     markets = {market: empty_market() for market in MARKETS}
+    volumes = {market: empty_volumes() for market in MARKETS}
     if not os.path.exists(OUTPUT_PATH):
-        return markets
+        return markets, volumes
 
     payload = compact.load(OUTPUT_PATH)
     for market in MARKETS:
@@ -132,10 +187,14 @@ def load_existing():
             if zone in markets[market]:
                 for resolution in RESOLUTIONS:
                     markets[market][zone][resolution] = series.get(resolution, [])
-    return markets
+        for zone, sides in payload.get("volumes", {}).get(market, {}).items():
+            if zone in volumes[market]:
+                for side in VOLUME_SIDES:
+                    volumes[market][zone][side] = sides.get(side, [])
+    return markets, volumes
 
 
-def build_output(markets):
+def build_output(markets, volumes=None):
     return {
         "source": "GME - MI-A intraday auction zonal prices (Italian bidding zones)",
         "description": (
@@ -143,7 +202,9 @@ def build_output(markets):
             "MI-A3 for the Italian bidding zones, EUR/MWh, at GME's native "
             "15-minute resolution. Hourly = average of the quarter-hours; "
             "daily = average of the day's periods (MI-A3 covers only part "
-            "of the day)."
+            "of the day). volumes: each auction's zonal volumes per "
+            "quarter-hour, MW, sold (the zone's sellers) and bought (its "
+            "buyers)."
         ),
         # Native quarter-hours for the whole history.
         "quarter_hourly_native_from": DEFAULT_HISTORY_START.isoformat(),
@@ -156,6 +217,13 @@ def build_output(markets):
                 for zone, series in zones.items()
             }
             for market, zones in markets.items()
+        },
+        "volumes": {
+            market: {
+                zone: {side: compact.encode_series(rows, "quarter_hourly", "mw") for side, rows in sides.items()}
+                for zone, sides in zones.items()
+            }
+            for market, zones in (volumes or {}).items()
         },
     }
 
@@ -197,8 +265,12 @@ def main():
     print(f"Date range: {start_date} -> {end_date}")
     print()
 
-    existing = {market: empty_market() for market in MARKETS} if args.full_history else load_existing()
-    markets = {}
+    if args.full_history:
+        existing = {market: empty_market() for market in MARKETS}
+        existing_volumes = {market: empty_volumes() for market in MARKETS}
+    else:
+        existing, existing_volumes = load_existing()
+    markets, volumes = {}, {}
 
     for index, market in enumerate(MARKETS):
         if index:
@@ -217,12 +289,26 @@ def main():
         }
         nord = markets[market]["NORD"]
         print(f"  NORD: {len(nord['daily']):,} days, {len(nord['quarter_hourly']):,} quarter-hours")
+
+        # The volumes; without them the prices still go out, with the volumes on file.
+        time.sleep(REQUEST_PAUSE_SECONDS)
+        try:
+            new_volumes = build_volumes(
+                request_data(login, password, start_date, end_date, segment=market, data_name=VOLUME_DATA_NAME))
+        except Exception as error:
+            print(f"  {VOLUME_DATA_NAME} {market}: failed ({error}); the volumes on file are kept")
+            new_volumes = empty_volumes()
+        volumes[market] = {
+            zone: {side: merge_rows(existing_volumes[market][zone][side], new_volumes[zone][side]) for side in VOLUME_SIDES}
+            for zone in ITALIAN_ZONES
+        }
+        print(f"  NORD volumes: {len(volumes[market]['NORD']['sold']):,} quarter-hours")
         print()
 
     if not any(markets[m]["NORD"]["daily"] for m in MARKETS):
         raise RuntimeError("No intraday data downloaded; not writing output.")
 
-    compact.dump(build_output(markets), OUTPUT_PATH)
+    compact.dump(build_output(markets, volumes), OUTPUT_PATH)
     print("=" * 70)
     print(f"Wrote: {OUTPUT_PATH}")
     print("=" * 70)

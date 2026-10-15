@@ -45,6 +45,9 @@ def test_coupling_flows_and_prices_and_balancing_series_by_kind(rounded):
     assert pg.balancing_kind("/series/hourly/IT|sum_mb_volume_up_rs") == "volume"
     assert pg.balancing_kind("/series/daily/IT|cost_msd_up") == "estimate"
     assert pg.step(12345.0, pg.ESTIMATE_STEP) == 12300 and pg.step(0.04, pg.OFFER_STEP) == 0
+    for name in ("intraday_prices.json", "xbid_prices.recent.json"):
+        assert pg.series_kind(name)("/volumes/MI-A1/NORD/sold") == "volume"
+        assert pg.series_kind(name)("/markets/MI-A1/NORD/quarter_hourly") == "price"
 
 
 DAY = {

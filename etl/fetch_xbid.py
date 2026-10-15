@@ -12,7 +12,10 @@ zone and phase:
                   (Phase 0 for a day is published the day after)
 The price kept is ReferencePrice ("Riferimento"): the volume-weighted
 average price of all trades concluded for the product.  A product without
-trades in a zone has no price ("null") and is left out.
+trades in a zone has no price ("null") and is left out.  The 15-minute
+products' volumes are kept too (Sold and Purchased: what the zone's sellers
+and buyers traded, MW), for the battery calculator's cap on the share of
+the trading a battery can take.
 
 The 60-minute series has hourly and daily values (the dashboard repeats the
 hourly price over the quarter-hours in its 15-minute view).  The 15-minute
@@ -111,6 +114,37 @@ def extract_prices(rows):
     return prices
 
 
+def extract_volumes(rows):
+    """
+    {(zone, date): {time label: (sold, bought)}} of the 15-minute products,
+    total phase, Italian zones (traded or not: no trades is 0).
+    """
+    volumes = defaultdict(dict)
+    for row in rows:
+        if str(row.get("Phase")).strip() != TOTAL_PHASE:
+            continue
+        zone = str(row.get("Zone") or "").strip().upper()
+        if zone not in ITALIAN_ZONES or int(row["Period"]) == 0:
+            continue
+        sold, bought = number(row.get("Sold")), number(row.get("Purchased"))
+        if sold is None and bought is None:
+            continue
+        flow_date = datetime.strptime(str(row["FlowDate"]), "%Y%m%d").date().isoformat()
+        label = market_time_from_period(int(row["Period"]), 15)
+        volumes[(zone, flow_date)][label] = (round(sold or 0.0, 1), round(bought or 0.0, 1))
+    return volumes
+
+
+def build_volumes(volumes):
+    """{zone: {"sold": rows, "bought": rows}} (quarter-hourly, MW) from extract_volumes() output."""
+    output = empty_volumes()
+    for (zone, day), slots in sorted(volumes.items()):
+        for label, (sold, bought) in sorted(slots.items(), key=lambda item: minutes_of(item[0])):
+            output[zone]["sold"].append({"date": day, "time": label, "mw": sold})
+            output[zone]["bought"].append({"date": day, "time": label, "mw": bought})
+    return output
+
+
 def average(values):
     return round(sum(values) / len(values), 2)
 
@@ -159,11 +193,11 @@ def merge_rows(existing, new):
 
 def download(login, password, start_date, end_date):
     """
-    Prices of every monthly chunk, filtered as soon as each chunk arrives
-    (a month is ~190k rows across all zones and phases).
+    Prices and volumes of every monthly chunk, filtered as soon as each
+    chunk arrives (a month is ~190k rows across all zones and phases).
     """
     token = get_token(login, password)
-    prices = {}
+    prices, volumes = {}, {}
     chunks = list(month_ranges(start_date, end_date))
     print(f"  {DATA_NAME} {SEGMENT}: {len(chunks)} monthly API request(s)")
 
@@ -179,12 +213,13 @@ def download(login, password, start_date, end_date):
         found = extract_prices(rows)
         print(f"    {len(rows):,} rows, {sum(len(v) for v in found.values()):,} traded products kept")
         prices.update(found)
+        volumes.update(extract_volumes(rows))
         del rows
 
         if index < len(chunks):
             time.sleep(REQUEST_PAUSE_SECONDS)
 
-    return prices
+    return prices, volumes
 
 
 # ============================================================================
@@ -197,10 +232,15 @@ def empty_markets():
             for product, resolutions in PRODUCTS.items()}
 
 
+def empty_volumes():
+    return {zone: {"sold": [], "bought": []} for zone in ITALIAN_ZONES}
+
+
 def load_existing():
-    markets = empty_markets()
+    """(prices, 15-minute volumes) of the file on disk."""
+    markets, volumes = empty_markets(), empty_volumes()
     if not os.path.exists(OUTPUT_PATH):
-        return markets
+        return markets, volumes
 
     payload = compact.load(OUTPUT_PATH)
     for product, resolutions in PRODUCTS.items():
@@ -208,10 +248,14 @@ def load_existing():
             if zone in markets[product]:
                 for resolution in resolutions:
                     markets[product][zone][resolution] = series.get(resolution, [])
-    return markets
+    for zone, sides in payload.get("volumes", {}).get("XBID-15", {}).items():
+        if zone in volumes:
+            for side in ("sold", "bought"):
+                volumes[zone][side] = sides.get(side, [])
+    return markets, volumes
 
 
-def build_output(markets):
+def build_output(markets, volumes=None):
     return {
         "source": "GME - MI-XBID continuous intraday trading results (Italian bidding zones)",
         "description": (
@@ -220,7 +264,9 @@ def build_output(markets):
             "for the Italian bidding zones, EUR/MWh. 60-minute: hourly, daily "
             "= average of the traded hours. 15-minute: quarter-hourly, hourly "
             "= average of the traded quarter-hours, daily = average of the "
-            "day's traded quarter-hours. Products without trades have no value."
+            "day's traded quarter-hours. Products without trades have no value. "
+            "volumes: the 15-minute products' volumes per quarter-hour, MW, "
+            "sold (the zone's sellers) and bought (its buyers), all trades."
         ),
         "markets": {
             product: {
@@ -231,6 +277,12 @@ def build_output(markets):
                 for zone, series in zones.items()
             }
             for product, zones in markets.items()
+        },
+        "volumes": {
+            "XBID-15": {
+                zone: {side: compact.encode_series(rows, "quarter_hourly", "mw") for side, rows in sides.items()}
+                for zone, sides in (volumes or {}).items()
+            }
         },
     }
 
@@ -272,12 +324,13 @@ def main():
     print(f"Date range: {start_date} -> {end_date}")
     print()
 
-    prices = download(login, password, start_date, end_date)
+    prices, new_volumes = download(login, password, start_date, end_date)
     if not prices:
         raise RuntimeError("No MI-XBID totals downloaded; not writing output.")
 
     new = build_series(prices)
-    existing = empty_markets() if args.full_history else load_existing()
+    new_volumes = build_volumes(new_volumes)
+    existing, existing_volumes = (empty_markets(), empty_volumes()) if args.full_history else load_existing()
     markets = {
         product: {
             zone: {
@@ -289,11 +342,17 @@ def main():
         for product, resolutions in PRODUCTS.items()
     }
 
+    volumes = {
+        zone: {side: merge_rows(existing_volumes[zone][side], new_volumes[zone][side]) for side in ("sold", "bought")}
+        for zone in ITALIAN_ZONES
+    }
+
     for product in PRODUCTS:
         days = markets[product]["NORD"]["daily"]
         print(f"  {product} NORD: {len(days):,} days" + (f", last {days[-1]['date']}" if days else ""))
 
-    compact.dump(build_output(markets), OUTPUT_PATH)
+    print(f"  XBID-15 NORD volumes: {len(volumes['NORD']['sold']):,} quarter-hours")
+    compact.dump(build_output(markets, volumes), OUTPUT_PATH)
     print("=" * 70)
     print(f"Wrote: {OUTPUT_PATH}")
     print("=" * 70)
