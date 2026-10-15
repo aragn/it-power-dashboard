@@ -48,6 +48,7 @@ def test_coupling_flows_and_prices_and_balancing_series_by_kind(rounded):
     for name in ("intraday_prices.json", "xbid_prices.recent.json"):
         assert pg.series_kind(name)("/volumes/MI-A1/NORD/sold") == "volume"
         assert pg.series_kind(name)("/markets/MI-A1/NORD/quarter_hourly") == "price"
+    assert pg.series_kind("intraday_volumes.json")("/volumes/MGP/NORD/sold") == "volume"
 
 
 DAY = {

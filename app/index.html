@@ -8309,6 +8309,21 @@
     refreshView();
   }
 
+  /* The MGP's and the MI-A auctions' zonal volumes (Quantities by Market). */
+  let rawIntradayVolumes = null;
+  let intradayVolumesStatus = "loading"; // "loading" | "ready" | "missing"
+
+  async function loadIntradayVolumeData() {
+    try {
+      rawIntradayVolumes = decodeCompactPayload(await fetchData("./data/intraday_volumes.json", loadIntradayVolumeData));
+      intradayVolumesStatus = "ready";
+    } catch (error) {
+      console.warn("Intraday volume data unavailable:", error);
+      intradayVolumesStatus = "missing";
+    }
+    refreshView();
+  }
+
   /* Rows for one auction and zone. */
   function intradayRows(market, zone) {
     const resolution = timelineResolutionKey();
@@ -8563,16 +8578,16 @@
 
   /*
    * GME's zonal volumes, sold or bought, stacked by market in gate order:
-   * the MGP and the MI-A auctions (ME_ZonalVolumes, in intraday_prices.json)
+   * the MGP and the MI-A auctions (ME_ZonalVolumes, intraday_volumes.json)
    * and MI-XBID's 15-minute products (xbid_prices.json).  Italy: the seven
    * zones summed.  The files hold quarter-hours: hourly = the hour's average
    * MW, daily = the day's MWh.  The battery calculator's market colours.
    */
   const QTY_MARKETS = [
-    { key: "MGP", label: "MGP", color: "--border-1", group: () => ((rawIntradayData || {}).volumes || {}).MGP },
-    { key: "MI-A1", label: "MI-A1", color: "--border-2", group: () => ((rawIntradayData || {}).volumes || {})["MI-A1"] },
-    { key: "MI-A2", label: "MI-A2", color: "--border-3", group: () => ((rawIntradayData || {}).volumes || {})["MI-A2"] },
-    { key: "MI-A3", label: "MI-A3", color: "--border-5", group: () => ((rawIntradayData || {}).volumes || {})["MI-A3"] },
+    { key: "MGP", label: "MGP", color: "--border-1", group: () => ((rawIntradayVolumes || {}).volumes || {}).MGP },
+    { key: "MI-A1", label: "MI-A1", color: "--border-2", group: () => ((rawIntradayVolumes || {}).volumes || {})["MI-A1"] },
+    { key: "MI-A2", label: "MI-A2", color: "--border-3", group: () => ((rawIntradayVolumes || {}).volumes || {})["MI-A2"] },
+    { key: "MI-A3", label: "MI-A3", color: "--border-5", group: () => ((rawIntradayVolumes || {}).volumes || {})["MI-A3"] },
     { key: "XBID", label: "MI-XBID", color: "--border-6", group: () => ((rawXbidData || {}).volumes || {})["XBID-15"] }
   ];
   const QTY_ZONES = ["NORD", "CNOR", "CSUD", "SUD", "CALA", "SICI", "SARD"];
@@ -8618,9 +8633,9 @@
 
   function renderQuantitiesChart() {
     const subtitleId = "quantities-subtitle";
-    if (!rawData || (!rawIntradayData && !rawXbidData)) {
+    if (!rawData || (!rawIntradayVolumes && !rawXbidData)) {
       qtyChart.clear();
-      setChartSubtitle(subtitleId, intradayStatus === "loading" || xbidStatus === "loading"
+      setChartSubtitle(subtitleId, intradayVolumesStatus === "loading" || xbidStatus === "loading"
         ? "Loading quantities…" : "Quantities not available yet");
       return;
     }
@@ -16586,8 +16601,10 @@ move the slider above to another one`,
   }
   function bessLoadFiles() {
     if (!bessState.files) {
-      bessState.files = Promise.all(["zonal_prices.json", "intraday_prices.json", "xbid_prices.json"].map(path => anaFetch(path)))
-        .then(([zonal, intraday, xbid]) => ({ zonal, intraday, xbid }))
+      // The volumes are optional: without them, no volume cap.
+      bessState.files = Promise.all(["zonal_prices.json", "intraday_prices.json", "xbid_prices.json"].map(path => anaFetch(path))
+        .concat(anaFetch("intraday_volumes.json").catch(() => null)))
+        .then(([zonal, intraday, xbid, volumes]) => ({ zonal, intraday, xbid, volumes: volumes || {} }))
         .catch(error => { bessState.filesError = error; bessState.files = null; throw error; });
     }
     return bessState.files;
@@ -16641,7 +16658,7 @@ move the slider above to another one`,
       const sides = group && group[zone];
       return { sold: bessArray(bessRow(sides?.sold, date), T), bought: bessArray(bessRow(sides?.bought, date), T) };
     };
-    const miVolumes = (files.intraday.volumes || {});
+    const miVolumes = (files.volumes.volumes || {});
     return {
       date, T, hourlyMgp, factor: 1,
       volumes: { MIA1: volume(miVolumes["MI-A1"]), MIA2: volume(miVolumes["MI-A2"]), MIA3: volume(miVolumes["MI-A3"]),
@@ -17218,8 +17235,8 @@ move the slider above to another one`,
    */
   function bessShowVolumes(files, zone, from, to, params) {
     const share = params.worker.volumeShare, power = params.worker.power * params.worker.availability;
-    const groups = [["MI-A1", (files.intraday.volumes || {})["MI-A1"]], ["MI-A2", (files.intraday.volumes || {})["MI-A2"]],
-      ["MI-A3", (files.intraday.volumes || {})["MI-A3"]], ["MI-XBID", (files.xbid.volumes || {})["XBID-15"]]];
+    const mi = files.volumes.volumes || {};
+    const groups = [["MI-A1", mi["MI-A1"]], ["MI-A2", mi["MI-A2"]], ["MI-A3", mi["MI-A3"]], ["MI-XBID", (files.xbid.volumes || {})["XBID-15"]]];
     const parts = groups.map(([label, group]) => {
       const series = group && group[zone] ? group[zone].sold : null;
       const values = [];
@@ -20399,7 +20416,7 @@ move the slider above to another one`,
     lazyBlock(["xbid60", "xbid15"].map(id => byId(`intraday-${id}-section`)), renderXbidCharts, [loadXbidData]),
     lazyBlock(SPREAD_MARKETS.map(market => byId(`${market.prefix}-section`)), renderSpreadCharts, [loadSpreadData]),
     lazyBlock([zoneSpreadSection, byId("spread-legend")], renderZoneSpreadChart),
-    lazyBlock([byId("quantities-section")], () => { qtyChart.resize(); renderQuantitiesChart(); }, [loadIntradayData, loadXbidData])
+    lazyBlock([byId("quantities-section")], () => { qtyChart.resize(); renderQuantitiesChart(); }, [loadIntradayVolumeData, loadXbidData])
   ];
   const MARKET_BLOCKS = [
     lazyBlock(mgpSections, renderMgpCharts, [loadMgpMeritData, loadMiMeritData, loadMarketOffersData])

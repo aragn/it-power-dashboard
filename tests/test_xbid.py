@@ -82,9 +82,9 @@ def test_15_minute_volumes_kept_traded_or_not():
     ]
     volumes = fetch_xbid.build_volumes(fetch_xbid.extract_volumes(rows))
     assert volumes["NORD"]["sold"] == [
-        {"date": "2026-09-28", "time": "00:00", "mw": 341.6},
-        {"date": "2026-09-28", "time": "00:15", "mw": 0.0},
+        {"date": "2026-09-28", "time": "00:00", "mw": 342},
+        {"date": "2026-09-28", "time": "00:15", "mw": 0},
     ]
-    assert volumes["NORD"]["bought"][0]["mw"] == 256.6
+    assert volumes["NORD"]["bought"][0]["mw"] == 257
     decoded = compact.decode_tree(fetch_xbid.build_output(fetch_xbid.empty_markets(), volumes))
-    assert decoded["volumes"]["XBID-15"]["NORD"]["sold"][0]["mw"] == 341.6
+    assert decoded["volumes"]["XBID-15"]["NORD"]["sold"][0]["mw"] == 342

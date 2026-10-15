@@ -111,6 +111,8 @@ def series_kind(name):
     """How the series of a GME file are rounded, by file."""
     if name.startswith(("coupling", "transits")):
         return lambda path: "price" if "/prices/" in path else "volume"
+    if name.startswith("intraday_volumes"):
+        return lambda path: "volume"
     if name.startswith(("intraday_prices", "xbid_prices")):
         return lambda path: "volume" if path.startswith("/volumes") else "price"
     if name.startswith("gas_prices"):

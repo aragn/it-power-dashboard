@@ -14,7 +14,7 @@ The price kept is ReferencePrice ("Riferimento"): the volume-weighted
 average price of all trades concluded for the product.  A product without
 trades in a zone has no price ("null") and is left out.  The 15-minute
 products' volumes are kept too (Sold and Purchased: what the zone's sellers
-and buyers traded, MW), for the battery calculator's cap on the share of
+and buyers traded, whole MW), for the battery calculator's cap on the share of
 the trading a battery can take.
 
 The 60-minute series has hourly and daily values (the dashboard repeats the
@@ -134,7 +134,7 @@ def extract_volumes(rows):
             continue
         flow_date = datetime.strptime(str(row["FlowDate"]), "%Y%m%d").date().isoformat()
         label = market_time_from_period(int(row["Period"]), 15)
-        volumes[(zone, flow_date)][label] = (round(sold or 0.0, 1), round(bought or 0.0, 1))
+        volumes[(zone, flow_date)][label] = (round(sold or 0.0), round(bought or 0.0))
     return volumes
 
 
