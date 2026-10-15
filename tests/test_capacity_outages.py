@@ -143,3 +143,50 @@ def test_region_names_with_hyphens_map_to_zones():
     assert fetch_capacity.region_zone("Friuli-Venezia Giulia") == "NORD"
     assert fetch_capacity.region_zone("Trentino-Alto Adige") == "NORD"
     assert fetch_capacity.region_zone("Molise") == "SUD"
+
+
+def test_entsoe_reason_reads_the_acknowledgement_text():
+    ack = ("<Acknowledgement_MarketDocument><Reason><code>999</code>"
+           "<text>Amount of requested data exceeds allowed limit.</text></Reason></Acknowledgement_MarketDocument>")
+    assert fetch_outages.entsoe_reason(ack) == "Amount of requested data exceeds allowed limit."
+    assert fetch_outages.entsoe_reason("plain error") == "plain error"
+
+
+def bad_request():
+    response = fetch_outages.requests.Response()
+    response.status_code = 400
+    response._content = b"<Reason><text>Temporary failure</text></Reason>"
+    return fetch_outages.requests.HTTPError("400 Client Error", response=response)
+
+
+def test_download_retries_a_bad_request_once(monkeypatch):
+    calls = []
+
+    def fake_request(token, query):
+        calls.append(query["BiddingZone_Domain"])
+        if len(calls) == 1:
+            raise bad_request()
+        return None
+
+    monkeypatch.setattr(fetch_outages, "ZONES", {"NORD": "10Y1001A1001A73I"})
+    monkeypatch.setattr(fetch_outages, "request_entsoe", fake_request)
+    monkeypatch.setattr(fetch_outages, "unit_types", lambda token: {})
+    monkeypatch.setattr(fetch_outages.time, "sleep", lambda seconds: None)
+    day = datetime(2026, 10, 1).date()
+    assert fetch_outages.download("token", day, day) == []
+    assert len(calls) == 2
+
+
+def test_download_fails_on_a_second_bad_request(monkeypatch):
+    def fake_request(token, query):
+        raise bad_request()
+
+    monkeypatch.setattr(fetch_outages, "ZONES", {"NORD": "10Y1001A1001A73I"})
+    monkeypatch.setattr(fetch_outages, "request_entsoe", fake_request)
+    monkeypatch.setattr(fetch_outages.time, "sleep", lambda seconds: None)
+    day = datetime(2026, 10, 1).date()
+    try:
+        fetch_outages.download("token", day, day)
+    except fetch_outages.requests.HTTPError:
+        return
+    raise AssertionError("a second 400 must fail the run")
