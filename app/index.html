@@ -380,6 +380,111 @@
     #zonal-chart-drag-selection { position:absolute; z-index:20; display:none; top:20px; height:calc(100% - 90px); border:1px solid var(--selection-border); background:var(--selection-fill); pointer-events:none; }
     #zonal-chart-wrap.dragging #zonal-chart-drag-hint { opacity:0; }
     .zonal-chart-help { margin:-4px 0 0 72px; color:var(--muted-2); font-size:10px; }
+    /* Analysis tab: the cards and the battery calculator. */
+    #chart-mount-analysis { width:100%; }
+    .analysis-lede { margin:0 0 18px; max-width:980px; color:var(--muted); font-size:13px; line-height:1.55; }
+    .analysis-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(290px,1fr)); gap:14px; }
+    .analysis-card { display:flex; flex-direction:column; gap:7px; min-height:208px; padding:18px 18px 16px; border:1px solid var(--border); border-radius:10px; background:var(--panel); color:var(--text); text-align:left; cursor:pointer; transition:border-color .15s, background .15s, transform .15s; }
+    .analysis-card:hover, .analysis-card:focus-visible { border-color:var(--blue); background:var(--panel-2); outline:none; }
+    .analysis-card:hover { transform:translateY(-1px); }
+    .analysis-card:not(.live) { opacity:.82; }
+    .analysis-card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; }
+    .analysis-card-icon { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border:1px solid var(--border); border-radius:8px; background:var(--panel-2); color:var(--muted); }
+    .analysis-card.live .analysis-card-icon { color:var(--blue); border-color:var(--blue); }
+    .analysis-card-icon svg { width:19px; height:19px; }
+    .analysis-card-tag { color:var(--muted-2); font-size:10px; text-transform:uppercase; letter-spacing:.08em; }
+    .analysis-card-title { font-size:15px; font-weight:600; letter-spacing:-.01em; }
+    .analysis-card-text { flex:1; color:var(--muted); font-size:12.5px; line-height:1.5; }
+    .analysis-card-foot { color:var(--muted); font-size:12px; }
+    .analysis-card.live .analysis-card-foot { color:var(--blue); font-weight:600; }
+    .analysis-badge { display:inline-flex; align-items:center; margin-left:8px; padding:2px 8px; border:1px solid var(--border); border-radius:999px; color:var(--muted); font-size:9.5px; font-weight:600; letter-spacing:.07em; text-transform:uppercase; vertical-align:middle; }
+    .analysis-badge.live { color:var(--status-ok); border-color:var(--status-ok); }
+    .analysis-card-top .analysis-badge { margin-left:0; }
+    .analysis-view-head { margin-bottom:16px; }
+    .analysis-view-head h2 { margin:10px 0 6px; font-size:21px; font-weight:600; letter-spacing:-.015em; }
+    .analysis-view-head .analysis-lede { margin-bottom:0; }
+    .analysis-back { border:1px solid var(--border); background:var(--panel-2); color:var(--muted); border-radius:7px; padding:6px 11px; font-size:12px; cursor:pointer; }
+    .analysis-back:hover { color:var(--text); background:var(--hover); }
+    .analysis-soon-box { padding:22px; max-width:760px; color:var(--muted); font-size:13px; line-height:1.55; }
+    .analysis-soon-box .analysis-badge { margin-left:0; }
+    .analysis-soon-box p { margin:12px 0 0; }
+    .analysis-soon-note { color:var(--muted-2); font-size:12px; }
+    .bess-layout { display:grid; grid-template-columns:330px minmax(0,1fr); gap:16px; align-items:start; }
+    @media (max-width:1150px) { .bess-layout { grid-template-columns:1fr; } }
+    .bess-inputs { position:sticky; top:112px; max-height:calc(100vh - 128px); overflow:auto; padding:2px 0 8px; }
+    @media (max-width:1150px) { .bess-inputs { position:static; max-height:none; } }
+    .bess-group { padding:10px 16px 14px; border-bottom:1px solid var(--border); }
+    .bess-group > summary { display:flex; align-items:center; padding:4px 0; color:var(--muted); font-size:10.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; cursor:pointer; list-style:none; }
+    .bess-group > summary::-webkit-details-marker { display:none; }
+    .bess-group > summary::before { content:"▸"; margin-right:7px; font-size:9px; transition:transform .15s; }
+    .bess-group[open] > summary::before { transform:rotate(90deg); }
+    .bess-field { display:flex; flex-direction:column; gap:5px; margin-top:11px; }
+    .bess-field > label, .bess-label { color:var(--text); font-size:12px; }
+    .bess-field input, .bess-field select, .bess-row2 input { width:100%; min-width:0; border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:7px; padding:8px 10px; font-size:12.5px; font-family:inherit; }
+    .bess-field input:focus, .bess-field select:focus, .bess-row2 input:focus { outline:none; border-color:var(--blue); }
+    .bess-field input::placeholder, .bess-row2 input::placeholder { color:var(--muted-2); }
+    .bess-row2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:4px; }
+    .bess-row2[hidden], .bess-split[hidden] { display:none; }
+    .bess-sub { display:flex; flex-direction:column; gap:4px; }
+    .bess-sub > span { color:var(--muted); font-size:11px; }
+    .bess-hint { color:var(--muted-2); font-size:11px; line-height:1.45; }
+    .bess-help { color:var(--muted); font-size:11px; }
+    .bess-help > summary { color:var(--muted-2); cursor:pointer; list-style:none; }
+    .bess-help > summary::-webkit-details-marker { display:none; }
+    .bess-help > summary::before { content:"▸ "; font-size:9px; }
+    .bess-help[open] > summary::before { content:"▾ "; }
+    .bess-help > div { margin-top:5px; padding:8px 10px; border-left:2px solid var(--border); line-height:1.5; }
+    .bess-help p { margin:0 0 6px; }
+    .bess-help p:last-child { margin-bottom:0; }
+    .bess-help a { color:var(--blue); }
+    .bess-checks { display:grid; grid-template-columns:1fr 1fr; gap:7px 10px; margin-top:2px; }
+    .bess-check { display:flex; align-items:center; gap:7px; color:var(--text); font-size:12px; cursor:pointer; }
+    .bess-check input { width:14px; height:14px; margin:0; accent-color:var(--blue); }
+    .bess-swatch { display:inline-block; width:9px; height:9px; margin-right:6px; border-radius:2px; vertical-align:baseline; flex-shrink:0; }
+    .bess-check .bess-swatch { margin-right:0; }
+    .bess-form-foot { padding:14px 16px 6px; }
+    .bess-button { border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:7px; padding:7px 12px; font-size:12px; font-family:inherit; cursor:pointer; }
+    .bess-button:hover { background:var(--hover); }
+    .bess-button:disabled { opacity:.5; cursor:default; }
+    .bess-results { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; min-width:0; }
+    @media (max-width:900px) { .bess-results { grid-template-columns:1fr; } }
+    .bess-results .bess-wide { grid-column:1 / -1; }
+    .bess-chart { position:relative; width:100%; height:330px; }
+    .bess-chart.tall { height:400px; }
+    .bess-chart.tallest { height:560px; }
+    .bess-chart > div { width:100%; height:100%; }
+    .bess-results .chart-help.bess-chart-help { margin:6px 0 0; line-height:1.45; }
+    .bess-results .gme-source { margin-left:0; }
+    #bess-view.bess-busy .bess-results > section:not(#bess-summary-section) { opacity:.55; transition:opacity .2s; }
+    .bess-status { display:flex; align-items:center; gap:10px; color:var(--muted); font-size:12px; }
+    .bess-progress { display:inline-block; width:140px; height:5px; border-radius:3px; background:var(--panel-2); border:1px solid var(--border); overflow:hidden; }
+    .bess-progress > span { display:block; height:100%; background:var(--blue); transition:width .2s; }
+    .bess-kpis { margin-top:10px; }
+    .bess-kpis .gas-kpi-value { font-variant-numeric:normal; }
+    .bess-reading { margin:14px 0 4px; color:var(--muted); font-size:13px; line-height:1.55; }
+    .bess-reading b { color:var(--text); }
+    .bess-error { color:var(--mix-net-imports); }
+    .bess-compare { display:flex; flex-wrap:wrap; align-items:center; gap:8px 12px; margin-top:10px; padding-top:12px; border-top:1px solid var(--border); }
+    .bess-compare-label { color:var(--muted-2); font-size:11px; }
+    .bess-chips { display:flex; flex-wrap:wrap; gap:6px; }
+    .bess-chip { padding:5px 10px; border:1px solid var(--border); border-radius:7px; background:var(--panel-2); color:var(--muted); font-size:11.5px; }
+    .bess-chip b { margin-left:4px; color:var(--text); font-weight:600; }
+    .bess-chip.current { border-color:var(--blue); }
+    .bess-toggles { display:flex; flex-wrap:wrap; gap:10px; }
+    .bess-day-controls { display:flex; flex-wrap:nowrap; align-items:center; gap:6px; flex-shrink:0; }
+    #bess-day-section .chart-header, #bess-money-section .chart-header, #bess-table-section .chart-header { flex-wrap:wrap; align-items:flex-start; }
+    .bess-day-controls input { border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:7px; padding:6px 8px; font-size:12px; font-family:inherit; }
+    .bess-table-tabs .bess-csv { margin-left:8px; }
+    .bess-table-wrap, .bess-anchor { overflow-x:auto; }
+    .bess-table { width:100%; border-collapse:collapse; font-size:12px; font-variant-numeric:tabular-nums; }
+    .bess-table th { padding:8px 10px; border-bottom:1px solid var(--border); color:var(--muted); font-size:10.5px; font-weight:600; letter-spacing:.05em; text-align:right; text-transform:uppercase; white-space:nowrap; }
+    .bess-table td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); text-align:right; white-space:nowrap; }
+    .bess-table th:first-child, .bess-table td:first-child { text-align:left; }
+    .bess-table tr.bess-total td { font-weight:600; border-bottom:0; }
+    .bess-note { margin:10px 0 0; color:var(--muted-2); font-size:11px; line-height:1.45; }
+    .bess-method > .bess-help > summary { color:var(--text); font-size:13px; font-weight:600; }
+    .bess-method .bess-help > div { border-left:0; padding:6px 0 0; font-size:12px; color:var(--muted); }
+    .bess-method-body p { margin:0 0 10px; }
     .zone-placeholder { display:none; align-items:center; justify-content:center; min-height:320px; padding:40px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--muted); font-size:13.5px; text-align:center; }
     .section-placeholder { display:none; align-items:center; justify-content:center; flex-direction:column; gap:8px; min-height:420px; background:var(--panel); border:1px solid var(--border); border-radius:10px; color:var(--muted); text-align:center; }
     .section-placeholder h2 { margin:0; color:var(--text); font-size:20px; }
@@ -531,7 +636,7 @@
           <section id="market-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Estimated Revenues and Costs by Source: MGP, MI-A and MI-XBID</div><div id="market-revenue-subtitle" class="chart-subtitle">The energy markets</div></div></div><div class="market-revenue-wrap"><div id="market-revenue-chart" class="timeline-chart"></div></div><div class="chart-help">Estimated, for the quarter-hour (or day) chosen above, by the units' source: above zero the revenue of the sales accepted, below zero the cost of the purchases (MW × the price awarded or traded × the hours delivered), the MGP, each MI-A auction and MI-XBID stacked. A source's net is the top of its bar minus the bottom: e.g. storage buying at midday and selling in the evening, or the consumption units buying the day's energy. A market with no offers on file adds nothing.</div></section>
           <section id="balancing-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Balancing: Estimated Revenues and Payments by Source</div><div id="balancing-revenue-subtitle" class="chart-subtitle">MSD ex-ante and MB</div></div></div><div class="market-revenue-wrap"><div id="balancing-revenue-chart" class="timeline-chart"></div></div><div id="balancing-revenue-help" class="chart-help">Estimated: upward, MW accepted × the unit's own price × the hours (paid to the unit); downward, the same paid by the unit to Terna (below zero; the unit also saves the fuel of what it no longer produces, not counted). Start-ups and changes of mode are not included.</div></section>
           <section id="unit-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Estimated Revenues and Costs by Unit, All Markets</div><div id="unit-revenue-subtitle" class="chart-subtitle">Each unit across the markets</div></div><div class="merit-filters"><label class="mgp-source-filter">Market <select id="unit-revenue-market" aria-label="Show one market"><option value="">All markets</option><option value="MGP">MGP</option><option value="MI-A1">ID1 · MI-A1</option><option value="MI-A2">ID2 · MI-A2</option><option value="MI-A3">ID3 · MI-A3</option><option value="XBID">MI-XBID</option><option value="MSD">MSD</option><option value="MB">MB</option></select></label><label class="mgp-source-filter">Source <select id="unit-revenue-source" aria-label="Show the units of one source only"><option value="">All sources</option></select></label></div></div><div id="unit-revenue-table" class="mgp-table-host"></div><div id="unit-revenue-help" class="chart-help">Estimated, for the quarter-hour or the whole day chosen above, at the prices GME awarded (zonal for both sales and purchases; in MSD and MB the unit's own price): MGP, MI-A and MI-XBID, sales minus purchases; MSD and MB, upward minus downward (what Terna paid the unit minus what the unit paid Terna), start-ups and reserve bands not counted. Bilateral schedules registered in the MGP count at the zonal price, though settled between the parties. Before fees, imbalances, any hedge and the fuel saved or burnt. Each figure is revenue minus cost: above zero a net revenue, below zero a net cost. Volumes: MW for a quarter-hour, MWh for a day. Click a column to sort.</div></section>
-        </div><div id="chart-mount-storage" style="display:none"><section id="storage-kpis-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Storage at a Glance</div><div id="storage-kpis-subtitle" class="chart-subtitle">Batteries and pumped hydro, Italy</div></div></div><div id="storage-kpis" class="gas-kpis storage-kpis"></div><div id="storage-kpis-help" class="chart-help" style="margin-left:0"></div></section><section id="storage-generation-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Storage Output, PUN, Solar and Wind</div><div id="storage-generation-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap tall"><div id="storage-generation-chart" class="timeline-chart"></div></div><div class="chart-help">ENTSO-E 16.1.B&amp;C, stacked from solar up: solar, wind (onshore and offshore), battery storage and pumped hydro output above zero; battery charging and pumping below; Italy's actual load (6.1.A, line); the PUN Index (right axis). Click a series in the legend to hide or show it.</div></section><section id="storage-arbitrage-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MGP Daily Arbitrage Spread by Zone</div><div id="storage-arbitrage-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap tall"><div id="storage-arbitrage-chart" class="timeline-chart"></div></div><div class="chart-help">Each day and bidding zone: the highest MGP quarter-hour price of the evening (18:00–21:00) minus the lowest of the whole day, the most a storage plant could earn per MWh moved in the day-ahead market by buying at the bottom and selling at the evening peak, before losses (a battery returns about 85–90% of what it takes, pumped hydro about 75%). Daily, whatever the resolution chosen above. Click a zone in the legend to hide or show it.</div></section><h3 class="capacity-heading">Battery storage</h3><section id="storage-bid-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated Average Bid per Plant</div><div id="storage-bid-battery-subtitle" class="chart-subtitle"></div></div><div class="market-period storage-bid-mode" role="group" aria-label="Bid shown as"><button type="button" data-mode="price" class="active">€/MWh</button><button type="button" data-mode="mw">MW</button></div></div><div class="storage-chart-wrap"><div id="storage-bid-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-bid-help"></div></section><section id="storage-mgp-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated MGP Revenues and Costs</div><div id="storage-mgp-battery-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="mgp-battery" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-mgp-battery-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-mgp-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-mgp-help"></div></section><section id="storage-all-battery-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated Revenues and Costs, All Markets</div><div id="storage-all-battery-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="all-battery" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-all-battery-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-all-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-all-help"></div></section><section id="storage-capture-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: TB2 Spread and Captured Spread</div><div id="storage-capture-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-capture-chart" class="timeline-chart"></div></div><div class="chart-help">Each day: the PUN's TB2 spread (dashed), the average price of its eight dearest quarter-hours (two hours) minus that of its eight cheapest, the most a two-hour battery cycling once could earn per MWh in the day-ahead market, before losses; the spread the batteries captured (solid), the average price of what they discharged minus that of what they charged, taken quarter-hour by quarter-hour from their net position across the MGP, MI-A and MI-XBID; the capture rate (bars, right axis), the captured spread as a share of the TB2 spread. The batteries trade at zonal prices and can cycle twice a day, so the rate can pass 100%. Daily, whatever the resolution chosen above.</div></section><section id="storage-heatmap-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Dispatch by Hour of the Day</div><div id="storage-heatmap-battery-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-heatmap-battery-chart" class="timeline-chart"></div></div><div class="chart-help">Each day (row) and clock hour (column): the batteries' net position together across the MGP, MI-A and MI-XBID, sold minus bought, averaged over the hour's quarter-hours; green selling (discharging), blue buying (charging). The schedules the markets accepted, not the metered output.</div></section><section id="storage-stack-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Battery Storage: Revenue Stack by Market</div><div id="storage-stack-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-stack-chart" class="timeline-chart"></div></div><div class="chart-help">The batteries' estimated net revenue in each market, all of them together, per MW of their capacity, week by week (Monday to Sunday) and scaled to a year (÷ the days on file × 365): MGP, MI-A and MI-XBID sales minus purchases, MSD and MB upward minus downward; the line, the total. Units that bid a portfolio of plants as one are left out. Before fees, imbalances, capacity payments (MACSE, capacity market) and any hedge. Every week on file, not linked to the dates chosen.</div></section><section id="storage-benchmark-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Weekly Empirical Benchmark: Top 10 Battery Storage Plants</div><div id="storage-benchmark-subtitle" class="chart-subtitle">€/MW/year</div></div></div><div class="storage-chart-wrap tall"><div id="storage-benchmark-chart" class="timeline-chart"></div></div><div id="storage-benchmark-help" class="chart-help"></div></section><h3 class="capacity-heading">Pumped hydro</h3><section id="storage-bid-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated Average Bid per Plant</div><div id="storage-bid-pumped-subtitle" class="chart-subtitle"></div></div><div class="market-period storage-bid-mode" role="group" aria-label="Bid shown as"><button type="button" data-mode="price" class="active">€/MWh</button><button type="button" data-mode="mw">MW</button></div></div><div class="storage-chart-wrap"><div id="storage-bid-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-bid-help"></div></section><section id="storage-mgp-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated MGP Revenues and Costs</div><div id="storage-mgp-pumped-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="mgp-pumped" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-mgp-pumped-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-mgp-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-mgp-help"></div></section><section id="storage-all-pumped-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated Revenues and Costs, All Markets</div><div id="storage-all-pumped-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="all-pumped" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-all-pumped-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-all-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-all-help"></div></section><section id="storage-heatmap-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Dispatch by Hour of the Day</div><div id="storage-heatmap-pumped-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-heatmap-pumped-chart" class="timeline-chart"></div></div><div class="chart-help">Each day (row) and clock hour (column): the pumped hydro plants' net position together across the MGP, MI-A and MI-XBID, sold minus bought, averaged over the hour's quarter-hours; green selling (generating), blue buying (pumping, or buying back what was sold earlier).</div></section><section id="storage-reservoirs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Hydro Reservoirs: Stored Energy</div><div id="storage-reservoirs-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-reservoirs-chart" class="timeline-chart"></div></div><div class="chart-help">ENTSO-E 16.1.D: the energy stored in Italy's water reservoirs and hydro storage plants, week by week: the last two years against the range (shaded) and the average (dashed) of the five years before. What the hydro and pumped hydro plants have in hand for the coming weeks. Not linked to the dates chosen.</div></section></div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net scheduled commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Scheduled commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Scheduled commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div id="transits-grid" class="coupling-grid" style="display:none"><div id="transits-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the flows between zones"><span class="legend-title">Day-ahead flows on each border (MGP)</span></div><p id="transits-note" class="coupling-note"></p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
+        </div><div id="chart-mount-storage" style="display:none"><section id="storage-kpis-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Storage at a Glance</div><div id="storage-kpis-subtitle" class="chart-subtitle">Batteries and pumped hydro, Italy</div></div></div><div id="storage-kpis" class="gas-kpis storage-kpis"></div><div id="storage-kpis-help" class="chart-help" style="margin-left:0"></div></section><section id="storage-generation-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Storage Output, PUN, Solar and Wind</div><div id="storage-generation-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap tall"><div id="storage-generation-chart" class="timeline-chart"></div></div><div class="chart-help">ENTSO-E 16.1.B&amp;C, stacked from solar up: solar, wind (onshore and offshore), battery storage and pumped hydro output above zero; battery charging and pumping below; Italy's actual load (6.1.A, line); the PUN Index (right axis). Click a series in the legend to hide or show it.</div></section><section id="storage-arbitrage-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MGP Daily Arbitrage Spread by Zone</div><div id="storage-arbitrage-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap tall"><div id="storage-arbitrage-chart" class="timeline-chart"></div></div><div class="chart-help">Each day and bidding zone: the highest MGP quarter-hour price of the evening (18:00–21:00) minus the lowest of the whole day, the most a storage plant could earn per MWh moved in the day-ahead market by buying at the bottom and selling at the evening peak, before losses (a battery returns about 85–90% of what it takes, pumped hydro about 75%). Daily, whatever the resolution chosen above. Click a zone in the legend to hide or show it.</div></section><h3 class="capacity-heading">Battery storage</h3><section id="storage-bid-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated Average Bid per Plant</div><div id="storage-bid-battery-subtitle" class="chart-subtitle"></div></div><div class="market-period storage-bid-mode" role="group" aria-label="Bid shown as"><button type="button" data-mode="price" class="active">€/MWh</button><button type="button" data-mode="mw">MW</button></div></div><div class="storage-chart-wrap"><div id="storage-bid-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-bid-help"></div></section><section id="storage-mgp-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated MGP Revenues and Costs</div><div id="storage-mgp-battery-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="mgp-battery" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-mgp-battery-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-mgp-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-mgp-help"></div></section><section id="storage-all-battery-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated Revenues and Costs, All Markets</div><div id="storage-all-battery-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="all-battery" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-all-battery-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-all-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-all-help"></div></section><section id="storage-capture-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: TB2 Spread and Captured Spread</div><div id="storage-capture-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-capture-chart" class="timeline-chart"></div></div><div class="chart-help">Each day: the PUN's TB2 spread (dashed), the average price of its eight dearest quarter-hours (two hours) minus that of its eight cheapest, the most a two-hour battery cycling once could earn per MWh in the day-ahead market, before losses; the spread the batteries captured (solid), the average price of what they discharged minus that of what they charged, taken quarter-hour by quarter-hour from their net position across the MGP, MI-A and MI-XBID; the capture rate (bars, right axis), the captured spread as a share of the TB2 spread. The batteries trade at zonal prices and can cycle twice a day, so the rate can pass 100%. Daily, whatever the resolution chosen above.</div></section><section id="storage-heatmap-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Dispatch by Hour of the Day</div><div id="storage-heatmap-battery-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-heatmap-battery-chart" class="timeline-chart"></div></div><div class="chart-help">Each day (row) and clock hour (column): the batteries' net position together across the MGP, MI-A and MI-XBID, sold minus bought, averaged over the hour's quarter-hours; green selling (discharging), blue buying (charging). The schedules the markets accepted, not the metered output.</div></section><section id="storage-stack-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Battery Storage: Revenue Stack by Market</div><div id="storage-stack-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-stack-chart" class="timeline-chart"></div></div><div class="chart-help">The batteries' estimated net revenue in each market, all of them together, per MW of their capacity, week by week (Monday to Sunday) and scaled to a year (÷ the days on file × 365): MGP, MI-A and MI-XBID sales minus purchases, MSD and MB upward minus downward; the line, the total. Units that bid a portfolio of plants as one are left out. Before fees, imbalances, capacity payments (MACSE, capacity market) and any hedge. Every week on file, not linked to the dates chosen.</div></section><section id="storage-benchmark-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Weekly Empirical Benchmark: Top 10 Battery Storage Plants</div><div id="storage-benchmark-subtitle" class="chart-subtitle">€/MW/year</div></div></div><div class="storage-chart-wrap tall"><div id="storage-benchmark-chart" class="timeline-chart"></div></div><div id="storage-benchmark-help" class="chart-help"></div></section><h3 class="capacity-heading">Pumped hydro</h3><section id="storage-bid-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated Average Bid per Plant</div><div id="storage-bid-pumped-subtitle" class="chart-subtitle"></div></div><div class="market-period storage-bid-mode" role="group" aria-label="Bid shown as"><button type="button" data-mode="price" class="active">€/MWh</button><button type="button" data-mode="mw">MW</button></div></div><div class="storage-chart-wrap"><div id="storage-bid-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-bid-help"></div></section><section id="storage-mgp-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated MGP Revenues and Costs</div><div id="storage-mgp-pumped-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="mgp-pumped" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-mgp-pumped-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-mgp-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-mgp-help"></div></section><section id="storage-all-pumped-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated Revenues and Costs, All Markets</div><div id="storage-all-pumped-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="all-pumped" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-all-pumped-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-all-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-all-help"></div></section><section id="storage-heatmap-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Dispatch by Hour of the Day</div><div id="storage-heatmap-pumped-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-heatmap-pumped-chart" class="timeline-chart"></div></div><div class="chart-help">Each day (row) and clock hour (column): the pumped hydro plants' net position together across the MGP, MI-A and MI-XBID, sold minus bought, averaged over the hour's quarter-hours; green selling (generating), blue buying (pumping, or buying back what was sold earlier).</div></section><section id="storage-reservoirs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Hydro Reservoirs: Stored Energy</div><div id="storage-reservoirs-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-reservoirs-chart" class="timeline-chart"></div></div><div class="chart-help">ENTSO-E 16.1.D: the energy stored in Italy's water reservoirs and hydro storage plants, week by week: the last two years against the range (shaded) and the average (dashed) of the five years before. What the hydro and pumped hydro plants have in hand for the coming weeks. Not linked to the dates chosen.</div></section></div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-analysis" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net scheduled commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Scheduled commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Scheduled commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div id="transits-grid" class="coupling-grid" style="display:none"><div id="transits-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the flows between zones"><span class="legend-title">Day-ahead flows on each border (MGP)</span></div><p id="transits-note" class="coupling-note"></p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
         <div id="gas-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Gas storage and LNG</p></div><nav id="gas-subnav" class="subnav"><button class="subnav-tab active" data-gas-tab="overview" type="button">Overview</button><button class="subnav-tab" data-gas-tab="storage" type="button">Storage</button><button class="subnav-tab" data-gas-tab="lng" type="button">LNG</button><button class="subnav-tab" data-gas-tab="outages" type="button">Outages</button><button class="subnav-tab" data-gas-tab="tariffs" type="button">Tariffs</button></nav><div id="gas-mount"></div></div>
         <div id="maps-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Maps</p></div><nav id="maps-subnav" class="subnav"><button class="subnav-tab active" data-maps-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-maps-tab="grid" type="button">Grid and power plants</button></nav><div id="maps-mount"></div></div>
         <div id="queue-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Project pipeline, grid-connection queue and market units</p></div><nav id="queue-subnav" class="subnav"><button class="subnav-tab active" data-queue-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-queue-tab="connections" type="button">Grid connections (Terna, e-distribuzione)</button><button class="subnav-tab" data-queue-tab="units" type="button">Market connections (GME)</button></nav><div id="queue-mount"></div></div>
@@ -16137,6 +16242,1371 @@ move the slider above to another one`,
      DRAWN WHEN SEEN
      ============================================================ */
 
+  /* ============================================================
+     ANALYSIS
+     ============================================================ */
+
+  /*
+   * Data › Analysis: a front page of analyses, a card each, and the view a
+   * card opens.  Built so far: the merchant revenues battery calculator
+   * (bess*, below); the other cards say what their analysis will show.
+   */
+  const analysisMount = document.getElementById("chart-mount-analysis");
+  const ANALYSIS_ICONS = {
+    battery: '<rect x="3" y="7" width="16" height="10" rx="2"/><path d="M21 10v4"/><path d="M8 10v4M12 10v4"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    flame: '<path d="M12 22c4 0 7-3 7-7 0-3-2-5-3-7-1 2-2 3-3 3 0-3-1-6-4-9 0 4-4 7-4 13 0 4 3 7 7 7z"/>',
+    grid: '<path d="M4 20V8l8-5 8 5v12"/><path d="M4 12h16M9 20v-8M15 20v-8"/>',
+    scale: '<path d="M12 3v18M5 7h14"/><path d="M5 7l-3 7a4 4 0 0 0 6 0L5 7zM19 7l-3 7a4 4 0 0 0 6 0l-3-7z"/>',
+    shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/>'
+  };
+  const ANALYSIS_CARDS = [
+    { id: "bess", icon: "battery", tag: "Storage · optimisation", live: true,
+      title: "Merchant revenues battery calculator",
+      text: "Describe a battery and a bidding zone: an optimiser (HiGHS) runs it through the MGP, the MI-A auctions, MI-XBID, MSD and MB on every day on file since 2025, and shows what it would have earned against what it cost, by day, month and year." },
+    { id: "capture", icon: "sun", tag: "Renewables",
+      title: "Solar and wind capture prices",
+      text: "What a solar or a wind plant in each zone earned against the baseload price, month by month: capture rates and how far the midday hours have fallen." },
+    { id: "spark", icon: "flame", tag: "Thermal",
+      title: "Spark and clean spark spreads",
+      text: "A gas plant's margin on the day-ahead price after gas (PSV) and carbon (EU ETS), by zone and hour: when gas sets the price and what a CCGT keeps." },
+    { id: "congestion", icon: "grid", tag: "Grid",
+      title: "Zonal spreads and congestion",
+      text: "How often each zone splits from the North, by how much and at what hours, and what a flexible plant gains from being on the dearer side." },
+    { id: "imbalance", icon: "scale", tag: "Balancing",
+      title: "Imbalance cost of a solar or wind plant",
+      text: "What forecast errors cost at Terna's imbalance prices: ENTSO-E's day-ahead and intraday forecasts against the actual output, zone by zone." },
+    { id: "macse", icon: "shield", tag: "Storage · policy",
+      title: "MACSE and the capacity market",
+      text: "The fixed revenues of Terna's storage auctions (MACSE) and of the capacity market beside the merchant ones, and what each gives up in return." }
+  ];
+  let analysisView = "home";
+
+  function buildAnalysis() {
+    analysisMount.dataset.built = "1";
+    const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ANALYSIS_ICONS[name]}</svg>`;
+    analysisMount.innerHTML =
+      `<div id="analysis-home"><p class="analysis-lede">Analyses built on the data of this dashboard. Choose one to open it.</p>` +
+      `<div class="analysis-cards">${ANALYSIS_CARDS.map(item =>
+        `<button type="button" class="analysis-card${item.live ? " live" : ""}" data-analysis="${item.id}">` +
+        `<span class="analysis-card-top"><span class="analysis-card-icon">${icon(item.icon)}</span>` +
+        `<span class="analysis-badge${item.live ? " live" : ""}">${item.live ? "Ready" : "In preparation"}</span></span>` +
+        `<span class="analysis-card-tag">${item.tag}</span><span class="analysis-card-title">${item.title}</span>` +
+        `<span class="analysis-card-text">${item.text}</span>` +
+        `<span class="analysis-card-foot">${item.live ? "Open" : "What it will show"} <span aria-hidden="true">→</span></span></button>`).join("")}</div></div>` +
+      `<div id="analysis-soon" style="display:none"></div>` +
+      `<div id="bess-view" style="display:none"></div>`;
+    analysisMount.addEventListener("click", event => {
+      const card = event.target.closest("[data-analysis]");
+      if (card) { analysisView = card.dataset.analysis; renderAnalysis(); window.scrollTo({ top: 0 }); return; }
+      if (event.target.closest(".analysis-back")) { analysisView = "home"; renderAnalysis(); window.scrollTo({ top: 0 }); }
+    });
+  }
+
+  function renderAnalysisSoon() {
+    const item = ANALYSIS_CARDS.find(card => card.id === analysisView);
+    document.getElementById("analysis-soon").innerHTML =
+      `<div class="analysis-view-head"><button type="button" class="analysis-back"><span aria-hidden="true">←</span> All analyses</button>` +
+      `<h2>${item.title}</h2></div><div class="panel analysis-soon-box"><span class="analysis-badge">In preparation</span>` +
+      `<p>${item.text}</p><p class="analysis-soon-note">Not built yet. The battery calculator is the first analysis; the others follow on the data already on this dashboard.</p></div>`;
+  }
+
+  function renderAnalysis() {
+    if (!analysisMount.dataset.built) buildAnalysis();
+    const known = ANALYSIS_CARDS.some(card => card.id === analysisView);
+    if (!known) analysisView = "home";
+    document.getElementById("analysis-home").style.display = analysisView === "home" ? "" : "none";
+    document.getElementById("analysis-soon").style.display = analysisView !== "home" && analysisView !== "bess" ? "" : "none";
+    document.getElementById("bess-view").style.display = analysisView === "bess" ? "" : "none";
+    if (analysisView === "bess") bessShow();
+    else if (analysisView !== "home") renderAnalysisSoon();
+  }
+
+  /* ---------- Merchant revenues battery calculator ---------- */
+
+  /*
+   * The page builds each day's prices for the zone from the files on file
+   * (GME: zonal_prices, intraday_prices, xbid_prices, balancing_gme/<ZONE>)
+   * and hands the days to analysis/bess-worker.js, run in a few Web Workers
+   * side by side; the worker solves them with HiGHS and sends back the
+   * battery's schedule and money.  The page adds the fixed costs, sums the
+   * days up and draws them.  Italy's batteries (the Storage tab's files)
+   * anchor MSD and MB: what they were accepted for per MW of power, against
+   * the zone's accepted volume, is the default share for the battery.
+   */
+  const BESS_MARKETS = [   // gate order, which is also the stacking order; colours in the validated categorical order
+    { key: "MGP", label: "MGP", color: "--border-1" },
+    { key: "MIA1", label: "MI-A1", color: "--border-2" },
+    { key: "MIA2", label: "MI-A2", color: "--border-3" },
+    { key: "MSD", label: "MSD", color: "--border-4" },
+    { key: "MIA3", label: "MI-A3", color: "--border-5" },
+    { key: "XBID", label: "MI-XBID", color: "--border-6" },
+    { key: "MB", label: "MB", color: "--border-7" }
+  ];
+  const BESS_OTHER_COLOR = "--mix-other";
+  const BESS_ZONES = ["NORD", "CNOR", "CSUD", "SUD", "CALA", "SICI", "SARD"];
+  const BESS_FIRST_DAY = "2025-01-01";
+  const BESS_DEFAULTS = {
+    zone: "", power: 50, energy: 100, rte: 85, socMin: 0, socMax: 100, soc0: 50, cycles: 2, availability: 97, fade: 2,
+    period: "last12", from: "", to: "",
+    strategy: "sequential", splitDayAhead: 80, splitIntraday: 10, splitBalancing: 10,
+    MGP: true, MIA1: true, MIA2: true, MIA3: true, XBID: true, MSD: true, MB: true,
+    xbidShare: 25, msdUp: "", msdDown: "", mbUp: "", mbDown: "",
+    throughputCost: 5, fixedOpex: 10, chargeCost: 0, fee: 0.04
+  };
+  const BESS_STRATEGIES = {
+    sequential: "Sequential, gate by gate",
+    joint: "Perfect foresight, all markets jointly",
+    split: "Fixed split"
+  };
+  let bessInputs = { ...BESS_DEFAULTS };
+  const bessState = {
+    built: false, files: null, filesError: null, zoneFiles: {}, observed: {}, results: null, dayInputs: new Map(),
+    runToken: 0, running: false, progress: 0, timer: null, bucket: "month", moneyMode: "cash", tableTab: "markets", day: null,
+    compare: null, workers: [], message: null
+  };
+  const bessCharts = {};
+
+  const bessZone = () => bessInputs.zone || zoneCode() || "NORD";
+  const bessNum = (value, fallback) => (value === "" || value === null || value === undefined || !Number.isFinite(Number(value)) ? fallback : Number(value));
+  const bessKeyOf = date => Date.UTC(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)));
+  const bessAddDays = (date, days) => new Date(bessKeyOf(date) + days * 86400000).toISOString().slice(0, 10);
+  const bessDaysBetween = (from, to) => Math.round((bessKeyOf(to) - bessKeyOf(from)) / 86400000);
+  const bessDateText = date => formatDate(parseDate(date));
+  function bessMoney(value, digits) {
+    if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+    const abs = Math.abs(value), sign = value < 0 ? "−" : "";
+    if (abs >= 1e6) return `${sign}€${formatNumber(abs / 1e6, digits ?? 2)}m`;
+    if (abs >= 1e3) return `${sign}€${formatNumber(abs / 1e3, digits ?? (abs >= 1e5 ? 0 : 1))}k`;
+    return `${sign}€${formatNumber(abs, 0)}`;
+  }
+  const bessMwh = value => (Math.abs(value) >= 1e4 ? `${formatNumber(value / 1000, 1)} GWh` : `${formatNumber(value, 0)} MWh`);
+
+  /* Minutes after midnight on the clock of quarter-hour t of a day of T quarter-hours (the files count elapsed time). */
+  function bessClockMinutes(T, t) {
+    if (T === 92 && t >= 8) return t * 15 + 60;
+    if (T === 100 && t >= 12) return t * 15 - 60;
+    return t * 15;
+  }
+  function bessClockLabel(T, t) {
+    const minutes = bessClockMinutes(T, t);
+    const label = `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+    return T === 100 && t >= 12 && t < 16 ? `${label}*` : label;
+  }
+
+  /* ----- Files ----- */
+  async function bessFetch(path) {
+    const response = await fetch(`./data/${path}`, { cache: "no-cache" });
+    if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+    return response.json();
+  }
+  function bessLoadFiles() {
+    if (!bessState.files) {
+      bessState.files = Promise.all(["zonal_prices.json", "intraday_prices.json", "xbid_prices.json"].map(bessFetch))
+        .then(([zonal, intraday, xbid]) => ({ zonal, intraday, xbid }))
+        .catch(error => { bessState.filesError = error; bessState.files = null; throw error; });
+    }
+    return bessState.files;
+  }
+  function bessLoadZone(zone) {
+    if (!bessState.zoneFiles[zone]) {
+      bessState.zoneFiles[zone] = bessFetch(`balancing_gme/${zone}.json`).catch(error => {
+        console.warn(`Battery calculator: no MSD/MB results for ${zone}:`, error);
+        return null;
+      });
+    }
+    return bessState.zoneFiles[zone];
+  }
+  const bessRow = (series, date) => {
+    if (!series || !series.days || !series.start) return null;
+    const index = bessDaysBetween(series.start, date);
+    return index >= 0 && index < series.days.length ? series.days[index] : null;
+  };
+  function bessArray(values, T) {
+    const array = new Float64Array(T).fill(NaN);
+    if (!values) return array;
+    for (let t = 0; t < T && t < values.length; t += 1) if (values[t] !== null && values[t] !== undefined) array[t] = values[t];
+    return array;
+  }
+  const bessGmeSeries = (zoneFile, zone, name) => (zoneFile && zoneFile.series && zoneFile.series.quarter_hourly
+    ? zoneFile.series.quarter_hourly[`${zone}|${name}`] : null);
+
+  /* The prices of a day in the zone, as the worker takes them; null without an MGP price. */
+  function bessDayInput(files, zoneFile, zone, date) {
+    const prices = files.zonal.zones[zone];
+    if (!prices) return null;
+    const nativeFrom = files.zonal.quarter_hourly_native_from || "2025-10-01";
+    let T, mgp, hourlyMgp = false;
+    const quarters = date >= nativeFrom ? bessRow(prices.quarter_hourly, date) : null;
+    if (quarters) {
+      T = quarters.length;
+      mgp = bessArray(quarters, T);
+    } else {
+      const hours = bessRow(prices.hourly, date);
+      if (!hours) return null;
+      T = hours.length * 4;
+      hourlyMgp = true;
+      mgp = new Float64Array(T).fill(NaN);
+      hours.forEach((value, hour) => { for (let q = 0; q < 4; q += 1) mgp[hour * 4 + q] = value === null ? NaN : value; });
+    }
+    if (!mgp.some(Number.isFinite)) return null;
+    const intraday = market => bessArray(bessRow(((files.intraday.markets || {})[market] || {})[zone]?.quarter_hourly, date), T);
+    const gme = name => bessArray(bessRow(bessGmeSeries(zoneFile, zone, name), date), T);
+    return {
+      date, T, hourlyMgp, factor: 1,
+      prices: {
+        MGP: mgp, MIA1: intraday("MI-A1"), MIA2: intraday("MI-A2"), MIA3: intraday("MI-A3"),
+        XBID: bessArray(bessRow(((files.xbid.markets || {})["XBID-15"] || {})[zone]?.quarter_hourly, date), T)
+      },
+      balancing: {
+        MSD: { upP: gme("msd_price_up"), upV: gme("msd_volume_up"), downP: gme("msd_price_down"), downV: gme("msd_volume_down") },
+        MB: { upP: gme("mb_price_up_as"), upV: gme("mb_volume_up_as"), downP: gme("mb_price_down_as"), downV: gme("mb_volume_down_as") }
+      }
+    };
+  }
+
+  /* The last day with the MGP, MI-A2 and MSD on file in full (MB comes later: its missing quarter-hours count as no MB). */
+  function bessLastDay(files, zoneFile, zone) {
+    const series = files.zonal.zones[zone].quarter_hourly;
+    let date = bessAddDays(series.start, series.days.length - 1);
+    for (let back = 0; back < 40; back += 1, date = bessAddDays(date, -1)) {
+      const mgp = bessRow(series, date);
+      if (!mgp || mgp.some(value => value === null)) continue;
+      const mia2 = bessRow(((files.intraday.markets || {})["MI-A2"] || {})[zone]?.quarter_hourly, date);
+      const msd = bessRow(bessGmeSeries(zoneFile, zone, "msd_volume_up"), date);
+      if (mia2 && (!zoneFile || (msd && msd.length === mgp.length))) return date;
+    }
+    return bessAddDays(series.start, series.days.length - 1);
+  }
+  function bessLastMbDay(zoneFile, zone) {
+    const series = bessGmeSeries(zoneFile, zone, "mb_volume_up_as");
+    if (!series) return null;
+    for (let index = series.days.length - 1; index >= 0; index -= 1) {
+      const day = series.days[index];
+      if (day && day.filter(value => value !== null).length >= 92) return bessAddDays(series.start, index);
+    }
+    return null;
+  }
+
+  function bessPeriod(lastDay) {
+    const first = BESS_FIRST_DAY;
+    const clamp = date => (date < first ? first : date > lastDay ? lastDay : date);
+    switch (bessInputs.period) {
+      case "y2025": return [first, "2025-12-31"];
+      case "ytd": return [clamp(`${lastDay.slice(0, 4)}-01-01`), lastDay];
+      case "all": return [first, lastDay];
+      case "custom": {
+        const from = clamp(bessInputs.from || bessAddDays(lastDay, -364));
+        const to = clamp(bessInputs.to || lastDay);
+        return from <= to ? [from, to] : [to, from];
+      }
+      default: return [clamp(bessAddDays(lastDay, -364)), lastDay];
+    }
+  }
+
+  /* ----- What Italy's batteries did (Storage tab files) ----- */
+  /*
+   * For the zone's batteries over the days on file: their net revenue per
+   * market per MW of power and year, and the share of the zone's accepted
+   * MSD and MB volume they were accepted for, upward and downward, per MW
+   * of their power (their MSD and MB net position per quarter-hour against
+   * GME's accepted volumes; MB: the other services, as on the Market tab).
+   */
+  async function bessObserved(zone, zoneFile) {
+    if (bessState.observed[zone]) return bessState.observed[zone];
+    const job = (async () => {
+      await loadStorageData();
+      if (!storageIndex || !storageIndex.units) return null;
+      const units = storageIndex.units;
+      const battery = code => units[code] && units[code][0] === "battery" && units[code][2] === zone && units[code][4] !== false;
+      const columns = Object.fromEntries((storageIndex.totals || []).map((name, index) => [name, index]));
+      const days = Object.keys(storageIndex.daily || {}).sort();
+      const sums = { MGP: 0, MI: 0, XBID: 0, MSD: 0, MB: 0 };
+      let mwDays = 0;
+      const codes = new Set();
+      days.forEach(day => Object.entries(storageIndex.daily[day]).forEach(([code, totals]) => {
+        if (!battery(code)) return;
+        codes.add(code);
+        mwDays += units[code][3];
+        sums.MGP += totals[columns.mgp_eur] || 0; sums.MI += totals[columns.mi_eur] || 0; sums.XBID += totals[columns.xbid_eur] || 0;
+        sums.MSD += totals[columns.msd_eur] || 0; sums.MB += totals[columns.mb_eur] || 0;
+      }));
+      const result = { days, from: days[0], to: days[days.length - 1], units: codes.size,
+        mw: days.length ? mwDays / days.length : 0, perMw: null, shares: null };
+      if (!mwDays) return result;
+      result.perMw = Object.fromEntries(Object.entries(sums).map(([key, value]) => [key, value / mwDays * 365]));
+      result.perMw.total = Object.values(result.perMw).reduce((a, b) => a + b, 0);
+      if (!zoneFile) return result;
+      // Accepted MWh, the batteries' and the zone's, quarter-hour by quarter-hour.
+      const zoneVolume = { MSD: ["msd_volume_up", "msd_volume_down"], MB: ["mb_volume_up_as", "mb_volume_down_as"] };
+      const taken = { MSD: [0, 0], MB: [0, 0] }, offered = { MSD: [0, 0], MB: [0, 0] };
+      const files = await Promise.all(days.map(loadStorageDay));
+      files.forEach((file, index) => {
+        if (!file || !file.quarters) return;
+        const day = days[index];
+        const fields = file.fields || 14;
+        if (fields < 18) return;
+        const volumes = Object.fromEntries(Object.entries(zoneVolume).map(([market, names]) =>
+          [market, names.map(name => bessRow(bessGmeSeries(zoneFile, zone, name), day))]));
+        file.quarters.forEach(quarter => {
+          const slot = (quarter.period || 0) - 1;
+          if (slot < 0) return;
+          const net = { MSD: [0, 0], MB: [0, 0] };
+          for (let start = 0; start + fields <= quarter.rows.length; start += fields) {
+            const unit = file.units[quarter.rows[start]];
+            if (!unit || !battery(unit[0])) continue;
+            const msd = quarter.rows[start + 16] || 0, mb = quarter.rows[start + 17] || 0;
+            net.MSD[0] += Math.max(msd, 0); net.MSD[1] += Math.max(-msd, 0);
+            net.MB[0] += Math.max(mb, 0); net.MB[1] += Math.max(-mb, 0);
+          }
+          ["MSD", "MB"].forEach(market => [0, 1].forEach(side => {
+            const row = volumes[market][side];
+            const volume = row ? row[slot] : null;
+            if (!(volume > 0)) return;
+            offered[market][side] += volume;
+            taken[market][side] += Math.min(net[market][side], volume);
+          }));
+        });
+      });
+      const share = (market, side) => (offered[market][side] > 0 && result.mw > 0 ? taken[market][side] / offered[market][side] / result.mw : 0);
+      result.shares = { MSD: { up: share("MSD", 0), down: share("MSD", 1) }, MB: { up: share("MB", 0), down: share("MB", 1) } };
+      return result;
+    })().catch(error => { console.warn("Battery calculator: Italy's batteries unavailable:", error); return null; });
+    bessState.observed[zone] = job;
+    return job;
+  }
+
+  /* ----- The form ----- */
+  function bessHelp(title, html) {
+    return `<details class="bess-help"><summary>${title}</summary><div>${html}</div></details>`;
+  }
+  function bessNumber(id, label, { placeholder = "", step = "any", min = "", max = "", hint = false, help = "" } = {}) {
+    const value = bessInputs[id];
+    return `<div class="bess-field" data-for="${id}"><label for="bess-${id}">${label}</label>` +
+      `<input id="bess-${id}" data-field="${id}" type="number" inputmode="decimal" step="${step}"${min !== "" ? ` min="${min}"` : ""}${max !== "" ? ` max="${max}"` : ""}` +
+      ` placeholder="${placeholder}" value="${value === "" || value === null ? "" : value}">` +
+      `${hint ? `<div class="bess-hint" id="bess-hint-${id}"></div>` : ""}${help}</div>`;
+  }
+  function bessPair(label, first, second, { names = ["", ""], help = "", hint = "", placeholders = ["", ""], step = "any" } = {}) {
+    const input = (id, name, placeholder) => `<label class="bess-sub"><span>${name}</span><input id="bess-${id}" data-field="${id}" type="number" inputmode="decimal" step="${step}" placeholder="${placeholder}" value="${bessInputs[id] === "" ? "" : bessInputs[id]}"></label>`;
+    return `<div class="bess-field" data-for="${first}"><span class="bess-label">${label}</span><div class="bess-row2">` +
+      `${input(first, names[0], placeholders[0])}${input(second, names[1], placeholders[1])}</div>` +
+      `${hint ? `<div class="bess-hint" id="bess-hint-${hint}"></div>` : ""}${help}</div>`;
+  }
+  function bessSelect(id, label, options, { help = "", hint = false } = {}) {
+    return `<div class="bess-field" data-for="${id}"><label for="bess-${id}">${label}</label><select id="bess-${id}" data-field="${id}">` +
+      options.map(([value, text]) => `<option value="${value}"${String(bessInputs[id]) === String(value) ? " selected" : ""}>${text}</option>`).join("") +
+      `</select>${hint ? `<div class="bess-hint" id="bess-hint-${id}"></div>` : ""}${help}</div>`;
+  }
+  function bessGroup(title, body, open = true, extra = "") {
+    return `<details class="bess-group"${open ? " open" : ""}><summary>${title}${extra}</summary>${body}</details>`;
+  }
+
+  function bessFormHtml() {
+    const zone = bessZone();
+    const battery =
+      bessSelect("zone", "Bidding zone", [["", `As the page (${ZONE_NAMES[zoneCode() || "NORD"]})`], ...BESS_ZONES.map(code => [code, ZONE_NAMES[code]])], {
+        help: bessHelp("Why the zone", "<p>The battery buys and sells at its zone's prices: Italy's storage withdrawals are valued at the zonal price, not the PUN (ARERA 574/2014/R/eel). MSD and MB are the zone's too. On Italy's page the zone is North.</p>") }) +
+      bessNumber("power", "Power (MW)", { placeholder: "e.g. 50", min: 0, step: 1 }) +
+      bessNumber("energy", "Energy (MWh)", { placeholder: "e.g. 100", min: 0, step: 1, hint: true,
+        help: bessHelp("Usable or nameplate", "<p>The energy the battery can use. If the figure is the nameplate, narrow the state-of-charge window below to what the supplier allows.</p>") }) +
+      bessNumber("rte", "Round-trip efficiency (%)", { placeholder: "e.g. 85", min: 50, max: 100, step: 1,
+        help: bessHelp("What it covers", "<p>AC to AC with the auxiliaries: of each MWh bought, the share sold back. Lithium-ion plants run at 85–90%. Split evenly between charging and discharging (√85% ≈ 92% each way).</p>") }) +
+      bessPair("State-of-charge window (%)", "socMin", "socMax", { names: ["Lowest", "Highest"], placeholders: ["0", "100"], step: 1 }) +
+      bessNumber("soc0", "State of charge at midnight (%)", { placeholder: "e.g. 50", min: 0, max: 100, step: 1,
+        help: bessHelp("Why every day starts here", "<p>Each day is optimised on its own, from and back to this state of charge: no energy is carried from one day into the next. The days are then independent and solved side by side; the evening peak and the night trough fall within the same day, so little is lost.</p>") }) +
+      bessNumber("cycles", "Cycles per day, at most", { placeholder: "e.g. 2", min: 0, step: 0.5,
+        help: bessHelp("What counts as a cycle", "<p>Energy discharged in a day, in full usable capacities: 2 lets the battery empty itself twice. Warranties commonly allow 1 to 2 a day (365 to 730 a year); Italy's batteries cycled about twice a day in September 2026 (Storage tab).</p>") }) +
+      bessNumber("availability", "Availability (%)", { placeholder: "e.g. 97", min: 0, max: 100, step: 0.5,
+        help: bessHelp("What this covers", "<p>Power and energy scaled down by this share, for maintenance and outages spread over the year.</p>") }) +
+      bessNumber("fade", "Capacity fade (%/yr)", { placeholder: "e.g. 2", min: 0, max: 20, step: 0.5,
+        help: bessHelp("From when", "<p>Usable energy lost per year, counted from the first day of the period: a battery new on that day.</p>") });
+
+    const period =
+      bessSelect("period", "Period", [["last12", "Last 12 months"], ["y2025", "2025"], ["ytd", "This year to date"], ["all", "Everything on file"], ["custom", "Custom"]], { hint: true }) +
+      `<div class="bess-row2 bess-dates"${bessInputs.period === "custom" ? "" : " hidden"}>` +
+      `<label class="bess-sub"><span>From</span><input id="bess-from" data-field="from" type="date" min="${BESS_FIRST_DAY}" value="${bessInputs.from}"></label>` +
+      `<label class="bess-sub"><span>To</span><input id="bess-to" data-field="to" type="date" min="${BESS_FIRST_DAY}" value="${bessInputs.to}"></label></div>`;
+
+    const marketBoxes = BESS_MARKETS.map(market =>
+      `<label class="bess-check"><input type="checkbox" data-field="${market.key}"${bessInputs[market.key] ? " checked" : ""}>` +
+      `<span class="bess-swatch" style="background:var(${market.color})"></span>${market.label}</label>`).join("");
+    const markets =
+      bessSelect("strategy", "Strategy", Object.entries(BESS_STRATEGIES).map(([key, text]) => [key, key === "sequential" ? `${text} (default)` : key === "joint" ? `${text} (ceiling)` : text]), {
+        help: bessHelp("The three, and which to read", `<p><b>Sequential</b> follows Italy's gates: MGP (D-1 12:00), MI-A1 (15:00), MI-A2 (22:00), MSD, MI-A3 (D 10:00), MI-XBID until an hour before delivery, then MB. At each gate the battery takes the best position knowing that market's prices, on top of what the earlier ones left it, without knowing the later ones; every schedule along the way is one it can run. This is how the recent literature models stacking (each market at its gate closure, on the capacity left), and the estimate to read.</p>` +
+          `<p><b>Perfect foresight</b> knows every price of every market from the start and plans them together: a ceiling no trader reaches, shown to measure what foresight across markets is worth.</p>` +
+          `<p><b>Fixed split</b> gives each group of markets a fixed share of power and energy (say 80% MGP, 10% intraday, 10% MSD and MB), each run on its own. Studies use fixed shares where a service books capacity ahead (FCR, aFRR capacity auctions elsewhere in Europe); Italy's MSD and MB pay for energy accepted, pay-as-bid, with no capacity held, so co-optimising (sequential) needs no split. Shown for comparison.</p>`) }) +
+      `<div class="bess-split"${bessInputs.strategy === "split" ? "" : " hidden"}>` +
+      bessNumber("splitDayAhead", "Day-ahead share (MGP, %)", { placeholder: "e.g. 80", min: 0, max: 100, step: 5 }) +
+      bessNumber("splitIntraday", "Intraday share (MI-A, MI-XBID, %)", { placeholder: "e.g. 10", min: 0, max: 100, step: 5 }) +
+      bessNumber("splitBalancing", "Balancing share (MSD, MB, %)", { placeholder: "e.g. 10", min: 0, max: 100, step: 5 }) + `</div>` +
+      `<div class="bess-field"><span class="bess-label">Markets</span><div class="bess-checks">${marketBoxes}</div>` +
+      bessHelp("What switching a market off means", "<p>The battery does not trade in it; the other markets are optimised as before. MI-A3 covers 12:00–24:00 only.</p>") + `</div>` +
+      bessNumber("xbidShare", "MI-XBID: most of the power traded (%)", { placeholder: "e.g. 25", min: 0, max: 100, step: 5,
+        help: bessHelp("Why a cap", "<p>MI-XBID is continuous trading. The price used is each 15-minute product's reference price (the volume-weighted average of its trades), which a battery could not count on getting for its whole power: the cap keeps the noise of thin trading from turning into profit. Italy's batteries made next to nothing there in Aug–Oct 2026.</p>") }) +
+      bessPair("MSD: share of the zone's accepted volume (%)", "msdUp", "msdDown", { names: ["Upward", "Downward"], hint: "msd", step: 0.01,
+        help: bessHelp("How MSD is modelled", "<p>Terna accepts MSD offers for its needs, location included, pay-as-bid: a battery is not accepted whenever its price would do. The battery sells upward and buys downward at the zone's average accepted prices of the quarter-hour, up to this share of the volume Terna accepted in the zone.</p><p>Left blank: what Italy's batteries in the zone were accepted for per MW of their power (Storage tab, the days on file), scaled to this battery's power. Raise it to see the ceiling if Terna took more from batteries.</p>") }) +
+      bessPair("MB: share of the zone's accepted volume (%)", "mbUp", "mbDown", { names: ["Upward", "Downward"], hint: "mb", step: 0.01,
+        help: bessHelp("How MB is modelled", "<p>As MSD, in the balancing market (real time): the other services' accepted volumes and average prices (replacement reserve and balancing, not the secondary reserve's band). Left blank: anchored on Italy's batteries in the zone.</p>") });
+
+    const costs =
+      bessNumber("throughputCost", "Variable O&amp;M and wear (€/MWh discharged)", { placeholder: "e.g. 5", min: 0, step: 1,
+        help: bessHelp("What it does", "<p>A cost on every MWh discharged, for maintenance that grows with use and the wear of the cells. It also keeps the optimiser from cycling for spreads smaller than itself.</p>") }) +
+      bessNumber("fixedOpex", "Fixed O&amp;M (€/kW/yr)", { placeholder: "e.g. 10", min: 0, step: 1,
+        help: bessHelp("What it covers", "<p>Maintenance contract, insurance, land, the grid connection's fixed charges, asset management: per kW of power and year, spread evenly over the days.</p>") }) +
+      bessNumber("chargeCost", "Network charges on withdrawals (€/MWh charged)", { placeholder: "0", min: 0, step: 1,
+        help: bessHelp("Why zero", "<p>A battery on a connection of its own pays no transmission or distribution tariffs nor general system charges on the energy it withdraws to re-inject (ARERA 574/2014/R/eel, 109/2021/R/eel). Enter them for a connection shared with other loads.</p>") }) +
+      bessNumber("fee", "Market fees (€/MWh traded)", { placeholder: "e.g. 0.04", min: 0, step: 0.01,
+        help: bessHelp("GME's fee", "<p>GME's variable fee on the spot market, MGP and MI: 0.04 €/MWh traded on monthly volumes between 0.02 and 1 TWh (the first 0.02 TWh free); its fixed fees are left out.</p>") });
+
+    return bessGroup("The battery", battery) + bessGroup("Period", period) +
+      bessGroup("Markets and strategy", markets, true, `<span class="analysis-badge">${zone}</span>`) +
+      bessGroup("Costs", costs) +
+      `<div class="bess-form-foot"><button type="button" id="bess-reset" class="bess-button">Reset to defaults</button></div>`;
+  }
+
+  function bessBuild() {
+    bessState.built = true;
+    const section = (id, title, { wide = false, extra = "", help = "", body = "", height = "" } = {}) =>
+      `<section id="bess-${id}-section" class="panel chart-panel${wide ? " bess-wide" : ""}"><div class="chart-header"><div>` +
+      `<div class="chart-title">${title}</div><div id="bess-${id}-subtitle" class="chart-subtitle"></div></div>${extra}</div>` +
+      (body || `<div class="bess-chart${height}"><div id="bess-${id}-chart" class="timeline-chart"></div></div>`) +
+      `${help ? `<div class="chart-help bess-chart-help">${help}</div>` : ""}<div class="gme-source">${GME_CREDIT}</div></section>`;
+    const buckets = `<div class="bess-toggles"><div class="market-period" role="group" aria-label="Shown as">${[["cash", "Revenues vs costs"], ["markets", "By market"]]
+      .map(([key, text]) => `<button type="button" data-money="${key}"${key === bessState.moneyMode ? ' class="active"' : ""}>${text}</button>`).join("")}</div>` +
+      `<div class="market-period bess-bucket" role="group" aria-label="Totals by">${[["day", "Day"], ["month", "Month"], ["year", "Year"]]
+      .map(([key, text]) => `<button type="button" data-bucket="${key}"${key === bessState.bucket ? ' class="active"' : ""}>${text}</button>`).join("")}</div></div>`;
+    const dayControls = `<div class="bess-day-controls"><button type="button" class="bess-button" data-day="prev" aria-label="Previous day">←</button>` +
+      `<input type="date" id="bess-day-date"><button type="button" class="bess-button" data-day="next" aria-label="Next day">→</button>` +
+      `<button type="button" class="bess-button" data-day="best">Best day</button><button type="button" class="bess-button" data-day="worst">Worst day</button></div>`;
+    const tableTabs = `<div class="market-period bess-table-tabs" role="group" aria-label="Table">` +
+      `<button type="button" data-table="markets" class="active">By market</button><button type="button" data-table="months">Month by month</button>` +
+      `<button type="button" id="bess-csv" class="bess-csv">Daily results (CSV)</button></div>`;
+    document.getElementById("bess-view").innerHTML =
+      `<div class="analysis-view-head"><button type="button" class="analysis-back"><span aria-hidden="true">←</span> All analyses</button>` +
+      `<h2>Merchant revenues battery calculator</h2>` +
+      `<p class="analysis-lede">What a battery would have earned trading Italy's markets on its own account, day by day since 2025, from the assumptions you enter. ` +
+      `An optimiser (HiGHS, an open-source linear and mixed-integer solver) schedules the battery in the MGP, the MI-A auctions, MI-XBID, MSD and MB on each day's actual prices, ` +
+      `and the result is set against its costs. A backtest with hindsight on each market's prices at its gate, not a forecast, a valuation or investment advice; no CAPEX or financing.</p></div>` +
+      `<div class="bess-layout"><form id="bess-form" class="panel bess-inputs" autocomplete="off" onsubmit="return false">${bessFormHtml()}</form>` +
+      `<div class="bess-results">` +
+      `<section id="bess-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Results</div>` +
+      `<div id="bess-summary-subtitle" class="chart-subtitle"></div></div><div id="bess-status" class="bess-status"></div></div>` +
+      `<div id="bess-kpis" class="gas-kpis bess-kpis"></div><p id="bess-reading" class="bess-reading"></p>` +
+      `<div class="bess-compare"><span class="bess-compare-label">The three strategies on these inputs</span><div id="bess-compare-chips" class="bess-chips"></div>` +
+      `<button type="button" id="bess-compare" class="bess-button">Compare strategies</button></div></section>` +
+      section("money", "Revenues and Costs", { wide: true, extra: buckets,
+        help: "Revenues vs costs: above zero what the battery was paid, below zero what it paid for energy, O&amp;M, fees and network charges; the markets netted quarter-hour by quarter-hour, so a position sold in the MGP and bought back in an MI-A auction for the same quarter-hour counts once, as the margin between the two. By market: each market's sales minus purchases (MSD and MB: upward minus downward), above or below zero, and the other costs. Solid line: the net margin (left axis, €). Dashed line: the same per MW of power and year (right axis), each day, month or year scaled by its own days, so a part month compares with a whole one. Click a series in the legend to hide or show it." }) +
+      section("markets", "Where the Battery Made Money", {
+        help: "Net margin of each market (sales minus purchases), per MW of power and year, after the other costs at the bottom. A market below zero is where the battery bought back or charged: its value shows up in the markets where that energy was sold." }) +
+      section("energy", "Energy Bought and Sold by Market", {
+        help: "MWh sold (above zero; MSD and MB upward) and bought (below; downward) in each market over the period. A position taken in one market and bought back in a later one shows in both. The table below gives the average prices." }) +
+      section("profile", "The Average Day", { height: " tall",
+        help: "Top: the zone's average MGP price at each hour of the day. Bottom: the battery's average position in each market at that hour, sold above zero, bought below; their sum is the energy it delivered (above) or took from the grid (below)." }) +
+      section("heatmap", "Dispatch Through the Period", { height: " tall",
+        help: "Each day (column) and hour of the day (row): the battery's net position across the markets, averaged over the hour; orange discharging (selling), blue charging (buying)." }) +
+      section("day", "A Day in Detail", { wide: true, extra: dayControls, height: " tallest",
+        help: "Top: the day's prices in the zone, the energy markets' and the average accepted MSD prices (upward dashed, downward dotted). Middle: the battery's position in each market, sold above zero, bought below, and the line, their sum: what it delivered (discharging above zero, charging below). Bottom: its state of charge. The clock's times; on the autumn clock change the repeated hour is marked *." }) +
+      section("distribution", "Daily Net Margin", {
+        help: "How many days earned each net margin (bars of equal width in €), after the day's share of the fixed costs; days below zero in orange. A battery's year rests on its best days: the subtitle gives the share of the margin the best tenth of the days earned." }) +
+      section("anchor", "Against Italy's Batteries", { body: '<div id="bess-anchor" class="bess-anchor"></div>',
+        help: "The batteries GME lists in the zone, as the Storage tab shows them: their net revenue per MW of power and year in each market over the days on file (MI-A net of buying back; MSD and MB without the secondary reserve), next to this battery's on the same days. Theirs are what they did; this battery's, what an optimiser with hindsight does." }) +
+      section("table", "Results Table", { wide: true, extra: tableTabs, body: '<div id="bess-table" class="bess-table-wrap"></div>' }) +
+      `<section class="panel chart-panel bess-wide bess-method">${bessHelp("Method, sources and limits", bessMethodHtml())}</section>` +
+      `</div></div>`;
+
+    ["money", "markets", "energy", "profile", "heatmap", "day", "distribution"].forEach(id => {
+      bessCharts[id] = echarts.init(document.getElementById(`bess-${id}-chart`));
+    });
+    const view = document.getElementById("bess-view");
+    view.addEventListener("input", bessOnInput);
+    view.addEventListener("change", bessOnInput);
+    view.addEventListener("click", event => {
+      const mode = event.target.closest("[data-money]");
+      if (mode) {
+        bessState.moneyMode = mode.dataset.money;
+        view.querySelectorAll("[data-money]").forEach(item => item.classList.toggle("active", item === mode));
+        bessRenderMoney();
+        return;
+      }
+      const bucket = event.target.closest("[data-bucket]");
+      if (bucket) {
+        bessState.bucket = bucket.dataset.bucket;
+        view.querySelectorAll("[data-bucket]").forEach(item => item.classList.toggle("active", item === bucket));
+        bessRenderMoney();
+        return;
+      }
+      const tab = event.target.closest("[data-table]");
+      if (tab) {
+        bessState.tableTab = tab.dataset.table;
+        view.querySelectorAll("[data-table]").forEach(item => item.classList.toggle("active", item === tab));
+        bessRenderTable();
+        return;
+      }
+      const day = event.target.closest("[data-day]");
+      if (day) { bessStepDay(day.dataset.day); return; }
+      if (event.target.closest("#bess-reset")) { bessReset(); return; }
+      if (event.target.closest("#bess-compare")) { bessCompare(); return; }
+      if (event.target.closest("#bess-csv")) bessCsv();
+    });
+    document.getElementById("bess-day-date").addEventListener("change", event => {
+      if (bessState.results && bessState.results.byDate.has(event.target.value)) { bessState.day = event.target.value; bessRenderDay(); }
+    });
+    window.addEventListener("resize", () => {
+      if (document.getElementById("bess-view").style.display === "none") return;
+      Object.values(bessCharts).forEach(chart => chart.resize());
+    });
+  }
+
+  function bessMethodHtml() {
+    return `<div class="bess-method-body">` +
+      `<p><b>The optimisation.</b> Each day is a linear programme over its quarter-hours (92, 96 or 100): charge and discharge (within the power), the state of charge (within its window, from and back to the midnight level, with half the round-trip losses on each side), a cap on the energy discharged (the cycles), and a position in each market, sold or bought. The objective is the money earned minus the variable costs. It is solved with <a href="https://highs.dev" target="_blank" rel="noopener">HiGHS</a> 1.15 (University of Edinburgh, MIT licence; <a href="https://github.com/lovasoa/highs-js" target="_blank" rel="noopener">highs-js</a>, run in the browser). Where the answer would charge and discharge in the same quarter-hour (only worth it at prices below zero), the day is solved again as a mixed-integer programme with a binary per quarter-hour that rules it out.</p>` +
+      `<p><b>Prices.</b> MGP: the zonal price (hourly before 1 October 2025, when the battery holds one position per hour; quarter-hourly since). MI-A1, MI-A2, MI-A3: the auctions' zonal prices (MI-A3 covers 12:00–24:00). MI-XBID: each 15-minute product's reference price, the average of its trades weighted by volume, where there were trades. MSD (ex-ante) and MB (other services): the zone's average accepted prices upward and downward and the volumes accepted, quarter-hour by quarter-hour (GME). The battery is a price-taker: its trades do not move the prices.</p>` +
+      `<p><b>Sequential versus joint.</b> Revenue-stacking models that let a battery plan all markets together with known prices overstate what it earns; the recent literature models each market at its gate closure on the capacity left by the earlier ones, with what is known then (e.g. Kortmann, Sanders and Ulbig, <a href="https://arxiv.org/abs/2607.24075" target="_blank" rel="noopener">arXiv 2607.24075</a>). The sequential strategy here does that, with each market's own prices known at its gate: still an upper bound for that market, as real bids rest on forecasts. Backtests of day-ahead trading on forecasts typically keep 80–90% of what hindsight earns (e.g. Hornek et al., <a href="https://arxiv.org/abs/2501.07121" target="_blank" rel="noopener">arXiv 2501.07121</a>, for intraday). Italy's batteries' actual results, below the charts, are the check.</p>` +
+      `<p><b>Fixed shares.</b> Splitting a battery into fixed shares per market is the usual approach where a service reserves capacity ahead of delivery (FCR or aFRR capacity auctions); Italy's MSD and MB buy energy, pay-as-bid, with no capacity held, so the battery's whole power can move between markets quarter-hour by quarter-hour. The split is offered for comparison.</p>` +
+      `<p><b>Left out.</b> Capacity payments (the capacity market, MACSE), imbalance charges, the secondary reserve's band, start-up and mode-change payments in MSD, the effect of the battery's own bids on prices, taxes, CAPEX and financing.</p>` +
+      `<p><b>Sources.</b> GME (prices, MSD and MB results, market offers of Italy's batteries; elaborated, not reproduced); ARERA 574/2014/R/eel and 109/2021/R/eel (storage withdrawals); GME's fees.</p></div>`;
+  }
+
+  function bessOnInput(event) {
+    const target = event.target;
+    const field = target.dataset && target.dataset.field;
+    if (!field) return;
+    if (target.type === "checkbox") bessInputs[field] = target.checked;
+    else if (target.type === "number") bessInputs[field] = target.value === "" ? "" : Number(target.value);
+    else bessInputs[field] = target.value;
+    if (field === "strategy") document.querySelector("#bess-view .bess-split").hidden = bessInputs.strategy !== "split";
+    if (field === "period") document.querySelector("#bess-view .bess-dates").hidden = bessInputs.period !== "custom";
+    if (event.type === "input" && target.type !== "number") return;
+    bessState.compare = null;
+    bessSchedule(event.type === "change" ? 150 : 700);
+  }
+
+  function bessReset() {
+    bessInputs = { ...BESS_DEFAULTS };
+    document.getElementById("bess-form").innerHTML = bessFormHtml();
+    bessState.compare = null;
+    bessSchedule(50);
+  }
+
+  function bessSchedule(delay) {
+    clearTimeout(bessState.timer);
+    bessState.timer = setTimeout(bessRun, delay);
+  }
+
+  /* ----- Inputs to the worker's parameters ----- */
+  function bessParams(observed, overrides = {}) {
+    const i = { ...bessInputs, ...overrides };
+    const errors = [];
+    const value = (key, fallback, test, message) => {
+      const number = bessNum(i[key], fallback);
+      if (!test(number)) errors.push(message);
+      return number;
+    };
+    const power = value("power", 50, x => x > 0, "Power must be above zero.");
+    const energy = value("energy", 100, x => x > 0, "Energy must be above zero.");
+    const rte = value("rte", 85, x => x > 0 && x <= 100, "Round-trip efficiency must be between 0 and 100%.");
+    const socMin = value("socMin", 0, x => x >= 0 && x < 100, "The lowest state of charge must be from 0 to below 100%.");
+    const socMax = value("socMax", 100, x => x > socMin && x <= 100, "The highest state of charge must be above the lowest and at most 100%.");
+    const soc0 = value("soc0", 50, x => x >= socMin && x <= socMax, "The midnight state of charge must lie within the window.");
+    const cycles = value("cycles", 2, x => x > 0, "Cycles per day must be above zero.");
+    const availability = value("availability", 97, x => x > 0 && x <= 100, "Availability must be between 0 and 100%.");
+    const fade = value("fade", 2, x => x >= 0 && x < 100, "Capacity fade must be from 0 to below 100%/yr.");
+    const nonNegative = (key, fallback, label) => value(key, fallback, x => x >= 0, `${label} cannot be below zero.`);
+    const throughputCost = nonNegative("throughputCost", 5, "Variable O&M");
+    const fixedOpex = nonNegative("fixedOpex", 10, "Fixed O&M");
+    const chargeCost = nonNegative("chargeCost", 0, "Network charges");
+    const fee = nonNegative("fee", 0.04, "Market fees");
+    const xbidShare = value("xbidShare", 25, x => x >= 0 && x <= 100, "The MI-XBID cap must be between 0 and 100%.");
+    const split = {
+      dayAhead: nonNegative("splitDayAhead", 80, "A share") / 100,
+      intraday: nonNegative("splitIntraday", 10, "A share") / 100,
+      balancing: nonNegative("splitBalancing", 10, "A share") / 100
+    };
+    if (i.strategy === "split" && split.dayAhead + split.intraday + split.balancing > 1.0001) errors.push("The fixed shares add up to more than 100%.");
+    const markets = Object.fromEntries(BESS_MARKETS.map(market => [market.key, Boolean(i[market.key])]));
+    if (!Object.values(markets).some(Boolean)) errors.push("Choose at least one market.");
+    // MSD and MB: the share entered, else Italy's batteries' share per MW, scaled to this battery.
+    const anchored = (market, side) => (observed && observed.shares ? Math.min(1, observed.shares[market][side] * power) : 0);
+    const share = (key, market, side) => {
+      const entered = bessNum(i[key], null);
+      if (entered !== null && (entered < 0 || entered > 100)) errors.push("Volume shares must be between 0 and 100%.");
+      return entered === null ? anchored(market, side) : entered / 100;
+    };
+    const shares = {
+      MSD: { up: share("msdUp", "MSD", "up"), down: share("msdDown", "MSD", "down") },
+      MB: { up: share("mbUp", "MB", "up"), down: share("mbDown", "MB", "down") }
+    };
+    return {
+      errors,
+      fixedOpex, fade: fade / 100,
+      worker: {
+        power, energy, rte: rte / 100, socMin: socMin / 100, socMax: socMax / 100, soc0: soc0 / 100, cycles,
+        availability: availability / 100, throughputCost, chargeCost, fee, strategy: i.strategy in BESS_STRATEGIES ? i.strategy : "sequential",
+        markets, xbidShare: xbidShare / 100, shares, split
+      }
+    };
+  }
+
+  /* ----- Workers ----- */
+  function bessStopWorkers() {
+    bessState.workers.forEach(worker => worker.terminate());
+    bessState.workers = [];
+  }
+  /* Solves the days in a few workers side by side; onProgress(share done). */
+  function bessSolve(days, params, onProgress) {
+    bessStopWorkers();
+    const count = Math.max(1, Math.min(6, (navigator.hardwareConcurrency || 4) - 1, Math.ceil(days.length / 6)));
+    const BATCH = 6;
+    return new Promise((resolve, reject) => {
+      let next = 0, done = 0;
+      const results = [];
+      const feed = worker => {
+        if (next >= days.length) return;
+        const batch = days.slice(next, next + BATCH);
+        next += batch.length;
+        worker.postMessage({ type: "run", id: 1, params, days: batch });
+      };
+      for (let index = 0; index < count; index += 1) {
+        const worker = new Worker("./analysis/bess-worker.js");
+        bessState.workers.push(worker);
+        worker.onmessage = event => {
+          if (event.data.type === "error") { bessStopWorkers(); reject(new Error(event.data.message)); return; }
+          results.push(...event.data.results);
+          done += event.data.results.length;
+          onProgress(done / days.length);
+          if (done >= days.length) { bessStopWorkers(); resolve(results); } else feed(worker);
+        };
+        worker.onerror = event => { bessStopWorkers(); reject(new Error(event.message || "The optimiser stopped.")); };
+        feed(worker);
+      }
+    });
+  }
+
+  /* ----- A run ----- */
+  async function bessRun() {
+    const token = ++bessState.runToken;
+    const compareButton = document.getElementById("bess-compare");
+    if (compareButton) compareButton.disabled = false;
+    const zone = bessZone();
+    bessState.running = true;
+    bessState.progress = 0;
+    bessState.message = null;
+    bessStatus("Loading prices…");
+    let files, zoneFile, observed;
+    try {
+      [files, zoneFile] = await Promise.all([bessLoadFiles(), bessLoadZone(zone)]);
+    } catch (error) {
+      if (token !== bessState.runToken) return;
+      bessState.running = false;
+      bessState.message = `The price files are not on file here (${error.message}).`;
+      bessStatus("");
+      bessRenderAll();
+      return;
+    }
+    const needObserved = (bessInputs.MSD || bessInputs.MB) && ["msdUp", "msdDown", "mbUp", "mbDown"].some(key => bessInputs[key] === "");
+    if (needObserved) bessStatus("Reading Italy's batteries…");
+    observed = await bessObserved(zone, zoneFile);
+    if (token !== bessState.runToken) return;
+    bessShowObserved(zone, observed);
+    const params = bessParams(observed);
+    const lastDay = bessLastDay(files, zoneFile, zone);
+    const [from, to] = bessPeriod(lastDay);
+    bessHint("period", `${bessDateText(from)} – ${bessDateText(to)}, ${formatNumber(bessDaysBetween(from, to) + 1)} days · on file from ${bessDateText(BESS_FIRST_DAY)} to ${bessDateText(lastDay)}. The MGP traded hours until 30 Sep 2025, quarter-hours since.`);
+    bessHint("energy", `Duration ${formatNumber(bessNum(bessInputs.energy, 100) / bessNum(bessInputs.power, 50), 1)} h`);
+    if (params.errors.length) {
+      bessState.running = false;
+      bessState.message = params.errors.join(" ");
+      bessStatus("");
+      bessRenderAll();
+      return;
+    }
+    const days = [];
+    bessState.dayInputs = new Map();
+    for (let date = from; date <= to; date = bessAddDays(date, 1)) {
+      const day = bessDayInput(files, zoneFile, zone, date);
+      if (!day) continue;
+      day.factor = Math.pow(1 - params.fade, bessDaysBetween(from, date) / 365.25);
+      days.push(day);
+      bessState.dayInputs.set(date, day);
+    }
+    if (!days.length) {
+      bessState.running = false;
+      bessState.message = "No day of the period has prices on file for this zone.";
+      bessStatus("");
+      bessRenderAll();
+      return;
+    }
+    const started = performance.now();
+    bessStatus(`Optimising ${formatNumber(days.length)} days…`, 0);
+    let results;
+    try {
+      results = await bessSolve(days, params.worker, share => {
+        if (token !== bessState.runToken) return;
+        bessStatus(`Optimising ${formatNumber(days.length)} days…`, share);
+      });
+    } catch (error) {
+      if (token !== bessState.runToken) return;
+      bessState.running = false;
+      bessState.message = `The optimiser failed: ${error.message}`;
+      bessStatus("");
+      bessRenderAll();
+      return;
+    }
+    if (token !== bessState.runToken) return;
+    bessState.running = false;
+    bessState.results = bessAggregate(results, params, { zone, from, to, lastDay, lastMb: bessLastMbDay(zoneFile, zone),
+      seconds: (performance.now() - started) / 1000, observed });
+    if (!bessState.day || !bessState.results.byDate.has(bessState.day)) bessState.day = bessState.results.best;
+    bessStatus("");
+    bessRenderAll();
+  }
+
+  /* Days to totals: the worker's money per market, plus the fixed costs of each day. */
+  function bessAggregate(rawResults, params, meta) {
+    const days = rawResults.filter(result => result.ok).sort((a, b) => (a.date < b.date ? -1 : 1));
+    const failed = rawResults.filter(result => !result.ok);
+    const fixedPerDay = params.fixedOpex * 1000 * params.worker.power / 365;
+    const empty = () => ({ sold: 0, bought: 0, income: 0, spend: 0 });
+    const totals = { markets: Object.fromEntries(BESS_MARKETS.map(market => [market.key, empty()])),
+      income: 0, spend: 0, cashIn: 0, cashOut: 0, other: 0, margin: 0, charged: 0, discharged: 0, throughput: 0, network: 0, fees: 0, fixed: 0 };
+    days.forEach(day => {
+      day.income = 0; day.spend = 0;
+      Object.entries(day.markets).forEach(([key, [sold, bought, income, spend]]) => {
+        const sum = totals.markets[key];
+        sum.sold += sold; sum.bought += bought; sum.income += income; sum.spend += spend;
+        day.income += income; day.spend += spend;
+      });
+      day.fixed = fixedPerDay;
+      day.other = day.throughputCost + day.chargeCost + day.fees + fixedPerDay;
+      day.margin = day.income - day.spend - day.other;
+      totals.income += day.income; totals.spend += day.spend; totals.other += day.other; totals.margin += day.margin;
+      totals.cashIn += day.cashIn; totals.cashOut += day.cashOut;
+      totals.charged += day.charged; totals.discharged += day.discharged;
+      totals.throughput += day.throughputCost; totals.network += day.chargeCost; totals.fees += day.fees; totals.fixed += fixedPerDay;
+    });
+    const ranked = [...days].sort((a, b) => b.margin - a.margin);
+    return {
+      ...meta, params, days, failed, totals, byDate: new Map(days.map(day => [day.date, day])),
+      best: ranked.length ? ranked[0].date : null, worst: ranked.length ? ranked[ranked.length - 1].date : null,
+      strategy: params.worker.strategy, power: params.worker.power, energy: params.worker.energy
+    };
+  }
+
+  /* ----- Status, hints ----- */
+  function bessStatus(text, share = null) {
+    const element = document.getElementById("bess-status");
+    if (!element) return;
+    element.innerHTML = text ? `<span>${text}</span>${share !== null ? `<span class="bess-progress"><span style="width:${Math.round(share * 100)}%"></span></span>` : ""}` : "";
+    document.getElementById("bess-view").classList.toggle("bess-busy", Boolean(text) && Boolean(bessState.results));
+  }
+  function bessHint(id, text) {
+    const element = document.getElementById(`bess-hint-${id}`);
+    if (element) element.textContent = text;
+  }
+  function bessShowObserved(zone, observed) {
+    const pct = value => `${formatNumber(value * 100, value * 100 < 0.1 ? 3 : 2)}%`;
+    const power = bessNum(bessInputs.power, 50);
+    ["MSD", "MB"].forEach(market => {
+      const key = market.toLowerCase();
+      const inputs = [document.getElementById(`bess-${key}Up`), document.getElementById(`bess-${key}Down`)];
+      if (!observed || !observed.shares) {
+        inputs.forEach(input => { if (input) input.placeholder = "0"; });
+        bessHint(key, observed && observed.units === 0
+          ? `No battery in ${ZONE_NAMES[zone]} on file: blank counts as 0 (no ${market}).`
+          : "Italy's batteries are not on file here: blank counts as 0.");
+        return;
+      }
+      const shares = observed.shares[market];
+      inputs.forEach((input, index) => {
+        if (input) input.placeholder = `observed ${pct(Math.min(1, (index ? shares.down : shares.up) * power))}`;
+      });
+      bessHint(key, `Observed: the ${formatNumber(observed.units)} batteries in ${ZONE_NAMES[zone]} (${formatNumber(observed.mw, 0)} MW) took ` +
+        `${pct(shares.up * observed.mw)} of the upward and ${pct(shares.down * observed.mw)} of the downward volume, ${bessDateText(observed.from)} – ${bessDateText(observed.to)}; ` +
+        `scaled to ${formatNumber(power, 0)} MW.`);
+    });
+  }
+
+  /* ----- Showing the view ----- */
+  function bessShow() {
+    if (!bessState.built) bessBuild();
+    const select = document.getElementById("bess-zone");
+    if (select && select.options[0]) select.options[0].textContent = `As the page (${ZONE_NAMES[zoneCode() || "NORD"]})`;
+    const badge = document.querySelector("#bess-view .bess-group .analysis-badge");
+    if (badge) badge.textContent = ZONE_NAMES[bessZone()];
+    // The page's zone may have changed while the view was closed.
+    const zoneNow = bessZone();
+    if (!bessState.results && !bessState.running) bessRun();
+    else if (bessState.results && bessState.results.zone !== zoneNow && !bessState.running) bessRun();
+    else setTimeout(() => bessRenderAll(false), 0);
+  }
+
+  function bessRenderAll(force = true) {
+    if (document.getElementById("bess-view").style.display === "none") return;
+    // The page redraws its tab whenever a file comes in: redraw only for new results, a message or another theme.
+    const signature = [bessState.results, bessState.message, bessState.running, document.documentElement.dataset.theme || "dark"];
+    if (!force && bessState.drawn && signature.every((item, index) => item === bessState.drawn[index])) return;
+    bessState.drawn = signature;
+    const badge = document.querySelector("#bess-view .bess-group .analysis-badge");
+    if (badge) badge.textContent = ZONE_NAMES[bessZone()];
+    bessRenderSummary();
+    bessRenderMoney();
+    bessRenderMarkets();
+    bessRenderEnergy();
+    bessRenderProfile();
+    bessRenderHeatmap();
+    bessRenderDay();
+    bessRenderDistribution();
+    bessRenderAnchor();
+    bessRenderTable();
+  }
+
+  const bessMarket = key => BESS_MARKETS.find(market => market.key === key);
+  const bessPerMwYear = (euro, results) => euro / results.power * 365 / Math.max(1, results.days.length);
+  function bessEmpty(chart, text) {
+    chart.clear();
+    chart.setOption({ title: { text, left: "center", top: "middle", textStyle: { color: cssVar("--muted"), fontSize: 12, fontWeight: 400 } } }, true);
+  }
+  const bessAxisLabel = () => timelineAxisTextStyle();
+  const bessTooltip = (formatter, extra = {}) => ({
+    trigger: "axis", confine: true, backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"), borderWidth: 1,
+    textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 }, formatter, ...extra
+  });
+  const bessTipHead = text => `<div style="margin-bottom:6px;color:${cssVar("--chart-tooltip-muted")};">${text}</div>`;
+  const bessLegend = (names, extra = {}) => ({ top: 4, left: 64, itemWidth: 14, itemHeight: 8, itemGap: 12,
+    textStyle: { color: cssVar("--chart-legend"), fontSize: 10 }, data: names, ...extra });
+  const bessEuroAxis = name => timelineYAxis(name, { nameGap: 50, axisLabel: { ...timelineAxisTextStyle(),
+    formatter: number => (Math.abs(number) >= 1e6 ? `${formatNumber(number / 1e6, 1)}m` : Math.abs(number) >= 1000 ? `${formatNumber(number / 1000, 0)}k` : formatNumber(number, 0)) } });
+
+  /* ----- Summary ----- */
+  function bessRenderSummary() {
+    const results = bessState.results;
+    const kpis = document.getElementById("bess-kpis");
+    const reading = document.getElementById("bess-reading");
+    if (bessState.message) {
+      kpis.innerHTML = "";
+      reading.innerHTML = `<span class="bess-error">${bessState.message}</span>`;
+      setText("bess-summary-subtitle", "");
+      bessRenderCompare();
+      return;
+    }
+    if (!results) {
+      kpis.innerHTML = "";
+      reading.textContent = "";
+      setText("bess-summary-subtitle", "");
+      return;
+    }
+    const t = results.totals;
+    const n = results.days.length;
+    const usable = results.energy * (results.params.worker.socMax - results.params.worker.socMin);
+    const cycles = usable > 0 ? t.discharged / usable / n : 0;
+    const spread = t.discharged > 0 ? (t.income - t.spend) / t.discharged : null;
+    setText("bess-summary-subtitle",
+      `${formatNumber(results.power, results.power % 1 ? 1 : 0)} MW / ${formatNumber(results.energy, results.energy % 1 ? 1 : 0)} MWh in ${ZONE_NAMES[results.zone]} · ` +
+      `${bessDateText(results.from)} – ${bessDateText(results.to)} (${formatNumber(n)} days) · ${BESS_STRATEGIES[results.strategy]} · ` +
+      `solved in ${formatNumber(results.seconds, 1)} s`);
+    const tile = (label, value, sub) => `<div class="gas-kpi"><div class="gas-kpi-label">${label}</div><div class="gas-kpi-value">${value}</div><div class="gas-kpi-sub">${sub}</div></div>`;
+    kpis.innerHTML =
+      tile("Net margin", bessMoney(t.margin), `${bessMoney(bessPerMwYear(t.margin, results))}/MW/yr · ${bessMoney(t.margin / results.energy * 365 / n)}/MWh of capacity/yr`) +
+      tile("Revenues", bessMoney(t.cashIn), `paid to the battery, markets netted per quarter-hour · ${bessMoney(bessPerMwYear(t.cashIn, results))}/MW/yr`) +
+      tile("Costs", bessMoney(t.cashOut + t.other), `energy ${bessMoney(t.cashOut)} · O&amp;M ${bessMoney(t.throughput + t.fixed)} · fees and charges ${bessMoney(t.fees + t.network)}`) +
+      tile("Cycles per day", formatNumber(cycles, 2), `${bessMwh(t.discharged)} discharged, ${bessMwh(t.charged)} charged`) +
+      tile("Spread captured", spread === null ? "—" : `€${formatNumber(spread, 1)}`, "per MWh discharged: sales minus purchases, before O&amp;M");
+    const byMarket = BESS_MARKETS.map(market => ({ ...market, net: t.markets[market.key].income - t.markets[market.key].spend }))
+      .filter(market => Math.abs(market.net) > 1);
+    const gross = byMarket.filter(market => market.net > 0).reduce((sum, market) => sum + market.net, 0);
+    const lead = [...byMarket].sort((a, b) => b.net - a.net).slice(0, 3).filter(market => market.net > 0)
+      .map(market => `${market.label} ${formatNumber(market.net / gross * 100, 0)}%`).join(", ");
+    const notes = [];
+    if (results.failed.length) notes.push(`${formatNumber(results.failed.length)} day${results.failed.length === 1 ? "" : "s"} could not be solved and are left out.`);
+    if (results.lastMb && results.lastMb < results.to && results.params.worker.markets.MB) notes.push(`MB results are on file to ${bessDateText(results.lastMb)}: the days after it have no MB.`);
+    reading.innerHTML = `<b>Reading:</b> the battery would have netted ${bessMoney(t.margin)} over the period, ${bessMoney(bessPerMwYear(t.margin, results))} per MW and year` +
+      (lead ? `; of the markets that paid, ${lead} of the net` : "") +
+      `. ${t.margin >= 0 ? "Its sales covered its purchases and costs" : "Its costs exceeded what it earned"} on ${formatNumber(results.days.filter(day => day.margin >= 0).length)} of ${formatNumber(n)} days. ` +
+      notes.join(" ");
+    bessRenderCompare();
+  }
+
+  /* ----- Strategy comparison ----- */
+  async function bessCompare() {
+    const results = bessState.results;
+    if (!results || bessState.running) return;
+    const token = bessState.runToken;
+    const button = document.getElementById("bess-compare");
+    button.disabled = true;
+    const compare = { [results.strategy]: results.totals.margin, days: results.days.length };
+    bessState.compare = compare;
+    const others = Object.keys(BESS_STRATEGIES).filter(key => key !== results.strategy);
+    for (const strategy of others) {
+      bessStatus(`Comparing: ${BESS_STRATEGIES[strategy].toLowerCase()}…`, 0);
+      const params = bessParams(results.observed, { strategy });
+      const days = results.days.map(day => bessState.dayInputs.get(day.date)).filter(Boolean);
+      try {
+        const raw = await bessSolve(days, params.worker, share => bessStatus(`Comparing: ${BESS_STRATEGIES[strategy].toLowerCase()}…`, share));
+        if (token !== bessState.runToken) return;
+        compare[strategy] = bessAggregate(raw, params, {}).totals.margin;
+      } catch (error) {
+        compare[strategy] = null;
+      }
+      bessRenderCompare();
+    }
+    bessStatus("");
+    button.disabled = false;
+  }
+  function bessRenderCompare() {
+    const chips = document.getElementById("bess-compare-chips");
+    const button = document.getElementById("bess-compare");
+    const results = bessState.results;
+    if (!chips) return;
+    if (!results || bessState.message) { chips.innerHTML = ""; return; }
+    const compare = bessState.compare;
+    const split = results.params.worker.split;
+    const label = key => (key === "split" ? `Fixed split ${[split.dayAhead, split.intraday, split.balancing].map(x => formatNumber(x * 100, 0)).join("/")}` : BESS_STRATEGIES[key]);
+    chips.innerHTML = Object.keys(BESS_STRATEGIES).map(key => {
+      const value = key === results.strategy ? results.totals.margin : compare ? compare[key] : undefined;
+      const text = value === undefined ? "—" : value === null ? "failed" : `${bessMoney(bessPerMwYear(value, results))}/MW/yr`;
+      return `<span class="bess-chip${key === results.strategy ? " current" : ""}">${label(key)} <b>${text}</b></span>`;
+    }).join("");
+    button.hidden = Boolean(compare && Object.keys(BESS_STRATEGIES).every(key => compare[key] !== undefined));
+  }
+
+  /* ----- Revenues and costs over time ----- */
+  function bessBucketOf(date) {
+    return bessState.bucket === "year" ? date.slice(0, 4) : bessState.bucket === "month" ? date.slice(0, 7) : date;
+  }
+  function bessBucketLabel(key) {
+    if (key.length === 4) return key;
+    if (key.length === 7) return parseDate(`${key}-01`).toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+    return parseDate(key).toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  }
+  function bessRenderMoney() {
+    const chart = bessCharts.money, results = bessState.results;
+    if (!chart) return;
+    if (!results) { bessEmpty(chart, bessState.running ? "Optimising…" : bessState.message || ""); return; }
+    const buckets = new Map();
+    results.days.forEach(day => {
+      const key = bessBucketOf(day.date);
+      if (!buckets.has(key)) buckets.set(key, { days: 0, net: {}, cashIn: 0, cashOut: 0, om: 0, charges: 0, other: 0, margin: 0 });
+      const bucket = buckets.get(key);
+      bucket.days += 1; bucket.other += day.other; bucket.margin += day.margin;
+      bucket.cashIn += day.cashIn; bucket.cashOut += day.cashOut;
+      bucket.om += day.throughputCost + day.fixed; bucket.charges += day.fees + day.chargeCost;
+      Object.entries(day.markets).forEach(([market, [, , income, spend]]) => {
+        bucket.net[market] = (bucket.net[market] || 0) + income - spend;
+      });
+    });
+    const keys = [...buckets.keys()];
+    const list = keys.map(key => buckets.get(key));
+    const byMarket = bessState.moneyMode === "markets";
+    const per = bessState.bucket === "day" ? "day" : bessState.bucket;
+    const bar = (name, color, data) => ({ name, type: "bar", stack: "money", data, barMaxWidth: 34, itemStyle: { color: cssVar(color) },
+      emphasis: { focus: "series" } });
+    let series, rowsOf;
+    if (byMarket) {
+      const used = BESS_MARKETS.filter(market => list.some(bucket => Math.abs(bucket.net[market.key] || 0) > 0.5));
+      series = [...used.map(market => bar(market.label, market.color, list.map(bucket => bucket.net[market.key] || 0))),
+        bar("Other costs", BESS_OTHER_COLOR, list.map(bucket => -bucket.other))];
+      rowsOf = bucket => used.map(market => tooltipRow(cssVar(market.color), market.label, bessMoney(bucket.net[market.key] || 0))).join("") +
+        tooltipRow(cssVar(BESS_OTHER_COLOR), "Other costs", bessMoney(-bucket.other));
+      setText("bess-money-subtitle", `€ per ${per} · each market's sales minus purchases, and the other costs · right axis: the net margin per MW and year`);
+    } else {
+      const parts = [
+        { name: "Revenues", color: "--border-3", value: bucket => bucket.cashIn },
+        { name: "Energy bought", color: "--border-2", value: bucket => -bucket.cashOut },
+        { name: "O&M", color: "--border-7", value: bucket => -bucket.om },
+        { name: "Fees and charges", color: "--border-4", value: bucket => -bucket.charges }
+      ];
+      series = parts.map(part => bar(part.name, part.color, list.map(part.value)));
+      rowsOf = bucket => parts.map(part => tooltipRow(cssVar(part.color), part.name, bessMoney(part.value(bucket)))).join("");
+      setText("bess-money-subtitle", `€ per ${per} · revenues above zero, costs below · right axis: the net margin per MW and year`);
+    }
+    // Right axis: the net margin per MW of power and year, each bucket annualised over its own days.
+    // Both axes get the same ticks above and below zero, so zero sits at one height.
+    const PER_MW = "€/MW/yr";
+    const perMw = bucket => bucket.margin / results.power * 365 / bucket.days;
+    const niceStep = raw => {
+      const power = Math.pow(10, Math.floor(Math.log10(raw)));
+      return [1, 2, 2.5, 5, 10].map(factor => factor * power).find(step => step >= raw * (1 - 1e-9));
+    };
+    let dataMax = 0, dataMin = 0;
+    list.forEach((bucket, index) => {
+      let up = 0, down = 0;
+      series.forEach(item => { const value = item.data[index] || 0; if (value > 0) up += value; else down += value; });
+      dataMax = Math.max(dataMax, up, bucket.margin);
+      dataMin = Math.min(dataMin, down, bucket.margin);
+    });
+    const ratios = list.map(perMw);
+    const ratioMax = Math.max(0, ...ratios), ratioMin = Math.min(0, ...ratios);
+    const interval = niceStep(Math.max(1, (dataMax - dataMin) / 5));
+    const above = Math.max(1, Math.ceil(dataMax / interval - 1e-9));
+    const below = Math.max(ratioMin < 0 ? 1 : 0, Math.ceil(-dataMin / interval - 1e-9));
+    const rightInterval = niceStep(Math.max(1, ratioMax / above, below ? -ratioMin / below : 0));
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend([...series.map(item => item.name), "Net margin", PER_MW]),
+      tooltip: bessTooltip(params => {
+        const bucket = list[params[0].dataIndex];
+        const key = keys[params[0].dataIndex];
+        return bessTipHead(`${key.length === 10 ? bessDateText(key) : bessBucketLabel(key)} · ${bucket.days} day${bucket.days === 1 ? "" : "s"}`) +
+          rowsOf(bucket) + tooltipRow(cssVar("--chart-pun"), "Net margin", bessMoney(bucket.margin), "line") +
+          tooltipRow(cssVar("--chart-legend"), PER_MW, `${bessMoney(perMw(bucket))}/MW/yr`, "dashed");
+      }, { axisPointer: { type: "shadow" } }),
+      grid: { left: 64, right: 64, top: 40, bottom: 34 },
+      xAxis: { type: "category", data: keys.map(bessBucketLabel), axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
+      // Right axis: the same zero as the left one, so the line reads against both.
+      yAxis: [{ ...bessEuroAxis("€"), min: -below * interval, max: above * interval, interval },
+        { ...bessEuroAxis(PER_MW), position: "right", nameRotate: -90, splitLine: { show: false },
+          min: -below * rightInterval, max: above * rightInterval, interval: rightInterval }],
+      series: [...series,
+        { name: "Net margin", type: "line", data: list.map(bucket => bucket.margin), z: 10, symbolSize: 5,
+          showSymbol: keys.length <= 60, lineStyle: { color: cssVar("--chart-pun"), width: 1.8 }, itemStyle: { color: cssVar("--chart-pun") } },
+        { name: PER_MW, type: "line", yAxisIndex: 1, data: list.map(perMw), z: 11, symbol: "rect", symbolSize: 5,
+          showSymbol: keys.length <= 60, lineStyle: { color: cssVar("--chart-legend"), width: 1.6, type: "dashed" },
+          itemStyle: { color: cssVar("--chart-legend") } }]
+    }, true);
+    chart.resize();
+  }
+
+  /* ----- Net margin by market ----- */
+  function bessRenderMarkets() {
+    const chart = bessCharts.markets, results = bessState.results;
+    if (!chart) return;
+    if (!results) { bessEmpty(chart, bessState.running ? "Optimising…" : ""); return; }
+    const t = results.totals;
+    const rows = BESS_MARKETS.filter(market => results.params.worker.markets[market.key])
+      .map(market => ({ label: market.label, color: market.color, value: bessPerMwYear(t.markets[market.key].income - t.markets[market.key].spend, results) }));
+    rows.push({ label: "O&M, fees, charges", color: BESS_OTHER_COLOR, value: -bessPerMwYear(t.other, results) });
+    rows.push({ label: "Net margin", color: "--chart-pun", value: bessPerMwYear(t.margin, results) });
+    setText("bess-markets-subtitle", "€ per MW of power and year");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: bessTooltip(params => bessTipHead(params[0].name) + tooltipRow(params[0].color, "Net", `${bessMoney(params[0].value)}/MW/yr`), { axisPointer: { type: "shadow" } }),
+      grid: { left: 118, right: 64, top: 10, bottom: 30 },
+      yAxis: { type: "category", inverse: true, data: rows.map(row => row.label), axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), fontSize: 11, color: cssVar("--chart-legend") } },
+      xAxis: { type: "value", axisLabel: { ...bessAxisLabel(), formatter: number => (Math.abs(number) >= 1000 ? `${formatNumber(number / 1000, 0)}k` : formatNumber(number, 0)) },
+        splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      series: [{ type: "bar", barMaxWidth: 18, data: rows.map(row => ({ value: row.value,
+        itemStyle: { color: cssVar(row.color), borderRadius: row.value >= 0 ? [0, 3, 3, 0] : [3, 0, 0, 3] },
+        label: { position: "right" } })),
+        label: { show: true, color: cssVar("--chart-legend"), fontSize: 10, formatter: params => bessMoney(params.value) } }]
+    }, true);
+    chart.resize();
+  }
+
+  /* ----- Energy by market ----- */
+  function bessRenderEnergy() {
+    const chart = bessCharts.energy, results = bessState.results;
+    if (!chart) return;
+    if (!results) { bessEmpty(chart, bessState.running ? "Optimising…" : ""); return; }
+    const t = results.totals;
+    const markets = BESS_MARKETS.filter(market => results.params.worker.markets[market.key]);
+    setText("bess-energy-subtitle", `MWh over the period · the battery charged ${bessMwh(t.charged)} and discharged ${bessMwh(t.discharged)}`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: bessTooltip(params => {
+        const market = markets[params[0].dataIndex];
+        const sum = t.markets[market.key];
+        return bessTipHead(market.label) +
+          tooltipRow(cssVar(market.color), "Sold", `${bessMwh(sum.sold)}${sum.sold ? ` at €${formatNumber(sum.income / sum.sold, 1)}` : ""}`) +
+          tooltipRow(cssVar(market.color), "Bought", `${bessMwh(sum.bought)}${sum.bought ? ` at €${formatNumber(sum.spend / sum.bought, 1)}` : ""}`);
+      }, { axisPointer: { type: "shadow" } }),
+      grid: { left: 64, right: 16, top: 16, bottom: 30 },
+      xAxis: { type: "category", data: markets.map(market => market.label), axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), color: cssVar("--chart-legend") } },
+      yAxis: timelineYAxis("MWh", { nameGap: 50, axisLabel: { ...timelineAxisTextStyle(),
+        formatter: number => (Math.abs(number) >= 1000 ? `${formatNumber(number / 1000, 0)}k` : formatNumber(number, 0)) } }),
+      series: [
+        { name: "Sold", type: "bar", stack: "energy", barMaxWidth: 30,
+          data: markets.map(market => ({ value: t.markets[market.key].sold, itemStyle: { color: cssVar(market.color), borderRadius: [3, 3, 0, 0] } })) },
+        { name: "Bought", type: "bar", stack: "energy", barMaxWidth: 30,
+          data: markets.map(market => ({ value: -t.markets[market.key].bought, itemStyle: { color: cssVar(market.color), opacity: 0.55, borderRadius: [0, 0, 3, 3] } })) }
+      ]
+    }, true);
+    chart.resize();
+  }
+
+  /* ----- The average day ----- */
+  function bessRenderProfile() {
+    const chart = bessCharts.profile, results = bessState.results;
+    if (!chart) return;
+    if (!results) { bessEmpty(chart, bessState.running ? "Optimising…" : ""); return; }
+    const markets = BESS_MARKETS.filter(market => results.params.worker.markets[market.key]);
+    const sums = Object.fromEntries(markets.map(market => [market.key, new Float64Array(24)]));
+    const counts = new Float64Array(24), price = new Float64Array(24), priceCount = new Float64Array(24);
+    results.days.forEach(day => {
+      const input = bessState.dayInputs.get(day.date);
+      for (let t = 0; t < day.T; t += 1) {
+        const hour = Math.floor(bessClockMinutes(day.T, t) / 60);
+        counts[hour] += 1;
+        markets.forEach(market => { if (day.net[market.key]) sums[market.key][hour] += day.net[market.key][t]; });
+        if (input && Number.isFinite(input.prices.MGP[t])) { price[hour] += input.prices.MGP[t]; priceCount[hour] += 1; }
+      }
+    });
+    const hours = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, "0")}:00`);
+    const average = (array, count) => Array.from(array, (value, hour) => (count[hour] ? value / count[hour] : null));
+    setText("bess-profile-subtitle", `Average over the ${formatNumber(results.days.length)} days, by hour of the clock`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["MGP price", ...markets.map(market => market.label)]),
+      tooltip: bessTooltip(params => bessTipHead(hours[params[0].dataIndex]) + params.filter(entry => entry.value !== null).map(entry =>
+        tooltipRow(entry.color, entry.seriesName, entry.seriesName === "MGP price" ? `€${formatNumber(entry.value, 1)}/MWh` : `${formatNumber(entry.value, 1)} MW`,
+          entry.seriesType === "line" ? "line" : "area")).join(""), { axisPointer: { type: "shadow", link: [{ xAxisIndex: "all" }] } }),
+      axisPointer: { link: [{ xAxisIndex: "all" }] },
+      grid: [{ left: 64, right: 16, top: 40, height: "26%" }, { left: 64, right: 16, top: "46%", bottom: 30 }],
+      xAxis: [0, 1].map(gridIndex => ({ type: "category", gridIndex, data: hours, axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: gridIndex ? { ...bessAxisLabel(), interval: 2 } : { show: false } })),
+      yAxis: [timelineYAxis("€/MWh", { gridIndex: 0, nameGap: 44, scale: true, splitNumber: 3 }), timelineYAxis("MW", { gridIndex: 1, nameGap: 44 })],
+      series: [
+        { name: "MGP price", type: "line", xAxisIndex: 0, yAxisIndex: 0, data: average(price, priceCount), showSymbol: false,
+          lineStyle: { color: cssVar("--chart-pun"), width: 2 }, itemStyle: { color: cssVar("--chart-pun") } },
+        ...markets.map(market => ({ name: market.label, type: "bar", stack: "position", xAxisIndex: 1, yAxisIndex: 1, barMaxWidth: 22,
+          data: average(sums[market.key], counts), itemStyle: { color: cssVar(market.color) } }))
+      ]
+    }, true);
+    chart.resize();
+  }
+
+  /* ----- Dispatch heatmap ----- */
+  function bessRenderHeatmap() {
+    const chart = bessCharts.heatmap, results = bessState.results;
+    if (!chart) return;
+    if (!results) { bessEmpty(chart, bessState.running ? "Optimising…" : ""); return; }
+    const data = [];
+    let extreme = 1;
+    results.days.forEach((day, index) => {
+      const sums = new Float64Array(24), counts = new Float64Array(24);
+      for (let t = 0; t < day.T; t += 1) {
+        const hour = Math.floor(bessClockMinutes(day.T, t) / 60);
+        let net = 0;
+        Object.values(day.net).forEach(position => { net += position[t]; });
+        sums[hour] += net; counts[hour] += 1;
+      }
+      for (let hour = 0; hour < 24; hour += 1) {
+        if (!counts[hour]) continue;
+        const value = sums[hour] / counts[hour];
+        extreme = Math.max(extreme, Math.abs(value));
+        data.push([index, hour, Math.round(value * 10) / 10]);
+      }
+    });
+    const dates = results.days.map(day => day.date);
+    setText("bess-heatmap-subtitle", `MW, net position each hour · discharging above zero`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: { ...bessTooltip(params => bessTipHead(`${bessDateText(dates[params.value[0]])}, ${String(params.value[1]).padStart(2, "0")}:00`) +
+        tooltipRow(params.color, params.value[2] >= 0 ? "Discharging" : "Charging", `${formatNumber(Math.abs(params.value[2]), 1)} MW`)), trigger: "item" },
+      grid: { left: 64, right: 16, top: 12, bottom: 64 },
+      xAxis: { type: "category", data: dates, axisTick: { show: false }, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: { ...bessAxisLabel(), hideOverlap: true, formatter: date => parseDate(date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) } },
+      yAxis: { type: "category", data: Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, "0")}:00`), inverse: true,
+        axisTick: { show: false }, axisLine: { show: false }, axisLabel: { ...bessAxisLabel(), interval: 3 } },
+      visualMap: { type: "continuous", min: -extreme, max: extreme, dimension: 2, orient: "horizontal", left: "center", bottom: 4, itemWidth: 10, itemHeight: 160,
+        text: ["Discharging", "Charging"], textStyle: { color: cssVar("--chart-axis-label"), fontSize: 10 }, calculable: false,
+        inRange: { color: [cssVar("--border-1"), cssVar("--range"), cssVar("--border-2")] } },
+      series: [{ type: "heatmap", data, progressive: 0, emphasis: { itemStyle: { borderColor: cssVar("--text"), borderWidth: 1 } } }]
+    }, true);
+    chart.resize();
+  }
+
+  /* ----- A day in detail ----- */
+  function bessStepDay(action) {
+    const results = bessState.results;
+    if (!results || !results.days.length) return;
+    const dates = results.days.map(day => day.date);
+    let index = dates.indexOf(bessState.day);
+    if (action === "best") bessState.day = results.best;
+    else if (action === "worst") bessState.day = results.worst;
+    else {
+      index = Math.max(0, Math.min(dates.length - 1, (index < 0 ? dates.length - 1 : index) + (action === "next" ? 1 : -1)));
+      bessState.day = dates[index];
+    }
+    bessRenderDay();
+  }
+  function bessRenderDay() {
+    const chart = bessCharts.day, results = bessState.results;
+    if (!chart) return;
+    const picker = document.getElementById("bess-day-date");
+    if (!results || !results.byDate.has(bessState.day)) { bessEmpty(chart, bessState.running ? "Optimising…" : ""); return; }
+    const day = results.byDate.get(bessState.day), input = bessState.dayInputs.get(day.date);
+    picker.min = results.days[0].date; picker.max = results.days[results.days.length - 1].date; picker.value = day.date;
+    const T = day.T;
+    const labels = Array.from({ length: T }, (_, t) => bessClockLabel(T, t));
+    const markets = BESS_MARKETS.filter(market => results.params.worker.markets[market.key] && day.net[market.key]);
+    const energy = results.energy * results.params.worker.availability * input.factor;
+    const priceOf = array => Array.from(array, value => (Number.isFinite(value) ? value : null));
+    const priceSeries = [
+      ...["MGP", "MIA1", "MIA2", "MIA3", "XBID"].filter(key => results.params.worker.markets[key]).map(key => ({ name: `${bessMarket(key).label} price`, key,
+        data: priceOf(input.prices[key]), color: bessMarket(key).color, type: "solid" })),
+      ...(results.params.worker.markets.MSD ? [
+        { name: "MSD upward price", data: priceOf(input.balancing.MSD.upP), color: "--border-4", type: "dashed" },
+        { name: "MSD downward price", data: priceOf(input.balancing.MSD.downP), color: "--border-4", type: "dotted" }] : [])
+    ];
+    setText("bess-day-subtitle", `${parseDate(day.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · ` +
+      `net margin ${bessMoney(day.margin)} (${bessMoney(day.income)} sold, ${bessMoney(day.spend)} bought, ${bessMoney(day.other)} other costs) · ` +
+      `${formatNumber(day.discharged, 0)} MWh discharged${day.date === results.best ? " · the best day" : day.date === results.worst ? " · the worst day" : ""}`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend([...priceSeries.map(series => series.name), ...markets.map(market => market.label), "Delivered", "State of charge"], { type: "scroll", right: 16 }),
+      tooltip: bessTooltip(params => bessTipHead(labels[params[0].dataIndex]) + params.filter(entry => entry.value !== null && entry.value !== undefined).map(entry =>
+        tooltipRow(entry.color, entry.seriesName, entry.seriesName.endsWith("price") ? `€${formatNumber(entry.value, 2)}/MWh`
+          : entry.seriesName === "State of charge" ? `${formatNumber(entry.value, 0)}%` : `${formatNumber(entry.value, 1)} MW`,
+          entry.seriesType === "line" ? "line" : "area")).join(""), { axisPointer: { type: "line", link: [{ xAxisIndex: "all" }], lineStyle: { color: cssVar("--chart-pointer") } } }),
+      // "Delivered": the net of the markets, what the battery discharged (above zero) or charged (below).
+      axisPointer: { link: [{ xAxisIndex: "all" }] },
+      grid: [{ left: 64, right: 16, top: 44, height: "28%" }, { left: 64, right: 16, top: "44%", height: "30%" }, { left: 64, right: 16, top: "80%", bottom: 28 }],
+      xAxis: [0, 1, 2].map(gridIndex => ({ type: "category", gridIndex, data: labels, boundaryGap: gridIndex === 1, axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: gridIndex === 2 ? { ...bessAxisLabel(), interval: index => index % 8 === 0 } : { show: false } })),
+      yAxis: [
+        timelineYAxis("€/MWh", { gridIndex: 0, nameGap: 44, scale: true, splitNumber: 3 }),
+        timelineYAxis("MW", { gridIndex: 1, nameGap: 44 }),
+        timelineYAxis("SoC %", { gridIndex: 2, nameGap: 44, min: 0, max: 100, splitNumber: 2 })
+      ],
+      series: [
+        ...priceSeries.map(series => ({ name: series.name, type: "line", xAxisIndex: 0, yAxisIndex: 0, data: series.data, showSymbol: false, connectNulls: false,
+          step: "middle", lineStyle: { color: cssVar(series.color), width: series.key === "MGP" ? 2 : 1.4, type: series.type }, itemStyle: { color: cssVar(series.color) } })),
+        ...markets.map(market => ({ name: market.label, type: "bar", stack: "position", xAxisIndex: 1, yAxisIndex: 1, barCategoryGap: "15%",
+          data: Array.from(day.net[market.key], value => (Math.abs(value) < 0.01 ? null : Math.round(value * 100) / 100)), itemStyle: { color: cssVar(market.color) } })),
+        { name: "Delivered", type: "line", xAxisIndex: 1, yAxisIndex: 1, step: "middle", showSymbol: false, z: 10,
+          data: labels.map((_, t) => Math.round(markets.reduce((sum, market) => sum + day.net[market.key][t], 0) * 100) / 100),
+          lineStyle: { color: cssVar("--chart-pun"), width: 1.6 }, itemStyle: { color: cssVar("--chart-pun") } },
+        { name: "State of charge", type: "line", xAxisIndex: 2, yAxisIndex: 2, showSymbol: false,
+          data: Array.from(day.soc, value => (energy > 0 ? Math.round(value / energy * 1000) / 10 : null)),
+          lineStyle: { color: cssVar("--chart-pun"), width: 1.8 }, itemStyle: { color: cssVar("--chart-pun") },
+          areaStyle: { color: cssVar("--chart-zoom-filler") } }
+      ]
+    }, true);
+    chart.resize();
+  }
+
+  /* ----- Distribution of daily margins ----- */
+  function bessRenderDistribution() {
+    const chart = bessCharts.distribution, results = bessState.results;
+    if (!chart) return;
+    if (!results || results.days.length < 2) { bessEmpty(chart, bessState.running ? "Optimising…" : ""); return; }
+    const margins = results.days.map(day => day.margin);
+    const low = Math.min(...margins), high = Math.max(...margins);
+    const bins = 30, width = (high - low) / bins || 1;
+    const counts = new Array(bins).fill(0);
+    margins.forEach(value => { counts[Math.min(bins - 1, Math.floor((value - low) / width))] += 1; });
+    const centres = counts.map((_, index) => low + width * (index + 0.5));
+    const sorted = [...margins].sort((a, b) => b - a);
+    const total = sorted.reduce((a, b) => a + b, 0);
+    const top = Math.max(1, Math.round(sorted.length * 0.1));
+    const topShare = total > 0 ? sorted.slice(0, top).reduce((a, b) => a + b, 0) / total : null;
+    const negative = margins.filter(value => value < 0).length;
+    setText("bess-distribution-subtitle", `Days by net margin · the best 10% of days (${formatNumber(top)}) earned ` +
+      `${topShare === null ? "—" : `${formatNumber(topShare * 100, 0)}%`} of the period's margin · ${formatNumber(negative)} day${negative === 1 ? "" : "s"} below zero`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: bessTooltip(params => bessTipHead(`${bessMoney(centres[params[0].dataIndex] - width / 2)} to ${bessMoney(centres[params[0].dataIndex] + width / 2)}`) +
+        tooltipRow(params[0].color, "Days", formatNumber(params[0].value)), { axisPointer: { type: "shadow" } }),
+      grid: { left: 52, right: 16, top: 16, bottom: 34 },
+      xAxis: { type: "category", data: centres.map(value => bessMoney(value, 0)), axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
+      yAxis: timelineYAxis("Days", { nameGap: 34, minInterval: 1 }),
+      series: [{ type: "bar", data: counts, barCategoryGap: "8%",
+        itemStyle: { color: params => cssVar(centres[params.dataIndex] < 0 ? "--border-2" : "--border-1"), borderRadius: [2, 2, 0, 0] } }]
+    }, true);
+    chart.resize();
+  }
+
+  /* ----- Italy's batteries ----- */
+  function bessRenderAnchor() {
+    const element = document.getElementById("bess-anchor");
+    const results = bessState.results;
+    if (!element) return;
+    if (!results) { element.innerHTML = ""; return; }
+    const observed = results.observed;
+    const zoneName = ZONE_NAMES[results.zone];
+    if (!observed || !observed.perMw) {
+      setText("bess-anchor-subtitle", zoneName);
+      element.innerHTML = `<p class="bess-note">${observed && observed.units === 0 ? `GME lists no battery in ${zoneName} on the days on file.` : "Italy's batteries are not on file here (Storage tab)."}</p>`;
+      return;
+    }
+    const overlap = results.days.filter(day => day.date >= observed.from && day.date <= observed.to);
+    const model = key => {
+      if (!overlap.length) return null;
+      const keys = key === "MI" ? ["MIA1", "MIA2", "MIA3"] : [key];
+      const sum = overlap.reduce((total, day) => total + keys.reduce((part, market) =>
+        part + (day.markets[market] ? day.markets[market][2] - day.markets[market][3] : 0), 0), 0);
+      return sum / results.power * 365 / overlap.length;
+    };
+    const rows = [["MGP", "MGP"], ["MI", "MI-A"], ["XBID", "MI-XBID"], ["MSD", "MSD"], ["MB", "MB"]];
+    const modelTotal = overlap.length ? rows.reduce((sum, [key]) => sum + model(key), 0) : null;
+    const cell = value => (value === null ? "—" : bessMoney(value));
+    setText("bess-anchor-subtitle", `${zoneName} · € per MW and year, before O&M · ${bessDateText(observed.from)} – ${bessDateText(observed.to)}`);
+    element.innerHTML = `<table class="bess-table"><thead><tr><th>Market</th><th>Italy's batteries</th><th>This battery</th></tr></thead><tbody>` +
+      rows.map(([key, label]) => `<tr><td>${label}</td><td>${cell(observed.perMw[key])}</td><td>${cell(model(key))}</td></tr>`).join("") +
+      `<tr class="bess-total"><td>All markets</td><td>${cell(observed.perMw.total)}</td><td>${cell(modelTotal)}</td></tr></tbody></table>` +
+      `<p class="bess-note">${formatNumber(observed.units)} batteries, ${formatNumber(observed.mw, 0)} MW on average, ${formatNumber(observed.days.length)} days. ` +
+      (overlap.length ? `This battery: the ${formatNumber(overlap.length)} days of the period among them.` : "The period chosen does not cover these days: choose one that does to compare.") +
+      ` Theirs: as operated, durations unknown (GME gives power only), revenues as the Storage tab estimates them.</p>`;
+  }
+
+  /* ----- Tables and CSV ----- */
+  function bessRenderTable() {
+    const element = document.getElementById("bess-table");
+    const results = bessState.results;
+    if (!element) return;
+    if (!results) { element.innerHTML = ""; return; }
+    const t = results.totals;
+    if (bessState.tableTab === "markets") {
+      setText("bess-table-subtitle", "Totals over the period, by market: each market's own sales and purchases, before netting across markets");
+      const price = (euro, mwh) => (mwh > 0 ? `€${formatNumber(euro / mwh, 1)}` : "—");
+      element.innerHTML = `<table class="bess-table"><thead><tr><th>Market</th><th>Sold</th><th>Average price</th><th>Bought</th><th>Average price</th>` +
+        `<th>Revenues</th><th>Purchases</th><th>Net</th><th>Net €/MW/yr</th></tr></thead><tbody>` +
+        BESS_MARKETS.filter(market => results.params.worker.markets[market.key]).map(market => {
+          const sum = t.markets[market.key];
+          return `<tr><td><span class="bess-swatch" style="background:var(${market.color})"></span>${market.label}</td><td>${bessMwh(sum.sold)}</td><td>${price(sum.income, sum.sold)}</td>` +
+            `<td>${bessMwh(sum.bought)}</td><td>${price(sum.spend, sum.bought)}</td><td>${bessMoney(sum.income)}</td><td>${bessMoney(sum.spend)}</td>` +
+            `<td>${bessMoney(sum.income - sum.spend)}</td><td>${bessMoney(bessPerMwYear(sum.income - sum.spend, results))}</td></tr>`;
+        }).join("") +
+        `<tr><td>Variable O&amp;M</td><td colspan="6"></td><td>${bessMoney(-t.throughput)}</td><td>${bessMoney(-bessPerMwYear(t.throughput, results))}</td></tr>` +
+        `<tr><td>Fixed O&amp;M</td><td colspan="6"></td><td>${bessMoney(-t.fixed)}</td><td>${bessMoney(-bessPerMwYear(t.fixed, results))}</td></tr>` +
+        `<tr><td>Fees and network charges</td><td colspan="6"></td><td>${bessMoney(-(t.fees + t.network))}</td><td>${bessMoney(-bessPerMwYear(t.fees + t.network, results))}</td></tr>` +
+        `<tr class="bess-total"><td>Net margin</td><td colspan="4"></td><td>${bessMoney(t.income)}</td><td>${bessMoney(t.spend)}</td>` +
+        `<td>${bessMoney(t.margin)}</td><td>${bessMoney(bessPerMwYear(t.margin, results))}</td></tr></tbody></table>`;
+      return;
+    }
+    setText("bess-table-subtitle", "Month by month");
+    const months = new Map();
+    results.days.forEach(day => {
+      const key = day.date.slice(0, 7);
+      if (!months.has(key)) months.set(key, { days: 0, income: 0, spend: 0, other: 0, margin: 0, discharged: 0 });
+      const month = months.get(key);
+      month.days += 1; month.income += day.cashIn; month.spend += day.cashOut; month.other += day.other; month.margin += day.margin; month.discharged += day.discharged;
+    });
+    const usable = results.energy * (results.params.worker.socMax - results.params.worker.socMin);
+    element.innerHTML = `<table class="bess-table"><thead><tr><th>Month</th><th>Days</th><th>Revenues</th><th>Energy bought</th><th>O&amp;M, fees, charges</th><th>Net margin</th>` +
+      `<th>€/MW/yr</th><th>Cycles/day</th></tr></thead><tbody>` +
+      [...months.entries()].map(([key, month]) => `<tr><td>${bessBucketLabel(key)}</td><td>${month.days}</td><td>${bessMoney(month.income)}</td>` +
+        `<td>${bessMoney(month.spend)}</td><td>${bessMoney(month.other)}</td><td>${bessMoney(month.margin)}</td>` +
+        `<td>${bessMoney(month.margin / results.power * 365 / month.days)}</td><td>${usable > 0 ? formatNumber(month.discharged / usable / month.days, 2) : "—"}</td></tr>`).join("") +
+      `</tbody></table>`;
+  }
+
+  function bessCsv() {
+    const results = bessState.results;
+    if (!results) return;
+    const head = ["date", ...BESS_MARKETS.flatMap(market => [`${market.label} sold MWh`, `${market.label} bought MWh`, `${market.label} revenue EUR`, `${market.label} purchases EUR`]),
+      "charged MWh", "discharged MWh", "revenues EUR (netted per quarter-hour)", "energy bought EUR (netted per quarter-hour)",
+      "variable O&M EUR", "network charges EUR", "fees EUR", "fixed O&M EUR", "net margin EUR"];
+    const lines = [head.join(",")].concat(results.days.map(day => [day.date,
+      ...BESS_MARKETS.flatMap(market => (day.markets[market.key] || [0, 0, 0, 0]).map(value => value.toFixed(2))),
+      day.charged.toFixed(2), day.discharged.toFixed(2), day.cashIn.toFixed(2), day.cashOut.toFixed(2),
+      day.throughputCost.toFixed(2), day.chargeCost.toFixed(2), day.fees.toFixed(2),
+      day.fixed.toFixed(2), day.margin.toFixed(2)].join(",")));
+    const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `battery-${results.zone}-${results.from}-${results.to}.csv`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+
   /*
    * A tab is made of blocks: some sections, the files they need, how they
    * are drawn.  A block is drawn when it is on screen or near it
@@ -16252,13 +17722,15 @@ move the slider above to another one`,
     const isMapsSection = currentSection === "maps";
     document.getElementById("maps-page").style.display = isMapsSection ? "block" : "none";
     // The queue and the map are snapshots: the calendar does not apply.
-    document.querySelector(".calendar-trigger-wrap").style.display = isQueueSection || isMapsSection ? "none" : "";
+    // The analyses choose their own period.
+    const isAnalysisTab = isDataSection && currentSubTab === "analysis";
+    document.querySelector(".calendar-trigger-wrap").style.display = isQueueSection || isMapsSection || isAnalysisTab ? "none" : "";
 
     document.getElementById("zone-tabs-wrap").style.display =
       isDataSection ? "flex" : "none";
 
     document.getElementById("granularity-control").style.display =
-      isDataSection ? "flex" : "none";
+      isDataSection && !isAnalysisTab ? "flex" : "none";
 
     document.getElementById("zone-page").style.display =
       isDataSection ? "block" : "none";
@@ -16344,6 +17816,9 @@ move the slider above to another one`,
       hasData &&
       currentSubTab === "storage";
 
+    const showAnalysis =
+      currentSubTab === "analysis";
+
     if (showPunChart || showZonalChart || showInterconnection) {
       loadTabData(currentSubTab);
     }
@@ -16352,7 +17827,7 @@ move the slider above to another one`,
       document.getElementById("zone-placeholder");
 
     zonePlaceholder.style.display =
-      showPunChart || showZonalChart || showInterconnection || showBalancing || showMarket || showStorage
+      showPunChart || showZonalChart || showInterconnection || showBalancing || showMarket || showStorage || showAnalysis
         ? "none"
         : "flex";
 
@@ -16437,6 +17912,11 @@ move the slider above to another one`,
       }, 0);
     }
 
+    analysisMount.style.display = showAnalysis ? "block" : "none";
+    if (showAnalysis) {
+      setTimeout(renderAnalysis, 0);
+    }
+
     if (showInterconnection) {
       setTimeout(renderInterconnectionCharts, 0);
     }
@@ -16448,7 +17928,7 @@ move the slider above to another one`,
       setTimeout(renderBalancing, 0);
     }
 
-    if (!showPunChart && !showZonalChart && !showInterconnection && !showBalancing && !showMarket && !showStorage) {
+    if (!showPunChart && !showZonalChart && !showInterconnection && !showBalancing && !showMarket && !showStorage && !showAnalysis) {
       document.getElementById(
         "zone-placeholder-text"
       ).textContent = currentSubTab === "balancing"
