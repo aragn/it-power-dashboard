@@ -12,7 +12,10 @@
  *
  * Markets, in the order their gates close (GATE_ORDER):
  *   MGP   day-ahead auction, zonal price (hourly products before 1 Oct 2025)
- *   MIA1  intraday auction MI-A1 (D-1 15:00, the whole day)
+ *   MIA1  intraday auction MI-A1 (D-1 15:00, the whole day); each MI-A
+ *         auction capped at a share of the zone's volume of the
+ *         quarter-hour: sales at that share of what the zone's sellers sold,
+ *         purchases of what its buyers bought (volumeShare)
  *   MIA2  intraday auction MI-A2 (D-1 22:00, the whole day)
  *   MSD   ex-ante dispatching services market: upward sales and downward
  *         purchases at the zone's average accepted prices, each capped at a
@@ -21,7 +24,8 @@
  *   MIA3  intraday auction MI-A3 (D 10:00, 12:00 to 24:00)
  *   XBID  continuous intraday MI-XBID: the 15-minute products' reference
  *         price (volume-weighted average of the trades), capped at a share
- *         of the battery's power
+ *         of the battery's power and, like MI-A, at a share of the zone's
+ *         traded volume
  *   MB    balancing market, as MSD (the other services, not the secondary
  *         reserve's band)
  *
@@ -41,8 +45,10 @@
  *
  * Per day the page sends (T quarter-hours: 92, 96 or 100):
  *   { date, T, hourlyMgp, factor, prices: { MGP, MIA1, MIA2, MIA3, XBID },
+ *     volumes: { MIA1: { sold, bought }, MIA2, MIA3, XBID },
  *     balancing: { MSD: { upP, upV, downP, downV }, MB: { ... } } }
- *   prices in EUR/MWh, volumes in MW, NaN where there is none; factor
+ *   prices in EUR/MWh, volumes in MW, NaN where there is none (no volume on
+ *   file: no volume cap); factor
  *   scales the energy (availability and capacity fade).
  * and gets back
  *   { date, T, ok, markets: { KEY: [MWh sold, MWh bought, EUR sold, EUR bought] },
@@ -104,7 +110,8 @@ const EPS = 1e-3;                      // MW: below it, the solver's tolerance, 
 /*
  * What the battery can do in a market on a day: the price and the most MW
  * each way per quarter-hour.  Volume shares of MSD and MB: { up, down } as
- * fractions of the zone's accepted volume.
+ * fractions of the zone's accepted volume; of MI-A and MI-XBID, volumeShare
+ * of the zone's volume sold (the battery's sales) and bought (its purchases).
  */
 function marketSpec(key, day, params, power) {
   const T = day.T;
@@ -113,10 +120,16 @@ function marketSpec(key, day, params, power) {
   if (ENERGY.has(key)) {
     const prices = day.prices[key];
     const cap = key === "XBID" ? params.xbidShare * power : 2 * power;
+    const volumes = key === "MGP" ? null : (day.volumes || {})[key];
+    const share = params.volumeShare;
+    const limit = (side, t) => {
+      const volume = volumes && volumes[side] ? volumes[side][t] : NaN;
+      return finite(volume) && finite(share) ? Math.min(cap, share * Math.max(volume, 0)) : cap;
+    };
     for (let t = 0; t < T; t += 1) {
       const price = prices ? prices[t] : NaN;
       if (!finite(price) || !(cap > 0)) continue;
-      sellPrice[t] = price; buyPrice[t] = price; sellCap[t] = cap; buyCap[t] = cap;
+      sellPrice[t] = price; buyPrice[t] = price; sellCap[t] = limit("sold", t); buyCap[t] = limit("bought", t);
     }
   } else {
     const series = day.balancing[key];

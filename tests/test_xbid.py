@@ -70,3 +70,21 @@ def test_output_round_trips_through_compact_format():
     assert csud["hourly"][0] == {"date": "2026-09-28", "time": "00:00", "price": 102.5}
     assert decoded["markets"]["XBID-60"]["CSUD"]["daily"] == [{"date": "2026-09-28", "price": 212.5}]
     assert "quarter_hourly" not in decoded["markets"]["XBID-60"]["CSUD"]
+
+
+def test_15_minute_volumes_kept_traded_or_not():
+    rows = [
+        row("20260928", "NORD", 1, 0, 100.0),
+        {**row("20260928", "NORD", 1, 1, 104.5), "Sold": "341.600", "Purchased": "256.600"},
+        {**row("20260928", "NORD", 1, 2, None), "Sold": "0.000", "Purchased": "0.000"},
+        {**row("20260928", "NORD", 1, 3, 101.0, phase="1"), "Sold": "9.000"},
+        {**row("20260928", "FRAN", 1, 1, 90.0)},
+    ]
+    volumes = fetch_xbid.build_volumes(fetch_xbid.extract_volumes(rows))
+    assert volumes["NORD"]["sold"] == [
+        {"date": "2026-09-28", "time": "00:00", "mw": 342},
+        {"date": "2026-09-28", "time": "00:15", "mw": 0},
+    ]
+    assert volumes["NORD"]["bought"][0]["mw"] == 257
+    decoded = compact.decode_tree(fetch_xbid.build_output(fetch_xbid.empty_markets(), volumes))
+    assert decoded["volumes"]["XBID-15"]["NORD"]["sold"][0]["mw"] == 342

@@ -39,7 +39,7 @@ FORMAT = "compact-v1"
 
 RECENT_DAYS = 120
 RECENT_FILES = {
-    "zonal_prices.json", "generation_load.json", "intraday_prices.json", "xbid_prices.json",
+    "zonal_prices.json", "generation_load.json", "intraday_prices.json", "intraday_volumes.json", "xbid_prices.json",
     "jao_spreads.json", "crossborder.json", "res_forecasts.json", "forecasts.json",
     "neighbour_prices.json", "coupling.json", "jao_capacity.json", "transits.json",
 }
