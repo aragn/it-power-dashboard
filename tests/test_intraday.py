@@ -82,3 +82,10 @@ def test_output_carries_the_volumes():
     sici = decoded["volumes"]["MI-A2"]["SICI"]
     assert len(sici["sold"]) == 96
     assert sici["bought"][1] == {"date": "2026-10-10", "time": "00:15", "mw": 4.0}
+
+
+def test_an_hourly_day_repeats_each_hour_over_its_quarter_hours():
+    rows = volume_rows("20250601", "SUD", [(1, 2000.0, 1800.0), (2, 2100.0, 1900.0)], "MGP")
+    volumes = fetch_intraday.build_volumes(rows)["SUD"]
+    assert [r["time"] for r in volumes["sold"]] == ["00:00", "00:15", "00:30", "00:45", "01:00", "01:15", "01:30", "01:45"]
+    assert [r["mw"] for r in volumes["bought"]][3:5] == [1800.0, 1900.0]
