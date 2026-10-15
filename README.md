@@ -32,6 +32,15 @@ Maps › Grid and power plants (`etl/fetch_grid.py`, weekly `update-grid.yml`) d
 
 The source is Geofabrik's daily extract of Italy (`download.geofabrik.de/europe/italy-latest.osm.pbf`, about 2 GB), read with pyosmium; the lines are the OSM contributors' (ODbL, credited under the map). MASE's own layer of the grid (GRTN 2001, revised 2008) is out of date and its map services are switched off.
 
+## Analysis tab
+
+Data › Analysis opens on a set of cards, one per analysis; a card opens its view. The first built is the **merchant revenues battery calculator**: the user describes a battery (zone, MW, MWh, efficiency, state-of-charge window, cycles, availability, fade, costs) and a period, and every day of it is optimised on the day's actual prices, then summed into revenues against costs by day, month and year, with where the battery made money, what it bought and sold in each market, the average day, the dispatch, a day in detail and the comparison with Italy's real batteries.
+
+- **Solver:** [HiGHS](https://highs.dev) 1.15 (University of Edinburgh, MIT licence), its WebAssembly build [highs-js](https://github.com/lovasoa/highs-js) 1.15.3 vendored in `app/lib/highs/` (from npm, checksum checked). It runs in the browser: `app/analysis/bess-worker.js` is a Web Worker that solves each day as a linear programme (again as a mixed-integer one where the answer would charge and discharge at once); the page runs a few workers side by side (a year in about two seconds). No server, nothing precomputed.
+- **Markets**, in the order of their gates: MGP (zonal price), MI-A1, MI-A2, MSD (ex-ante), MI-A3, MI-XBID (15-minute reference prices, capped at a share of the power), MB. MSD and MB: the zone's average accepted prices, up to a share of the zone's accepted volume; left blank, that share is what Italy's batteries in the zone were accepted for per MW (the Storage tab's files), scaled to the battery.
+- **Strategies:** sequential, gate by gate (default: each market knowing its own prices, on the position the earlier ones left); perfect foresight across all markets (the ceiling); fixed shares of power per group of markets.
+- **Data:** the GME files the page already has (`zonal_prices.json`, `intraday_prices.json`, `xbid_prices.json`, `balancing_gme/<ZONE>.json`, `storage/`); nothing new to fetch or publish.
+
 ## Full and public versions
 
 GME's terms allow its data to be shown publicly only as re-elaborations, without the exact values. The page is the same for both versions:
