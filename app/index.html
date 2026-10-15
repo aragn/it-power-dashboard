@@ -16300,9 +16300,9 @@ move the slider above to another one`,
     { id: "capture", live: true, icon: "sun", tag: "Renewables",
       title: "Solar and wind capture prices",
       text: "What a solar or a wind plant in each zone earned against the baseload price, month by month: capture rates and how far the midday hours have fallen." },
-    { id: "spark", icon: "flame", tag: "Thermal",
+    { id: "spark", live: true, icon: "flame", tag: "Thermal",
       title: "Spark and clean spark spreads",
-      text: "A gas plant's margin on the day-ahead price after gas (PSV) and carbon (EU ETS), by zone and hour: when gas sets the price and what a CCGT keeps." },
+      text: "A gas plant's margin on the day-ahead price after gas (GME's daily PSV index) and carbon (EU ETS), by zone and hour: how often it paid to run, what a plant running only then kept, and when gas was likely setting the price." },
     { id: "congestion", live: true, icon: "grid", tag: "Grid",
       title: "Zonal spreads and congestion",
       text: "How often each zone splits from the North, by how much and at what hours, and what a flexible plant gains from being on the dearer side." },
@@ -16315,9 +16315,9 @@ move the slider above to another one`,
     { id: "imbalance", live: true, icon: "scale", tag: "Balancing",
       title: "Imbalance cost of a solar or wind plant",
       text: "What forecast errors cost at Terna's imbalance prices: ENTSO-E's day-ahead and intraday forecasts against the actual output, zone by zone." },
-    { id: "macse", icon: "shield", tag: "Storage · policy",
+    { id: "macse", live: true, icon: "shield", tag: "Storage · policy",
       title: "MACSE and the capacity market",
-      text: "The fixed revenues of Terna's storage auctions (MACSE) and of the capacity market beside the merchant ones, and what each gives up in return." }
+      text: "The same battery three ways over the days on file: merchant, merchant with a capacity contract (premium against the price above the strike), and MACSE's 15-year fixed premium; what each earns, what each gives up, and the MACSE premium that would match merchant." }
   ];
   let analysisView = "home";
 
@@ -19648,7 +19648,531 @@ move the slider above to another one`,
     self.charts.hours.resize();
   }
 
-  const ANALYSIS_VIEWS = { capture: captureView, imbalance: imbalanceView, congestion: congestionView, spikes: spikesView, binding: bindingView };
+  /* ---------- Gas and carbon prices, by day ---------- */
+  const GAS_EMISSION = 0.202;   // tCO2 per MWh of natural gas burnt (56.1 tCO2/TJ)
+  async function anaGasCarbon() {
+    const [gas, eua] = await Promise.all([anaFetch("gas_prices.json").catch(() => null), anaFetch("eua.json").catch(() => null)]);
+    if (!gas || !gas.series) throw anaUserError("GME's gas prices (gas_prices.json) are not on file here yet.");
+    const daily = name => {
+      const series = gas.series[name];
+      const map = new Map();
+      if (series && series.start) (series.values || []).forEach((value, index) => { if (value !== null) map.set(bessAddDays(series.start, index), value); });
+      return map;
+    };
+    const auctions = eua && eua.auctions ? [...eua.auctions].sort((a, b) => (a.date < b.date ? -1 : 1)) : [];
+    // The carbon price of a day: the last EEX auction on or before it (the first one before the first).
+    const carbon = date => {
+      let low = 0, high = auctions.length - 1, found = -1;
+      while (low <= high) { const mid = (low + high) >> 1; if (auctions[mid].date <= date) { found = mid; low = mid + 1; } else high = mid - 1; }
+      return auctions.length ? auctions[Math.max(0, found)].price : NaN;
+    };
+    const series = { igi: daily("igi"), mgp_gas: daily("mgp_gas"), imbalance: daily("imbalance") };
+    // A day without the chosen series takes the nearest earlier day with it (weekends, holidays), at most a week back.
+    const gasOn = (name, date) => {
+      const map = series[name] || series.igi;
+      for (let back = 0; back < 7; back += 1) { const value = map.get(bessAddDays(date, -back)); if (Number.isFinite(value)) return value; }
+      return NaN;
+    };
+    const last = name => [...(series[name] || new Map()).keys()].sort().pop();
+    return { series, gasOn, carbon, last, eua: auctions };
+  }
+
+  /* ---------- Spark and clean spark spreads ---------- */
+  /*
+   * A gas plant's margin on the day-ahead market: the zone's MGP price (the
+   * PUN Index for Italy) minus the gas it burns (GME's IG Index or the
+   * MGP-GAS price of the day, over the plant's efficiency): the spark
+   * spread; minus its carbon too (the EU ETS price of the day, EEX's last
+   * auction, times 0.202 t per MWh of gas over the efficiency) and its
+   * variable O&M: the clean spark spread.  A plant that runs only in the
+   * quarter-hours the clean spread pays (no start-up costs or minimum run)
+   * earns the positive part: an upper bound of its margin on the MGP.
+   * Prices between the cost of a 58% and a 45% efficient plant are those
+   * where a gas plant was likely at the margin.
+   */
+  const sparkState = { zone: "", gas: "igi", efficiency: 55, vom: 3, transport: 0, period: "last12", from: "", to: "", bucket: "month" };
+  const sparkZone = () => sparkState.zone || zoneCode() || "IT";
+
+  async function sparkLoad(zone) {
+    const [prices, generation, fuel] = await Promise.all([
+      zone === "IT" ? anaFetch("pun.json") : anaFetch("zonal_prices.json").then(file => file.zones[zone]),
+      anaFetch(zone === "IT" ? "generation_load.json" : `zones/${zone}/generation_load.json`).catch(() => null),
+      anaGasCarbon()
+    ]);
+    return { prices, generation, fuel };
+  }
+  function sparkCompute(files, zone, from, to, state) {
+    const eta = Math.min(0.7, Math.max(0.2, bessNum(state.efficiency, 55) / 100));
+    const vom = Math.max(0, bessNum(state.vom, 3)), transport = Math.max(0, bessNum(state.transport, 0));
+    const days = [];
+    for (let date = from; date <= to; date = bessAddDays(date, 1)) {
+      const price = anaSeriesDay(files.prices.quarter_hourly, files.prices.hourly, date);
+      const gasPrice = files.fuel.gasOn(state.gas, date), carbon = files.fuel.carbon(date);
+      if (!price || !Number.isFinite(gasPrice) || !Number.isFinite(carbon)) continue;
+      const T = price.length;
+      const gasGen = files.generation ? anaSeriesDay(files.generation.generation.quarter_hourly.B04 && files.generation.generation.quarter_hourly.B04.points,
+        files.generation.generation.hourly.B04 && files.generation.generation.hourly.B04.points, date, T) : null;
+      const fuel = (gasPrice + transport) / eta, co2 = carbon * GAS_EMISSION / eta;
+      const cost = fuel + co2 + vom;
+      const band = [(gasPrice + transport) / 0.58 + carbon * GAS_EMISSION / 0.58 + vom, (gasPrice + transport) / 0.45 + carbon * GAS_EMISSION / 0.45 + vom];
+      const weekday = ![0, 6].includes(parseDate(date).getDay());
+      const record = { date, gas: gasPrice, carbon, fuel, co2, vom, cost, quarters: 0, price: 0, ss: 0, css: 0, inMoney: 0, margin: 0, atMargin: 0,
+        peakQuarters: 0, peakCss: 0, gasMwh: 0, gasMwhInMoney: 0, hourCss: new Float64Array(24), hourN: new Float64Array(24), hourAtMargin: new Float64Array(24) };
+      for (let t = 0; t < T; t += 1) {
+        const p = price[t];
+        if (!Number.isFinite(p)) continue;
+        const hour = Math.floor(bessClockMinutes(T, t) / 60);
+        const css = p - cost;
+        record.quarters += 1; record.price += p; record.ss += p - fuel; record.css += css;
+        if (css > 0) { record.inMoney += 1; record.margin += css * 0.25; }
+        if (p >= band[0] && p <= band[1]) { record.atMargin += 1; record.hourAtMargin[hour] += 1; }
+        if (weekday && hour >= 8 && hour < 20) { record.peakQuarters += 1; record.peakCss += css; }
+        record.hourCss[hour] += css; record.hourN[hour] += 1;
+        if (gasGen && Number.isFinite(gasGen[t])) { record.gasMwh += gasGen[t] * 0.25; if (css > 0) record.gasMwhInMoney += gasGen[t] * 0.25; }
+      }
+      if (record.quarters) days.push(record);
+    }
+    if (!days.length) throw anaUserError("No day of the period has power, gas and carbon prices on file.");
+    return { days, eta, vom, transport };
+  }
+  function sparkTotals(days) {
+    const t = { days: days.length, quarters: 0, price: 0, ss: 0, css: 0, inMoney: 0, margin: 0, atMargin: 0, peakQuarters: 0, peakCss: 0, gas: 0, carbon: 0, cost: 0, fuel: 0, co2: 0,
+      gasMwh: 0, gasMwhInMoney: 0 };
+    days.forEach(day => {
+      ["quarters", "price", "ss", "css", "inMoney", "margin", "atMargin", "peakQuarters", "peakCss", "gasMwh", "gasMwhInMoney"].forEach(key => { t[key] += day[key]; });
+      ["gas", "carbon", "cost", "fuel", "co2"].forEach(key => { t[key] += day[key] * day.quarters; });
+    });
+    const q = t.quarters || 1;
+    return { ...t, meanPrice: t.price / q, meanSs: t.ss / q, meanCss: t.css / q, share: t.inMoney / q, shareAtMargin: t.atMargin / q,
+      meanPeakCss: t.peakQuarters ? t.peakCss / t.peakQuarters : NaN, gasMean: t.gas / q, carbonMean: t.carbon / q, costMean: t.cost / q,
+      fuelMean: t.fuel / q, co2Mean: t.co2 / q, marginPerYear: t.margin / Math.max(1, days.length) * 365 };
+  }
+
+  const sparkView = anaView("spark", {
+    title: "Spark and clean spark spreads",
+    lede: "What a gas plant earns on the day-ahead market after its gas and its carbon: the spark spread (the power price minus the gas it burns) and the clean spark spread (minus its CO₂ and variable costs too), quarter-hour by quarter-hour, against GME's daily gas price at the PSV and the EU ETS price; how often a plant was in the money, what one running only then would have earned, and when gas was likely setting the price.",
+    form: () => {
+      const s = sparkState;
+      return bessGroup("Plant and prices",
+        anaSelect(s, "zone", "Power price", [["", `As the page (${zoneCode() ? ZONE_NAMES[zoneCode()] : "Italy"})`], ["IT", "Italy (PUN Index)"], ...BESS_ZONES.map(code => [code, `${ZONE_NAMES[code]} (zonal price)`])], {
+          help: bessHelp("Which price", "<p>A plant is paid its zone's MGP price; Italy's is set against the PUN Index.</p>") }) +
+        anaSelect(s, "gas", "Gas price", [["igi", "IG Index (GME, PSV)"], ["mgp_gas", "MGP-GAS auction (GME)"], ["imbalance", "Snam's balancing average (GME)"]], {
+          help: bessHelp("The three", "<p>The IG Index is GME's daily index of the price of gas at the PSV, Italy's hub; the MGP-GAS price is that of GME's day-ahead gas auction; the third, the average of Snam's balancing trades, the basis of the gas imbalance price. Daily, by gas day; a day without one takes the last day before it.</p>") }) +
+        anaNumber(s, "efficiency", "Efficiency (%)", { placeholder: "e.g. 55", min: 20, max: 70, step: 1,
+          help: bessHelp("Typical values", "<p>A new combined-cycle plant (CCGT) runs at 55–60% (net, lower heating value), the Italian fleet at 45–55%, an open-cycle turbine (OCGT) at 35–40%.</p>") }) +
+        anaNumber(s, "vom", "Variable O&amp;M (€/MWh)", { placeholder: "e.g. 3", min: 0, step: 0.5 }) +
+        anaNumber(s, "transport", "Gas transport and fees (€/MWh of gas)", { placeholder: "0", min: 0, step: 0.1,
+          help: bessHelp("What to add", "<p>The exit tariffs and charges a power plant pays on top of the hub price, if any; per MWh of gas, so divided by the efficiency on the power side.</p>") })) +
+        bessGroup("Period", anaPeriodFields(s));
+    },
+    results: () =>
+      `<section id="spark-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Results</div>` +
+      `<div id="spark-summary-subtitle" class="chart-subtitle"></div></div><div id="spark-status" class="bess-status"></div></div>` +
+      `<div id="spark-kpis" class="gas-kpis bess-kpis"></div><p id="spark-reading" class="bess-reading"></p></section>` +
+      anaSection("spark", "spreads", "Spark and Clean Spark Spreads", { wide: true, extra: anaBuckets(sparkState.bucket),
+        help: "Averages over every quarter-hour of each day, month or year: the spark spread (power minus gas), the clean spark spread (minus carbon and variable O&amp;M too) over all hours and over the weekday peak (08:00–20:00)." }) +
+      anaSection("spark", "stack", "The Power Price and a Gas Plant's Cost", {
+        help: "Stacked: the gas a MWh of power burns, its carbon and the variable O&amp;M, the plant's marginal cost; the line, the average power price. Where the line is above the stack, the plant earned on average." }) +
+      anaSection("spark", "money", "How Often It Paid to Run", {
+        help: "Share of the quarter-hours with a clean spark spread above zero, and the share whose price fell between the cost of a 58% and a 45% efficient gas plant: hours a gas plant was likely setting the price." }) +
+      anaSection("spark", "heatmap", "Clean Spark Spread by Hour, Month by Month", { height: " tall",
+        help: "Each month (column) and clock hour (row): the average clean spark spread. Orange above zero (the plant earned), blue below: the midday solar hours are where gas loses." }) +
+      anaSection("spark", "margin", "What a Plant Running Only When It Paid Earned", {
+        help: "€ per MW of the plant: the clean spark spread of every quarter-hour it was above zero, as if the plant could start and stop at no cost; the most its MGP sales could have covered of its fixed costs." }) +
+      anaSection("spark", "scatter", "Daily Power Price against a Gas Plant's Cost", {
+        help: "Each day: the gas plant's marginal cost (across) against the day's average power price (up). Above the line the day paid on average." }) +
+      anaSection("spark", "fuel", "Gas and Carbon Prices", { wide: true,
+        help: "Top: GME's daily gas prices at the PSV, €/MWh. Bottom: the EU ETS price, €/tCO₂, the clearing price of EEX's latest auction." }) +
+      anaSection("spark", "table", "Results Table", { wide: true, body: '<div id="spark-table" class="bess-table-wrap"></div>' }),
+    charts: ["spreads", "stack", "money", "heatmap", "margin", "scatter", "fuel"],
+    compute: async self => {
+      const zone = sparkZone();
+      const files = await sparkLoad(zone);
+      const priceLast = anaLastDate(files.prices.quarter_hourly) || anaLastDate(files.prices.hourly);
+      const gasLast = files.fuel.last(sparkState.gas) || files.fuel.last("igi");
+      const lastDay = [priceLast, gasLast ? bessAddDays(gasLast, 0) : priceLast].sort()[0];
+      const [from, to] = anaPeriod(sparkState, lastDay);
+      self.hint("period", `${bessDateText(from)} – ${bessDateText(to)} · power to ${bessDateText(priceLast)}, gas to ${gasLast ? bessDateText(gasLast) : "—"}.`);
+      const result = sparkCompute(files, zone, from, to, sparkState);
+      return { zone, from, to, ...result, fuel: files.fuel, totals: sparkTotals(result.days) };
+    },
+    render: self => sparkRender(self)
+  });
+  sparkView.state = sparkState;
+  sparkView.followsPage = sparkZone;
+
+  function sparkRender(self) {
+    const results = self.results;
+    const kpis = document.getElementById("spark-kpis"), reading = document.getElementById("spark-reading");
+    if (!results) {
+      kpis.innerHTML = "";
+      reading.innerHTML = self.message ? `<span class="bess-error">${self.message}</span>` : "";
+      Object.values(self.charts).forEach(chart => anaEmpty(chart, self.busy ? "Working…" : ""));
+      document.getElementById("spark-table").innerHTML = "";
+      return;
+    }
+    const t = results.totals;
+    const name = captureZoneName(results.zone);
+    const gasName = { igi: "IG Index", mgp_gas: "MGP-GAS", imbalance: "Snam's balancing average" }[sparkState.gas] || "IG Index";
+    setText("spark-summary-subtitle", `${name} · ${formatNumber(results.eta * 100, 0)}% efficient · gas: ${gasName} · ${bessDateText(results.from)} – ${bessDateText(results.to)} (${formatNumber(results.days.length)} days)`);
+    kpis.innerHTML =
+      anaTile("Clean spark spread", anaSigned(t.meanCss), `per MWh, every hour · weekday peak ${anaSigned(t.meanPeakCss)}`) +
+      anaTile("Spark spread", anaSigned(t.meanSs), `per MWh · power ${anaPrice(t.meanPrice)} less gas ${anaPrice(t.fuelMean)}`) +
+      anaTile("In the money", anaPct(t.share), `of the quarter-hours the clean spread was above zero`) +
+      anaTile("Running only when it paid", `${bessMoney(t.marginPerYear)}`, "per MW a year on the MGP, no start costs") +
+      anaTile("Gas and carbon", `${anaPrice(t.gasMean)} · €${formatNumber(t.carbonMean, 1)}`, "per MWh of gas · per tCO₂ (period averages)");
+    const months = new Map();
+    results.days.forEach(day => { const key = day.date.slice(0, 7); if (!months.has(key)) months.set(key, []); months.get(key).push(day); });
+    const monthTotals = [...months.entries()].map(([key, list]) => ({ key, totals: sparkTotals(list) }));
+    const best = [...monthTotals].sort((a, b) => b.totals.meanCss - a.totals.meanCss)[0], worst = [...monthTotals].sort((a, b) => a.totals.meanCss - b.totals.meanCss)[0];
+    reading.innerHTML = `<b>Reading:</b> a ${formatNumber(results.eta * 100, 0)}% efficient gas plant's clean spark spread averaged ${anaSigned(t.meanCss)}/MWh, ${anaSigned(t.meanPeakCss)} in the weekday peak; ` +
+      `it was in the money ${anaPct(t.share)} of the time, and running only then would have earned ${bessMoney(t.marginPerYear)} per MW a year. ` +
+      (best && worst ? `Best month ${anaBucketLabel(best.key)} (${anaSigned(best.totals.meanCss)}), worst ${anaBucketLabel(worst.key)} (${anaSigned(worst.totals.meanCss)}). ` : "") +
+      `The price sat in a gas plant's cost range ${anaPct(t.shareAtMargin)} of the time.`;
+    const map = new Map();
+    results.days.forEach(day => { const key = anaBucketOf(sparkState.bucket, day.date); if (!map.has(key)) map.set(key, []); map.get(key).push(day); });
+    const buckets = [...map.entries()].map(([key, list]) => ({ key, totals: sparkTotals(list) }));
+    const labels = buckets.map(item => anaBucketLabel(item.key));
+    const round = value => (Number.isFinite(value) ? Math.round(value * 100) / 100 : null);
+    const lineOption = (series, unit, extra = {}) => ({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(series.map(item => item.name)),
+      tooltip: bessTooltip(params => bessTipHead(labels[params[0].dataIndex]) + params.filter(entry => entry.value !== null).map(entry =>
+        tooltipRow(entry.color, entry.seriesName, unit === "%" ? `${formatNumber(entry.value, 1)}%` : `${anaSigned(entry.value)}/MWh`, entry.seriesType === "line" ? "line" : "area")).join("")),
+      grid: { left: 60, right: 16, top: 40, bottom: 34 },
+      xAxis: { type: "category", data: labels, boundaryGap: extra.boundaryGap ?? false, axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
+      yAxis: timelineYAxis(unit === "%" ? "%" : "€/MWh", { nameGap: 44 }),
+      series
+    });
+    setText("spark-spreads-subtitle", `€/MWh per ${sparkState.bucket}`);
+    self.charts.spreads.setOption(lineOption([
+      anaLineSeries("Spark spread", "--border-2", buckets.map(item => round(item.totals.meanSs))),
+      anaLineSeries("Clean spark spread", "--border-1", buckets.map(item => round(item.totals.meanCss))),
+      anaLineSeries("Clean spark spread, weekday peak", "--border-3", buckets.map(item => round(item.totals.meanPeakCss)), { lineStyle: { type: "dashed" } })
+    ], "€"), true);
+    self.charts.spreads.resize();
+    setText("spark-stack-subtitle", `€/MWh per ${sparkState.bucket}`);
+    self.charts.stack.setOption({
+      ...lineOption([], "€", { boundaryGap: true }),
+      legend: bessLegend(["Gas", "Carbon", "Variable O&M", "Power price"]),
+      series: [
+        { name: "Gas", type: "bar", stack: "cost", barMaxWidth: 28, data: buckets.map(item => round(item.totals.fuelMean)), itemStyle: { color: cssVar("--border-2") } },
+        { name: "Carbon", type: "bar", stack: "cost", barMaxWidth: 28, data: buckets.map(item => round(item.totals.co2Mean)), itemStyle: { color: cssVar("--border-7") } },
+        { name: "Variable O&M", type: "bar", stack: "cost", barMaxWidth: 28, data: buckets.map(() => round(results.vom)), itemStyle: { color: cssVar(BESS_OTHER_COLOR) } },
+        { ...anaLineSeries("Power price", "--chart-pun", buckets.map(item => round(item.totals.meanPrice))), z: 10 }
+      ]
+    }, true);
+    self.charts.stack.resize();
+    setText("spark-money-subtitle", `% of the quarter-hours, per ${sparkState.bucket}`);
+    self.charts.money.setOption(lineOption([
+      anaLineSeries("In the money", "--border-1", buckets.map(item => round(item.totals.share * 100))),
+      anaLineSeries("Price in a gas plant's cost range", "--border-4", buckets.map(item => round(item.totals.shareAtMargin * 100)))
+    ], "%"), true);
+    self.charts.money.resize();
+    // Heatmap: months by hour.
+    const keys = [...months.keys()];
+    const data = [];
+    let extreme = 10;
+    keys.forEach((key, column) => {
+      const sum = new Float64Array(24), n = new Float64Array(24);
+      months.get(key).forEach(day => { for (let h = 0; h < 24; h += 1) { sum[h] += day.hourCss[h]; n[h] += day.hourN[h]; } });
+      for (let h = 0; h < 24; h += 1) {
+        if (!n[h]) continue;
+        const value = Math.round(sum[h] / n[h] * 10) / 10;
+        extreme = Math.max(extreme, Math.abs(value));
+        data.push([column, h, value]);
+      }
+    });
+    setText("spark-heatmap-subtitle", "€/MWh, average clean spark spread");
+    self.charts.heatmap.setOption(anaHeatmapOption({ x: keys.map(anaBucketLabel), y: anaHours, data, min: -extreme, max: extreme,
+      format: value => formatNumber(value, 0), low: "Losing", high: "Earning",
+      tooltip: params => bessTipHead(`${keys.map(anaBucketLabel)[params.value[0]]}, ${anaHours[params.value[1]]}`) + tooltipRow(params.color, "Clean spark spread", `${anaSigned(params.value[2])}/MWh`) }), true);
+    self.charts.heatmap.resize();
+    setText("spark-margin-subtitle", `€ per MW, per ${sparkState.bucket}`);
+    self.charts.margin.setOption({
+      ...lineOption([], "€", { boundaryGap: true }),
+      legend: { show: false },
+      tooltip: bessTooltip(params => bessTipHead(labels[params[0].dataIndex]) + tooltipRow(params[0].color, "Margin", `${bessMoney(params[0].value)}/MW`), { axisPointer: { type: "shadow" } }),
+      yAxis: bessEuroAxis("€/MW"),
+      series: [{ type: "bar", barMaxWidth: 28, data: buckets.map(item => Math.round(item.totals.margin)), itemStyle: { color: cssVar("--border-1"), borderRadius: [3, 3, 0, 0] } }]
+    }, true);
+    self.charts.margin.resize();
+    setText("spark-scatter-subtitle", "Each dot a day, €/MWh");
+    const points = results.days.map(day => [Math.round(day.cost * 10) / 10, Math.round(day.price / day.quarters * 10) / 10, day.date]);
+    const span = points.reduce((range, [x, y]) => [Math.min(range[0], x, y), Math.max(range[1], x, y)], [Infinity, -Infinity]);
+    self.charts.scatter.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: { ...bessTooltip(params => params.seriesType !== "scatter" ? "" : bessTipHead(bessDateText(params.value[2])) +
+        tooltipRow(params.color, "Gas plant's cost", `${anaPrice(params.value[0])}/MWh`) + tooltipRow(params.color, "Average power price", `${anaPrice(params.value[1])}/MWh`)), trigger: "item" },
+      grid: { left: 56, right: 16, top: 16, bottom: 44 },
+      xAxis: { type: "value", min: Math.floor(span[0] / 10) * 10, max: Math.ceil(span[1] / 10) * 10, name: "Gas plant's marginal cost, €/MWh", nameLocation: "middle", nameGap: 28,
+        nameTextStyle: bessAxisLabel(), axisLabel: bessAxisLabel(), splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      yAxis: timelineYAxis("Power price, €/MWh", { nameGap: 40, min: Math.floor(span[0] / 10) * 10, max: Math.ceil(span[1] / 10) * 10 }),
+      series: [{ type: "scatter", data: points, symbolSize: 6, itemStyle: { color: cssVar("--border-1"), opacity: 0.7, borderColor: cssVar("--panel"), borderWidth: 1 } },
+        { type: "line", data: [[span[0], span[0]], [span[1], span[1]]], showSymbol: false, silent: true, lineStyle: { color: cssVar("--chart-axis-label"), type: "dashed", width: 1 } }]
+    }, true);
+    self.charts.scatter.resize();
+    // Gas and carbon.
+    const dates = results.days.map(day => day.date);
+    const gasSeries = [["igi", "IG Index", "--border-1"], ["mgp_gas", "MGP-GAS", "--border-2"], ["imbalance", "Snam's balancing average", "--border-3"]];
+    setText("spark-fuel-subtitle", "€/MWh of gas (top) · €/tCO₂ (bottom)");
+    self.charts.fuel.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend([...gasSeries.map(item => item[1]), "EU ETS"]),
+      tooltip: bessTooltip(params => bessTipHead(bessDateText(dates[params[0].dataIndex])) + params.filter(entry => Number.isFinite(entry.value)).map(entry =>
+        tooltipRow(entry.color, entry.seriesName, entry.seriesName === "EU ETS" ? `€${formatNumber(entry.value, 2)}/t` : `€${formatNumber(entry.value, 2)}/MWh`, "line")).join(""),
+        { axisPointer: { type: "line", link: [{ xAxisIndex: "all" }] } }),
+      axisPointer: { link: [{ xAxisIndex: "all" }] },
+      grid: [{ left: 60, right: 16, top: 40, height: "44%" }, { left: 60, right: 16, top: "70%", bottom: 30 }],
+      xAxis: [0, 1].map(gridIndex => ({ type: "category", gridIndex, data: dates, boundaryGap: false, axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: gridIndex ? { ...bessAxisLabel(), hideOverlap: true, formatter: value => parseDate(value).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) } : { show: false } })),
+      yAxis: [timelineYAxis("€/MWh", { gridIndex: 0, nameGap: 44, scale: true }), timelineYAxis("€/t", { gridIndex: 1, nameGap: 44, scale: true, splitNumber: 2 })],
+      series: [...gasSeries.map(([key, label, color]) => anaLineSeries(label, color, dates.map(date => { const value = results.fuel.series[key].get(date); return Number.isFinite(value) ? value : null; }),
+        { xAxisIndex: 0, yAxisIndex: 0, showSymbol: false, lineStyle: { width: key === sparkState.gas ? 2 : 1.2 } })),
+        anaLineSeries("EU ETS", "--border-7", dates.map(date => results.fuel.carbon(date)), { xAxisIndex: 1, yAxisIndex: 1, showSymbol: false, step: "end" })]
+    }, true);
+    self.charts.fuel.resize();
+    document.getElementById("spark-table").innerHTML = `<table class="bess-table"><thead><tr><th>Month</th><th>Power</th><th>Gas</th><th>EU ETS</th>` +
+      `<th>Plant's cost</th><th>Spark spread</th><th>Clean spark</th><th>Clean, peak</th><th>In the money</th><th>Margin €/MW</th><th>Gas output when in the money</th></tr></thead><tbody>` +
+      monthTotals.map(({ key, totals }) => `<tr><td>${anaBucketLabel(key)}</td><td>${anaPrice(totals.meanPrice)}</td><td>${anaPrice(totals.gasMean)}</td><td>€${formatNumber(totals.carbonMean, 1)}</td>` +
+        `<td>${anaPrice(totals.costMean)}</td><td>${anaSigned(totals.meanSs)}</td><td>${anaSigned(totals.meanCss)}</td><td>${anaSigned(totals.meanPeakCss)}</td><td>${anaPct(totals.share)}</td>` +
+        `<td>${bessMoney(totals.margin)}</td><td>${totals.gasMwh > 0 ? anaPct(totals.gasMwhInMoney / totals.gasMwh) : "—"}</td></tr>`).join("") + `</tbody></table>`;
+    setText("spark-table-subtitle", "Month by month · the last column: the share of the zone's gas output (ENTSO-E) produced in quarter-hours this plant was in the money");
+  }
+
+  /* ---------- MACSE and the capacity market ---------- */
+  /*
+   * Three ways to earn from the same battery: merchant (the battery
+   * calculator's optimisation over the period, sequential gate by gate);
+   * merchant plus a capacity-market contract (Terna's premium on the
+   * derated capacity, less the reliability option: whenever the zone's MGP
+   * price passes the strike, the daily variable cost of an open-cycle gas
+   * turbine, the difference times the derated MW goes back to Terna,
+   * produced or not); and MACSE (Terna's fixed premium per MWh of capacity
+   * for 15 years; the time-shifting capacity goes to third parties through
+   * GME's platform, the battery keeps 20% of its positive margin in the
+   * balancing market, month by month).  Auction facts as published (Terna,
+   * ARERA); the strike's parameters and the battery's derating are inputs.
+   */
+  const MACSE_FIRST_AUCTION = { CSUD: 14566, SUD: 12146, CALA: 12146, SICI: 15846, SARD: 15029, average: 12959 };
+  const CM_DERATING_2028 = {   // 4 h and 8 h batteries, new capacity, by zone
+    NORD: [0.51, 0.69], CNOR: [0.51, 0.69], CSUD: [0.54, 0.73], SUD: [0.40, 0.52], CALA: [0.40, 0.52], SICI: [0.31, 0.47], SARD: [0.31, 0.47]
+  };
+  const macseState = { zone: "", power: 50, energy: 200, period: "last12", from: "", to: "", bucket: "month",
+    cmPremium: 47000, derating: "", strikeEfficiency: 38, strikeOther: 5, macsePremium: "", keep: 20 };
+  const macseZone = () => macseState.zone || zoneCode() || "NORD";
+  const macseDerating = zone => {
+    const hours = bessNum(macseState.energy, 200) / Math.max(0.1, bessNum(macseState.power, 50));
+    const [four, eight] = CM_DERATING_2028[zone] || CM_DERATING_2028.NORD;
+    if (hours >= 8) return eight;
+    if (hours >= 4) return four + (eight - four) * (hours - 4) / 4;
+    return four * hours / 4;
+  };
+  const macsePremiumDefault = zone => MACSE_FIRST_AUCTION[zone] || MACSE_FIRST_AUCTION.average;
+
+  const macseView = anaView("macse", {
+    title: "MACSE and the capacity market",
+    lede: "The same battery three ways: merchant, trading the markets on its own (the battery calculator's optimisation); merchant with a capacity-market contract, a premium on its derated capacity against paying back the price above the strike; and MACSE, Terna's 15-year fixed premium per MWh of capacity, giving its time-shifting to third parties and 80% of its balancing margin to Terna. Over the same days, what each would have earned and what each gives up.",
+    form: () => {
+      const s = macseState;
+      return bessGroup("The battery",
+        anaSelect(s, "zone", "Bidding zone", [["", `As the page (${ZONE_NAMES[zoneCode() || "NORD"]})`], ...BESS_ZONES.map(code => [code, ZONE_NAMES[code]])]) +
+        anaNumber(s, "power", "Power (MW)", { placeholder: "e.g. 50", min: 0, step: 1 }) +
+        anaNumber(s, "energy", "Energy (MWh)", { placeholder: "e.g. 200", min: 0, step: 10,
+          help: bessHelp("The rest of the battery", "<p>Efficiency, cycles, availability, MSD and MB shares and costs: as set in the merchant revenues battery calculator (its defaults if untouched). MACSE's first auction bought batteries of 6 to 8.5 hours.</p>") })) +
+        bessGroup("Capacity market",
+          anaNumber(s, "cmPremium", "Premium (€/MW of derated capacity a year)", { placeholder: "e.g. 47000", min: 0, step: 1000,
+            help: bessHelp("Where it comes from", "<p>Terna's main auction for 2027 (February 2025) cleared at €47,000/MW a year for existing and new capacity alike; the 2028 auction is expected after MACSE's second, at the end of 2026.</p>") }) +
+          anaNumber(s, "derating", "Derating (% of power)", { placeholder: "2028 table", min: 0, max: 100, step: 1, hint: "derating",
+            help: bessHelp("The 2028 rules", "<p>For new capacity in the 2028 auction Terna rates a battery by zone and duration: 4 hours 51% in the North and Centre-North, 54% in the Centre-South, 40% in the South and Calabria, 31% in Sicily and Sardinia; 8 hours 69%, 73%, 52%, 47% (2027: 67% and 90% nationally). Left blank: that table, in proportion between 4 and 8 hours and below 4 (an assumption: shorter batteries were not published).</p>") }) +
+          anaNumber(s, "strikeEfficiency", "Strike: OCGT efficiency (%)", { placeholder: "e.g. 38", min: 20, max: 60, step: 1,
+            help: bessHelp("The strike", "<p>The capacity contract is a reliability option: whenever the MGP price passes the strike price, the holder pays Terna the difference on its derated MW, whether it produced or not. The strike is the daily variable cost of a peaking open-cycle gas turbine (ARERA 583/2023), here: GME's IG Index over this efficiency, its carbon (EU ETS × 0.202 t/MWh of gas over the efficiency) and the other costs below. ARERA's exact parameters are not reproduced.</p>") }) +
+          anaNumber(s, "strikeOther", "Strike: other variable costs (€/MWh)", { placeholder: "e.g. 5", min: 0, step: 1 })) +
+        bessGroup("MACSE",
+          anaNumber(s, "macsePremium", "Premium (€/MWh of capacity a year)", { placeholder: "first auction", min: 0, step: 500, hint: "macse",
+            help: bessHelp("The first auction", "<p>Terna's first MACSE auction (30 September 2025, delivery 2028, 15-year contracts) awarded all 10 GWh at a weighted €12,959/MWh a year: Centre-South 14,566, South and Calabria 12,146, Sicily 15,846, Sardinia 15,029 (the reserve was 37,000). Left blank: the zone's price, else the average. The second auction is on 24 November 2026.</p>") }) +
+          anaNumber(s, "keep", "Share of the balancing margin kept (%)", { placeholder: "e.g. 20", min: 0, max: 100, step: 5,
+            help: bessHelp("Why 20%", "<p>A MACSE battery offers the capacity not used by the time-shifting products in the balancing market and returns 80% of its positive contribution margin there, month by month. Here: its MSD and MB margin from the merchant optimisation, an approximation.</p>") })) +
+        bessGroup("Period", anaPeriodFields(s));
+    },
+    results: () =>
+      `<section id="macse-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Results</div>` +
+      `<div id="macse-summary-subtitle" class="chart-subtitle"></div></div><div id="macse-status" class="bess-status"></div></div>` +
+      `<div id="macse-kpis" class="gas-kpis bess-kpis"></div><p id="macse-reading" class="bess-reading"></p></section>` +
+      anaSection("macse", "routes", "The Three Routes", { wide: true, extra: anaBuckets(macseState.bucket, [["month", "Month"], ["year", "Year"]]),
+        help: "€ per MW of power, per month or year, after the battery's fixed O&amp;M (the merchant route also after its variable costs). Merchant swings with the markets; MACSE is flat by design; the capacity contract adds a premium and takes back the price spikes." }) +
+      anaSection("macse", "parts", "What Each Earns and Gives Up", {
+        help: "Over the period, € per MW a year: the merchant margin, the capacity premium and the reliability option's payback, MACSE's premium and the 20% of the balancing margin it keeps." }) +
+      anaSection("macse", "strike", "The Strike against the Price", {
+        help: "Each day: the strike price (an open-cycle gas turbine's variable cost on the day's gas and carbon prices) against the zone's highest MGP price of the day. Above the strike, the capacity contract pays back." }) +
+      anaSection("macse", "table", "Results Table", { wide: true, body: '<div id="macse-table" class="bess-table-wrap"></div>' }),
+    charts: ["routes", "parts", "strike"],
+    compute: async self => {
+      const zone = macseZone();
+      const [files, zoneFile, fuel] = await Promise.all([bessLoadFiles(), bessLoadZone(zone), anaGasCarbon()]);
+      self.status("Reading Italy's batteries…");
+      const observed = await bessObserved(zone, zoneFile);
+      const power = Math.max(0.1, bessNum(macseState.power, 50)), energy = Math.max(0.1, bessNum(macseState.energy, 200));
+      const params = bessParams(observed, { power, energy });
+      if (params.errors.length) throw anaUserError(params.errors.join(" "));
+      const lastDay = [bessLastDay(files, zoneFile, zone), fuel.last("igi")].filter(Boolean).sort()[0];
+      const [from, to] = anaPeriod(macseState, lastDay);
+      self.hint("period", `${bessDateText(from)} – ${bessDateText(to)} · on file to ${bessDateText(lastDay)}.`);
+      const derating = macseState.derating === "" ? macseDerating(zone) : Math.max(0, bessNum(macseState.derating, 50)) / 100;
+      self.hint("derating", `${macseState.derating === "" ? "2028 table" : "Entered"}: ${formatNumber(derating * 100, 0)}% for ${formatNumber(energy / power, 1)} h in ${ZONE_NAMES[zone]} → ${formatNumber(power * derating, 1)} MW rated.`);
+      const premium = macseState.macsePremium === "" ? macsePremiumDefault(zone) : Math.max(0, bessNum(macseState.macsePremium, 12959));
+      self.hint("macse", `${macseState.macsePremium === "" ? (MACSE_FIRST_AUCTION[zone] ? `First auction, ${ZONE_NAMES[zone]}` : "First auction's average (no MACSE capacity was bought in this zone)") : "Entered"}: €${formatNumber(premium, 0)}/MWh a year.`);
+      const days = [];
+      for (let date = from; date <= to; date = bessAddDays(date, 1)) {
+        const day = bessDayInput(files, zoneFile, zone, date);
+        if (!day) continue;
+        day.factor = Math.pow(1 - params.fade, bessDaysBetween(from, date) / 365.25);
+        days.push(day);
+      }
+      if (!days.length) throw anaUserError("No day of the period has prices on file for this zone.");
+      const raw = await bessSolve(days, params.worker, share => self.status(`Optimising ${formatNumber(days.length)} days… ${formatNumber(share * 100, 0)}%`));
+      const merchant = bessAggregate(raw, params, {});
+      const inputs = new Map(days.map(day => [day.date, day]));
+      const rated = power * derating;
+      const strikeEta = Math.max(0.2, bessNum(macseState.strikeEfficiency, 38) / 100), strikeOther = Math.max(0, bessNum(macseState.strikeOther, 5));
+      const keep = Math.min(1, Math.max(0, bessNum(macseState.keep, 20) / 100));
+      const cmPremium = Math.max(0, bessNum(macseState.cmPremium, 47000));
+      const records = merchant.days.map(day => {
+        const input = inputs.get(day.date);
+        const gas = fuel.gasOn("igi", day.date), carbon = fuel.carbon(day.date);
+        const strike = Number.isFinite(gas) && Number.isFinite(carbon) ? gas / strikeEta + carbon * GAS_EMISSION / strikeEta + strikeOther : NaN;
+        let payback = 0, above = 0, peak = -Infinity;
+        input.prices.MGP.forEach(price => {
+          if (!Number.isFinite(price)) return;
+          peak = Math.max(peak, price);
+          if (Number.isFinite(strike) && price > strike) { payback += (price - strike) * rated * 0.25; above += 0.25; }
+        });
+        const balancing = ["MSD", "MB"].reduce((sum, key) => sum + (day.markets[key] ? day.markets[key][2] - day.markets[key][3] : 0), 0);
+        return { date: day.date, merchant: day.margin, fixed: day.fixed, balancing, strike, peak, payback, above,
+          cmPremium: cmPremium * rated / 365, macsePremium: premium * energy / 365 };
+      });
+      // MACSE keeps its share of each month's positive balancing margin.
+      const monthBalancing = new Map();
+      records.forEach(record => { const key = record.date.slice(0, 7); monthBalancing.set(key, (monthBalancing.get(key) || 0) + record.balancing); });
+      records.forEach(record => {
+        const month = monthBalancing.get(record.date.slice(0, 7));
+        const share = month > 0 ? record.balancing / month : 0;
+        record.macseBalancing = month > 0 ? keep * month * share : 0;
+        record.routes = { merchant: record.merchant, capacity: record.merchant + record.cmPremium - record.payback, macse: record.macsePremium + record.macseBalancing - record.fixed };
+      });
+      return { zone, from, to, power, energy, derating, rated, premium, cmPremium, keep, strikeEta, strikeOther, records, merchant };
+    },
+    render: self => macseRender(self)
+  });
+  macseView.state = macseState;
+  macseView.followsPage = macseZone;
+
+  const MACSE_ROUTES = [["merchant", "Merchant", "--border-1"], ["capacity", "Merchant + capacity market", "--border-2"], ["macse", "MACSE", "--border-3"]];
+  function macseRender(self) {
+    const results = self.results;
+    const kpis = document.getElementById("macse-kpis"), reading = document.getElementById("macse-reading");
+    if (!results) {
+      kpis.innerHTML = "";
+      reading.innerHTML = self.message ? `<span class="bess-error">${self.message}</span>` : "";
+      Object.values(self.charts).forEach(chart => anaEmpty(chart, self.busy ? "Working…" : ""));
+      document.getElementById("macse-table").innerHTML = "";
+      return;
+    }
+    const { records, power, energy } = results;
+    const n = records.length;
+    const sum = get => records.reduce((total, record) => total + get(record), 0);
+    const perMwYear = value => value / power * 365 / n;
+    const totals = Object.fromEntries(MACSE_ROUTES.map(([key]) => [key, sum(record => record.routes[key])]));
+    const payback = sum(record => record.payback), premiumCm = sum(record => record.cmPremium), above = sum(record => record.above);
+    const balancing = sum(record => record.balancing), kept = sum(record => record.macseBalancing), fixed = sum(record => record.fixed);
+    const merchantGross = totals.merchant;
+    // The MACSE premium at which MACSE pays as much as merchant over these days.
+    const breakeven = (merchantGross + fixed - kept) / energy * 365 / n;
+    setText("macse-summary-subtitle", `${formatNumber(power, 0)} MW / ${formatNumber(energy, 0)} MWh (${formatNumber(energy / power, 1)} h) in ${ZONE_NAMES[results.zone]} · ` +
+      `${bessDateText(results.from)} – ${bessDateText(results.to)} (${formatNumber(n)} days)`);
+    kpis.innerHTML = MACSE_ROUTES.map(([key, label]) => anaTile(label, `${bessMoney(perMwYear(totals[key]))}`,
+      `per MW a year · ${bessMoney(totals[key] / energy * 365 / n)} per MWh of capacity`)).join("") +
+      anaTile("Capacity payback", `${bessMoney(perMwYear(payback))}`, `per MW a year · ${formatNumber(above / n * 365, 0)} h a year above the strike`) +
+      anaTile("MACSE break-even", `€${formatNumber(breakeven, 0)}`, `per MWh a year: the premium that matches merchant · offered €${formatNumber(results.premium, 0)}`);
+    const ranked = [...MACSE_ROUTES].sort((a, b) => totals[b[0]] - totals[a[0]]);
+    reading.innerHTML = `<b>Reading:</b> over these days ${ranked[0][1].toLowerCase()} would have earned most, ${bessMoney(perMwYear(totals[ranked[0][0]]))} per MW a year, ` +
+      `against ${ranked.slice(1).map(([key, label]) => `${bessMoney(perMwYear(totals[key]))} ${label === "MACSE" ? "with MACSE" : label === "Merchant" ? "merchant" : "merchant with the capacity market"}`).join(" and ")}. ` +
+      `The capacity contract's premium (${bessMoney(perMwYear(premiumCm))}/MW a year on ${formatNumber(results.rated, 1)} rated MW) ${premiumCm > payback ? "more than covered" : "did not cover"} its payback (${bessMoney(perMwYear(payback))}). ` +
+      `MACSE matches merchant at €${formatNumber(breakeven, 0)}/MWh a year of capacity, against the €${formatNumber(results.premium, 0)} assumed. Past prices, not a forecast: MACSE and the capacity contract fix the revenue for 15 years and one year ahead.`;
+    // Routes by bucket.
+    const map = new Map();
+    records.forEach(record => { const key = anaBucketOf(macseState.bucket, record.date); if (!map.has(key)) map.set(key, []); map.get(key).push(record); });
+    const keys = [...map.keys()];
+    setText("macse-routes-subtitle", `€ per MW, per ${macseState.bucket}`);
+    self.charts.routes.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(MACSE_ROUTES.map(item => item[1])),
+      tooltip: bessTooltip(params => bessTipHead(anaBucketLabel(keys[params[0].dataIndex])) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, `${bessMoney(entry.value)}/MW`)).join(""), { axisPointer: { type: "shadow" } }),
+      grid: { left: 64, right: 16, top: 40, bottom: 34 },
+      xAxis: { type: "category", data: keys.map(anaBucketLabel), axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
+      yAxis: bessEuroAxis("€/MW"),
+      series: MACSE_ROUTES.map(([key, label, color]) => ({ name: label, type: "bar", barMaxWidth: 18, barGap: "10%",
+        data: keys.map(bucket => Math.round(map.get(bucket).reduce((total, record) => total + record.routes[key], 0) / power)), itemStyle: { color: cssVar(color) } }))
+    }, true);
+    self.charts.routes.resize();
+    // Parts.
+    const parts = [
+      ["Merchant margin", perMwYear(merchantGross), "--border-1"],
+      ["Capacity premium", perMwYear(premiumCm), "--border-2"],
+      ["Reliability option payback", -perMwYear(payback), "--border-2"],
+      ["MACSE premium", perMwYear(sum(record => record.macsePremium)), "--border-3"],
+      ["Balancing margin kept (MACSE)", perMwYear(kept), "--border-3"],
+      ["Balancing margin returned (MACSE)", -perMwYear(Math.max(0, balancing) - kept), "--border-3"],
+      ["Fixed O&M (MACSE route)", -perMwYear(fixed), BESS_OTHER_COLOR]
+    ];
+    setText("macse-parts-subtitle", "€ per MW of power a year");
+    self.charts.parts.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: bessTooltip(params => bessTipHead(params[0].name) + tooltipRow(params[0].color, "Per MW a year", bessMoney(params[0].value)), { axisPointer: { type: "shadow" } }),
+      grid: { left: 190, right: 64, top: 10, bottom: 30 },
+      yAxis: { type: "category", inverse: true, data: parts.map(part => part[0]), axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), fontSize: 11, color: cssVar("--chart-legend") } },
+      xAxis: { type: "value", axisLabel: { ...bessAxisLabel(), formatter: number => (Math.abs(number) >= 1000 ? `${formatNumber(number / 1000, 0)}k` : formatNumber(number, 0)) },
+        splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      series: [{ type: "bar", barMaxWidth: 16, data: parts.map(([, value, color]) => ({ value: Math.round(value), itemStyle: { color: cssVar(color), opacity: value < 0 ? 0.6 : 1 } })),
+        label: { show: true, position: "right", color: cssVar("--chart-legend"), fontSize: 10, formatter: params => bessMoney(params.value) } }]
+    }, true);
+    self.charts.parts.resize();
+    // Strike.
+    const dates = records.map(record => record.date);
+    setText("macse-strike-subtitle", `€/MWh · strike on ${formatNumber(results.strikeEta * 100, 0)}% efficiency`);
+    self.charts.strike.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Strike price", "Highest MGP price of the day"]),
+      tooltip: bessTooltip(params => bessTipHead(bessDateText(dates[params[0].dataIndex])) + params.filter(entry => Number.isFinite(entry.value)).map(entry =>
+        tooltipRow(entry.color, entry.seriesName, `${anaPrice(entry.value)}/MWh`, "line")).join("")),
+      grid: { left: 60, right: 16, top: 40, bottom: 34 },
+      xAxis: { type: "category", data: dates, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: { ...bessAxisLabel(), hideOverlap: true, formatter: value => parseDate(value).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) } },
+      yAxis: timelineYAxis("€/MWh", { nameGap: 44 }),
+      series: [anaLineSeries("Strike price", "--border-2", records.map(record => (Number.isFinite(record.strike) ? Math.round(record.strike * 10) / 10 : null)), { showSymbol: false }),
+        anaLineSeries("Highest MGP price of the day", "--chart-pun", records.map(record => (Number.isFinite(record.peak) ? Math.round(record.peak * 10) / 10 : null)), { showSymbol: false, lineStyle: { width: 1.2 } })]
+    }, true);
+    self.charts.strike.resize();
+    const months = new Map();
+    records.forEach(record => { const key = record.date.slice(0, 7); if (!months.has(key)) months.set(key, []); months.get(key).push(record); });
+    document.getElementById("macse-table").innerHTML = `<table class="bess-table"><thead><tr><th>Month</th><th>Days</th><th>Merchant</th><th>Capacity premium</th><th>Payback</th>` +
+      `<th>Merchant + capacity</th><th>MACSE premium</th><th>Balancing kept</th><th>MACSE</th><th>Hours above strike</th></tr></thead><tbody>` +
+      [...months.entries()].map(([key, list]) => {
+        const s = get => list.reduce((total, record) => total + get(record), 0);
+        return `<tr><td>${anaBucketLabel(key)}</td><td>${list.length}</td><td>${bessMoney(s(r => r.routes.merchant))}</td><td>${bessMoney(s(r => r.cmPremium))}</td>` +
+          `<td>${bessMoney(-s(r => r.payback))}</td><td>${bessMoney(s(r => r.routes.capacity))}</td><td>${bessMoney(s(r => r.macsePremium))}</td>` +
+          `<td>${bessMoney(s(r => r.macseBalancing))}</td><td>${bessMoney(s(r => r.routes.macse))}</td><td>${formatNumber(s(r => r.above), 1)}</td></tr>`;
+      }).join("") + `</tbody></table>`;
+    setText("macse-table-subtitle", "Month by month, € for the whole battery");
+  }
+
+  const ANALYSIS_VIEWS = { capture: captureView, imbalance: imbalanceView, congestion: congestionView, spikes: spikesView, binding: bindingView,
+    spark: sparkView, macse: macseView };
 
   /*
    * A tab is made of blocks: some sections, the files they need, how they

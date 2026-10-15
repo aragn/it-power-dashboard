@@ -7,7 +7,7 @@ Italian power market dashboard: `app/` is the static site (GitHub Pages), `etl/`
 The data files in `app/data/` are not on `main`. They live on `data` branches, each holding a single commit that the update workflows replace, so hourly updates don't grow the repository.
 
 - This repository's `data` branch: the ENTSO-E, JAO, Terna, GIE, EEX, TransnetBW, MASE and e-distribuzione data (`generation_load.json`, `crossborder.json`, `neighbour_prices.json`, `jao_spreads.json`, `jao_capacity.json`, `forecasts.json`, `res_forecasts.json`, `eua.json`, `terna.json`, `capacity.json`, `available_capacity.json`, `outages.json`, `outage_units.json`, `data_checks.json`, `picasso.json`, `gas.json`, `mase_projects.json`, `connections.json`, the grid map's files under `grid/` (see below), the balancing files under `balancing/` (one per zone, loaded when the zone is opened) and `balancing_bids/`, and each bidding zone's own ENTSO-E files under `zones/<ZONE>/` (`generation_load.json`, `forecasts.json`, `res_forecasts.json`, `crossborder.json` with its borders to the other zones, the countries and Corsica, `reservoirs.json`), in the layout of Italy's, for the zone pages). The long time series also come in a recent version, `NAME.recent.json` (`etl/compact.py`).
-- GME's data (PUN, zonal prices, MI-A, MI-XBID, market coupling, the MGP flows and limits between zones with the Corsica zones' prices (`transits.json`), the MGP market units and merit order, the MSD and MB series under `balancing_gme/`) is kept in a private repository: GME's terms do not allow publishing it. Its workflows run there, with this repository's code (`DATA_REMOTE` in `.github/scripts/data-branch.sh`).
+- GME's data (PUN, zonal prices, MI-A, MI-XBID, market coupling, the MGP flows and limits between zones with the Corsica zones' prices (`transits.json`), the MGP market units and merit order, the MSD and MB series under `balancing_gme/`, the daily gas prices at the PSV in `gas_prices.json`: GME's IG Index, the MGP-GAS auction and Snam's balancing average, `etl/fetch_gas_prices.py`) is kept in a private repository: GME's terms do not allow publishing it. Its workflows run there, with this repository's code (`DATA_REMOTE` in `.github/scripts/data-branch.sh`).
 
 To get the latest data locally, for example to preview the site, run from the repo root in Git Bash:
 
@@ -45,6 +45,17 @@ Three more analyses are worked out on the page from files it already reads (no s
 
 - **Solar and wind capture prices:** for Italy (against the PUN Index) or a zone (its zonal price), the output-weighted price of solar and wind (ENTSO-E 16.1.B&C) against the baseload price, by day, month or year; capture rates; a day-by-day cannibalisation scatter (output as a share of the load against the capture rate); the price by hour and month against the month's average; the average day; every zone side by side on request.
 - **Imbalance cost of a solar or wind plant:** a plant of the size and yield entered (blank: a typical yield for the zone) produces its zone's fleet output scaled to it and sells the fleet's day-ahead forecast (ENTSO-E 14.1.D; the error can be scaled up for a single plant), settling the rest at the zone's imbalance price (ENTSO-E 17.1.G); optionally trading the intraday forecast first at MI-XBID's reference price. Cost per MWh and per year, by hour, long against short, forecast error by hour, and the imbalance price's gap to the MGP when the macrozone (Terna) was short or long.
+- **Spark and clean spark spreads:** a gas plant of the efficiency entered, against the zone's MGP price (Italy: the PUN Index), GME's daily gas price (`gas_prices.json`, the IG Index by default) and the EU ETS price of the day (`eua.json`), with variable O&M and gas transport:
+  - the spark and clean spark spreads by day, month or year (also over the weekday peak), and the plant's cost against the power price;
+  - how often the plant was in the money, and how often the price sat in a gas plant's cost range (a 58% to a 45% efficient plant);
+  - the clean spread by hour and month, and the margin of a plant running only when it paid;
+  - a daily scatter of cost against price, and the gas and carbon prices.
+- **MACSE and the capacity market:** the same battery three ways over the days on file:
+  - merchant, the battery calculator's optimisation;
+  - merchant with a capacity contract: Terna's premium on the derated capacity (2028 derating by zone and duration), less the reliability option's payback above a daily strike (an open-cycle turbine's cost on GME's gas price and the EU ETS price);
+  - MACSE: the first auction's premium by area, plus 20% of the balancing margin.
+
+  Shown: each route by month, what each earns and gives up, the MACSE premium that would match merchant, and the strike against the day's highest price.
 - **Imbalance price spikes, day by day** (after Volue's account of Austria's 2,900 €/MWh spike of 24 September 2026): for a zone and day (by default the period's highest imbalance price):
   - the imbalance price against the MGP, and Terna's macrozonal imbalance;
   - the MGP, MI-A1/2/3 and MI-XBID prices;

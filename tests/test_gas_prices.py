@@ -31,9 +31,15 @@ def test_mgp_gas_volume_weighted_across_products():
         {"FlowDate": "20260906", "Market": "MGP", "Product": "A", "Price": 33, "TotalVolumesMWh": 0},
     ]
     out = gas.mgp_gas_values(rows)
-    assert out["mgp_gas"]["2026-09-05"] == 37.5
-    assert out["mgp_gas"]["2026-09-06"] == 33
-    assert out["mgp_gas_volume"]["2026-09-05"] == 400
+    # Undated products: the gas day after the auction's day.
+    assert out["mgp_gas"]["2026-09-06"] == 37.5
+    assert out["mgp_gas"]["2026-09-07"] == 33
+    assert out["mgp_gas_volume"]["2026-09-06"] == 400
+
+
+def test_mgp_gas_keyed_by_the_products_gas_day():
+    rows = [{"FlowDate": "20250101", "Market": "MGP", "Product": "MGP-2025-01-02", "Price": "49.7000", "TotalVolumesMWh": "20544.0000"}]
+    assert gas.mgp_gas_values(rows)["mgp_gas"] == {"2025-01-02": 49.7}
 
 
 def test_imbalance_fields():

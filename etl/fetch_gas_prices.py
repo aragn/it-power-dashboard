@@ -7,13 +7,16 @@ for the Analysis tab's spark spreads:
                    GME publishes ("igi" is the main one, the product with the
                    most days)
   mgp_gas          GAS_MGASAuctionResults (MGP-GAS): the day-ahead gas auction's
-                   price, EUR/MWh, and its accepted volume (mgp_gas_volume, MWh)
+                   price, EUR/MWh, and its accepted volume (mgp_gas_volume, MWh),
+                   by the gas day of its product (GME's FlowDate is the auction's
+                   day, the day before)
   imbalance        GAS_ImbalancePrice (segment GAS): the weighted average price of
                    Snam's balancing trades on the MGAS platform (the basis of the
                    gas imbalance price), EUR/MWh, with Snam's highest purchase
                    (imbalance_max_buy) and lowest sale (imbalance_min_sell)
 
-Daily values by gas day (FlowDate).  GME's data: kept in the private
+Daily values by gas day (the IG Index's and the imbalance price's FlowDate is the
+gas day; checked against each other, they differ by €0.4/MWh on average).  GME's data: kept in the private
 repository's data branch, like the power prices.
 
   fetch_gas_prices.py                    the last 14 days and the days after
@@ -99,16 +102,25 @@ def igi_values(rows):
     return out
 
 
+def product_day(row):
+    """The gas day of an MGP-GAS row: its product's date ("MGP-2025-01-02"); GME's FlowDate is the auction's
+    day, the day before.  Without a dated product, the day after FlowDate."""
+    match = re.search(r"(\d{4}-\d{2}-\d{2})", str(field(row, "Product") or ""))
+    if match:
+        return match.group(1)
+    day = field(row, "FlowDate")
+    return None if day is None else (date.fromisoformat(flow_date(day)) + timedelta(days=1)).isoformat()
+
+
 def mgp_gas_values(rows):
     """MGP-GAS auction rows -> price and volume per gas day (several products a day: volume-weighted)."""
     weighted = defaultdict(lambda: [0.0, 0.0])
     plain = {}
     for row in rows:
         price = number(field(row, "Price"))
-        day = field(row, "FlowDate")
-        if price is None or day is None:
+        key = product_day(row)
+        if price is None or key is None:
             continue
-        key = flow_date(day)
         volume = number(field(row, "TotalVolumesMWh")) or 0.0
         weighted[key][0] += price * volume
         weighted[key][1] += volume
