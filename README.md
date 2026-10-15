@@ -45,6 +45,19 @@ Three more analyses are worked out on the page from files it already reads (no s
 
 - **Solar and wind capture prices:** for Italy (against the PUN Index) or a zone (its zonal price), the output-weighted price of solar and wind (ENTSO-E 16.1.B&C) against the baseload price, by day, month or year; capture rates; a day-by-day cannibalisation scatter (output as a share of the load against the capture rate); the price by hour and month against the month's average; the average day; every zone side by side on request.
 - **Imbalance cost of a solar or wind plant:** a plant of the size and yield entered (blank: a typical yield for the zone) produces its zone's fleet output scaled to it and sells the fleet's day-ahead forecast (ENTSO-E 14.1.D; the error can be scaled up for a single plant), settling the rest at the zone's imbalance price (ENTSO-E 17.1.G); optionally trading the intraday forecast first at MI-XBID's reference price. Cost per MWh and per year, by hour, long against short, forecast error by hour, and the imbalance price's gap to the MGP when the macrozone (Terna) was short or long.
+- **Imbalance price spikes, day by day** (after Volue's account of Austria's 2,900 €/MWh spike of 24 September 2026): for a zone and day (by default the period's highest imbalance price):
+  - the imbalance price against the MGP, and Terna's macrozonal imbalance;
+  - the MGP, MI-A1/2/3 and MI-XBID prices;
+  - wind, solar and residual load against their forecasts;
+  - net imports, scheduled against physical;
+  - the balancing energy activated by product (ENTSO-E 12.3.E) with GME's MB acceptances;
+  - PICASSO's upward prices, Italy against its neighbours (`picasso.json`);
+  - the standard aFRR up-ladder at the peak (`balancing_bids/`);
+  - an account written from the data by rules, and the list of the window's highest spikes.
+- **Most binding borders, month by month** (after the monthly reports of the most constraining CORE CNECs). A border's shadow price is the price gap across it while its flow runs at the limit, summed over the month (k€/MW). Covered: the six borders between zones (`transits.json`) and the coupled ones with France, Austria, Slovenia and Greece (`coupling.json` against `neighbour_prices.json`). Shown:
+  - a ranking and a map;
+  - for a border: its shadow price hour by hour, its flow against the limit, when it bound, and a driver table (binding hours against the same hours of other days, the month, the month before, correlation);
+  - on the northern border, the elements JAO names as limiting the NTC in those hours (`jao_capacity.json`).
 - **Zonal spreads and congestion:** each zone's MGP price against a reference zone (North by default): how often they split, average spread, spread by hour, duration curves, and what a 1 MW plant running all the time gains or loses for being in the zone; per border between zones (GME's MGP flows and limits, `transits.json`), the share of the time at the limit each way and the congestion rent (flow times price gap).
 
 ## Full and public versions
