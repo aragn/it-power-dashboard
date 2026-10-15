@@ -41,6 +41,12 @@ Data › Analysis opens on a set of cards, one per analysis; a card opens its vi
 - **Strategies:** sequential, gate by gate (default: each market knowing its own prices, on the position the earlier ones left); perfect foresight across all markets (the ceiling); fixed shares of power per group of markets.
 - **Data:** the GME files the page already has (`zonal_prices.json`, `intraday_prices.json`, `xbid_prices.json`, `balancing_gme/<ZONE>.json`, `storage/`); nothing new to fetch or publish.
 
+Three more analyses are worked out on the page from files it already reads (no solver, a fraction of a second):
+
+- **Solar and wind capture prices:** for Italy (against the PUN Index) or a zone (its zonal price), the output-weighted price of solar and wind (ENTSO-E 16.1.B&C) against the baseload price, by day, month or year; capture rates; a day-by-day cannibalisation scatter (output as a share of the load against the capture rate); the price by hour and month against the month's average; the average day; every zone side by side on request.
+- **Imbalance cost of a solar or wind plant:** a plant of the size and yield entered (blank: a typical yield for the zone) produces its zone's fleet output scaled to it and sells the fleet's day-ahead forecast (ENTSO-E 14.1.D; the error can be scaled up for a single plant), settling the rest at the zone's imbalance price (ENTSO-E 17.1.G); optionally trading the intraday forecast first at MI-XBID's reference price. Cost per MWh and per year, by hour, long against short, forecast error by hour, and the imbalance price's gap to the MGP when the macrozone (Terna) was short or long.
+- **Zonal spreads and congestion:** each zone's MGP price against a reference zone (North by default): how often they split, average spread, spread by hour, duration curves, and what a 1 MW plant running all the time gains or loses for being in the zone; per border between zones (GME's MGP flows and limits, `transits.json`), the share of the time at the limit each way and the congestion rent (flow times price gap).
+
 ## Full and public versions
 
 GME's terms allow its data to be shown publicly only as re-elaborations, without the exact values. The page is the same for both versions:

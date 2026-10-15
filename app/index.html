@@ -471,6 +471,7 @@
     .bess-chip b { margin-left:4px; color:var(--text); font-weight:600; }
     .bess-chip.current { border-color:var(--blue); }
     .bess-toggles { display:flex; flex-wrap:wrap; gap:10px; }
+    .bess-field > label.ana-label { display:flex; flex-direction:column; gap:5px; }
     .bess-day-controls { display:flex; flex-wrap:nowrap; align-items:center; gap:6px; flex-shrink:0; }
     #bess-day-section .chart-header, #bess-money-section .chart-header, #bess-table-section .chart-header { flex-wrap:wrap; align-items:flex-start; }
     .bess-day-controls input { border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:7px; padding:6px 8px; font-size:12px; font-family:inherit; }
@@ -16264,16 +16265,16 @@ move the slider above to another one`,
     { id: "bess", icon: "battery", tag: "Storage · optimisation", live: true,
       title: "Merchant revenues battery calculator",
       text: "Describe a battery and a bidding zone: an optimiser (HiGHS) runs it through the MGP, the MI-A auctions, MI-XBID, MSD and MB on every day on file since 2025, and shows what it would have earned against what it cost, by day, month and year." },
-    { id: "capture", icon: "sun", tag: "Renewables",
+    { id: "capture", live: true, icon: "sun", tag: "Renewables",
       title: "Solar and wind capture prices",
       text: "What a solar or a wind plant in each zone earned against the baseload price, month by month: capture rates and how far the midday hours have fallen." },
     { id: "spark", icon: "flame", tag: "Thermal",
       title: "Spark and clean spark spreads",
       text: "A gas plant's margin on the day-ahead price after gas (PSV) and carbon (EU ETS), by zone and hour: when gas sets the price and what a CCGT keeps." },
-    { id: "congestion", icon: "grid", tag: "Grid",
+    { id: "congestion", live: true, icon: "grid", tag: "Grid",
       title: "Zonal spreads and congestion",
       text: "How often each zone splits from the North, by how much and at what hours, and what a flexible plant gains from being on the dearer side." },
-    { id: "imbalance", icon: "scale", tag: "Balancing",
+    { id: "imbalance", live: true, icon: "scale", tag: "Balancing",
       title: "Imbalance cost of a solar or wind plant",
       text: "What forecast errors cost at Terna's imbalance prices: ENTSO-E's day-ahead and intraday forecasts against the actual output, zone by zone." },
     { id: "macse", icon: "shield", tag: "Storage · policy",
@@ -16295,7 +16296,7 @@ move the slider above to another one`,
         `<span class="analysis-card-text">${item.text}</span>` +
         `<span class="analysis-card-foot">${item.live ? "Open" : "What it will show"} <span aria-hidden="true">→</span></span></button>`).join("")}</div></div>` +
       `<div id="analysis-soon" style="display:none"></div>` +
-      `<div id="bess-view" style="display:none"></div>`;
+      ["bess", ...Object.keys(ANALYSIS_VIEWS)].map(id => `<div id="${id}-view" style="display:none"></div>`).join("");
     analysisMount.addEventListener("click", event => {
       const card = event.target.closest("[data-analysis]");
       if (card) { analysisView = card.dataset.analysis; renderAnalysis(); window.scrollTo({ top: 0 }); return; }
@@ -16316,9 +16317,13 @@ move the slider above to another one`,
     const known = ANALYSIS_CARDS.some(card => card.id === analysisView);
     if (!known) analysisView = "home";
     document.getElementById("analysis-home").style.display = analysisView === "home" ? "" : "none";
-    document.getElementById("analysis-soon").style.display = analysisView !== "home" && analysisView !== "bess" ? "" : "none";
-    document.getElementById("bess-view").style.display = analysisView === "bess" ? "" : "none";
+    const built = id => id === "bess" || Boolean(ANALYSIS_VIEWS[id]);
+    document.getElementById("analysis-soon").style.display = analysisView !== "home" && !built(analysisView) ? "" : "none";
+    ["bess", ...Object.keys(ANALYSIS_VIEWS)].forEach(id => {
+      document.getElementById(`${id}-view`).style.display = analysisView === id ? "" : "none";
+    });
     if (analysisView === "bess") bessShow();
+    else if (ANALYSIS_VIEWS[analysisView]) ANALYSIS_VIEWS[analysisView].show();
     else if (analysisView !== "home") renderAnalysisSoon();
   }
 
@@ -16402,7 +16407,7 @@ move the slider above to another one`,
   }
   function bessLoadFiles() {
     if (!bessState.files) {
-      bessState.files = Promise.all(["zonal_prices.json", "intraday_prices.json", "xbid_prices.json"].map(bessFetch))
+      bessState.files = Promise.all(["zonal_prices.json", "intraday_prices.json", "xbid_prices.json"].map(path => anaFetch(path)))
         .then(([zonal, intraday, xbid]) => ({ zonal, intraday, xbid }))
         .catch(error => { bessState.filesError = error; bessState.files = null; throw error; });
     }
@@ -17606,6 +17611,1113 @@ move the slider above to another one`,
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
   }
+
+  /* ---------- Shared by the other analyses ---------- */
+
+  /*
+   * The capture prices, the imbalance cost and the zonal spreads are worked
+   * out on the page, quarter-hour by quarter-hour, from files the page
+   * already reads; each view is a form (state, data-field inputs) and its
+   * results, drawn again when an input changes.
+   */
+  const anaFiles = {};          // path -> Promise of the parsed file
+  function anaFetch(path) {
+    if (!anaFiles[path]) anaFiles[path] = bessFetch(path).catch(error => { delete anaFiles[path]; throw error; });
+    return anaFiles[path];
+  }
+  const anaZoneColor = zone => `--zone-${BESS_ZONES.indexOf(zone) + 1}`;
+  const anaTheme = () => document.documentElement.dataset.theme || "dark";
+  const anaPct = (value, digits = 0) => (Number.isFinite(value) ? `${formatNumber(value * 100, digits)}%` : "—");
+  const anaPrice = (value, digits = 1) => (Number.isFinite(value) ? `€${formatNumber(value, digits)}` : "—");
+  const anaSigned = (value, digits = 1) => (Number.isFinite(value) ? `${value < 0 ? "−" : value > 0 ? "+" : ""}€${formatNumber(Math.abs(value), digits)}` : "—");
+
+  /* A day's values per quarter-hour (T of them), from a quarter-hourly series, else an hourly one repeated; null without either. */
+  function anaSeriesDay(quarterSeries, hourlySeries, date, T) {
+    const quarters = quarterSeries ? bessRow(quarterSeries, date) : null;
+    if (quarters && (!T || quarters.length === T)) return bessArray(quarters, T || quarters.length);
+    const hours = hourlySeries ? bessRow(hourlySeries, date) : null;
+    if (!hours) return null;
+    const n = T || hours.length * 4;
+    const array = new Float64Array(n).fill(NaN);
+    hours.forEach((value, hour) => {
+      if (value === null) return;
+      for (let q = 0; q < 4 && hour * 4 + q < n; q += 1) array[hour * 4 + q] = value;
+    });
+    return array;
+  }
+  const anaLastDate = series => (series && series.start && series.days ? bessAddDays(series.start, series.days.length - 1) : null);
+  const anaSum = array => { let sum = 0; for (let index = 0; index < array.length; index += 1) if (Number.isFinite(array[index])) sum += array[index]; return sum; };
+
+  /* The period chosen (last 12 months, a year, to date, all, custom) up to the last day on file. */
+  function anaPeriod(state, lastDay) {
+    const first = BESS_FIRST_DAY;
+    const clamp = date => (date < first ? first : date > lastDay ? lastDay : date);
+    switch (state.period) {
+      case "y2025": return [first, lastDay < "2025-12-31" ? lastDay : "2025-12-31"];
+      case "ytd": return [clamp(`${lastDay.slice(0, 4)}-01-01`), lastDay];
+      case "all": return [first, lastDay];
+      case "custom": {
+        const from = clamp(state.from || bessAddDays(lastDay, -364)), to = clamp(state.to || lastDay);
+        return from <= to ? [from, to] : [to, from];
+      }
+      default: return [clamp(bessAddDays(lastDay, -364)), lastDay];
+    }
+  }
+  const anaBucketOf = (bucket, date) => (bucket === "year" ? date.slice(0, 4) : bucket === "month" ? date.slice(0, 7) : date);
+
+  /* Form pieces: inputs carry data-field and write to the view's state. */
+  function anaSelect(state, id, label, options, { help = "", hint = "" } = {}) {
+    return `<div class="bess-field"><label class="ana-label">${label}<select data-field="${id}">` +
+      options.map(([value, text]) => `<option value="${value}"${String(state[id]) === String(value) ? " selected" : ""}>${text}</option>`).join("") +
+      `</select></label>${hint ? `<div class="bess-hint" data-hint="${hint}"></div>` : ""}${help}</div>`;
+  }
+  function anaNumber(state, id, label, { placeholder = "", step = "any", min = "", max = "", help = "", hint = "" } = {}) {
+    return `<div class="bess-field"><label class="ana-label">${label}<input data-field="${id}" type="number" inputmode="decimal" step="${step}"` +
+      `${min !== "" ? ` min="${min}"` : ""}${max !== "" ? ` max="${max}"` : ""} placeholder="${placeholder}" value="${state[id] === "" ? "" : state[id]}"></label>` +
+      `${hint ? `<div class="bess-hint" data-hint="${hint}"></div>` : ""}${help}</div>`;
+  }
+  function anaPeriodFields(state) {
+    return anaSelect(state, "period", "Period", [["last12", "Last 12 months"], ["y2025", "2025"], ["ytd", "This year to date"], ["all", "Everything on file"], ["custom", "Custom"]], { hint: "period" }) +
+      `<div class="bess-row2 bess-dates"${state.period === "custom" ? "" : " hidden"}>` +
+      `<label class="bess-sub"><span>From</span><input data-field="from" type="date" min="${BESS_FIRST_DAY}" value="${state.from}"></label>` +
+      `<label class="bess-sub"><span>To</span><input data-field="to" type="date" min="${BESS_FIRST_DAY}" value="${state.to}"></label></div>`;
+  }
+  function anaBuckets(current, options = [["day", "Day"], ["month", "Month"], ["year", "Year"]]) {
+    return `<div class="market-period" role="group" aria-label="Totals by">${options.map(([key, text]) =>
+      `<button type="button" data-bucket="${key}"${key === current ? ' class="active"' : ""}>${text}</button>`).join("")}</div>`;
+  }
+  function anaSection(view, id, title, { wide = false, extra = "", help = "", body = "", height = "", gme = true } = {}) {
+    return `<section id="${view}-${id}-section" class="panel chart-panel${wide ? " bess-wide" : ""}"><div class="chart-header"><div>` +
+      `<div class="chart-title">${title}</div><div id="${view}-${id}-subtitle" class="chart-subtitle"></div></div>${extra}</div>` +
+      (body || `<div class="bess-chart${height}"><div id="${view}-${id}-chart" class="timeline-chart"></div></div>`) +
+      `${help ? `<div class="chart-help bess-chart-help">${help}</div>` : ""}${gme ? `<div class="gme-source">${GME_CREDIT}</div>` : ""}</section>`;
+  }
+  const anaTile = (label, value, sub) => `<div class="gas-kpi"><div class="gas-kpi-label">${label}</div><div class="gas-kpi-value">${value}</div><div class="gas-kpi-sub">${sub}</div></div>`;
+
+  /*
+   * A view: its state, its form and results, built once; inputs re-run
+   * compute() (a few hundred ms later), and render() draws the charts.
+   */
+  function anaView(view, { title, lede, form, results, charts, compute, render, onClick }) {
+    const self = { view, built: false, charts: {}, results: null, message: null, busy: false, drawn: null, timer: null, token: 0 };
+    self.build = () => {
+      self.built = true;
+      document.getElementById(`${view}-view`).innerHTML =
+        `<div class="analysis-view-head"><button type="button" class="analysis-back"><span aria-hidden="true">←</span> All analyses</button>` +
+        `<h2>${title}</h2><p class="analysis-lede">${lede}</p></div>` +
+        `<div class="bess-layout"><form id="${view}-form" class="panel bess-inputs" autocomplete="off" onsubmit="return false">${form()}</form>` +
+        `<div class="bess-results">${results()}</div></div>`;
+      charts.forEach(id => { self.charts[id] = echarts.init(document.getElementById(`${view}-${id}-chart`)); });
+      const root = document.getElementById(`${view}-view`);
+      const onInput = event => {
+        const field = event.target.dataset && event.target.dataset.field;
+        if (!field) return;
+        const target = event.target;
+        self.state[field] = target.type === "checkbox" ? target.checked : target.type === "number" ? (target.value === "" ? "" : Number(target.value)) : target.value;
+        if (field === "period") root.querySelector(".bess-dates").hidden = self.state.period !== "custom";
+        if (event.type === "input" && target.type !== "number") return;
+        clearTimeout(self.timer);
+        self.timer = setTimeout(self.run, event.type === "change" ? 100 : 600);
+      };
+      root.addEventListener("input", onInput);
+      root.addEventListener("change", onInput);
+      root.addEventListener("click", event => {
+        const bucket = event.target.closest("[data-bucket]");
+        if (bucket) {
+          const group = bucket.closest(".market-period");
+          group.querySelectorAll("[data-bucket]").forEach(item => item.classList.toggle("active", item === bucket));
+          self.state[group.dataset.key || "bucket"] = bucket.dataset.bucket;
+          self.draw(true);
+          return;
+        }
+        if (onClick) onClick(event, self);
+      });
+      window.addEventListener("resize", () => {
+        if (root.style.display === "none") return;
+        Object.values(self.charts).forEach(chart => chart.resize());
+      });
+    };
+    self.hint = (name, text) => {
+      const element = document.querySelector(`#${view}-view [data-hint="${name}"]`);
+      if (element) element.textContent = text;
+    };
+    self.status = text => {
+      const element = document.getElementById(`${view}-status`);
+      if (element) element.textContent = text || "";
+      document.getElementById(`${view}-view`).classList.toggle("bess-busy", Boolean(text) && Boolean(self.results));
+    };
+    self.run = async () => {
+      const token = ++self.token;
+      self.busy = true;
+      self.status("Working…");
+      try {
+        const results = await compute(self);
+        if (token !== self.token) return;
+        self.results = results;
+        self.message = null;
+      } catch (error) {
+        if (token !== self.token) return;
+        console.warn(`${title}:`, error);
+        self.results = null;
+        self.message = error.userMessage || `The data is not on file here (${error.message}).`;
+      }
+      self.busy = false;
+      self.status("");
+      self.draw(true);
+    };
+    self.draw = force => {
+      if (document.getElementById(`${view}-view`).style.display === "none") return;
+      const signature = [self.results, self.message, anaTheme()];
+      if (!force && self.drawn && signature.every((item, index) => item === self.drawn[index])) return;
+      self.drawn = signature;
+      render(self);
+    };
+    self.show = () => {
+      if (!self.built) self.build();
+      if (self.followsPage && self.results && self.results.zone !== self.followsPage()) { self.run(); return; }
+      if (!self.results && !self.busy && !self.message) self.run();
+      else setTimeout(() => self.draw(false), 0);
+    };
+    return self;
+  }
+  function anaEmpty(chart, text) {
+    chart.clear();
+    chart.setOption({ title: { text, left: "center", top: "middle", textStyle: { color: cssVar("--muted"), fontSize: 12, fontWeight: 400 } } }, true);
+  }
+  const anaUserError = message => Object.assign(new Error(message), { userMessage: message });
+  const anaDivergingColors = () => [cssVar("--border-1"), cssVar("--range"), cssVar("--border-2")];
+  const anaHours = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, "0")}:00`);
+  function anaHeatmapOption({ x, y, data, min, max, format, xLabel, low, high, tooltip }) {
+    return {
+      animation: false, backgroundColor: "transparent",
+      tooltip: { ...bessTooltip(tooltip), trigger: "item" },
+      grid: { left: 64, right: 16, top: 12, bottom: 64 },
+      xAxis: { type: "category", data: x, axisTick: { show: false }, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: { ...bessAxisLabel(), hideOverlap: true, formatter: xLabel } },
+      yAxis: { type: "category", data: y, inverse: true, axisTick: { show: false }, axisLine: { show: false },
+        axisLabel: { ...bessAxisLabel(), interval: y.length > 12 ? 2 : 0 } },
+      visualMap: { type: "continuous", min, max, dimension: 2, orient: "horizontal", left: "center", bottom: 4, itemWidth: 10, itemHeight: 160,
+        text: [high, low], textStyle: { color: cssVar("--chart-axis-label"), fontSize: 10 }, calculable: false, formatter: format,
+        inRange: { color: anaDivergingColors() } },
+      series: [{ type: "heatmap", data, progressive: 0, emphasis: { itemStyle: { borderColor: cssVar("--text"), borderWidth: 1 } } }]
+    };
+  }
+  const anaLineSeries = (name, color, data, extra = {}) => ({ name, type: "line", data, showSymbol: data.length <= 40, symbolSize: 5, connectNulls: false,
+    lineStyle: { color: cssVar(color), width: 1.8, ...(extra.lineStyle || {}) }, itemStyle: { color: cssVar(color) },
+    ...Object.fromEntries(Object.entries(extra).filter(([key]) => key !== "lineStyle")) });
+  function anaBucketLabel(key) { return bessBucketLabel(key); }
+
+  /* ---------- Solar and wind capture prices ---------- */
+  /*
+   * What the zone's solar and wind fleets were paid on the MGP against the
+   * baseload price: the capture price, the average price weighted by their
+   * output quarter-hour by quarter-hour (ENTSO-E 16.1.B&C), and the capture
+   * rate, that over the time-weighted average.  Italy: the PUN Index; a
+   * zone: its zonal price (what its plants are paid).
+   */
+  const CAPTURE_TECHS = [
+    { key: "solar", label: "Solar", codes: ["B16"], color: "--mix-solar" },
+    { key: "wind", label: "Wind", codes: ["B19", "B18"], color: "--mix-wind" }
+  ];
+  const captureState = { zone: "", period: "last12", from: "", to: "", bucket: "month", low: 10 };
+  const captureZone = () => captureState.zone || zoneCode() || "IT";
+  const captureZoneName = zone => (zone === "IT" ? "Italy" : ZONE_NAMES[zone]);
+
+  async function captureLoad(zone) {
+    const [prices, generation] = await Promise.all([
+      zone === "IT" ? anaFetch("pun.json") : anaFetch("zonal_prices.json").then(file => file.zones[zone]),
+      anaFetch(zone === "IT" ? "generation_load.json" : `zones/${zone}/generation_load.json`)
+    ]);
+    if (!prices || !generation || !generation.generation) throw new Error("no prices or generation");
+    return { prices, generation };
+  }
+  /* One day: price, solar, wind and load per quarter-hour. */
+  function captureDay(files, date) {
+    const quarterGen = files.generation.generation.quarter_hourly || {}, hourlyGen = files.generation.generation.hourly || {};
+    const solarSeries = quarterGen.B16 && quarterGen.B16.points;
+    const solarProbe = solarSeries ? bessRow(solarSeries, date) : null;
+    const price = anaSeriesDay(files.prices.quarter_hourly, files.prices.hourly, date, solarProbe ? solarProbe.length : undefined);
+    if (!price) return null;
+    const T = price.length;
+    const tech = codes => {
+      const array = new Float64Array(T);
+      let any = false;
+      codes.forEach(code => {
+        const values = anaSeriesDay(quarterGen[code] && quarterGen[code].points, hourlyGen[code] && hourlyGen[code].points, date, T);
+        if (!values) return;
+        any = true;
+        for (let t = 0; t < T; t += 1) if (Number.isFinite(values[t])) array[t] += values[t];
+      });
+      return any ? array : null;
+    };
+    const load = anaSeriesDay(files.generation.total_load && files.generation.total_load.quarter_hourly && files.generation.total_load.quarter_hourly.TOTAL,
+      files.generation.total_load && files.generation.total_load.hourly && files.generation.total_load.hourly.TOTAL, date, T);
+    const solar = tech(["B16"]), wind = tech(["B19", "B18"]);
+    // A day without either technology's output on file is left out, not counted as a day of no output.
+    if (!solar && !wind) return null;
+    return { date, T, price, solar, wind, load };
+  }
+  function captureLastDay(files) {
+    const solar = files.generation.generation.quarter_hourly.B16.points;
+    let date = anaLastDate(solar);
+    const priceLast = anaLastDate(files.prices.quarter_hourly) || anaLastDate(files.prices.hourly);
+    if (priceLast && priceLast < date) date = priceLast;
+    for (let back = 0; back < 20; back += 1, date = bessAddDays(date, -1)) {
+      const row = bessRow(solar, date);
+      if (row && row.filter(value => value !== null).length >= row.length - 4) return date;
+    }
+    return date;
+  }
+
+  /* The days of the period, summed per day (and per hour of the clock). */
+  function captureCompute(files, zone, from, to, low) {
+    const days = [];
+    for (let date = from; date <= to; date = bessAddDays(date, 1)) {
+      const day = captureDay(files, date);
+      if (!day) continue;
+      const record = { date, quarters: 0, priceSum: 0, load: 0, lowQuarters: 0, zeroQuarters: 0,
+        hourPrice: new Float64Array(24), hourCount: new Float64Array(24) };
+      CAPTURE_TECHS.forEach(tech => { record[tech.key] = { mwh: 0, value: 0, lowMwh: 0, hour: new Float64Array(24) }; });
+      for (let t = 0; t < day.T; t += 1) {
+        const price = day.price[t];
+        if (!Number.isFinite(price)) continue;
+        const hour = Math.floor(bessClockMinutes(day.T, t) / 60);
+        record.quarters += 1; record.priceSum += price;
+        record.hourPrice[hour] += price; record.hourCount[hour] += 1;
+        if (price <= low) record.lowQuarters += 1;
+        if (price <= 0.01) record.zeroQuarters += 1;
+        if (day.load && Number.isFinite(day.load[t])) record.load += day.load[t] * 0.25;
+        CAPTURE_TECHS.forEach(tech => {
+          const output = day[tech.key] ? day[tech.key][t] : 0;
+          if (!(output > 0)) return;
+          const sum = record[tech.key];
+          sum.mwh += output * 0.25; sum.value += output * 0.25 * price; sum.hour[hour] += output * 0.25;
+          if (price <= low) sum.lowMwh += output * 0.25;
+        });
+      }
+      if (record.quarters) days.push(record);
+    }
+    if (!days.length) throw anaUserError("No day of the period has prices and generation on file.");
+    return days;
+  }
+  function captureTotals(days) {
+    const total = { days: days.length, quarters: 0, priceSum: 0, load: 0, lowQuarters: 0, zeroQuarters: 0 };
+    CAPTURE_TECHS.forEach(tech => { total[tech.key] = { mwh: 0, value: 0, lowMwh: 0 }; });
+    days.forEach(day => {
+      total.quarters += day.quarters; total.priceSum += day.priceSum; total.load += day.load;
+      total.lowQuarters += day.lowQuarters; total.zeroQuarters += day.zeroQuarters;
+      CAPTURE_TECHS.forEach(tech => { ["mwh", "value", "lowMwh"].forEach(key => { total[tech.key][key] += day[tech.key][key]; }); });
+    });
+    total.base = total.priceSum / total.quarters;
+    CAPTURE_TECHS.forEach(tech => {
+      const sum = total[tech.key];
+      sum.capture = sum.mwh > 0 ? sum.value / sum.mwh : NaN;
+      sum.rate = sum.capture / total.base;
+    });
+    return total;
+  }
+
+  const captureView = anaView("capture", {
+    title: "Solar and wind capture prices",
+    lede: "What the solar and wind plants of Italy or of a bidding zone were paid on the day-ahead market against the baseload price: the capture price (the price weighted by their output, quarter-hour by quarter-hour) and the capture rate (that against the time-weighted average price), month by month, and how far the hours of the sun have fallen.",
+    form: () => {
+      const s = captureState;
+      return bessGroup("Plants and prices",
+        anaSelect(s, "zone", "Where", [["", `As the page (${zoneCode() ? ZONE_NAMES[zoneCode()] : "Italy"})`], ["IT", "Italy (PUN Index)"], ...BESS_ZONES.map(code => [code, `${ZONE_NAMES[code]} (zonal price)`])], {
+          help: bessHelp("Which price", "<p>A zone's plants are paid its zonal price; Italy's are set against the PUN Index, the national average buyers pay. Generation: ENTSO-E 16.1.B&amp;C, the zone's or Italy's actual output by source (wind: onshore and offshore).</p>") }) +
+        anaNumber(s, "low", "Low-price threshold (€/MWh)", { placeholder: "e.g. 10", min: 0, step: 1,
+          help: bessHelp("What it counts", "<p>The quarter-hours at or below this price, and the share of the output sold in them: how much of the year a plant runs into prices near zero.</p>") })) +
+        bessGroup("Period", anaPeriodFields(s));
+    },
+    results: () =>
+      `<section id="capture-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Results</div>` +
+      `<div id="capture-summary-subtitle" class="chart-subtitle"></div></div><div id="capture-status" class="bess-status"></div></div>` +
+      `<div id="capture-kpis" class="gas-kpis bess-kpis"></div><p id="capture-reading" class="bess-reading"></p></section>` +
+      anaSection("capture", "prices", "Capture Prices and the Baseload Price", { wide: true, extra: anaBuckets(captureState.bucket),
+        help: "The baseload price (the average of every quarter-hour) and the solar and wind capture prices (the average weighted by their output). The gap is what each technology loses for producing when it does." }) +
+      anaSection("capture", "rates", "Capture Rates", {
+        help: "Capture price over the baseload price, by the period chosen above (day, month or year). Under 100%: the technology sells below the average; over 100%: above it." }) +
+      anaSection("capture", "scatter", "Cannibalisation, Day by Day", {
+        help: "Each day: the technology's output as a share of the load (across) against its capture rate that day (up). The more the sun shines across the zone at once, the lower the price it gets." }) +
+      anaSection("capture", "heatmap", "Price by Hour of the Day, Month by Month", { height: " tall",
+        help: "Each month (column) and clock hour (row): the average price as a share of that month's baseload price. Blue below the average, orange above: the midday hollow is where solar sells." }) +
+      anaSection("capture", "profile", "The Average Day", {
+        help: "Over the period: the average price at each hour (line) and the share of the day's solar and wind output produced in it (bars)." }) +
+      anaSection("capture", "zones", "Zones Side by Side", { wide: true,
+        extra: `<button type="button" class="bess-button" data-action="zones">Compare the zones</button>`,
+        help: "Solar and wind capture rates of each zone over the period, each against its own zonal price, and Italy's against the PUN Index. Reads every zone's generation file (about 25 MB) when asked." }) +
+      anaSection("capture", "table", "Results Table", { wide: true, body: '<div id="capture-table" class="bess-table-wrap"></div>' }),
+    charts: ["prices", "rates", "scatter", "heatmap", "profile", "zones"],
+    compute: async self => {
+      const zone = captureZone();
+      const files = await captureLoad(zone);
+      const lastDay = captureLastDay(files);
+      const [from, to] = anaPeriod(captureState, lastDay);
+      self.hint("period", `${bessDateText(from)} – ${bessDateText(to)} · on file to ${bessDateText(lastDay)}. Prices hourly until 30 Sep 2025, quarter-hourly since.`);
+      const low = bessNum(captureState.low, 10);
+      const days = captureCompute(files, zone, from, to, low);
+      return { zone, from, to, low, days, totals: captureTotals(days), zones: null };
+    },
+    render: self => captureRender(self),
+    onClick: (event, self) => { if (event.target.closest('[data-action="zones"]')) captureCompareZones(self); }
+  });
+  captureView.state = captureState;
+  captureView.followsPage = captureZone;
+
+  function captureRender(self) {
+    const results = self.results;
+    const kpis = document.getElementById("capture-kpis"), reading = document.getElementById("capture-reading");
+    if (!results) {
+      kpis.innerHTML = "";
+      reading.innerHTML = self.message ? `<span class="bess-error">${self.message}</span>` : "";
+      Object.values(self.charts).forEach(chart => anaEmpty(chart, self.busy ? "Working…" : ""));
+      document.getElementById("capture-table").innerHTML = "";
+      return;
+    }
+    const t = results.totals, name = captureZoneName(results.zone);
+    const priceName = results.zone === "IT" ? "PUN Index" : "zonal price";
+    setText("capture-summary-subtitle", `${name} · ${priceName} · ${bessDateText(results.from)} – ${bessDateText(results.to)} (${formatNumber(results.days.length)} days)`);
+    const share = (part, whole) => (whole > 0 ? part / whole : NaN);
+    kpis.innerHTML =
+      anaTile("Baseload price", anaPrice(t.base), `time-weighted average of the ${priceName}`) +
+      CAPTURE_TECHS.map(tech => anaTile(`${tech.label} capture`, anaPrice(t[tech.key].capture),
+        `${anaPct(t[tech.key].rate)} of baseload · ${anaSigned(t[tech.key].capture - t.base)}/MWh`)).join("") +
+      anaTile("Output", `${formatNumber(t.solar.mwh / 1e6, 2)} / ${formatNumber(t.wind.mwh / 1e6, 2)}`,
+        `TWh solar / wind · ${anaPct(share(t.solar.mwh, t.load))} and ${anaPct(share(t.wind.mwh, t.load))} of the load`) +
+      anaTile(`At or below €${formatNumber(results.low, 0)}`, anaPct(share(t.lowQuarters, t.quarters), 1),
+        `of the quarter-hours · ${anaPct(share(t.solar.lowMwh, t.solar.mwh), 1)} of solar output sold then`);
+    const months = new Map();
+    results.days.forEach(day => {
+      const key = day.date.slice(0, 7);
+      if (!months.has(key)) months.set(key, []);
+      months.get(key).push(day);
+    });
+    const monthRates = [...months.entries()].map(([key, list]) => ({ key, totals: captureTotals(list) }));
+    const worst = [...monthRates].filter(item => Number.isFinite(item.totals.solar.rate)).sort((a, b) => a.totals.solar.rate - b.totals.solar.rate)[0];
+    reading.innerHTML = `<b>Reading:</b> solar was paid ${anaPrice(t.solar.capture)}/MWh, ${anaPct(t.solar.rate)} of the ${anaPrice(t.base)} baseload; wind ${anaPrice(t.wind.capture)}, ${anaPct(t.wind.rate)}. ` +
+      (worst ? `Solar's worst month was ${anaBucketLabel(worst.key)} (${anaPct(worst.totals.solar.rate)}). ` : "") +
+      `${anaPct(share(t.zeroQuarters, t.quarters), 1)} of the quarter-hours cleared at zero or below.`;
+    captureRenderPrices(self); captureRenderRates(self); captureRenderScatter(self); captureRenderHeatmap(self, months); captureRenderProfile(self);
+    captureRenderZones(self); captureRenderTable(self, monthRates);
+  }
+  function captureBuckets(results, bucket) {
+    const map = new Map();
+    results.days.forEach(day => {
+      const key = anaBucketOf(bucket, day.date);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(day);
+    });
+    return [...map.entries()].map(([key, list]) => ({ key, totals: captureTotals(list) }));
+  }
+  function captureRenderPrices(self) {
+    const chart = self.charts.prices, results = self.results;
+    const buckets = captureBuckets(results, captureState.bucket);
+    setText("capture-prices-subtitle", `€/MWh per ${captureState.bucket}`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Baseload", ...CAPTURE_TECHS.map(tech => `${tech.label} capture`)]),
+      tooltip: bessTooltip(params => bessTipHead(anaBucketLabel(buckets[params[0].dataIndex].key)) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, `${anaPrice(entry.value)}/MWh`, "line")).join("")),
+      grid: { left: 64, right: 16, top: 40, bottom: 34 },
+      xAxis: { type: "category", data: buckets.map(item => anaBucketLabel(item.key)), boundaryGap: false, axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
+      yAxis: timelineYAxis("€/MWh", { nameGap: 44 }),
+      series: [anaLineSeries("Baseload", "--chart-pun", buckets.map(item => item.totals.base), { lineStyle: { type: "dashed" } }),
+        ...CAPTURE_TECHS.map(tech => anaLineSeries(`${tech.label} capture`, tech.color, buckets.map(item => item.totals[tech.key].capture)))]
+    }, true);
+    chart.resize();
+  }
+  function captureRenderRates(self) {
+    const chart = self.charts.rates, results = self.results;
+    const buckets = captureBuckets(results, captureState.bucket);
+    setText("capture-rates-subtitle", `% of the baseload price, per ${captureState.bucket}`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(CAPTURE_TECHS.map(tech => tech.label)),
+      tooltip: bessTooltip(params => bessTipHead(anaBucketLabel(buckets[params[0].dataIndex].key)) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, `${formatNumber(entry.value, 1)}%`, "line")).join("")),
+      grid: { left: 64, right: 16, top: 40, bottom: 34 },
+      xAxis: { type: "category", data: buckets.map(item => anaBucketLabel(item.key)), boundaryGap: false, axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
+      yAxis: timelineYAxis("%", { nameGap: 40, scale: true }),
+      series: CAPTURE_TECHS.map((tech, index) => anaLineSeries(tech.label, tech.color, buckets.map(item => item.totals[tech.key].rate * 100), index ? {} : {
+        markLine: { silent: true, symbol: "none", label: { show: true, formatter: "100%", color: cssVar("--chart-axis-label"), fontSize: 10 },
+          lineStyle: { color: cssVar("--chart-axis-label"), type: "dashed", width: 1 }, data: [{ yAxis: 100 }] } }))
+    }, true);
+    chart.resize();
+  }
+  function captureRenderScatter(self) {
+    const chart = self.charts.scatter, results = self.results;
+    const points = tech => results.days.filter(day => day.load > 0 && day[tech.key].mwh > 0)
+      .map(day => [day[tech.key].mwh / day.load * 100, day[tech.key].value / day[tech.key].mwh / (day.priceSum / day.quarters) * 100, day.date]);
+    setText("capture-scatter-subtitle", "Each dot a day: output as a share of the load, against the day's capture rate");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(CAPTURE_TECHS.map(tech => tech.label)),
+      tooltip: { ...bessTooltip(params => bessTipHead(bessDateText(params.value[2])) +
+        tooltipRow(params.color, `${params.seriesName}, share of the load`, `${formatNumber(params.value[0], 1)}%`) +
+        tooltipRow(params.color, "Capture rate", `${formatNumber(params.value[1], 1)}%`)), trigger: "item" },
+      grid: { left: 56, right: 16, top: 40, bottom: 44 },
+      xAxis: { type: "value", name: "Output, % of the load", nameLocation: "middle", nameGap: 28, nameTextStyle: bessAxisLabel(),
+        axisLabel: bessAxisLabel(), splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      yAxis: timelineYAxis("Capture rate %", { nameGap: 38, scale: true }),
+      series: CAPTURE_TECHS.map(tech => ({ name: tech.label, type: "scatter", data: points(tech), symbolSize: 6,
+        itemStyle: { color: cssVar(tech.color), opacity: 0.75, borderColor: cssVar("--panel"), borderWidth: 1 } }))
+    }, true);
+    chart.resize();
+  }
+  function captureRenderHeatmap(self, months) {
+    const chart = self.charts.heatmap;
+    const keys = [...months.keys()];
+    const data = [];
+    let spread = 10;
+    keys.forEach((key, column) => {
+      const list = months.get(key);
+      const price = new Float64Array(24), count = new Float64Array(24);
+      let sum = 0, n = 0;
+      list.forEach(day => { for (let hour = 0; hour < 24; hour += 1) { price[hour] += day.hourPrice[hour]; count[hour] += day.hourCount[hour]; } sum += day.priceSum; n += day.quarters; });
+      const base = sum / n;
+      for (let hour = 0; hour < 24; hour += 1) {
+        if (!count[hour] || !base) continue;
+        const value = Math.round(price[hour] / count[hour] / base * 1000) / 10;
+        spread = Math.max(spread, Math.abs(value - 100));
+        data.push([column, hour, value]);
+      }
+    });
+    setText("capture-heatmap-subtitle", "Average price at each hour, % of the month's baseload price");
+    chart.setOption(anaHeatmapOption({ x: keys.map(anaBucketLabel), y: anaHours, data, min: 100 - spread, max: 100 + spread,
+      format: value => `${formatNumber(value, 0)}%`, low: "Below the average", high: "Above",
+      tooltip: params => bessTipHead(`${keys.map(anaBucketLabel)[params.value[0]]}, ${anaHours[params.value[1]]}`) +
+        tooltipRow(params.color, "Price", `${formatNumber(params.value[2], 0)}% of baseload`) }), true);
+    chart.resize();
+  }
+  function captureRenderProfile(self) {
+    const chart = self.charts.profile, results = self.results;
+    const price = new Float64Array(24), count = new Float64Array(24);
+    const output = Object.fromEntries(CAPTURE_TECHS.map(tech => [tech.key, new Float64Array(24)]));
+    results.days.forEach(day => {
+      for (let hour = 0; hour < 24; hour += 1) {
+        price[hour] += day.hourPrice[hour]; count[hour] += day.hourCount[hour];
+        CAPTURE_TECHS.forEach(tech => { output[tech.key][hour] += day[tech.key].hour[hour]; });
+      }
+    });
+    const totals = results.totals;
+    setText("capture-profile-subtitle", "Average price by hour (top) and the share of each technology's output (bottom)");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Price", ...CAPTURE_TECHS.map(tech => tech.label)]),
+      tooltip: bessTooltip(params => bessTipHead(anaHours[params[0].dataIndex]) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, entry.seriesName === "Price" ? `${anaPrice(entry.value)}/MWh` : `${formatNumber(entry.value, 1)}% of its output`,
+          entry.seriesType === "line" ? "line" : "area")).join(""), { axisPointer: { type: "shadow", link: [{ xAxisIndex: "all" }] } }),
+      axisPointer: { link: [{ xAxisIndex: "all" }] },
+      grid: [{ left: 56, right: 16, top: 40, height: "30%" }, { left: 56, right: 16, top: "52%", bottom: 30 }],
+      xAxis: [0, 1].map(gridIndex => ({ type: "category", gridIndex, data: anaHours, axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: gridIndex ? { ...bessAxisLabel(), interval: 2 } : { show: false } })),
+      yAxis: [timelineYAxis("€/MWh", { gridIndex: 0, nameGap: 40, scale: true, splitNumber: 3 }), timelineYAxis("% of output", { gridIndex: 1, nameGap: 40 })],
+      series: [anaLineSeries("Price", "--chart-pun", Array.from(price, (value, hour) => (count[hour] ? value / count[hour] : null)), { xAxisIndex: 0, yAxisIndex: 0, showSymbol: false }),
+        ...CAPTURE_TECHS.map(tech => ({ name: tech.label, type: "bar", xAxisIndex: 1, yAxisIndex: 1, barGap: "10%", barMaxWidth: 12,
+          data: Array.from(output[tech.key], value => (totals[tech.key].mwh > 0 ? value / totals[tech.key].mwh * 100 : null)), itemStyle: { color: cssVar(tech.color) } }))]
+    }, true);
+    chart.resize();
+  }
+  async function captureCompareZones(self) {
+    const results = self.results;
+    if (!results) return;
+    const button = document.querySelector('#capture-view [data-action="zones"]');
+    button.disabled = true;
+    self.status("Reading the zones…");
+    const rows = [];
+    for (const zone of ["IT", ...BESS_ZONES]) {
+      try {
+        const files = await captureLoad(zone);
+        rows.push({ zone, totals: captureTotals(captureCompute(files, zone, results.from, results.to, results.low)) });
+      } catch (error) {
+        rows.push({ zone, totals: null });
+      }
+    }
+    self.status("");
+    button.disabled = false;
+    if (self.results !== results) return;
+    results.zones = rows;
+    captureRenderZones(self);
+  }
+  function captureRenderZones(self) {
+    const chart = self.charts.zones, results = self.results;
+    if (!results.zones) {
+      setText("capture-zones-subtitle", "Not compared yet");
+      anaEmpty(chart, "Compare the zones to read every zone's file");
+      return;
+    }
+    const rows = results.zones.filter(row => row.totals);
+    setText("capture-zones-subtitle", `Capture rate, % of each zone's baseload · ${bessDateText(results.from)} – ${bessDateText(results.to)}`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(CAPTURE_TECHS.map(tech => tech.label)),
+      tooltip: bessTooltip(params => {
+        const row = rows[params[0].dataIndex];
+        return bessTipHead(`${captureZoneName(row.zone)} · baseload ${anaPrice(row.totals.base)}`) + CAPTURE_TECHS.map(tech =>
+          tooltipRow(cssVar(tech.color), tech.label, `${anaPct(row.totals[tech.key].rate, 1)} · ${anaPrice(row.totals[tech.key].capture)}`)).join("");
+      }, { axisPointer: { type: "shadow" } }),
+      grid: { left: 56, right: 16, top: 40, bottom: 30 },
+      xAxis: { type: "category", data: rows.map(row => captureZoneName(row.zone)), axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), color: cssVar("--chart-legend") } },
+      yAxis: timelineYAxis("%", { nameGap: 36, min: value => Math.max(0, Math.floor(value.min / 10) * 10 - 10) }),
+      series: CAPTURE_TECHS.map(tech => ({ name: tech.label, type: "bar", barMaxWidth: 26, barGap: "15%",
+        data: rows.map(row => (Number.isFinite(row.totals[tech.key].rate) ? Math.round(row.totals[tech.key].rate * 1000) / 10 : null)),
+        itemStyle: { color: cssVar(tech.color), borderRadius: [3, 3, 0, 0] },
+        label: { show: true, position: "top", color: cssVar("--chart-legend"), fontSize: 10, formatter: params => `${formatNumber(params.value, 0)}%` } }))
+    }, true);
+    chart.resize();
+  }
+  function captureRenderTable(self, monthRates) {
+    document.getElementById("capture-table").innerHTML = `<table class="bess-table"><thead><tr><th>Month</th><th>Days</th><th>Baseload</th>` +
+      `<th>Solar capture</th><th>Solar rate</th><th>Wind capture</th><th>Wind rate</th><th>Solar output</th><th>Wind output</th><th>At or below €${formatNumber(self.results.low, 0)}</th></tr></thead><tbody>` +
+      monthRates.map(({ key, totals }) => `<tr><td>${anaBucketLabel(key)}</td><td>${totals.days}</td><td>${anaPrice(totals.base)}</td>` +
+        `<td>${anaPrice(totals.solar.capture)}</td><td>${anaPct(totals.solar.rate, 1)}</td><td>${anaPrice(totals.wind.capture)}</td><td>${anaPct(totals.wind.rate, 1)}</td>` +
+        `<td>${bessMwh(totals.solar.mwh)}</td><td>${bessMwh(totals.wind.mwh)}</td><td>${anaPct(totals.lowQuarters / totals.quarters, 1)}</td></tr>`).join("") +
+      `</tbody></table>`;
+    setText("capture-table-subtitle", "Month by month");
+  }
+
+  /* ---------- Imbalance cost of a solar or wind plant ---------- */
+  /*
+   * A plant sells its day-ahead forecast in the MGP and settles what it
+   * then produces more or less at the zone's imbalance price (ENTSO-E
+   * 17.1.G).  Its output is the zone fleet's (ENTSO-E 16.1.B&C) scaled to
+   * the plant's yield over the period (MWh per MW and year: entered, else a
+   * typical one for the zone and technology); its forecast error, the fleet's against
+   * ENTSO-E's day-ahead forecast (14.1.D), times a factor.  Against selling
+   * its exact output in the MGP, the cost of each quarter-hour is
+   * (MGP price - imbalance price) x (output - forecast).  With intraday
+   * correction, the move from the day-ahead to the intraday forecast is
+   * traded at MI-XBID's reference price (else MI-A2's, else the MGP's) and
+   * the rest settled at the imbalance price.
+   */
+  const IMBALANCE_TECHS = { solar: { label: "Solar", codes: ["B16"], color: "--mix-solar" }, wind: { label: "Wind", codes: ["B19"], color: "--mix-wind" } };
+  const imbalanceState = { zone: "", tech: "solar", plant: 10, yield: "", scale: 1, period: "last12", from: "", to: "", bucket: "month" };
+  // Typical full-load hours of a new plant (MWh per MW and year), for the placeholder and a blank yield.
+  const IMBALANCE_YIELDS = {
+    solar: { NORD: 1200, CNOR: 1350, CSUD: 1400, SUD: 1500, CALA: 1500, SICI: 1550, SARD: 1500 },
+    wind: { NORD: 1600, CNOR: 1800, CSUD: 1900, SUD: 2100, CALA: 2100, SICI: 2000, SARD: 2100 }
+  };
+  const imbalanceYield = zone => bessNum(imbalanceState.yield, (IMBALANCE_YIELDS[imbalanceState.tech] || IMBALANCE_YIELDS.solar)[zone] || 1300);
+  const imbalanceZone = () => imbalanceState.zone || zoneCode() || "NORD";
+
+  async function imbalanceLoad(zone) {
+    const [generation, forecasts, balancing, zonal, xbid, intraday] = await Promise.all([
+      anaFetch(`zones/${zone}/generation_load.json`), anaFetch(`zones/${zone}/res_forecasts.json`), anaFetch(`balancing/${zone}.json`),
+      anaFetch("zonal_prices.json"), anaFetch("xbid_prices.json").catch(() => null), anaFetch("intraday_prices.json").catch(() => null)
+    ]);
+    return { generation, forecasts, balancing, zonal, xbid, intraday };
+  }
+
+  function imbalanceCompute(files, zone, from, to, state) {
+    const tech = IMBALANCE_TECHS[state.tech] || IMBALANCE_TECHS.solar;
+    const code = tech.codes[0];
+    const plant = Math.max(0.1, bessNum(state.plant, 10)), scale = Math.max(0, bessNum(state.scale, 1));
+    const quarterGen = files.generation.generation.quarter_hourly[code], hourlyGen = files.generation.generation.hourly[code];
+    const da = files.forecasts.day_ahead || {}, id = files.forecasts.intraday || {};
+    const series = files.balancing.series.quarter_hourly || {}, hourlySeries = files.balancing.series.hourly || {};
+    const macro = (files.balancing.areas && files.balancing.areas.macrozone) || zone;
+    const priceNode = files.zonal.zones[zone];
+    const xbidNode = files.xbid && files.xbid.markets && files.xbid.markets["XBID-15"] ? files.xbid.markets["XBID-15"][zone] : null;
+    const mia2Node = files.intraday && files.intraday.markets && files.intraday.markets["MI-A2"] ? files.intraday.markets["MI-A2"][zone] : null;
+    const days = [];
+    let fallbackQuarters = 0, quartersAll = 0;
+    // The fleet's output over the period, to scale it to the plant's yield.
+    let fleetMwh = 0, fleetDays = 0;
+    for (let date = from; date <= to; date = bessAddDays(date, 1)) {
+      const actual = anaSeriesDay(quarterGen && quarterGen.points, hourlyGen && hourlyGen.points, date);
+      if (!actual) continue;
+      fleetMwh += anaSum(actual) * 0.25; fleetDays += 1;
+    }
+    const yieldMwh = imbalanceYield(zone);
+    const k = fleetMwh > 0 ? yieldMwh * plant * (fleetDays / 365) / fleetMwh : 0;
+    for (let date = from; date <= to; date = bessAddDays(date, 1)) {
+      const actual = anaSeriesDay(quarterGen && quarterGen.points, hourlyGen && hourlyGen.points, date);
+      if (!actual) continue;
+      const T = actual.length;
+      const mgp = anaSeriesDay(priceNode.quarter_hourly, priceNode.hourly, date, T);
+      const imbalance = anaSeriesDay(series[`${zone}|imbalance_price`], hourlySeries[`${zone}|imbalance_price`], date, T);
+      const forecastDa = anaSeriesDay(da.quarter_hourly && da.quarter_hourly[code], da.hourly && da.hourly[code], date, T);
+      if (!mgp || !imbalance || !forecastDa) continue;
+      const forecastId = anaSeriesDay(id.quarter_hourly && id.quarter_hourly[code], id.hourly && id.hourly[code], date, T);
+      const volume = anaSeriesDay(series[`${macro}|imbalance_volume`], hourlySeries[`${macro}|imbalance_volume`], date, T);
+      const xbid = xbidNode ? anaSeriesDay(xbidNode.quarter_hourly, null, date, T) : null;
+      const mia2 = mia2Node ? anaSeriesDay(mia2Node.quarter_hourly, null, date, T) : null;
+      if (!(k > 0)) continue;
+      const record = { date, quarters: 0, output: 0, revenue: 0, costDa: 0, costId: 0, absError: 0, bias: 0, helping: 0, against: 0,
+        hourLong: new Float64Array(24), hourShort: new Float64Array(24), hourAbs: new Float64Array(24), hourBias: new Float64Array(24), hourCount: new Float64Array(24),
+        hourGapShort: new Float64Array(24), hourGapShortN: new Float64Array(24), hourGapLong: new Float64Array(24), hourGapLongN: new Float64Array(24) };
+      for (let t = 0; t < T; t += 1) {
+        const pM = mgp[t], pI = imbalance[t], A = actual[t], F = forecastDa[t];
+        if (![pM, pI, A, F].every(Number.isFinite)) continue;
+        quartersAll += 1;
+        const a = Math.min(plant, Math.max(0, A) * k);
+        const clampPlant = value => Math.min(plant, Math.max(0, value));
+        const fDa = clampPlant(a - scale * (A - F) * k);
+        let fId = fDa;
+        if (forecastId && Number.isFinite(forecastId[t])) fId = clampPlant(a - scale * (A - forecastId[t]) * k);
+        else fallbackQuarters += 1;
+        const pX = xbid && Number.isFinite(xbid[t]) ? xbid[t] : mia2 && Number.isFinite(mia2[t]) ? mia2[t] : pM;
+        const error = a - fDa;
+        const costDa = (pM - pI) * error * 0.25;
+        const costId = (pM * a - (pM * fDa + pX * (fId - fDa) + pI * (a - fId))) * 0.25;
+        const hour = Math.floor(bessClockMinutes(T, t) / 60);
+        record.quarters += 1; record.output += a * 0.25; record.revenue += pM * a * 0.25;
+        record.costDa += costDa; record.costId += costId;
+        record.absError += Math.abs(error) * 0.25; record.bias += error * 0.25;
+        if (error > 0) record.hourLong[hour] += costDa; else record.hourShort[hour] += costDa;
+        record.hourAbs[hour] += Math.abs(error) / plant; record.hourBias[hour] += error / plant; record.hourCount[hour] += 1;
+        if (volume && Number.isFinite(volume[t])) {
+          // The macrozone short (volume below zero) needs more energy: a plant producing more than it sold helps.
+          if (Math.abs(error) > 1e-9) {
+            if ((error > 0) === (volume[t] < 0)) record.helping += Math.abs(error) * 0.25; else record.against += Math.abs(error) * 0.25;
+          }
+          if (volume[t] < 0) { record.hourGapShort[hour] += pI - pM; record.hourGapShortN[hour] += 1; }
+          else { record.hourGapLong[hour] += pI - pM; record.hourGapLongN[hour] += 1; }
+        }
+      }
+      if (record.quarters) days.push(record);
+    }
+    if (!days.length) throw anaUserError(`No day of the period has the ${tech.label.toLowerCase()} output, its forecast and the imbalance price on file for ${ZONE_NAMES[zone]}.`);
+    return { days, plant, scale, yieldMwh, idCoverage: quartersAll ? 1 - fallbackQuarters / quartersAll : 0 };
+  }
+  function imbalanceTotals(days) {
+    const total = { days: days.length, quarters: 0, output: 0, revenue: 0, costDa: 0, costId: 0, absError: 0, bias: 0, helping: 0, against: 0 };
+    days.forEach(day => Object.keys(total).forEach(key => { if (key !== "days") total[key] += day[key]; }));
+    total.perMwhDa = total.output > 0 ? total.costDa / total.output : NaN;
+    total.perMwhId = total.output > 0 ? total.costId / total.output : NaN;
+    return total;
+  }
+
+  const imbalanceView = anaView("imbalance", {
+    title: "Imbalance cost of a solar or wind plant",
+    lede: "What a solar or wind plant's forecast errors cost at Terna's imbalance prices. The plant sells its day-ahead forecast in the MGP and settles the difference with what it produces at the zone's imbalance price; with intraday correction, it trades its updated forecast first. Its output and errors are its zone's fleet's (ENTSO-E), scaled to its size and yield.",
+    form: () => {
+      const s = imbalanceState;
+      return bessGroup("The plant",
+        anaSelect(s, "zone", "Bidding zone", [["", `As the page (${ZONE_NAMES[zoneCode() || "NORD"]})`], ...BESS_ZONES.map(code => [code, ZONE_NAMES[code]])], {
+          help: bessHelp("Why a zone", "<p>Imbalance prices are set per zone (ENTSO-E 17.1.G; North has its own, the other zones share one). On Italy's page the zone is North.</p>") }) +
+        anaSelect(s, "tech", "Technology", [["solar", "Solar"], ["wind", "Wind (onshore)"]]) +
+        anaNumber(s, "plant", "Capacity (MW)", { placeholder: "e.g. 10", min: 0, step: 1 }) +
+        anaNumber(s, "yield", "Yield (MWh per MW a year)", { placeholder: "typical for the zone", min: 0, step: 50, hint: "yield",
+          help: bessHelp("How the plant is drawn", "<p>The zone's fleet scaled down: the plant produces the zone's ENTSO-E output, quarter-hour by quarter-hour, scaled so that over the period it yields this many MWh per MW a year. Left blank: a typical yield for a new plant in the zone. The € per MWh do not depend on it, only the € a year.</p><p>Why not the installed capacity: ENTSO-E's solar output leaves out much of the rooftop capacity Terna counts, so dividing the one by the other would give a plant far too few hours.</p>") }) +
+        anaNumber(s, "scale", "Forecast error, × the zone fleet's", { placeholder: "e.g. 1", min: 0, step: 0.1,
+          help: bessHelp("Why a factor", "<p>The fleet's error is the error of thousands of plants together, which partly cancel out: a single plant's forecast misses more. 1 keeps the fleet's error; 1.5 or 2 is closer to a single plant's, depending on its forecaster.</p>") })) +
+        bessGroup("Period", anaPeriodFields(s));
+    },
+    results: () =>
+      `<section id="imbalance-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Results</div>` +
+      `<div id="imbalance-summary-subtitle" class="chart-subtitle"></div></div><div id="imbalance-status" class="bess-status"></div></div>` +
+      `<div id="imbalance-kpis" class="gas-kpis bess-kpis"></div><p id="imbalance-reading" class="bess-reading"></p></section>` +
+      anaSection("imbalance", "cost", "Imbalance Cost", { wide: true, extra: anaBuckets(imbalanceState.bucket),
+        help: "€ per MWh produced: selling the day-ahead forecast and settling the rest at the imbalance price, against selling the exact output in the MGP; and with the move to the intraday forecast traded first. Below zero, the errors earned money: they fell where the imbalance price paid for them." }) +
+      anaSection("imbalance", "hours", "When the Errors Cost", {
+        help: "Each hour of the day: the day-ahead imbalance cost over the period, € per MW of the plant and year, from the quarter-hours the plant produced more than it sold (long) and less (short). Below zero: a gain." }) +
+      anaSection("imbalance", "error", "Forecast Error by Hour", {
+        help: "Each hour: the average error (output minus day-ahead forecast; bars, above zero producing more) and the average absolute error (line), % of the plant's capacity." }) +
+      anaSection("imbalance", "gap", "Imbalance Price against the MGP", { wide: true,
+        help: "Each hour: the imbalance price minus the zone's MGP price, on average, when the macrozone was short (it needed energy: Terna's net imbalance below zero) and long. A plant pays this gap on every MWh it is short and earns it on every MWh it is long, so it gains when its error goes against the system's." }) +
+      anaSection("imbalance", "table", "Results Table", { wide: true, body: '<div id="imbalance-table" class="bess-table-wrap"></div>' }),
+    charts: ["cost", "hours", "error", "gap"],
+    compute: async self => {
+      const zone = imbalanceZone();
+      const files = await imbalanceLoad(zone);
+      const tech = IMBALANCE_TECHS[imbalanceState.tech] || IMBALANCE_TECHS.solar;
+      const actualSeries = files.generation.generation.quarter_hourly[tech.codes[0]].points;
+      const imbalanceSeries = files.balancing.series.quarter_hourly[`${zone}|imbalance_price`];
+      const lastDay = [anaLastDate(actualSeries), anaLastDate(imbalanceSeries), anaLastDate(files.forecasts.day_ahead.quarter_hourly[tech.codes[0]])]
+        .filter(Boolean).sort()[0];
+      const [from, to] = anaPeriod(imbalanceState, lastDay);
+      self.hint("period", `${bessDateText(from)} – ${bessDateText(to)} · on file to ${bessDateText(lastDay)}.`);
+      const result = imbalanceCompute(files, zone, from, to, imbalanceState);
+      self.hint("yield", `${imbalanceState.yield === "" ? "Typical for " + ZONE_NAMES[zone] + ": " : "Entered: "}${formatNumber(result.yieldMwh, 0)} MWh/MW a year (a capacity factor of ${formatNumber(result.yieldMwh / 87.6, 1)}%).`);
+      const placeholder = document.querySelector('#imbalance-view [data-field="yield"]');
+      if (placeholder) placeholder.placeholder = `typical: ${formatNumber((IMBALANCE_YIELDS[imbalanceState.tech] || IMBALANCE_YIELDS.solar)[zone], 0)}`;
+      return { zone, from, to, tech: imbalanceState.tech, ...result, totals: imbalanceTotals(result.days) };
+    },
+    render: self => imbalanceRender(self)
+  });
+  imbalanceView.state = imbalanceState;
+  imbalanceView.followsPage = imbalanceZone;
+
+  function imbalanceRender(self) {
+    const results = self.results;
+    const kpis = document.getElementById("imbalance-kpis"), reading = document.getElementById("imbalance-reading");
+    if (!results) {
+      kpis.innerHTML = "";
+      reading.innerHTML = self.message ? `<span class="bess-error">${self.message}</span>` : "";
+      Object.values(self.charts).forEach(chart => anaEmpty(chart, self.busy ? "Working…" : ""));
+      document.getElementById("imbalance-table").innerHTML = "";
+      return;
+    }
+    const t = results.totals, tech = IMBALANCE_TECHS[results.tech];
+    const years = results.days.length / 365;
+    setText("imbalance-summary-subtitle", `${formatNumber(results.plant, results.plant % 1 ? 1 : 0)} MW ${tech.label.toLowerCase()} in ${ZONE_NAMES[results.zone]} · ` +
+      `error ×${formatNumber(results.scale, 1)} the fleet's · ${bessDateText(results.from)} – ${bessDateText(results.to)} (${formatNumber(results.days.length)} days)`);
+    const errors = t.helping + t.against;
+    kpis.innerHTML =
+      anaTile("Imbalance cost, day-ahead", `${anaSigned(t.perMwhDa, 2)}`, `per MWh produced · ${anaPct(t.costDa / t.revenue, 1)} of its MGP revenue`) +
+      anaTile("With intraday correction", `${anaSigned(t.perMwhId, 2)}`, `per MWh · intraday forecast for ${anaPct(results.idCoverage)} of the quarter-hours`) +
+      anaTile("For this plant", bessMoney(t.costDa / years), `a year, day-ahead · ${bessMoney(t.costId / years)} with intraday · ${bessMwh(t.output / years)} a year`) +
+      anaTile("Forecast error", anaPct(t.absError / t.output, 1), `mean absolute error, % of the output · bias ${anaPct(t.bias / t.output, 1)}`) +
+      anaTile("Errors that helped", anaPct(errors > 0 ? t.helping / errors : NaN), "of the error MWh went against the macrozone's imbalance");
+    reading.innerHTML = `<b>Reading:</b> selling its day-ahead forecast, the plant would have ${t.costDa >= 0 ? "lost" : "gained"} ${anaPrice(Math.abs(t.perMwhDa), 2)} per MWh it produced ` +
+      `(${bessMoney(Math.abs(t.costDa / years))} a year); trading its intraday forecast first, ${t.costId >= 0 ? "lost" : "gained"} ${anaPrice(Math.abs(t.perMwhId), 2)}. ` +
+      `Its forecast missed by ${anaPct(t.absError / t.output, 1)} of its output on average.`;
+    // Cost by bucket.
+    const map = new Map();
+    results.days.forEach(day => { const key = anaBucketOf(imbalanceState.bucket, day.date); if (!map.has(key)) map.set(key, []); map.get(key).push(day); });
+    const buckets = [...map.entries()].map(([key, list]) => ({ key, totals: imbalanceTotals(list) }));
+    setText("imbalance-cost-subtitle", `€ per MWh produced, per ${imbalanceState.bucket}`);
+    self.charts.cost.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Day-ahead forecast", "With intraday correction"]),
+      tooltip: bessTooltip(params => {
+        const item = buckets[params[0].dataIndex];
+        return bessTipHead(`${anaBucketLabel(item.key)} · ${bessMwh(item.totals.output)} produced`) + params.map(entry =>
+          tooltipRow(entry.color, entry.seriesName, `${anaSigned(entry.value, 2)}/MWh`)).join("");
+      }, { axisPointer: { type: "shadow" } }),
+      grid: { left: 64, right: 16, top: 40, bottom: 34 },
+      xAxis: { type: "category", data: buckets.map(item => anaBucketLabel(item.key)), axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
+      yAxis: timelineYAxis("€/MWh", { nameGap: 44 }),
+      series: [["Day-ahead forecast", "--border-1", "perMwhDa"], ["With intraday correction", "--border-2", "perMwhId"]].map(([name, color, key]) => ({
+        name, type: "bar", barMaxWidth: 22, barGap: "10%", data: buckets.map(item => (Number.isFinite(item.totals[key]) ? Math.round(item.totals[key] * 100) / 100 : null)),
+        itemStyle: { color: cssVar(color) } }))
+    }, true);
+    self.charts.cost.resize();
+    // Hours.
+    const sum = key => { const out = new Float64Array(24); results.days.forEach(day => { for (let h = 0; h < 24; h += 1) out[h] += day[key][h]; }); return out; };
+    const long = sum("hourLong"), short = sum("hourShort"), abs = sum("hourAbs"), bias = sum("hourBias"), count = sum("hourCount");
+    const perMwYear = value => Math.round(value / results.plant / years);
+    setText("imbalance-hours-subtitle", "€ per MW and year, day-ahead forecast, by hour of the clock");
+    self.charts.hours.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Long (produced more)", "Short (produced less)"]),
+      tooltip: bessTooltip(params => bessTipHead(anaHours[params[0].dataIndex]) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, `${bessMoney(entry.value)}/MW/yr`)).join(""), { axisPointer: { type: "shadow" } }),
+      grid: { left: 56, right: 16, top: 40, bottom: 30 },
+      xAxis: { type: "category", data: anaHours, axisTick: { show: false }, axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: { ...bessAxisLabel(), interval: 2 } },
+      yAxis: bessEuroAxis("€/MW/yr"),
+      series: [["Long (produced more)", "--border-3", long], ["Short (produced less)", "--border-5", short]].map(([name, color, values]) => ({
+        name, type: "bar", stack: "cost", barMaxWidth: 18, data: Array.from(values, perMwYear), itemStyle: { color: cssVar(color) } }))
+    }, true);
+    self.charts.hours.resize();
+    setText("imbalance-error-subtitle", "% of the plant's capacity, by hour of the clock");
+    self.charts.error.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Average error", "Average absolute error"]),
+      tooltip: bessTooltip(params => bessTipHead(anaHours[params[0].dataIndex]) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, `${formatNumber(entry.value, 2)}%`, entry.seriesType === "line" ? "line" : "area")).join(""), { axisPointer: { type: "shadow" } }),
+      grid: { left: 56, right: 16, top: 40, bottom: 30 },
+      xAxis: { type: "category", data: anaHours, axisTick: { show: false }, axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: { ...bessAxisLabel(), interval: 2 } },
+      yAxis: timelineYAxis("% of capacity", { nameGap: 40 }),
+      series: [{ name: "Average error", type: "bar", barMaxWidth: 16, data: Array.from(bias, (value, h) => (count[h] ? Math.round(value / count[h] * 1e4) / 100 : null)),
+        itemStyle: { color: cssVar(tech.color) } },
+        anaLineSeries("Average absolute error", "--chart-pun", Array.from(abs, (value, h) => (count[h] ? Math.round(value / count[h] * 1e4) / 100 : null)), { showSymbol: true })]
+    }, true);
+    self.charts.error.resize();
+    const gap = (sumKey, countKey) => { const values = sum(sumKey), counts = sum(countKey); return Array.from(values, (value, h) => (counts[h] ? Math.round(value / counts[h] * 10) / 10 : null)); };
+    setText("imbalance-gap-subtitle", `€/MWh, imbalance price minus MGP price, ${ZONE_NAMES[results.zone]}, by hour of the clock`);
+    self.charts.gap.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Macrozone short", "Macrozone long"]),
+      tooltip: bessTooltip(params => bessTipHead(anaHours[params[0].dataIndex]) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, `${anaSigned(entry.value)}/MWh`, "line")).join("")),
+      grid: { left: 56, right: 16, top: 40, bottom: 30 },
+      xAxis: { type: "category", data: anaHours, boundaryGap: false, axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), interval: 1 } },
+      yAxis: timelineYAxis("€/MWh", { nameGap: 40 }),
+      series: [anaLineSeries("Macrozone short", "--border-2", gap("hourGapShort", "hourGapShortN"), { showSymbol: true }),
+        anaLineSeries("Macrozone long", "--border-1", gap("hourGapLong", "hourGapLongN"), { showSymbol: true })]
+    }, true);
+    self.charts.gap.resize();
+    const months = new Map();
+    results.days.forEach(day => { const key = day.date.slice(0, 7); if (!months.has(key)) months.set(key, []); months.get(key).push(day); });
+    document.getElementById("imbalance-table").innerHTML = `<table class="bess-table"><thead><tr><th>Month</th><th>Days</th><th>Output</th>` +
+      `<th>Cost, day-ahead</th><th>€/MWh</th><th>Cost, with intraday</th><th>€/MWh</th><th>Mean absolute error</th><th>Bias</th></tr></thead><tbody>` +
+      [...months.entries()].map(([key, list]) => {
+        const m = imbalanceTotals(list);
+        return `<tr><td>${anaBucketLabel(key)}</td><td>${m.days}</td><td>${bessMwh(m.output)}</td><td>${bessMoney(m.costDa)}</td><td>${anaSigned(m.perMwhDa, 2)}</td>` +
+          `<td>${bessMoney(m.costId)}</td><td>${anaSigned(m.perMwhId, 2)}</td><td>${anaPct(m.absError / m.output, 1)}</td><td>${anaPct(m.bias / m.output, 1)}</td></tr>`;
+      }).join("") + `</tbody></table>`;
+    setText("imbalance-table-subtitle", "Month by month, the plant");
+  }
+
+  /* ---------- Zonal spreads and congestion ---------- */
+  /*
+   * Each zone's MGP price against a reference zone's, quarter-hour by
+   * quarter-hour: how often they split (differ by more than a cent), by
+   * how much, at what hours, and what a 1 MW plant producing all the time
+   * earns more or less for being in the zone.  The borders between zones
+   * (GME's MGP flows and limits): how often each ran at its limit, and the
+   * congestion rent, flow times price gap.
+   */
+  const CONGESTION_BORDERS = [["NORD", "CNOR"], ["CNOR", "CSUD"], ["CSUD", "SUD"], ["SUD", "CALA"], ["CALA", "SICI"], ["CSUD", "SARD"]];
+  const congestionState = { reference: "NORD", period: "last12", from: "", to: "", bucket: "month" };
+  const SPLIT_EPS = 0.01;
+
+  async function congestionLoad() {
+    const [zonal, transits] = await Promise.all([anaFetch("zonal_prices.json"), anaFetch("transits.json").catch(() => null)]);
+    return { zonal, transits };
+  }
+  /* A border's flow and its limits on a day: the pair as GME files it, the flow signed from a to b. */
+  function congestionBorderDay(transits, a, b, date, T) {
+    if (!transits || !transits.flows) return null;
+    const quarter = transits.flows.quarter_hourly || {}, hourly = transits.flows.hourly || {};
+    const forward = quarter[`${a}|${b}`] || hourly[`${a}|${b}`] ? `${a}|${b}` : quarter[`${b}|${a}`] || hourly[`${b}|${a}`] ? `${b}|${a}` : null;
+    if (!forward) return null;
+    const sign = forward === `${a}|${b}` ? 1 : -1;
+    const series = name => anaSeriesDay(quarter[forward] && quarter[forward][name], hourly[forward] && hourly[forward][name], date, T);
+    const flow = series("flow");
+    if (!flow) return null;
+    const ahead = series("limit_forward"), back = series("limit_back");
+    return { flow: flow.map(value => value * sign), limitAb: sign === 1 ? ahead : back, limitBa: sign === 1 ? back : ahead };
+  }
+  function congestionCompute(files, reference, from, to) {
+    const zones = BESS_ZONES;
+    const days = [];
+    const spreads = Object.fromEntries(zones.map(zone => [zone, []]));
+    for (let date = from; date <= to; date = bessAddDays(date, 1)) {
+      const refNode = files.zonal.zones[reference];
+      const refPrice = anaSeriesDay(refNode.quarter_hourly, refNode.hourly, date);
+      if (!refPrice) continue;
+      const T = refPrice.length;
+      const prices = Object.fromEntries(zones.map(zone => [zone, files.zonal.zones[zone] ? anaSeriesDay(files.zonal.zones[zone].quarter_hourly, files.zonal.zones[zone].hourly, date, T) : null]));
+      const record = { date, zones: {}, borders: {} };
+      zones.forEach(zone => {
+        const price = prices[zone];
+        const sum = { quarters: 0, split: 0, spread: 0, abs: 0, max: 0, min: 0, hour: new Float64Array(24), hourN: new Float64Array(24) };
+        if (price) {
+          for (let t = 0; t < T; t += 1) {
+            if (!Number.isFinite(price[t]) || !Number.isFinite(refPrice[t])) continue;
+            const spread = price[t] - refPrice[t];
+            const hour = Math.floor(bessClockMinutes(T, t) / 60);
+            sum.quarters += 1; sum.spread += spread; sum.abs += Math.abs(spread);
+            if (Math.abs(spread) > SPLIT_EPS) sum.split += 1;
+            sum.max = Math.max(sum.max, spread); sum.min = Math.min(sum.min, spread);
+            sum.hour[hour] += spread; sum.hourN[hour] += 1;
+            if (zone !== reference) spreads[zone].push(spread);
+          }
+        }
+        record.zones[zone] = sum;
+      });
+      CONGESTION_BORDERS.forEach(([a, b]) => {
+        const sum = { quarters: 0, atLimitAb: 0, atLimitBa: 0, rent: 0, flowAb: 0, split: 0 };
+        const border = congestionBorderDay(files.transits, a, b, date, T);
+        const pa = prices[a], pb = prices[b];
+        if (border && pa && pb) {
+          for (let t = 0; t < T; t += 1) {
+            const flow = border.flow[t];
+            if (!Number.isFinite(flow) || !Number.isFinite(pa[t]) || !Number.isFinite(pb[t])) continue;
+            sum.quarters += 1;
+            sum.flowAb += flow * 0.25;
+            const gap = pb[t] - pa[t];
+            if (Math.abs(gap) > SPLIT_EPS) sum.split += 1;
+            // Rent: what the flow from the cheaper zone to the dearer one collects.
+            sum.rent += flow * gap * 0.25;
+            const limit = flow >= 0 ? border.limitAb && border.limitAb[t] : border.limitBa && border.limitBa[t];
+            if (Number.isFinite(limit) && limit > 0 && Math.abs(flow) >= limit - 1) {
+              if (flow >= 0) sum.atLimitAb += 1; else sum.atLimitBa += 1;
+            }
+          }
+        }
+        record.borders[`${a}|${b}`] = sum;
+      });
+      days.push(record);
+    }
+    if (!days.length) throw anaUserError("No day of the period has zonal prices on file.");
+    return { days, spreads };
+  }
+  function congestionZoneTotals(days, zone) {
+    const total = { quarters: 0, split: 0, spread: 0, abs: 0, max: -Infinity, min: Infinity };
+    days.forEach(day => {
+      const sum = day.zones[zone];
+      if (!sum || !sum.quarters) return;
+      total.quarters += sum.quarters; total.split += sum.split; total.spread += sum.spread; total.abs += sum.abs;
+      total.max = Math.max(total.max, sum.max); total.min = Math.min(total.min, sum.min);
+    });
+    total.mean = total.quarters ? total.spread / total.quarters : NaN;
+    total.splitShare = total.quarters ? total.split / total.quarters : NaN;
+    total.meanWhenSplit = total.split ? total.abs / total.split : NaN;
+    // A 1 MW plant producing every quarter-hour: the spread times 0.25 MWh, per year.
+    total.perMwYear = total.quarters ? total.spread * 0.25 / (total.quarters / 96) * 365 : NaN;
+    return total;
+  }
+  function congestionBorderTotals(days, key) {
+    const total = { quarters: 0, atLimitAb: 0, atLimitBa: 0, rent: 0, flowAb: 0, split: 0 };
+    days.forEach(day => { const sum = day.borders[key]; if (sum) Object.keys(total).forEach(name => { total[name] += sum[name]; }); });
+    return total;
+  }
+
+  const congestionView = anaView("congestion", {
+    title: "Zonal spreads and congestion",
+    lede: "How often each bidding zone's day-ahead price splits from a reference zone's, by how much and at what hours; what a plant gains or loses for being in the zone; and how often each border between zones ran at its limit, with the congestion rent it collected.",
+    form: () => {
+      const s = congestionState;
+      return bessGroup("Zones",
+        anaSelect(s, "reference", "Reference zone", BESS_ZONES.map(code => [code, ZONE_NAMES[code]]), {
+          help: bessHelp("What it does", "<p>Every zone's price is set against this one's. The North, the largest zone and the one coupled with France, Austria and Slovenia, is the usual reference: the others split from it when a border between them is full.</p>") })) +
+        bessGroup("Period", anaPeriodFields(s));
+    },
+    results: () =>
+      `<section id="congestion-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Results</div>` +
+      `<div id="congestion-summary-subtitle" class="chart-subtitle"></div></div><div id="congestion-status" class="bess-status"></div></div>` +
+      `<div id="congestion-summary" class="bess-table-wrap"></div><p id="congestion-reading" class="bess-reading"></p></section>` +
+      anaSection("congestion", "spread", "Average Spread against the Reference", { wide: true, extra: anaBuckets(congestionState.bucket),
+        help: "Each zone's MGP price minus the reference zone's, averaged over every quarter-hour (those without a split count as zero). Above zero the zone was dearer. Click a zone in the legend to hide or show it." }) +
+      anaSection("congestion", "split", "How Often Prices Split", {
+        help: "Share of the quarter-hours in which the zone's price differed from the reference's by more than a cent, per day, month or year as chosen above." }) +
+      anaSection("congestion", "heatmap", "Spread by Hour of the Day", {
+        help: "Each zone (row) and clock hour (column): the average spread against the reference over the period. Orange dearer, blue cheaper." }) +
+      anaSection("congestion", "duration", "Spread Duration Curves", {
+        help: "For each zone, its spreads against the reference sorted from the highest to the lowest: the share of the quarter-hours (across) in which the spread was at least the value (up). The flat stretch at zero is the time the two prices were equal." }) +
+      anaSection("congestion", "rent", "Congestion Rent by Border", { wide: true,
+        help: "Each border between zones (GME's MGP flows): the flow times the price gap between its two zones, summed. It goes to Terna, and is what a plant (or a buyer) loses for being on the cheaper side of a full border. The table gives the share of the time each border ran at its limit, each way." }) +
+      anaSection("congestion", "borders", "Borders", { wide: true, body: '<div id="congestion-borders" class="bess-table-wrap"></div>' }),
+    charts: ["spread", "split", "heatmap", "duration", "rent"],
+    compute: async self => {
+      const files = await congestionLoad();
+      const reference = congestionState.reference || "NORD";
+      const refNode = files.zonal.zones[reference];
+      const lastDay = anaLastDate(refNode.quarter_hourly) || anaLastDate(refNode.hourly);
+      const [from, to] = anaPeriod(congestionState, lastDay);
+      self.hint("period", `${bessDateText(from)} – ${bessDateText(to)} · on file to ${bessDateText(lastDay)}. Prices hourly until 30 Sep 2025, quarter-hourly since.`);
+      return { reference, from, to, hasFlows: Boolean(files.transits), ...congestionCompute(files, reference, from, to) };
+    },
+    render: self => congestionRender(self)
+  });
+  congestionView.state = congestionState;
+
+  function congestionRender(self) {
+    const results = self.results;
+    const summary = document.getElementById("congestion-summary"), reading = document.getElementById("congestion-reading");
+    if (!results) {
+      summary.innerHTML = "";
+      reading.innerHTML = self.message ? `<span class="bess-error">${self.message}</span>` : "";
+      Object.values(self.charts).forEach(chart => anaEmpty(chart, self.busy ? "Working…" : ""));
+      document.getElementById("congestion-borders").innerHTML = "";
+      return;
+    }
+    const others = BESS_ZONES.filter(zone => zone !== results.reference);
+    const refName = ZONE_NAMES[results.reference];
+    const totals = Object.fromEntries(others.map(zone => [zone, congestionZoneTotals(results.days, zone)]));
+    setText("congestion-summary-subtitle", `Against ${refName} · ${bessDateText(results.from)} – ${bessDateText(results.to)} (${formatNumber(results.days.length)} days)`);
+    summary.innerHTML = `<table class="bess-table"><thead><tr><th>Zone</th><th>Split from ${refName}</th><th>Average spread</th><th>Spread when split</th>` +
+      `<th>Highest</th><th>Lowest</th><th>1 MW baseload, €/yr</th></tr></thead><tbody>` +
+      others.map(zone => {
+        const t = totals[zone];
+        return `<tr><td><span class="bess-swatch" style="background:var(${anaZoneColor(zone)})"></span>${ZONE_NAMES[zone]}</td><td>${anaPct(t.splitShare, 1)}</td>` +
+          `<td>${anaSigned(t.mean, 2)}</td><td>${anaPrice(t.meanWhenSplit, 1)}</td><td>${anaSigned(t.max, 0)}</td><td>${anaSigned(t.min, 0)}</td><td>${bessMoney(t.perMwYear)}</td></tr>`;
+      }).join("") + `</tbody></table>`;
+    const most = [...others].sort((a, b) => totals[b].splitShare - totals[a].splitShare)[0];
+    const dearest = [...others].sort((a, b) => totals[b].mean - totals[a].mean)[0];
+    const cheapest = [...others].sort((a, b) => totals[a].mean - totals[b].mean)[0];
+    reading.innerHTML = `<b>Reading:</b> ${ZONE_NAMES[most]} split from ${refName} most often (${anaPct(totals[most].splitShare, 0)} of the quarter-hours). ` +
+      `On average ${ZONE_NAMES[dearest]} was the dearest (${anaSigned(totals[dearest].mean, 2)}/MWh, ${bessMoney(totals[dearest].perMwYear)} a year more for a 1 MW plant running all the time) ` +
+      `and ${ZONE_NAMES[cheapest]} the cheapest (${anaSigned(totals[cheapest].mean, 2)}/MWh). The last column is that plant's gain or loss against the same plant in ${refName}.`;
+    // Buckets.
+    const map = new Map();
+    results.days.forEach(day => { const key = anaBucketOf(congestionState.bucket, day.date); if (!map.has(key)) map.set(key, []); map.get(key).push(day); });
+    const keys = [...map.keys()];
+    const bucketTotals = keys.map(key => Object.fromEntries(others.map(zone => [zone, congestionZoneTotals(map.get(key), zone)])));
+    const zoneSeries = (value, unit, digits) => others.map(zone => anaLineSeries(ZONE_NAMES[zone], anaZoneColor(zone), bucketTotals.map(item => value(item[zone]))));
+    const lineOption = (series, axisName, format) => ({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(others.map(zone => ZONE_NAMES[zone]), { type: "scroll", right: 16 }),
+      tooltip: bessTooltip(params => bessTipHead(anaBucketLabel(keys[params[0].dataIndex])) + params.filter(entry => entry.value !== null && entry.value !== undefined)
+        .map(entry => tooltipRow(entry.color, entry.seriesName, format(entry.value), "line")).join("")),
+      grid: { left: 56, right: 16, top: 40, bottom: 34 },
+      xAxis: { type: "category", data: keys.map(anaBucketLabel), boundaryGap: false, axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
+      yAxis: timelineYAxis(axisName, { nameGap: 40 }),
+      series
+    });
+    setText("congestion-spread-subtitle", `€/MWh, zone minus ${refName}, per ${congestionState.bucket}`);
+    self.charts.spread.setOption(lineOption(zoneSeries(t => (Number.isFinite(t.mean) ? Math.round(t.mean * 100) / 100 : null)), "€/MWh", value => `${anaSigned(value, 2)}/MWh`), true);
+    self.charts.spread.resize();
+    setText("congestion-split-subtitle", `% of the quarter-hours with a price different from ${refName}'s`);
+    self.charts.split.setOption(lineOption(zoneSeries(t => (Number.isFinite(t.splitShare) ? Math.round(t.splitShare * 1000) / 10 : null)), "%", value => `${formatNumber(value, 1)}%`), true);
+    self.charts.split.resize();
+    // Heatmap: zones by hour.
+    const data = [];
+    let extreme = 1;
+    others.forEach((zone, row) => {
+      const sum = new Float64Array(24), count = new Float64Array(24);
+      results.days.forEach(day => { const z = day.zones[zone]; for (let h = 0; h < 24; h += 1) { sum[h] += z.hour[h]; count[h] += z.hourN[h]; } });
+      for (let h = 0; h < 24; h += 1) {
+        if (!count[h]) continue;
+        const value = Math.round(sum[h] / count[h] * 10) / 10;
+        extreme = Math.max(extreme, Math.abs(value));
+        data.push([h, row, value]);
+      }
+    });
+    setText("congestion-heatmap-subtitle", `€/MWh, average spread against ${refName}`);
+    const heat = anaHeatmapOption({ x: anaHours, y: others.map(zone => ZONE_NAMES[zone]), data: data, min: -extreme, max: extreme,
+      format: value => `${formatNumber(value, 0)}`, low: "Cheaper", high: "Dearer", xLabel: value => value.slice(0, 2),
+      tooltip: params => bessTipHead(`${ZONE_NAMES[others[params.value[1]]]}, ${anaHours[params.value[0]]}`) + tooltipRow(params.color, "Spread", `${anaSigned(params.value[2])}/MWh`) });
+    heat.grid.left = 96;
+    heat.yAxis.inverse = false;
+    self.charts.heatmap.setOption(heat, true);
+    self.charts.heatmap.resize();
+    // Duration curves: 201 points per zone.
+    const curves = others.map(zone => {
+      const sorted = Float64Array.from(results.spreads[zone]).sort().reverse();
+      return { zone, points: sorted.length ? Array.from({ length: 201 }, (_, index) => [index / 2, Math.round(sorted[Math.min(sorted.length - 1, Math.floor(index / 200 * (sorted.length - 1)))] * 100) / 100]) : [] };
+    });
+    setText("congestion-duration-subtitle", `€/MWh against ${refName}, quarter-hours sorted`);
+    self.charts.duration.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(others.map(zone => ZONE_NAMES[zone]), { type: "scroll", right: 16 }),
+      tooltip: bessTooltip(params => bessTipHead(`${formatNumber(params[0].value[0], 1)}% of the time at least`) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, `${anaSigned(entry.value[1], 1)}/MWh`, "line")).join("")),
+      grid: { left: 56, right: 16, top: 40, bottom: 40 },
+      xAxis: { type: "value", min: 0, max: 100, name: "% of the quarter-hours", nameLocation: "middle", nameGap: 26, nameTextStyle: bessAxisLabel(),
+        axisLabel: bessAxisLabel(), splitLine: { show: false }, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } } },
+      yAxis: timelineYAxis("€/MWh", { nameGap: 40 }),
+      series: curves.map(curve => anaLineSeries(ZONE_NAMES[curve.zone], anaZoneColor(curve.zone), curve.points, { showSymbol: false }))
+    }, true);
+    self.charts.duration.resize();
+    // Borders.
+    const borderName = ([a, b]) => `${ZONE_NAMES[a]} – ${ZONE_NAMES[b]}`;
+    const borders = CONGESTION_BORDERS.map(pair => ({ pair, key: pair.join("|"), totals: congestionBorderTotals(results.days, pair.join("|")) })).filter(item => item.totals.quarters);
+    if (!borders.length) {
+      setText("congestion-rent-subtitle", "GME's flows between zones are not on file here");
+      anaEmpty(self.charts.rent, "");
+      document.getElementById("congestion-borders").innerHTML = "";
+      return;
+    }
+    const rentBuckets = keys.map(key => Object.fromEntries(borders.map(item => [item.key, congestionBorderTotals(map.get(key), item.key).rent])));
+    const borderColors = ["--border-1", "--border-2", "--border-3", "--border-4", "--border-5", "--border-6", "--border-7"];
+    setText("congestion-rent-subtitle", `€ per ${congestionState.bucket} · total ${bessMoney(borders.reduce((sum, item) => sum + item.totals.rent, 0))}`);
+    self.charts.rent.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(borders.map(item => borderName(item.pair))),
+      tooltip: bessTooltip(params => bessTipHead(anaBucketLabel(keys[params[0].dataIndex])) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, bessMoney(entry.value))).join(""), { axisPointer: { type: "shadow" } }),
+      grid: { left: 64, right: 16, top: 40, bottom: 34 },
+      xAxis: { type: "category", data: keys.map(anaBucketLabel), axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
+      yAxis: bessEuroAxis("€"),
+      series: borders.map((item, index) => ({ name: borderName(item.pair), type: "bar", stack: "rent", barMaxWidth: 34,
+        data: rentBuckets.map(bucket => Math.round(bucket[item.key])), itemStyle: { color: cssVar(borderColors[index % borderColors.length]) } }))
+    }, true);
+    self.charts.rent.resize();
+    setText("congestion-borders-subtitle", "GME's MGP flows against the limits, each way");
+    document.getElementById("congestion-borders").innerHTML = `<table class="bess-table"><thead><tr><th>Border</th><th>At the limit, first to second</th>` +
+      `<th>At the limit, second to first</th><th>Prices split</th><th>Net flow, first to second</th><th>Congestion rent</th></tr></thead><tbody>` +
+      borders.map(item => {
+        const t = item.totals;
+        return `<tr><td>${borderName(item.pair)}</td><td>${anaPct(t.atLimitAb / t.quarters, 1)}</td><td>${anaPct(t.atLimitBa / t.quarters, 1)}</td>` +
+          `<td>${anaPct(t.split / t.quarters, 1)}</td><td>${bessMwh(t.flowAb)}</td><td>${bessMoney(t.rent)}</td></tr>`;
+      }).join("") + `</tbody></table>`;
+  }
+
+  const ANALYSIS_VIEWS = { capture: captureView, imbalance: imbalanceView, congestion: congestionView };
 
   /*
    * A tab is made of blocks: some sections, the files they need, how they
