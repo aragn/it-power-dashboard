@@ -16696,7 +16696,7 @@ move the slider above to another one`,
       `<div class="bess-compare"><span class="bess-compare-label">The three strategies on these inputs</span><div id="bess-compare-chips" class="bess-chips"></div>` +
       `<button type="button" id="bess-compare" class="bess-button">Compare strategies</button></div></section>` +
       section("money", "Revenues and Costs", { wide: true, extra: buckets,
-        help: "Revenues vs costs: above zero what the battery was paid, below zero what it paid for energy, O&amp;M, fees and network charges; the markets netted quarter-hour by quarter-hour, so a position sold in the MGP and bought back in an MI-A auction for the same quarter-hour counts once, as the margin between the two. By market: each market's sales minus purchases (MSD and MB: upward minus downward), above or below zero, and the other costs. The line: the net margin. Click a series in the legend to hide or show it." }) +
+        help: "Revenues vs costs: above zero what the battery was paid, below zero what it paid for energy, O&amp;M, fees and network charges; the markets netted quarter-hour by quarter-hour, so a position sold in the MGP and bought back in an MI-A auction for the same quarter-hour counts once, as the margin between the two. By market: each market's sales minus purchases (MSD and MB: upward minus downward), above or below zero, and the other costs. Solid line: the net margin (left axis, €). Dashed line: the same per MW of power and year (right axis), each day, month or year scaled by its own days, so a part month compares with a whole one. Click a series in the legend to hide or show it." }) +
       section("markets", "Where the Battery Made Money", {
         help: "Net margin of each market (sales minus purchases), per MW of power and year, after the other costs at the bottom. A market below zero is where the battery bought back or charged: its value shows up in the markets where that energy was sold." }) +
       section("energy", "Energy Bought and Sold by Market", {
@@ -17208,7 +17208,7 @@ move the slider above to another one`,
         bar("Other costs", BESS_OTHER_COLOR, list.map(bucket => -bucket.other))];
       rowsOf = bucket => used.map(market => tooltipRow(cssVar(market.color), market.label, bessMoney(bucket.net[market.key] || 0))).join("") +
         tooltipRow(cssVar(BESS_OTHER_COLOR), "Other costs", bessMoney(-bucket.other));
-      setText("bess-money-subtitle", `€ per ${per} · each market's sales minus purchases, and the other costs`);
+      setText("bess-money-subtitle", `€ per ${per} · each market's sales minus purchases, and the other costs · right axis: the net margin per MW and year`);
     } else {
       const parts = [
         { name: "Revenues", color: "--border-3", value: bucket => bucket.cashIn },
@@ -17218,24 +17218,52 @@ move the slider above to another one`,
       ];
       series = parts.map(part => bar(part.name, part.color, list.map(part.value)));
       rowsOf = bucket => parts.map(part => tooltipRow(cssVar(part.color), part.name, bessMoney(part.value(bucket)))).join("");
-      setText("bess-money-subtitle", `€ per ${per} · revenues above zero, costs below`);
+      setText("bess-money-subtitle", `€ per ${per} · revenues above zero, costs below · right axis: the net margin per MW and year`);
     }
+    // Right axis: the net margin per MW of power and year, each bucket annualised over its own days.
+    // Both axes get the same ticks above and below zero, so zero sits at one height.
+    const PER_MW = "€/MW/yr";
+    const perMw = bucket => bucket.margin / results.power * 365 / bucket.days;
+    const niceStep = raw => {
+      const power = Math.pow(10, Math.floor(Math.log10(raw)));
+      return [1, 2, 2.5, 5, 10].map(factor => factor * power).find(step => step >= raw * (1 - 1e-9));
+    };
+    let dataMax = 0, dataMin = 0;
+    list.forEach((bucket, index) => {
+      let up = 0, down = 0;
+      series.forEach(item => { const value = item.data[index] || 0; if (value > 0) up += value; else down += value; });
+      dataMax = Math.max(dataMax, up, bucket.margin);
+      dataMin = Math.min(dataMin, down, bucket.margin);
+    });
+    const ratios = list.map(perMw);
+    const ratioMax = Math.max(0, ...ratios), ratioMin = Math.min(0, ...ratios);
+    const interval = niceStep(Math.max(1, (dataMax - dataMin) / 5));
+    const above = Math.max(1, Math.ceil(dataMax / interval - 1e-9));
+    const below = Math.max(ratioMin < 0 ? 1 : 0, Math.ceil(-dataMin / interval - 1e-9));
+    const rightInterval = niceStep(Math.max(1, ratioMax / above, below ? -ratioMin / below : 0));
     chart.setOption({
       animation: false, backgroundColor: "transparent",
-      legend: bessLegend([...series.map(item => item.name), "Net margin"]),
+      legend: bessLegend([...series.map(item => item.name), "Net margin", PER_MW]),
       tooltip: bessTooltip(params => {
         const bucket = list[params[0].dataIndex];
         const key = keys[params[0].dataIndex];
         return bessTipHead(`${key.length === 10 ? bessDateText(key) : bessBucketLabel(key)} · ${bucket.days} day${bucket.days === 1 ? "" : "s"}`) +
-          rowsOf(bucket) + tooltipRow(cssVar("--chart-pun"), "Net margin", bessMoney(bucket.margin), "line");
+          rowsOf(bucket) + tooltipRow(cssVar("--chart-pun"), "Net margin", bessMoney(bucket.margin), "line") +
+          tooltipRow(cssVar("--chart-legend"), PER_MW, `${bessMoney(perMw(bucket))}/MW/yr`, "dashed");
       }, { axisPointer: { type: "shadow" } }),
-      grid: { left: 64, right: 16, top: 40, bottom: 34 },
+      grid: { left: 64, right: 64, top: 40, bottom: 34 },
       xAxis: { type: "category", data: keys.map(bessBucketLabel), axisTick: { show: false },
         axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
-      yAxis: bessEuroAxis("€"),
+      // Right axis: the same zero as the left one, so the line reads against both.
+      yAxis: [{ ...bessEuroAxis("€"), min: -below * interval, max: above * interval, interval },
+        { ...bessEuroAxis(PER_MW), position: "right", nameRotate: -90, splitLine: { show: false },
+          min: -below * rightInterval, max: above * rightInterval, interval: rightInterval }],
       series: [...series,
         { name: "Net margin", type: "line", data: list.map(bucket => bucket.margin), z: 10, symbolSize: 5,
-          showSymbol: keys.length <= 60, lineStyle: { color: cssVar("--chart-pun"), width: 1.8 }, itemStyle: { color: cssVar("--chart-pun") } }]
+          showSymbol: keys.length <= 60, lineStyle: { color: cssVar("--chart-pun"), width: 1.8 }, itemStyle: { color: cssVar("--chart-pun") } },
+        { name: PER_MW, type: "line", yAxisIndex: 1, data: list.map(perMw), z: 11, symbol: "rect", symbolSize: 5,
+          showSymbol: keys.length <= 60, lineStyle: { color: cssVar("--chart-legend"), width: 1.6, type: "dashed" },
+          itemStyle: { color: cssVar("--chart-legend") } }]
     }, true);
     chart.resize();
   }
