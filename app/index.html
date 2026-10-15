@@ -19974,7 +19974,7 @@ move the slider above to another one`,
 
   const macseView = anaView("macse", {
     title: "MACSE and the capacity market",
-    lede: "The same battery three ways: merchant, trading the markets on its own (the battery calculator's optimisation); merchant with a capacity-market contract, a premium on its derated capacity against paying back the price above the strike; and MACSE, Terna's 15-year fixed premium per MWh of capacity, giving its time-shifting to third parties and 80% of its balancing margin to Terna. Over the same days, what each would have earned and what each gives up.",
+    lede: "The same battery three ways: merchant, trading the markets on its own (the battery calculator's optimisation); merchant with a capacity-market contract, a premium on its derated capacity against paying back the price above the strike; and MACSE, Terna's 15-year fixed premium per MWh of capacity, giving its time-shifting to third parties and 80% of its balancing margin to Terna. Over the same days, what each would have earned and what each gives up. MACSE contracts start in 2028 (the first auction's delivery year) and the capacity market's 2028 rules are applied too: both are shown as if they were already active over the days on file, a what-if on past prices.",
     form: () => {
       const s = macseState;
       return bessGroup("The battery",
@@ -20100,7 +20100,7 @@ move the slider above to another one`,
     reading.innerHTML = `<b>Reading:</b> over these days ${ranked[0][1].toLowerCase()} would have earned most, ${bessMoney(perMwYear(totals[ranked[0][0]]))} per MW a year, ` +
       `against ${ranked.slice(1).map(([key, label]) => `${bessMoney(perMwYear(totals[key]))} ${label === "MACSE" ? "with MACSE" : label === "Merchant" ? "merchant" : "merchant with the capacity market"}`).join(" and ")}. ` +
       `The capacity contract's premium (${bessMoney(perMwYear(premiumCm))}/MW a year on ${formatNumber(results.rated, 1)} rated MW) ${premiumCm > payback ? "more than covered" : "did not cover"} its payback (${bessMoney(perMwYear(payback))}). ` +
-      `MACSE matches merchant at €${formatNumber(breakeven, 0)}/MWh a year of capacity, against the €${formatNumber(results.premium, 0)} assumed. Past prices, not a forecast: MACSE and the capacity contract fix the revenue for 15 years and one year ahead.`;
+      `MACSE matches merchant at €${formatNumber(breakeven, 0)}/MWh a year of capacity, against the €${formatNumber(results.premium, 0)} assumed. Past prices, not a forecast: MACSE starts delivering in 2028 and is applied here as if active today; MACSE fixes the revenue for 15 years, the capacity contract for its delivery year.`;
     // Routes by bucket.
     const map = new Map();
     records.forEach(record => { const key = anaBucketOf(macseState.bucket, record.date); if (!map.has(key)) map.set(key, []); map.get(key).push(record); });
