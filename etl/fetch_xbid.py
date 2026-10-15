@@ -67,6 +67,9 @@ PRODUCTS = {
 # Incremental runs re-download this many days to pick up corrections.
 LOOKBACK_DAYS = 7
 
+# Logins a monthly request may take before the run stops (keeping what it has).
+LOGIN_ATTEMPTS = 4
+
 
 # ============================================================================
 # PARSING
@@ -203,12 +206,20 @@ def download(login, password, start_date, end_date):
 
     for index, (chunk_start, chunk_end) in enumerate(chunks, start=1):
         print(f"    [{index}/{len(chunks)}] {chunk_start} -> {chunk_end}")
-        try:
-            rows = request_chunk(token, chunk_start, chunk_end, segment=SEGMENT, data_name=DATA_NAME)
-        except PermissionError:
-            print("    Token expired. Re-authenticating...")
-            token = get_token(login, password)
-            rows = request_chunk(token, chunk_start, chunk_end, segment=SEGMENT, data_name=DATA_NAME)
+        rows = None
+        for attempt in range(LOGIN_ATTEMPTS):
+            try:
+                rows = request_chunk(token, chunk_start, chunk_end, segment=SEGMENT, data_name=DATA_NAME)
+                break
+            except PermissionError:
+                # GME's token lapses during long rate-limit waits: log in again.
+                print("    Token expired. Re-authenticating...")
+                time.sleep(REQUEST_PAUSE_SECONDS * (attempt + 1))
+                token = get_token(login, password)
+        if rows is None:
+            # The months downloaded so far still go out; a later run with --start continues.
+            print(f"    GME refused {chunk_start} -> {chunk_end} {LOGIN_ATTEMPTS} times; stopping here")
+            return prices, volumes, False
 
         found = extract_prices(rows)
         print(f"    {len(rows):,} rows, {sum(len(v) for v in found.values()):,} traded products kept")
@@ -219,7 +230,7 @@ def download(login, password, start_date, end_date):
         if index < len(chunks):
             time.sleep(REQUEST_PAUSE_SECONDS)
 
-    return prices, volumes
+    return prices, volumes, True
 
 
 # ============================================================================
@@ -324,7 +335,7 @@ def main():
     print(f"Date range: {start_date} -> {end_date}")
     print()
 
-    prices, new_volumes = download(login, password, start_date, end_date)
+    prices, new_volumes, complete = download(login, password, start_date, end_date)
     if not prices:
         raise RuntimeError("No MI-XBID totals downloaded; not writing output.")
 
@@ -356,6 +367,9 @@ def main():
     print("=" * 70)
     print(f"Wrote: {OUTPUT_PATH}")
     print("=" * 70)
+    if not complete:
+        # A warning, not a failure: the workflow then publishes the months downloaded.
+        print("::warning::MI-XBID stopped early (GME's rate limit): the months downloaded are written; run again with --start.")
 
 
 if __name__ == "__main__":
