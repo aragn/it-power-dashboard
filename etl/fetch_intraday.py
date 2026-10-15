@@ -239,6 +239,8 @@ def main():
     parser.add_argument("--end", default=None)
     parser.add_argument("--full-history", action="store_true",
                         help="Rebuild from 2025-01-01 instead of merging onto existing data")
+    parser.add_argument("--volumes-only", action="store_true",
+                        help="Download only the zonal volumes, keeping the prices on file (half the API calls)")
     args = parser.parse_args()
 
     end_date = parse_date(args.end) if args.end else date.today()
@@ -276,10 +278,12 @@ def main():
         if index:
             time.sleep(REQUEST_PAUSE_SECONDS)
         print(f"Downloading {market}...")
-        rows = request_data(login, password, start_date, end_date, segment=market)
-        print(f"  {len(rows):,} raw rows")
-
-        new = build_series(rows)
+        if args.volumes_only:
+            new = empty_market()
+        else:
+            rows = request_data(login, password, start_date, end_date, segment=market)
+            print(f"  {len(rows):,} raw rows")
+            new = build_series(rows)
         markets[market] = {
             zone: {
                 resolution: merge_rows(existing[market][zone][resolution], new[zone][resolution])
@@ -291,7 +295,8 @@ def main():
         print(f"  NORD: {len(nord['daily']):,} days, {len(nord['quarter_hourly']):,} quarter-hours")
 
         # The volumes; without them the prices still go out, with the volumes on file.
-        time.sleep(REQUEST_PAUSE_SECONDS)
+        if not args.volumes_only:
+            time.sleep(REQUEST_PAUSE_SECONDS)
         try:
             new_volumes = build_volumes(
                 request_data(login, password, start_date, end_date, segment=market, data_name=VOLUME_DATA_NAME))
