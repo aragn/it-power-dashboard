@@ -472,6 +472,36 @@
     .bess-chip.current { border-color:var(--blue); }
     .bess-toggles { display:flex; flex-wrap:wrap; gap:10px; }
     .bess-field > label.ana-label { display:flex; flex-direction:column; gap:5px; }
+    .spike-story { margin:8px 0 6px; padding:0; list-style:none; border-left:1px solid var(--border); }
+    .spike-story li { position:relative; display:grid; grid-template-columns:120px 1fr; gap:12px; padding:8px 0 8px 18px; color:var(--muted); font-size:12.5px; line-height:1.5; }
+    .spike-story li::before { content:""; position:absolute; left:-6px; top:13px; width:9px; height:9px; border:2px solid var(--muted-2); border-radius:50%; background:var(--panel); }
+    .spike-story li.hot { color:var(--text); }
+    .spike-story li.hot::before { border-color:var(--border-2); background:var(--border-2); }
+    .spike-time { color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
+    .spike-list tbody tr { cursor:pointer; }
+    .spike-list tbody tr:hover td { background:var(--hover); }
+    .spike-list tbody tr.current td { color:var(--blue); font-weight:600; }
+    .binding-top { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.1fr); gap:18px; align-items:start; }
+    @media (max-width:1100px) { .binding-top { grid-template-columns:1fr; } }
+    .binding-list { margin:4px 0 0; padding:0; list-style:none; counter-reset:binding; }
+    .binding-list li { display:grid; grid-template-columns:22px minmax(0,1fr) 120px 48px; align-items:center; gap:8px; padding:7px 6px; border-bottom:1px solid var(--border); cursor:pointer; counter-increment:binding; font-size:12.5px; }
+    .binding-list li::before { content:counter(binding); color:var(--muted-2); font-size:11px; }
+    .binding-list li:hover { background:var(--hover); }
+    .binding-list li.current { background:var(--panel-2); }
+    .binding-list li.current .binding-name { color:var(--blue); }
+    .binding-name { display:flex; flex-direction:column; color:var(--text); font-weight:600; min-width:0; }
+    .binding-name small { color:var(--muted); font-weight:400; font-size:11px; }
+    .binding-bar { height:8px; border-radius:2px; background:var(--panel-2); overflow:hidden; }
+    .binding-bar > span { display:block; height:100%; background:var(--border-2); border-radius:2px; }
+    .binding-list li b { text-align:right; font-variant-numeric:tabular-nums; }
+    .binding-chips { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 12px; }
+    .binding-detail { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(0,1fr); gap:18px; align-items:start; margin-bottom:14px; }
+    @media (max-width:1100px) { .binding-detail { grid-template-columns:1fr; } }
+    .binding-text .bess-reading { margin-top:0; }
+    .binding-elements-title { margin:6px 0 6px; color:var(--text); font-size:12px; font-weight:600; }
+    .binding-elements { margin:0; padding-left:18px; color:var(--muted); font-size:12px; line-height:1.5; }
+    .binding-elements li { margin-bottom:4px; }
+    .binding-elements small { display:block; color:var(--muted-2); }
     .bess-day-controls { display:flex; flex-wrap:nowrap; align-items:center; gap:6px; flex-shrink:0; }
     #bess-day-section .chart-header, #bess-money-section .chart-header, #bess-table-section .chart-header { flex-wrap:wrap; align-items:flex-start; }
     .bess-day-controls input { border:1px solid var(--border); background:var(--panel-2); color:var(--text); border-radius:7px; padding:6px 8px; font-size:12px; font-family:inherit; }
@@ -16259,7 +16289,9 @@ move the slider above to another one`,
     flame: '<path d="M12 22c4 0 7-3 7-7 0-3-2-5-3-7-1 2-2 3-3 3 0-3-1-6-4-9 0 4-4 7-4 13 0 4 3 7 7 7z"/>',
     grid: '<path d="M4 20V8l8-5 8 5v12"/><path d="M4 12h16M9 20v-8M15 20v-8"/>',
     scale: '<path d="M12 3v18M5 7h14"/><path d="M5 7l-3 7a4 4 0 0 0 6 0L5 7zM19 7l-3 7a4 4 0 0 0 6 0l-3-7z"/>',
-    shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/>'
+    shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/>',
+    bolt: '<path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/>',
+    network: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 6h10M6 8l5 8M18 8l-5 8"/>'
   };
   const ANALYSIS_CARDS = [
     { id: "bess", icon: "battery", tag: "Storage · optimisation", live: true,
@@ -16274,6 +16306,12 @@ move the slider above to another one`,
     { id: "congestion", live: true, icon: "grid", tag: "Grid",
       title: "Zonal spreads and congestion",
       text: "How often each zone splits from the North, by how much and at what hours, and what a flexible plant gains from being on the dearer side." },
+    { id: "binding", live: true, icon: "network", tag: "Grid",
+      title: "Most binding borders, month by month",
+      text: "The borders that held the zones' prices apart in a month, ranked by their shadow price (k€/MW): when each bound, what drove it, and the grid elements JAO names on the northern border." },
+    { id: "spikes", live: true, icon: "bolt", tag: "Balancing",
+      title: "Imbalance price spikes, day by day",
+      text: "A day in a zone, quarter-hour by quarter-hour: the imbalance price against the day-ahead and intraday prices, the system's imbalance, the forecast misses, the borders, the balancing energy and PICASSO, told step by step. Opens on the period's highest spike." },
     { id: "imbalance", live: true, icon: "scale", tag: "Balancing",
       title: "Imbalance cost of a solar or wind plant",
       text: "What forecast errors cost at Terna's imbalance prices: ENTSO-E's day-ahead and intraday forecasts against the actual output, zone by zone." },
@@ -18717,7 +18755,900 @@ move the slider above to another one`,
       }).join("") + `</tbody></table>`;
   }
 
-  const ANALYSIS_VIEWS = { capture: captureView, imbalance: imbalanceView, congestion: congestionView };
+  /* ---------- Imbalance price spikes, day by day ---------- */
+  /*
+   * One zone and one day, after Volue's account of Austria's 2,900 EUR/MWh
+   * imbalance spike of 24 September 2026: the imbalance price (ENTSO-E
+   * 17.1.G) against the MGP, Terna's macrozonal imbalance, the day-ahead
+   * and intraday prices, the forecast misses (ENTSO-E 14.1.D, 6.1.B against
+   * the actual output and load), the cross-border schedules against the
+   * physical flows, the balancing energy activated by product (ENTSO-E
+   * 12.3.E), PICASSO's cross-border marginal prices (TransnetBW), the
+   * standard aFRR up-ladder (ENTSO-E 12.3.B&C bids) at the peak, and an
+   * account written from them.  The day opens on the period's highest
+   * imbalance price unless one is chosen.
+   */
+  const spikesState = { zone: "", day: "", window: 90 };
+  const spikesZone = () => spikesState.zone || zoneCode() || "NORD";
+  const SPIKE_PICASSO = [["IT", "Italy (Terna)", "--border-2"], ["AT", "Austria (APG)", "--border-1"], ["FR", "France (RTE)", "--border-3"],
+    ["SI", "Slovenia (ELES)", "--border-5"], ["GR", "Greece (IPTO)", "--border-7"]];
+
+  async function spikesLoad(zone) {
+    const [balancing, zonal, intraday, xbid, generation, res, forecasts, crossborder, picasso, gme] = await Promise.all([
+      anaFetch(`balancing/${zone}.json`), anaFetch("zonal_prices.json"),
+      anaFetch("intraday_prices.json").catch(() => null), anaFetch("xbid_prices.json").catch(() => null),
+      anaFetch(`zones/${zone}/generation_load.json`).catch(() => null), anaFetch(`zones/${zone}/res_forecasts.json`).catch(() => null),
+      anaFetch(`zones/${zone}/forecasts.json`).catch(() => null), anaFetch(`zones/${zone}/crossborder.json`).catch(() => null),
+      anaFetch("picasso.json").catch(() => null), anaFetch(`balancing_gme/${zone}.json`).catch(() => null)
+    ]);
+    return { balancing, zonal, intraday, xbid, generation, res, forecasts, crossborder, picasso, gme };
+  }
+  const spikesSeries = (files, zone, name) => {
+    const series = files.balancing.series || {};
+    return [(series.quarter_hourly || {})[`${zone}|${name}`], (series.hourly || {})[`${zone}|${name}`]];
+  };
+  /* The day's quarter-hours, every series the view draws (NaN where none). */
+  function spikesDay(files, zone, date) {
+    const [imbQ, imbH] = spikesSeries(files, zone, "imbalance_price");
+    const imbalance = anaSeriesDay(imbQ, imbH, date);
+    if (!imbalance) return null;
+    const T = imbalance.length;
+    const empty = () => new Float64Array(T).fill(NaN);
+    const get = (quarter, hourly) => anaSeriesDay(quarter, hourly, date, T) || empty();
+    const macro = (files.balancing.areas && files.balancing.areas.macrozone) || zone;
+    const balancing = name => { const [q, h] = spikesSeries(files, zone, name); return get(q, h); };
+    const [volQ, volH] = spikesSeries(files, macro, "imbalance_volume");
+    const price = files.zonal.zones[zone];
+    const market = (file, name, node = "quarter_hourly") => (file && file.markets && file.markets[name] && file.markets[name][zone] ? get(file.markets[name][zone][node], file.markets[name][zone].hourly) : empty());
+    const generation = code => (files.generation ? get(files.generation.generation.quarter_hourly[code] && files.generation.generation.quarter_hourly[code].points,
+      files.generation.generation.hourly[code] && files.generation.generation.hourly[code].points) : empty());
+    const forecast = (kind, code) => (files.res && files.res[kind] ? get((files.res[kind].quarter_hourly || {})[code], (files.res[kind].hourly || {})[code]) : empty());
+    const load = files.generation ? get(files.generation.total_load.quarter_hourly.TOTAL, files.generation.total_load.hourly.TOTAL) : empty();
+    const loadDa = files.forecasts ? get(files.forecasts.load_forecast.quarter_hourly.TOTAL, files.forecasts.load_forecast.hourly.TOTAL) : empty();
+    // Net imports of the zone over all its borders: physical, and scheduled day-ahead and in total.
+    const net = node => {
+      const out = new Float64Array(T).fill(NaN);
+      if (!files.crossborder || !files.crossborder[node]) return out;
+      const quarter = files.crossborder[node].quarter_hourly || {}, hourly = files.crossborder[node].hourly || {};
+      (files.crossborder.borders ? Object.keys(files.crossborder.borders) : []).forEach(border => {
+        const imports = get((quarter.imports || {})[border], (hourly.imports || {})[border]);
+        const exports = get((quarter.exports || {})[border], (hourly.exports || {})[border]);
+        for (let t = 0; t < T; t += 1) {
+          const value = (Number.isFinite(imports[t]) ? imports[t] : 0) - (Number.isFinite(exports[t]) ? exports[t] : 0);
+          if (Number.isFinite(imports[t]) || Number.isFinite(exports[t])) out[t] = (Number.isFinite(out[t]) ? out[t] : 0) + value;
+        }
+      });
+      return out;
+    };
+    const picasso = Object.fromEntries(SPIKE_PICASSO.map(([country]) => {
+      const series = files.picasso && files.picasso.series ? files.picasso.series[`${country}|price_up`] : null;
+      return [country, series ? get(series.quarter_hourly, series.hourly) : empty()];
+    }));
+    const solar = generation("B16"), wind = generation("B19");
+    const solarDa = forecast("day_ahead", "B16"), windDa = forecast("day_ahead", "B19");
+    // GME's MB results: accepted volumes of the other services (not the secondary reserve's band).
+    const gme = name => {
+      const series = files.gme && files.gme.series ? files.gme.series : {};
+      return get((series.quarter_hourly || {})[`${zone}|${name}`], (series.hourly || {})[`${zone}|${name}`]);
+    };
+    const residual = Float64Array.from(load, (value, t) => value - (solar[t] || 0) - (wind[t] || 0));
+    const residualDa = Float64Array.from(loadDa, (value, t) => value - (solarDa[t] || 0) - (windDa[t] || 0));
+    return {
+      date, T, imbalance, volume: get(volQ, volH), mgp: get(price.quarter_hourly, price.hourly),
+      mia1: market(files.intraday, "MI-A1"), mia2: market(files.intraday, "MI-A2"), mia3: market(files.intraday, "MI-A3"), xbid: market(files.xbid, "XBID-15"),
+      solar, solarDa, solarId: forecast("intraday", "B16"), wind, windDa, windId: forecast("intraday", "B19"), load, loadDa, residual, residualDa,
+      netPhysical: net("physical_flows"), netDa: net("scheduled_day_ahead"), netTotal: net("scheduled_total"),
+      afrrUp: balancing("activated_afrr_up"), afrrDown: balancing("activated_afrr_down"), picassoUp: balancing("activated_picasso_up"),
+      picassoDown: balancing("activated_picasso_down"), rrUp: balancing("activated_rr_up"), rrDown: balancing("activated_rr_down"),
+      priceAfrrUp: balancing("price_afrr_up"), pricePicassoUp: balancing("price_picasso_up"), priceRrUp: balancing("price_rr_up"),
+      mbUp: gme("mb_volume_up_as"), mbDown: gme("mb_volume_down_as"), mbPriceUp: gme("mb_price_up_as"),
+      cbmp: picasso, macro
+    };
+  }
+  /* The highest imbalance price of each day of the window, the days ranked. */
+  function spikesRank(files, zone, lastDay, window) {
+    const [imbQ, imbH] = spikesSeries(files, zone, "imbalance_price");
+    const price = files.zonal.zones[zone];
+    const macro = (files.balancing.areas && files.balancing.areas.macrozone) || zone;
+    const [volQ, volH] = spikesSeries(files, macro, "imbalance_volume");
+    const rows = [];
+    for (let date = bessAddDays(lastDay, -(window - 1)); date <= lastDay; date = bessAddDays(date, 1)) {
+      const imbalance = anaSeriesDay(imbQ, imbH, date);
+      if (!imbalance) continue;
+      let best = -1;
+      for (let t = 0; t < imbalance.length; t += 1) if (Number.isFinite(imbalance[t]) && (best < 0 || imbalance[t] > imbalance[best])) best = t;
+      if (best < 0) continue;
+      const mgp = anaSeriesDay(price.quarter_hourly, price.hourly, date, imbalance.length);
+      const volume = anaSeriesDay(volQ, volH, date, imbalance.length);
+      rows.push({ date, t: best, T: imbalance.length, price: imbalance[best], mgp: mgp ? mgp[best] : NaN, volume: volume ? volume[best] : NaN });
+    }
+    return rows.sort((a, b) => b.price - a.price);
+  }
+  /* Runs of quarter-hours whose imbalance price passed twice the MGP and the MGP by €100. */
+  function spikesEvents(day) {
+    const events = [];
+    let current = null;
+    for (let t = 0; t < day.T; t += 1) {
+      const spike = Number.isFinite(day.imbalance[t]) && Number.isFinite(day.mgp[t]) && day.imbalance[t] > Math.max(2 * day.mgp[t], day.mgp[t] + 100);
+      if (spike) {
+        if (current && t - current.end <= 2) current.end = t;
+        else events.push(current = { start: t, end: t });
+      }
+    }
+    return events;
+  }
+
+  const spikesView = anaView("spikes", {
+    title: "Imbalance price spikes, day by day",
+    lede: "A day in a bidding zone, quarter-hour by quarter-hour: what the imbalance price did against the day-ahead and intraday prices, how short or long the system was, which forecasts missed, how the borders were scheduled, which balancing energy Terna activated and at what price, how Italy's PICASSO price moved against its neighbours', and a step-by-step account written from the data. It opens on the period's highest imbalance price.",
+    form: () => {
+      const s = spikesState;
+      return bessGroup("Zone and day",
+        anaSelect(s, "zone", "Bidding zone", [["", `As the page (${ZONE_NAMES[zoneCode() || "NORD"]})`], ...BESS_ZONES.map(code => [code, ZONE_NAMES[code]])], {
+          help: bessHelp("Prices and macrozones", "<p>North has its own imbalance price; the other zones share one (ENTSO-E 17.1.G). Terna's imbalance volume is per macrozone, North or South (the islands included).</p>") }) +
+        `<div class="bess-field"><label class="ana-label">Day<input data-field="day" type="date" min="${BESS_FIRST_DAY}" value="${s.day}"></label><div class="bess-hint" data-hint="day"></div></div>` +
+        anaSelect(s, "window", "Spikes listed from the last", [[30, "30 days"], [90, "90 days"], [365, "365 days"], [700, "Everything on file"]], {
+          help: bessHelp("The list", "<p>The days of the window ranked by their highest imbalance price; click one to open it. A blank day opens the first.</p>") }));
+    },
+    results: () =>
+      `<section id="spikes-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">The Day</div>` +
+      `<div id="spikes-summary-subtitle" class="chart-subtitle"></div></div><div id="spikes-status" class="bess-status"></div></div>` +
+      `<div id="spikes-kpis" class="gas-kpis bess-kpis"></div><p id="spikes-reading" class="bess-reading"></p></section>` +
+      anaSection("spikes", "imbalance", "Imbalance Price against the MGP", {
+        help: "Bars: the zone's imbalance price (ENTSO-E 17.1.G); line: its MGP price. Shaded: the quarter-hours where the imbalance price passed twice the MGP and the MGP by €100." }) +
+      anaSection("spikes", "volume", "System Imbalance (Terna)", {
+        help: "Terna's net imbalance of the macrozone, MW: below zero the macrozone was short (it needed energy), above zero long." }) +
+      anaSection("spikes", "prices", "Day-ahead, MI-A1 to MI-A3 and MI-XBID", { wide: true,
+        help: "The zone's prices of the day in each market: the MGP (D-1 12:00), the three intraday auctions (D-1 15:00 and 22:00, D 10:00 for the afternoon) and MI-XBID's 15-minute reference price (the average of the trades, where there were trades)." }) +
+      anaSection("spikes", "wind", "Wind: Actual against Forecasts", {
+        help: "The zone's wind output (ENTSO-E 16.1.B&C) against the day-ahead and intraday forecasts (14.1.D)." }) +
+      anaSection("spikes", "solar", "Solar: Actual against Forecasts", {
+        help: "The zone's solar output against the day-ahead and intraday forecasts." }) +
+      anaSection("spikes", "residual", "Residual Load: Actual against Day-ahead", {
+        help: "Load minus wind and solar, actual and as forecast the day before (load: ENTSO-E 6.1.A against 6.1.B). Where the actual runs above the forecast, the market has a short position to close." }) +
+      anaSection("spikes", "cross", "Net Imports: Schedules against Physical Flows", {
+        help: "The zone's net imports over all its borders, the neighbouring countries' and the other zones' (ENTSO-E 12.1.F and 12.1.G): scheduled day-ahead, scheduled in total (intraday included) and the physical flow." }) +
+      anaSection("spikes", "balancing", "Balancing Energy Activated", { wide: true,
+        help: "Energy Terna activated in the zone (ENTSO-E 12.3.E), MW per quarter-hour, upward above zero and downward below: aFRR through PICASSO (the standard product), local aFRR (the specific product) and replacement reserve (RR, in MB). The line: what GME's balancing market (MB) accepted in the zone, upward minus downward, other services (RR included, so not added to the bars). A short system with little activated here was balanced elsewhere in the macrozone or by the borders." }) +
+      anaSection("spikes", "picasso", "PICASSO Upward Prices", {
+        help: "The cross-border marginal price of upward aFRR, quarter-hour means of the 4-second prices (TransnetBW), Italy against its PICASSO neighbours, log scale. Where Italy's leaves the others, the platform could not send it more energy: Italy was decoupled." }) +
+      anaSection("spikes", "ladder", "Standard aFRR Up-ladder at the Peak", {
+        help: "The zone's upward standard aFRR bids (ENTSO-E 12.3.B&C) in merit order, cumulative MW against price (log scale), at the peak quarter-hour and the ones either side; the dashed line, the MW activated at the peak. On file from 4 June 2026." }) +
+      `<section id="spikes-story-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">What Happened, Step by Step</div>` +
+      `<div id="spikes-story-subtitle" class="chart-subtitle"></div></div></div><ol id="spikes-story" class="spike-story"></ol>` +
+      `<div class="chart-help bess-chart-help">Written from the data above by rules, not by hand: the times are Italian clock times of the quarter-hours.</div><div class="gme-source">${GME_CREDIT}</div></section>` +
+      `<section id="spikes-list-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">The Highest Imbalance Prices</div>` +
+      `<div id="spikes-list-subtitle" class="chart-subtitle"></div></div></div><div id="spikes-list" class="bess-table-wrap"></div>` +
+      `<div class="chart-help bess-chart-help">Each day's highest quarter-hour. Click a row to open the day.</div><div class="gme-source">${GME_CREDIT}</div></section>`,
+    charts: ["imbalance", "volume", "prices", "wind", "solar", "residual", "cross", "balancing", "picasso", "ladder"],
+    compute: async self => {
+      const zone = spikesZone();
+      const files = await spikesLoad(zone);
+      const [imbQ] = spikesSeries(files, zone, "imbalance_price");
+      const lastDay = anaLastDate(imbQ);
+      if (!lastDay) throw anaUserError(`No imbalance price on file for ${ZONE_NAMES[zone]}.`);
+      const window = Math.max(7, bessNum(spikesState.window, 90));
+      const ranked = spikesRank(files, zone, lastDay, window);
+      let date = spikesState.day && spikesState.day <= lastDay && spikesState.day >= BESS_FIRST_DAY ? spikesState.day : (ranked[0] && ranked[0].date) || lastDay;
+      const day = spikesDay(files, zone, date);
+      if (!day) throw anaUserError(`No imbalance price on file for ${ZONE_NAMES[zone]} on ${bessDateText(date)}.`);
+      self.hint("day", `${spikesState.day ? "Chosen" : "The highest of the window"}: ${bessDateText(date)} · on file to ${bessDateText(lastDay)}.`);
+      const dayInput = document.querySelector('#spikes-view [data-field="day"]');
+      if (dayInput) { dayInput.max = lastDay; if (!spikesState.day) dayInput.value = date; }
+      const bids = date >= "2026-06-04" ? await fetchMarketFile(`./data/balancing_bids/${zone}/${date}.json.gz`, false).catch(() => null) : null;
+      return { zone, date, day, ranked: ranked.slice(0, 15), window, lastDay, bids, events: spikesEvents(day) };
+    },
+    render: self => spikesRender(self),
+    onClick: (event, self) => {
+      const row = event.target.closest("[data-spike-day]");
+      if (!row) return;
+      spikesState.day = row.dataset.spikeDay;
+      const input = document.querySelector('#spikes-view [data-field="day"]');
+      if (input) input.value = spikesState.day;
+      self.run();
+      document.getElementById("spikes-view").scrollIntoView({ behavior: "smooth" });
+    }
+  });
+  spikesView.state = spikesState;
+  spikesView.followsPage = spikesZone;
+
+  /* A quarter-hour index's clock label; a run of them as "15:30–16:15". */
+  const spikeTime = (day, t) => bessClockLabel(day.T, t);
+  const spikeSpan = (day, event) => (event.start === event.end ? spikeTime(day, event.start) : `${spikeTime(day, event.start)}–${spikeTime(day, event.end)}`);
+  const spikeRange = values => {
+    const finite = values.filter(Number.isFinite);
+    if (!finite.length) return "—";
+    const low = Math.min(...finite), high = Math.max(...finite);
+    return Math.round(low) === Math.round(high) ? formatNumber(low, 0) : `${formatNumber(low, 0)} to ${formatNumber(high, 0)}`;
+  };
+  const spikeSlice = (array, event, pad = 0) => Array.from(array.slice(Math.max(0, event.start - pad), event.end + 1 + pad));
+
+  function spikesRender(self) {
+    const results = self.results;
+    const kpis = document.getElementById("spikes-kpis"), reading = document.getElementById("spikes-reading");
+    if (!results) {
+      kpis.innerHTML = "";
+      reading.innerHTML = self.message ? `<span class="bess-error">${self.message}</span>` : "";
+      Object.values(self.charts).forEach(chart => anaEmpty(chart, self.busy ? "Working…" : ""));
+      ["spikes-story", "spikes-list"].forEach(id => { document.getElementById(id).innerHTML = ""; });
+      return;
+    }
+    const { day, zone } = results;
+    const labels = Array.from({ length: day.T }, (_, t) => spikeTime(day, t));
+    let peak = 0;
+    for (let t = 0; t < day.T; t += 1) if (Number.isFinite(day.imbalance[t]) && !(day.imbalance[t] <= day.imbalance[peak])) peak = t;
+    const short = value => (value < 0 ? `${formatNumber(-value, 0)} MW short` : `${formatNumber(value, 0)} MW long`);
+    const macroName = day.macro === "NORD" ? "North macrozone" : "South macrozone";
+    setText("spikes-summary-subtitle", `${ZONE_NAMES[zone]} · ${parseDate(results.date).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`);
+    const miss = (actual, forecast) => {
+      let worst = 0;
+      for (let t = 0; t < day.T; t += 1) if (Number.isFinite(actual[t]) && Number.isFinite(forecast[t]) && Math.abs(actual[t] - forecast[t]) > Math.abs(worst)) worst = actual[t] - forecast[t];
+      return worst;
+    };
+    const residualMiss = miss(day.residual, day.residualDa);
+    kpis.innerHTML =
+      anaTile("Highest imbalance price", anaPrice(day.imbalance[peak], 0), `at ${spikeTime(day, peak)} · MGP ${anaPrice(day.mgp[peak], 0)} then`) +
+      anaTile("Spike quarter-hours", formatNumber(results.events.reduce((sum, event) => sum + event.end - event.start + 1, 0)),
+        `above twice the MGP and €100 over it · ${formatNumber(results.events.length)} run${results.events.length === 1 ? "" : "s"}`) +
+      anaTile("System at the peak", Number.isFinite(day.volume[peak]) ? short(day.volume[peak]) : "—", `${macroName} (Terna)`) +
+      anaTile("Residual load miss", Number.isFinite(residualMiss) && residualMiss ? `${residualMiss > 0 ? "+" : "−"}${formatNumber(Math.abs(residualMiss), 0)} MW` : "—",
+        "largest gap to the day-ahead forecast in the day") +
+      anaTile("Upward energy at the peak", `${formatNumber((day.picassoUp[peak] || 0) + (day.afrrUp[peak] || 0) + (day.rrUp[peak] || 0), 0)} MW`,
+        `aFRR standard ${formatNumber(day.picassoUp[peak] || 0, 0)} · local ${formatNumber(day.afrrUp[peak] || 0, 0)} · RR ${formatNumber(day.rrUp[peak] || 0, 0)}`);
+    reading.innerHTML = results.events.length
+      ? `<b>Reading:</b> the imbalance price spiked ${results.events.map(event => `${spikeSpan(day, event)} (${spikeRange(spikeSlice(day.imbalance, event))} €/MWh)`).join(", ")}; ` +
+        `the ${macroName.toLowerCase()} was ${results.events.map(event => { const values = spikeSlice(day.volume, event).filter(Number.isFinite); return values.length ? (Math.min(...values) < 0 ? `${spikeRange(values.map(v => -v))} MW short` : "long") : "—"; }).join(", then ")}.`
+      : `<b>Reading:</b> no quarter-hour of the day passed twice the MGP and €100 over it; the highest imbalance price was ${anaPrice(day.imbalance[peak], 0)} at ${spikeTime(day, peak)}.`;
+    const marks = results.events.map(event => [{ xAxis: labels[event.start] }, { xAxis: labels[event.end] }]);
+    const markArea = marks.length ? { silent: true, itemStyle: { color: cssVar("--chart-zoom-filler") }, data: marks } : undefined;
+    const timeAxis = (extra = {}) => ({ type: "category", data: labels, axisTick: { show: false }, boundaryGap: extra.boundaryGap ?? false,
+      axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), interval: index => index % 8 === 0 } });
+    const tipRows = unit => bessTooltip(params => bessTipHead(labels[params[0].dataIndex]) + params.filter(entry => Number.isFinite(entry.value))
+      .map(entry => tooltipRow(entry.color, entry.seriesName, `${formatNumber(entry.value, unit === "€/MWh" ? 2 : 0)} ${unit}`, entry.seriesType === "line" ? "line" : "area")).join(""));
+    const numbers = array => Array.from(array, value => (Number.isFinite(value) ? Math.round(value * 100) / 100 : null));
+    const lineChart = (chart, series, unit, extra = {}) => {
+      chart.setOption({
+        animation: false, backgroundColor: "transparent",
+        legend: bessLegend(series.map(item => item.name), { type: "scroll", right: 16 }),
+        tooltip: tipRows(unit),
+        grid: { left: 60, right: 16, top: 40, bottom: 30 },
+        xAxis: timeAxis(),
+        yAxis: timelineYAxis(unit, { nameGap: 44, scale: unit !== "MW", ...(extra.yAxis || {}) }),
+        series: series.map((item, index) => ({ name: item.name, type: "line", data: numbers(item.data), showSymbol: false, step: "middle", connectNulls: false,
+          lineStyle: { color: cssVar(item.color), width: item.width || 1.6, type: item.type || "solid" }, itemStyle: { color: cssVar(item.color) },
+          ...(index === 0 && markArea ? { markArea } : {}) }))
+      }, true);
+      chart.resize();
+    };
+    // Imbalance price against MGP.
+    setText("spikes-imbalance-subtitle", `€/MWh · ${ZONE_NAMES[zone]}`);
+    self.charts.imbalance.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Imbalance price", "MGP"]),
+      tooltip: tipRows("€/MWh"),
+      grid: { left: 60, right: 16, top: 40, bottom: 30 },
+      xAxis: timeAxis({ boundaryGap: true }),
+      yAxis: timelineYAxis("€/MWh", { nameGap: 44 }),
+      series: [{ name: "Imbalance price", type: "bar", data: numbers(day.imbalance), barCategoryGap: "20%", itemStyle: { color: cssVar("--border-2") }, ...(markArea ? { markArea } : {}) },
+        { name: "MGP", type: "line", data: numbers(day.mgp), showSymbol: false, step: "middle", lineStyle: { color: cssVar("--border-1"), width: 1.8 }, itemStyle: { color: cssVar("--border-1") } }]
+    }, true);
+    self.charts.imbalance.resize();
+    setText("spikes-volume-subtitle", `MW · ${macroName} · below zero short`);
+    self.charts.volume.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: tipRows("MW"),
+      grid: { left: 60, right: 16, top: 16, bottom: 30 },
+      xAxis: timeAxis({ boundaryGap: true }),
+      yAxis: timelineYAxis("MW", { nameGap: 44 }),
+      series: [{ name: "System imbalance", type: "bar", data: numbers(day.volume), barCategoryGap: "20%", itemStyle: { color: cssVar("--border-7") }, ...(markArea ? { markArea } : {}) }]
+    }, true);
+    self.charts.volume.resize();
+    setText("spikes-prices-subtitle", "€/MWh");
+    lineChart(self.charts.prices, [{ name: "MGP", data: day.mgp, color: "--border-1", width: 2 }, { name: "MI-A1", data: day.mia1, color: "--border-3" },
+      { name: "MI-A2", data: day.mia2, color: "--border-4" }, { name: "MI-A3", data: day.mia3, color: "--border-5" }, { name: "MI-XBID", data: day.xbid, color: "--border-7" }], "€/MWh");
+    setText("spikes-wind-subtitle", "MW");
+    lineChart(self.charts.wind, [{ name: "Actual", data: day.wind, color: "--chart-pun", width: 2 }, { name: "Day-ahead", data: day.windDa, color: "--border-2", type: "dashed" },
+      { name: "Intraday", data: day.windId, color: "--border-3", type: "dotted" }], "MW");
+    setText("spikes-solar-subtitle", "MW");
+    lineChart(self.charts.solar, [{ name: "Actual", data: day.solar, color: "--chart-pun", width: 2 }, { name: "Day-ahead", data: day.solarDa, color: "--border-2", type: "dashed" },
+      { name: "Intraday", data: day.solarId, color: "--border-3", type: "dotted" }], "MW");
+    setText("spikes-residual-subtitle", "MW");
+    lineChart(self.charts.residual, [{ name: "Residual load", data: day.residual, color: "--chart-pun", width: 2 }, { name: "Day-ahead forecast", data: day.residualDa, color: "--border-2", type: "dashed" },
+      { name: "Load", data: day.load, color: "--border-1" }, { name: "Load forecast", data: day.loadDa, color: "--border-1", type: "dotted" }], "MW");
+    setText("spikes-cross-subtitle", "MW, above zero importing");
+    lineChart(self.charts.cross, [{ name: "Scheduled day-ahead", data: day.netDa, color: "--border-1", type: "dashed" },
+      { name: "Scheduled, all timeframes", data: day.netTotal, color: "--border-1" }, { name: "Physical", data: day.netPhysical, color: "--border-2", width: 2 }], "MW");
+    // Balancing energy by product.
+    const products = [["aFRR standard (PICASSO)", "--border-1", day.picassoUp, day.picassoDown], ["aFRR local", "--border-2", day.afrrUp, day.afrrDown],
+      ["RR (MB)", "--border-4", day.rrUp, day.rrDown]];
+    setText("spikes-balancing-subtitle", "MW per quarter-hour · upward above zero, downward below");
+    self.charts.balancing.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend([...products.map(item => item[0]), ...(day.mbUp.some(Number.isFinite) ? ["MB accepted (GME)"] : [])]),
+      tooltip: tipRows("MW"),
+      grid: { left: 60, right: 16, top: 40, bottom: 30 },
+      xAxis: timeAxis({ boundaryGap: true }),
+      yAxis: timelineYAxis("MW", { nameGap: 44 }),
+      series: [...products.map(([name, color, up], index) => ({ name, type: "bar", stack: "balancing", data: numbers(up), barCategoryGap: "15%", itemStyle: { color: cssVar(color) },
+        ...(index === 0 && markArea ? { markArea } : {}) })),
+        ...products.map(([name, color, , down]) => ({ name, type: "bar", stack: "balancing", data: Array.from(down, value => (Number.isFinite(value) ? -Math.round(value) : null)), itemStyle: { color: cssVar(color) } })),
+        ...(day.mbUp.some(Number.isFinite) ? [{ name: "MB accepted (GME)", type: "line", step: "middle", showSymbol: false, z: 10,
+          data: Array.from(day.mbUp, (value, t) => (Number.isFinite(value) || Number.isFinite(day.mbDown[t]) ? Math.round((value || 0) - (day.mbDown[t] || 0)) : null)),
+          lineStyle: { color: cssVar("--chart-pun"), width: 1.4 }, itemStyle: { color: cssVar("--chart-pun") } }] : [])]
+    }, true);
+    self.charts.balancing.resize();
+    // PICASSO CBMP.
+    const cbmp = SPIKE_PICASSO.filter(([country]) => day.cbmp[country].some(Number.isFinite));
+    setText("spikes-picasso-subtitle", cbmp.length ? "€/MWh, upward, log scale" : "PICASSO's prices are on file from 25 November 2025");
+    if (cbmp.length) {
+      self.charts.picasso.setOption({
+        animation: false, backgroundColor: "transparent",
+        legend: bessLegend(cbmp.map(item => item[1]), { type: "scroll", right: 16 }),
+        tooltip: tipRows("€/MWh"),
+        grid: { left: 60, right: 16, top: 40, bottom: 30 },
+        xAxis: timeAxis(),
+        yAxis: { ...timelineYAxis("€/MWh", { nameGap: 44 }), type: "log", min: 1 },
+        series: cbmp.map(([country, name, color]) => ({ name, type: "line", step: "middle", showSymbol: false, connectNulls: false,
+          data: Array.from(day.cbmp[country], value => (Number.isFinite(value) && value > 1 ? Math.round(value * 100) / 100 : null)),
+          lineStyle: { color: cssVar(color), width: country === "IT" ? 2.2 : 1.4 }, itemStyle: { color: cssVar(color) }, ...(country === "IT" && markArea ? { markArea } : {}) }))
+      }, true);
+      self.charts.picasso.resize();
+    } else anaEmpty(self.charts.picasso, "");
+    // Ladder at the peak.
+    const products2 = results.bids && results.bids.products ? results.bids.products.afrr_picasso_up : null;
+    const ladder = t => {
+      if (!products2 || t < 0 || t >= day.T) return null;
+      const steps = products2[spikeTime(day, t).replace("*", "")];
+      if (!steps || !steps.length) return null;
+      const points = [];
+      let cumulative = 0;
+      for (let index = 0; index + 1 < steps.length; index += 2) {
+        if (steps[index] > 0) points.push([cumulative, steps[index]]);
+        cumulative += steps[index + 1];
+        if (steps[index] > 0) points.push([cumulative, steps[index]]);
+      }
+      return points;
+    };
+    const quarters = [peak - 1, peak, peak + 1].map(t => ({ t, points: ladder(t) })).filter(item => item.points && item.points.length);
+    setText("spikes-ladder-subtitle", quarters.length ? `Cumulative MW → bid price, ${ZONE_NAMES[zone]}` : "No standard aFRR bids on file for this day (on file from 4 June 2026)");
+    if (quarters.length) {
+      const colors = ["--border-4", "--border-2", "--border-3"];
+      self.charts.ladder.setOption({
+        animation: false, backgroundColor: "transparent",
+        legend: bessLegend(quarters.map(item => `Up-ladder ${spikeTime(day, item.t)}`)),
+        tooltip: { ...bessTooltip(params => bessTipHead(`${formatNumber(params[0].value[0], 0)} MW`) + params.map(entry =>
+          tooltipRow(entry.color, entry.seriesName, `€${formatNumber(entry.value[1], 2)}/MWh`, "line")).join("")) },
+        grid: { left: 60, right: 24, top: 40, bottom: 40 },
+        xAxis: { type: "value", name: "MW, cumulative", nameLocation: "middle", nameGap: 26, nameTextStyle: bessAxisLabel(), axisLabel: bessAxisLabel(),
+          splitLine: { show: false }, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } } },
+        yAxis: { ...timelineYAxis("€/MWh", { nameGap: 44 }), type: "log", min: 1 },
+        series: quarters.map((item, index) => ({ name: `Up-ladder ${spikeTime(day, item.t)}`, type: "line", data: item.points, showSymbol: false,
+          lineStyle: { color: cssVar(colors[[peak - 1, peak, peak + 1].indexOf(item.t)] || colors[index]), width: item.t === peak ? 2.2 : 1.4 },
+          itemStyle: { color: cssVar(colors[[peak - 1, peak, peak + 1].indexOf(item.t)] || colors[index]) },
+          ...(item.t === peak && Number.isFinite(day.picassoUp[peak]) ? { markLine: { silent: true, symbol: "none",
+            label: { formatter: `activated ${formatNumber(day.picassoUp[peak], 0)} MW`, position: "insideEndTop", color: cssVar("--chart-axis-label"), fontSize: 10 },
+            lineStyle: { color: cssVar("--chart-axis-label"), type: "dashed" }, data: [{ xAxis: day.picassoUp[peak] }] } } : {}) }))
+      }, true);
+      self.charts.ladder.resize();
+    } else anaEmpty(self.charts.ladder, "");
+    spikesStory(results, peak);
+    // The list.
+    setText("spikes-list-subtitle", `${ZONE_NAMES[zone]} · the last ${formatNumber(results.window)} days to ${bessDateText(results.lastDay)}`);
+    document.getElementById("spikes-list").innerHTML = `<table class="bess-table spike-list"><thead><tr><th>Day</th><th>Quarter-hour</th><th>Imbalance price</th><th>MGP then</th>` +
+      `<th>Ratio</th><th>System then</th></tr></thead><tbody>` +
+      results.ranked.map(row => `<tr data-spike-day="${row.date}"${row.date === results.date ? ' class="current"' : ""}><td>${bessDateText(row.date)}</td><td>${bessClockLabel(row.T, row.t)}</td>` +
+        `<td>${anaPrice(row.price, 0)}</td><td>${anaPrice(row.mgp, 0)}</td><td>${Number.isFinite(row.mgp) && row.mgp > 0 ? `${formatNumber(row.price / row.mgp, 1)}×` : "—"}</td>` +
+        `<td>${Number.isFinite(row.volume) ? short(row.volume) : "—"}</td></tr>`).join("") + `</tbody></table>`;
+  }
+
+  /* The day told step by step, from the series (rules, not prose by hand). */
+  function spikesStory(results, peak) {
+    const { day, zone } = results;
+    const items = [];
+    const add = (time, text, hot = false) => items.push(`<li${hot ? ' class="hot"' : ""}><span class="spike-time">${time}</span><span>${text}</span></li>`);
+    const events = results.events.length ? results.events : [{ start: peak, end: peak }];
+    const first = events[0];
+    const mgpAll = Array.from(day.mgp).filter(Number.isFinite);
+    const at = (array, event) => spikeRange(spikeSlice(array, event));
+    add("D-1 12:00", `The MGP cleared ${ZONE_NAMES[zone]} at ${spikeRange(mgpAll)} €/MWh over the day; ${events.map(event => `${spikeSpan(day, event)} at ${at(day.mgp, event)}`).join(", ")}.`);
+    const auction = (name, array, time) => {
+      const values = events.map(event => at(array, event));
+      if (values.every(value => value === "—")) return;
+      add(time, `${name} priced ${events.map((event, index) => `${spikeSpan(day, event)} at ${values[index]}`).join(", ")} €/MWh.`);
+    };
+    auction("MI-A1", day.mia1, "D-1 15:00");
+    auction("MI-A2", day.mia2, "D-1 22:00");
+    auction("MI-A3", day.mia3, "D 10:00");
+    // Forecast misses over the first event and the hour before it.
+    const lead = { start: Math.max(0, first.start - 4), end: first.end };
+    const gap = (actual, forecast) => {
+      const values = spikeSlice(actual, lead).map((value, index) => value - spikeSlice(forecast, lead)[index]).filter(Number.isFinite);
+      return values.length ? values.reduce((a, b) => a + b, 0) / values.length : NaN;
+    };
+    const misses = [["Wind", gap(day.wind, day.windDa)], ["Solar", gap(day.solar, day.solarDa)], ["Load", gap(day.load, day.loadDa)], ["Residual load", gap(day.residual, day.residualDa)]]
+      .filter(([, value]) => Number.isFinite(value) && Math.abs(value) >= 50);
+    if (misses.length) add(`${spikeTime(day, lead.start)}–${spikeTime(day, lead.end)}`, misses.map(([name, value], index) =>
+      `${index ? name.toLowerCase() : name} ran ${formatNumber(Math.abs(value), 0)} MW ${value > 0 ? "above" : "below"} the day-ahead forecast`).join("; ") + ".");
+    const crossGap = (() => {
+      const values = spikeSlice(day.netPhysical, first).map((value, index) => value - spikeSlice(day.netTotal, first)[index]).filter(Number.isFinite);
+      return values.length ? values.reduce((a, b) => a + b, 0) / values.length : NaN;
+    })();
+    if (Number.isFinite(crossGap) && Math.abs(crossGap) >= 100) add(spikeSpan(day, first),
+      `Physical net imports ran ${formatNumber(Math.abs(crossGap), 0)} MW ${crossGap > 0 ? "above" : "below"} the schedules (${spikeRange(spikeSlice(day.netTotal, first))} MW scheduled).`);
+    events.forEach(event => {
+      const volume = spikeSlice(day.volume, event).filter(Number.isFinite);
+      const state = volume.length ? (Math.min(...volume) < 0 ? `the ${day.macro === "NORD" ? "North" : "South"} macrozone ${spikeRange(volume.filter(v => v < 0).map(v => -v))} MW short` : "the macrozone long") : "";
+      const parts = [];
+      const up = (name, mw, price) => {
+        const total = spikeSlice(mw, event).filter(Number.isFinite);
+        if (!total.length || Math.max(...total) < 1) return;
+        const prices = spikeSlice(price, event).filter(Number.isFinite);
+        parts.push(`${name} ${spikeRange(total)} MW${prices.length ? ` at up to ${formatNumber(Math.max(...prices), 0)} €/MWh` : ""}`);
+      };
+      up("aFRR standard (PICASSO)", day.picassoUp, day.pricePicassoUp);
+      up("local aFRR", day.afrrUp, day.priceAfrrUp);
+      up("RR", day.rrUp, day.priceRrUp);
+      up("MB accepted upward (GME)", day.mbUp, day.mbPriceUp);
+      const cbmpIt = spikeSlice(day.cbmp.IT, event).filter(Number.isFinite);
+      const others = SPIKE_PICASSO.slice(1).flatMap(([country]) => spikeSlice(day.cbmp[country], event).filter(Number.isFinite));
+      const othersMedian = others.length ? others.sort((a, b) => a - b)[Math.floor(others.length / 2)] : NaN;
+      const decoupled = cbmpIt.length && Number.isFinite(othersMedian) && Math.max(...cbmpIt) > Math.max(1.5 * othersMedian, othersMedian + 50);
+      add(spikeSpan(day, event), `${state ? `With ${state}: ` : ""}${parts.length ? parts.join("; ") : "no upward balancing energy reported"}. ` +
+        `${decoupled ? `Italy's PICASSO upward price rose to ${formatNumber(Math.max(...cbmpIt), 0)} €/MWh while its neighbours' stayed near ${formatNumber(othersMedian, 0)}: Italy decoupled. ` : ""}` +
+        `Imbalance price ${at(day.imbalance, event)} €/MWh${spikeSlice(day.xbid, event).some(Number.isFinite) ? `; MI-XBID's reference price for those quarter-hours ${at(day.xbid, event)}` : ""}.`, true);
+    });
+    const last = events[events.length - 1];
+    const after = Math.min(day.T - 1, last.end + 4);
+    if (after > last.end && Number.isFinite(day.imbalance[after])) add(spikeTime(day, after),
+      `${Number.isFinite(day.volume[after]) ? `The macrozone ${day.volume[after] < 0 ? `${formatNumber(-day.volume[after], 0)} MW short` : `${formatNumber(day.volume[after], 0)} MW long`}; ` : ""}imbalance price ${anaPrice(day.imbalance[after], 0)}, MGP ${anaPrice(day.mgp[after], 0)}.`);
+    setText("spikes-story-subtitle", `${ZONE_NAMES[zone]}, ${bessDateText(day.date)}`);
+    document.getElementById("spikes-story").innerHTML = items.join("");
+  }
+
+  /* ---------- Most binding borders, month by month ---------- */
+  /*
+   * After the monthly reports of the most constraining CNECs in CORE: the
+   * MGP is zonal, so a border binds when its flow runs at its limit and
+   * the prices on its two sides part; the gap is its shadow price, € per MW
+   * for each hour.  Summed over the month (k€/MW) it ranks the borders: the
+   * six between Italy's zones (GME's flows and limits, transits.json) and
+   * the coupled ones, France, Austria, Slovenia and Greece (GME's coupling
+   * flows and limits, coupling.json, against the neighbour's day-ahead price,
+   * ENTSO-E).  For a border: its shadow price hour by hour, its flow against
+   * the limit, when it bound, the drivers in its binding hours against the
+   * same hours of other days (ENTSO-E per zone), and, on the northern
+   * border, the elements JAO names as limiting the capacity.
+   */
+  const BINDING_BORDERS = [
+    { key: "NORD-CNOR", a: "NORD", b: "CNOR", pos: [11.0, 44.15] },
+    { key: "CNOR-CSUD", a: "CNOR", b: "CSUD", pos: [12.35, 42.45] },
+    { key: "CSUD-SUD", a: "CSUD", b: "SUD", pos: [14.95, 41.45] },
+    { key: "SUD-CALA", a: "SUD", b: "CALA", pos: [16.25, 39.95] },
+    { key: "CALA-SICI", a: "CALA", b: "SICI", pos: [15.6, 38.2] },
+    { key: "CSUD-SARD", a: "CSUD", b: "SARD", pos: [10.8, 41.0] },
+    { key: "NORD-FR", a: "NORD", b: "FR", coupling: "XFRA", country: "FR", pos: [6.95, 45.25] },
+    { key: "NORD-AT", a: "NORD", b: "AT", coupling: "XAUS", country: "AT", pos: [11.5, 46.95] },
+    { key: "NORD-SI", a: "NORD", b: "SI", coupling: "BSP", country: "SI", pos: [13.65, 45.85] },
+    { key: "SUD-GR", a: "SUD", b: "GR", coupling: "SUD", country: "GR", pos: [18.6, 40.1] }
+  ];
+  const BINDING_COUNTRY_NAMES = { FR: "France", AT: "Austria", SI: "Slovenia", GR: "Greece" };
+  const bindingSideName = code => ZONE_NAMES[code] || BINDING_COUNTRY_NAMES[code] || code;
+  const bindingName = border => `${bindingSideName(border.a)} – ${bindingSideName(border.b)}`;
+  const REGION_ZONES = {
+    Piemonte: "NORD", "Valle d'Aosta": "NORD", Liguria: "NORD", Lombardia: "NORD", "Trentino-Alto Adige": "NORD", Veneto: "NORD",
+    "Friuli-Venezia Giulia": "NORD", "Emilia-Romagna": "NORD", Toscana: "CNOR", Umbria: "CNOR", Marche: "CNOR", Lazio: "CSUD", Abruzzo: "CSUD",
+    Campania: "CSUD", Molise: "SUD", Puglia: "SUD", Basilicata: "SUD", Calabria: "CALA", Sicilia: "SICI", Sardegna: "SARD"
+  };
+  const bindingState = { month: "", border: "" };
+
+  async function bindingLoad() {
+    const [zonal, transits, coupling, neighbours, jao, geo] = await Promise.all([
+      anaFetch("zonal_prices.json"), anaFetch("transits.json").catch(() => null), anaFetch("coupling.json").catch(() => null),
+      anaFetch("neighbour_prices.json").catch(() => null), anaFetch("jao_capacity.json").catch(() => null),
+      (anaFiles["geo:italy"] || (anaFiles["geo:italy"] = fetch("./geo/italy_regions.json").then(response => (response.ok ? response.json() : null)).catch(() => null)))
+    ]);
+    if (geo && !echarts.getMap("ana-italy")) echarts.registerMap("ana-italy", geo);
+    return { zonal, transits, coupling, neighbours, jao, geo };
+  }
+  /* A border on a day: flow from a to b, the limit that way and back, and the two prices, per quarter-hour. */
+  function bindingBorderDay(files, border, date, T) {
+    const zonePrice = zone => (files.zonal.zones[zone] ? anaSeriesDay(files.zonal.zones[zone].quarter_hourly, files.zonal.zones[zone].hourly, date, T) : null);
+    const pa = zonePrice(border.a);
+    if (!pa) return null;
+    if (!border.coupling) {
+      const flows = congestionBorderDay(files.transits, border.a, border.b, date, T);
+      const pb = zonePrice(border.b);
+      if (!flows || !pb) return null;
+      return { flow: flows.flow, limitAb: flows.limitAb, limitBa: flows.limitBa, pa, pb };
+    }
+    if (!files.coupling || !files.neighbours) return null;
+    const quarter = (files.coupling.flows.quarter_hourly || {})[border.coupling] || {}, hourly = (files.coupling.flows.hourly || {})[border.coupling] || {};
+    const series = name => anaSeriesDay(quarter[name], hourly[name], date, T);
+    const imports = series("import_flow"), exports = series("export_flow");
+    if (!imports && !exports) return null;
+    const npQ = (files.neighbours.prices.quarter_hourly || {})[border.country], npH = (files.neighbours.prices.hourly || {})[border.country];
+    const pb = anaSeriesDay(npQ, npH, date, T);
+    if (!pb) return null;
+    // From the Italian side (a) to the neighbour (b): exports positive, imports negative.
+    const flow = Float64Array.from({ length: T }, (_, t) => (Number.isFinite(exports && exports[t]) ? exports[t] : 0) - (Number.isFinite(imports && imports[t]) ? imports[t] : 0));
+    return { flow, limitAb: series("export_limit"), limitBa: series("import_limit"), pa, pb };
+  }
+  /* Hour by hour over the days: the shadow price (€/MW: the price gap times the quarter-hours at the limit) and the flow. */
+  function bindingCompute(files, from, to) {
+    const borders = BINDING_BORDERS.map(border => ({ ...border, hours: [], total: 0, bindingHours: 0, days: new Set() }));
+    const dates = [];
+    for (let date = from; date <= to; date = bessAddDays(date, 1)) {
+      const ref = files.zonal.zones.NORD;
+      const probe = anaSeriesDay(ref.quarter_hourly, ref.hourly, date);
+      if (!probe) continue;
+      const T = probe.length;
+      dates.push(date);
+      borders.forEach(border => {
+        const day = bindingBorderDay(files, border, date, T);
+        const shadow = new Float64Array(24), flow = new Float64Array(24), limit = new Float64Array(24), quarters = new Float64Array(24), atLimit = new Float64Array(24);
+        const gap = new Float64Array(24);
+        let known = false;
+        if (day) {
+          for (let t = 0; t < T; t += 1) {
+            const f = day.flow[t], a = day.pa[t], b = day.pb[t];
+            if (!Number.isFinite(f) || !Number.isFinite(a) || !Number.isFinite(b)) continue;
+            known = true;
+            const hour = Math.floor(bessClockMinutes(T, t) / 60);
+            const cap = f >= 0 ? day.limitAb && day.limitAb[t] : day.limitBa && day.limitBa[t];
+            quarters[hour] += 1; flow[hour] += f; gap[hour] += b - a;
+            if (Number.isFinite(cap)) limit[hour] += f >= 0 ? cap : -cap;
+            const bound = Number.isFinite(cap) && cap > 0 && Math.abs(f) >= cap - 1 && Math.abs(b - a) > SPLIT_EPS;
+            if (bound) { atLimit[hour] += 1; shadow[hour] += Math.abs(b - a) * 0.25; }
+          }
+        }
+        for (let hour = 0; hour < 24; hour += 1) {
+          const n = quarters[hour];
+          border.hours.push({ date, hour, known: known && n > 0, shadow: shadow[hour], flow: n ? flow[hour] / n : NaN, limit: n ? limit[hour] / n : NaN,
+            gap: n ? gap[hour] / n : NaN, bound: atLimit[hour] > 0 });
+          if (shadow[hour] > 0) { border.total += shadow[hour]; border.bindingHours += 1; border.days.add(date); }
+        }
+      });
+    }
+    return { dates, borders: borders.sort((x, y) => y.total - x.total) };
+  }
+  /* The drivers of a border, hour by hour: prices, flow, and each Italian side's output and load. */
+  async function bindingDrivers(border, dates) {
+    const zones = [border.a, border.b].filter(code => BESS_ZONES.includes(code));
+    const files = await Promise.all(zones.map(zone => anaFetch(`zones/${zone}/generation_load.json`).catch(() => null)));
+    const drivers = [];
+    zones.forEach((zone, index) => {
+      const file = files[index];
+      if (!file) return;
+      const quarter = file.generation.quarter_hourly, hourly = file.generation.hourly;
+      const source = codes => date => {
+        let out = null;
+        codes.forEach(code => {
+          const values = anaSeriesDay(quarter[code] && quarter[code].points, hourly[code] && hourly[code].points, date);
+          if (!values) return;
+          if (!out) out = new Float64Array(values.length);
+          for (let t = 0; t < values.length && t < out.length; t += 1) if (Number.isFinite(values[t])) out[t] += values[t];
+        });
+        return out;
+      };
+      const load = date => anaSeriesDay(file.total_load.quarter_hourly.TOTAL, file.total_load.hourly.TOTAL, date);
+      const solar = source(["B16"]), wind = source(["B19", "B18"]);
+      const name = ZONE_NAMES[zone];
+      drivers.push({ label: `${name} solar (MW)`, day: solar });
+      drivers.push({ label: `${name} wind (MW)`, day: wind });
+      drivers.push({ label: `${name} load (MW)`, day: load });
+      drivers.push({ label: `${name} residual load (MW)`, day: date => {
+        const l = load(date), s = solar(date), w = wind(date);
+        return l ? Float64Array.from(l, (value, t) => value - (s ? s[t] || 0 : 0) - (w ? w[t] || 0 : 0)) : null;
+      } });
+      drivers.push({ label: `${name} hydro (MW)`, day: source(["B11", "B12", "B10"]) });
+      drivers.push({ label: `${name} gas (MW)`, day: source(["B04"]) });
+    });
+    // Hourly means of each driver over the dates.
+    return drivers.map(driver => {
+      const values = new Map();
+      dates.forEach(date => {
+        const quarters = driver.day(date);
+        if (!quarters) return;
+        const T = quarters.length;
+        const sum = new Float64Array(24), n = new Float64Array(24);
+        for (let t = 0; t < T; t += 1) if (Number.isFinite(quarters[t])) { const hour = Math.floor(bessClockMinutes(T, t) / 60); sum[hour] += quarters[t]; n[hour] += 1; }
+        for (let hour = 0; hour < 24; hour += 1) if (n[hour]) values.set(`${date}|${hour}`, sum[hour] / n[hour]);
+      });
+      return { label: driver.label, values };
+    });
+  }
+  const bindingMonths = lastDay => {
+    const months = [];
+    for (let month = BESS_FIRST_DAY.slice(0, 7); month <= lastDay.slice(0, 7);) {
+      months.push(month);
+      const [year, m] = month.split("-").map(Number);
+      month = m === 12 ? `${year + 1}-01` : `${year}-${String(m + 1).padStart(2, "0")}`;
+    }
+    return months.reverse();
+  };
+  const monthBounds = (month, lastDay) => {
+    const [year, m] = month.split("-").map(Number);
+    const end = new Date(Date.UTC(year, m, 0)).toISOString().slice(0, 10);
+    return [`${month}-01`, end > lastDay ? lastDay : end];
+  };
+  const previousMonth = month => { const [year, m] = month.split("-").map(Number); return m === 1 ? `${year - 1}-12` : `${year}-${String(m - 1).padStart(2, "0")}`; };
+  const monthName = month => parseDate(`${month}-01`).toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+
+  const bindingView = anaView("binding", {
+    title: "Most binding borders, month by month",
+    lede: "The borders that held Italy's day-ahead market apart in a month, ranked by their shadow price: the price gap across a border while its flow runs at the limit, summed over the hours (€ per MW of capacity). Italy's six borders between zones and the coupled ones with France, Austria, Slovenia and Greece; for each, when it bound, what drove it and, on the northern border, which grid elements JAO names as limiting.",
+    form: () => {
+      const s = bindingState;
+      return bessGroup("Month and border",
+        `<div class="bess-field"><label class="ana-label">Month<select data-field="month"><option value="">The last complete month</option></select></label><div class="bess-hint" data-hint="month"></div></div>` +
+        `<div class="bess-field"><label class="ana-label">Border<select data-field="border"><option value="">The most binding</option>` +
+        BINDING_BORDERS.map(border => `<option value="${border.key}"${s.border === border.key ? " selected" : ""}>${bindingName(border)}</option>`).join("") +
+        `</select></label></div>` +
+        bessHelp("How a border binds in a zonal market", "<p>In the MGP each zone has one price; two zones' prices part only when the border between them is full. The gap is then what one more MW of capacity would have been worth that hour: the border's shadow price, the zonal counterpart of a flow-based CNEC's. A border at its limit with equal prices does not bind (it was just enough).</p><p>The coupled borders: GME's coupling flows and limits against the neighbour's day-ahead price (ENTSO-E). Switzerland is not coupled; Malta and Montenegro have no price on file.</p>"));
+    },
+    results: () =>
+      `<section id="binding-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Most Binding Borders</div>` +
+      `<div id="binding-summary-subtitle" class="chart-subtitle"></div></div><div id="binding-status" class="bess-status"></div></div>` +
+      `<div class="binding-top"><div class="bess-chart tall binding-map"><div id="binding-map-chart" class="timeline-chart"></div></div><div id="binding-rank" class="binding-rank"></div></div>` +
+      `<div class="chart-help bess-chart-help">Zones shaded by their average MGP price over the month; circles on each border sized by its shadow price. The list: cumulated shadow price over the month, the hours and days it bound. Click a border to open it.</div>` +
+      `<div class="gme-source">${GME_CREDIT}</div></section>` +
+      `<section id="binding-detail-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title" id="binding-detail-title">Border</div>` +
+      `<div id="binding-detail-subtitle" class="chart-subtitle"></div></div></div><div id="binding-chips" class="binding-chips"></div>` +
+      `<div class="binding-detail"><div><div class="bess-chart tallest"><div id="binding-hours-chart" class="timeline-chart"></div></div>` +
+      `<div class="chart-help bess-chart-help">Top: the shadow price hour by hour, € per MW (the price gap while the border was at its limit). Middle: the flow, from the first side to the second, against the limit that way (dashed). Bottom: the driver that moved most with the shadow price. Grey bands: weekends.</div></div>` +
+      `<div class="binding-text"><p id="binding-when" class="bess-reading"></p><div id="binding-elements"></div></div></div>` +
+      `<div id="binding-drivers" class="bess-table-wrap"></div>` +
+      `<div class="chart-help bess-chart-help">Drivers: hourly means. Binding hours: the hours the border bound; same hours, other days: the same clock hours on the days it did not; then the month and the month before; r: the correlation of the driver with the shadow price over every hour of the month.</div>` +
+      `<div class="gme-source">${GME_CREDIT}</div></section>`,
+    charts: ["map", "hours"],
+    compute: async self => {
+      const files = await bindingLoad();
+      const ref = files.zonal.zones.NORD;
+      const lastDay = anaLastDate(ref.quarter_hourly) || anaLastDate(ref.hourly);
+      const months = bindingMonths(lastDay);
+      const select = document.querySelector('#binding-view [data-field="month"]');
+      if (select && select.options.length <= 1) {
+        select.insertAdjacentHTML("beforeend", months.map(month => `<option value="${month}">${monthName(month)}</option>`).join(""));
+        select.value = bindingState.month;
+      }
+      // The last complete month: the one before the month of the last day, unless that day is its last.
+      const complete = monthBounds(lastDay.slice(0, 7), lastDay)[1] === lastDay && bessAddDays(lastDay, 1).slice(8) === "01" ? lastDay.slice(0, 7) : previousMonth(lastDay.slice(0, 7));
+      const month = bindingState.month || complete;
+      const [from, to] = monthBounds(month, lastDay);
+      const current = bindingCompute(files, from, to);
+      const before = monthBounds(previousMonth(month), lastDay);
+      const previous = before[0] >= BESS_FIRST_DAY ? bindingCompute(files, before[0], before[1]) : null;
+      self.hint("month", `${bessDateText(from)} – ${bessDateText(to)} · prices on file to ${bessDateText(lastDay)}.`);
+      // Zone prices over the month for the map.
+      const zonePrice = Object.fromEntries(BESS_ZONES.map(zone => {
+        let sum = 0, n = 0;
+        current.dates.forEach(date => { const values = anaSeriesDay(files.zonal.zones[zone].quarter_hourly, files.zonal.zones[zone].hourly, date); if (values) values.forEach(v => { if (Number.isFinite(v)) { sum += v; n += 1; } }); });
+        return [zone, n ? sum / n : NaN];
+      }));
+      const key = bindingState.border || (current.borders[0] && current.borders[0].key);
+      const border = current.borders.find(item => item.key === key) || current.borders[0];
+      const [drivers, previousDrivers] = await Promise.all([bindingDrivers(border, current.dates), previous ? bindingDrivers(border, previous.dates) : Promise.resolve([])]);
+      return { month, from, to, lastDay, current, previous, zonePrice, border, drivers, previousDrivers, files };
+    },
+    render: self => bindingRender(self),
+    onClick: (event, self) => {
+      const row = event.target.closest("[data-border]");
+      if (!row) return;
+      bindingState.border = row.dataset.border;
+      const select = document.querySelector('#binding-view [data-field="border"]');
+      if (select) select.value = bindingState.border;
+      self.run();
+    }
+  });
+  bindingView.state = bindingState;
+
+  function bindingRender(self) {
+    const results = self.results;
+    const rank = document.getElementById("binding-rank");
+    if (!results) {
+      rank.innerHTML = self.message ? `<p class="bess-error">${self.message}</p>` : "";
+      Object.values(self.charts).forEach(chart => anaEmpty(chart, self.busy ? "Working…" : ""));
+      ["binding-chips", "binding-when", "binding-elements", "binding-drivers"].forEach(id => { document.getElementById(id).innerHTML = ""; });
+      return;
+    }
+    const { current, previous, border } = results;
+    const grand = current.borders.reduce((sum, item) => sum + item.total, 0);
+    const hoursInMonth = current.dates.length * 24;
+    setText("binding-summary-subtitle", `${monthName(results.month)} · ranked by cumulated shadow price · all borders ${formatNumber(grand / 1000, 1)} k€/MW`);
+    const maxTotal = Math.max(1, ...current.borders.map(item => item.total));
+    const previousOf = key => (previous ? (previous.borders.find(item => item.key === key) || {}).total : null);
+    rank.innerHTML = `<ol class="binding-list">${current.borders.map(item => `<li data-border="${item.key}"${item.key === border.key ? ' class="current"' : ""}>` +
+      `<span class="binding-name">${bindingName(item)}<small>${item.coupling ? "coupled border" : "between zones"} · ${formatNumber(item.bindingHours)} h on ${formatNumber(item.days.size)} days</small></span>` +
+      `<span class="binding-bar"><span style="width:${Math.round(item.total / maxTotal * 100)}%"></span></span><b>${formatNumber(item.total / 1000, 1)}</b></li>`).join("")}</ol>` +
+      `<p class="bess-note">k€ per MW over the month. ${previous ? `${monthName(previousMonth(results.month))}: ${formatNumber(previous.borders.reduce((sum, item) => sum + item.total, 0) / 1000, 1)} k€/MW across all borders.` : ""}</p>`;
+    // Map.
+    const geoReady = Boolean(echarts.getMap("ana-italy"));
+    if (geoReady) {
+      const prices = Object.values(results.zonePrice).filter(Number.isFinite);
+      self.charts.map.setOption({
+        animation: false, backgroundColor: "transparent",
+        tooltip: { ...bessTooltip(params => params.seriesType === "scatter"
+          ? bessTipHead(params.name) + tooltipRow(params.color, "Shadow price", `${formatNumber(params.value[2] / 1000, 1)} k€/MW`)
+          : bessTipHead(`${params.name} · ${ZONE_NAMES[REGION_ZONES[params.name]] || ""}`) + tooltipRow(params.color, "Average MGP", `${anaPrice(params.value)}/MWh`)), trigger: "item" },
+        visualMap: { type: "continuous", seriesIndex: 0, min: Math.floor(Math.min(...prices)), max: Math.ceil(Math.max(...prices)), orient: "horizontal", left: 10, bottom: 6,
+          itemWidth: 10, itemHeight: 120, text: ["€/MWh", ""], textStyle: { color: cssVar("--chart-axis-label"), fontSize: 10 }, calculable: false,
+          inRange: { color: [cssVar("--range"), cssVar("--border-2")] } },
+        geo: { map: "ana-italy", roam: false, layoutCenter: ["50%", "50%"], layoutSize: "95%", silent: true,
+          itemStyle: { areaColor: cssVar("--panel-2"), borderColor: cssVar("--panel"), borderWidth: 1 }, emphasis: { disabled: true } },
+        series: [
+          { type: "map", map: "ana-italy", geoIndex: 0, data: Object.entries(REGION_ZONES).map(([region, zone]) => ({ name: region, value: Math.round(results.zonePrice[zone] * 100) / 100 })) },
+          { type: "scatter", coordinateSystem: "geo", z: 5,
+            data: current.borders.filter(item => item.total > 0).map(item => ({ name: bindingName(item), value: [...item.pos, item.total],
+              itemStyle: { color: cssVar(item.key === border.key ? "--border-1" : "--chart-pun"), opacity: 0.85, borderColor: cssVar("--panel"), borderWidth: 1 } })),
+            symbolSize: value => 8 + 42 * Math.sqrt(value[2] / maxTotal),
+            label: { show: true, position: "right", distance: 4, color: cssVar("--chart-legend"), fontSize: 10, formatter: params => formatNumber(params.value[2] / 1000, 1) } }
+        ]
+      }, true);
+      self.charts.map.resize();
+    } else anaEmpty(self.charts.map, "The map of Italy is not on file here");
+    // The border.
+    const share = grand > 0 ? border.total / grand : 0;
+    document.getElementById("binding-detail-title").textContent = bindingName(border);
+    setText("binding-detail-subtitle", `${border.coupling ? "Coupled border" : "Border between zones"} · flow from ${bindingSideName(border.a)} to ${bindingSideName(border.b)} above zero`);
+    const prevTotal = previousOf(border.key);
+    document.getElementById("binding-chips").innerHTML = [
+      `${formatNumber(border.total / 1000, 1)} k€/MW`, `${formatNumber(share * 100, 0)}% of all borders`,
+      `binding ${formatNumber(border.bindingHours)} h of ${formatNumber(hoursInMonth)}`,
+      prevTotal === null || prevTotal === undefined ? "" : `${monthName(previousMonth(results.month)).split(" ")[0]} ${formatNumber(prevTotal / 1000, 1)} k€/MW`
+    ].filter(Boolean).map(text => `<span class="bess-chip">${text}</span>`).join("");
+    // Drivers: binding hours, same hours other days, month, previous month, r.
+    const hours = border.hours.filter(item => item.known);
+    const bound = hours.filter(item => item.shadow > 0);
+    const boundByHour = new Array(24).fill(0);
+    bound.forEach(item => { boundByHour[item.hour] += 1; });
+    const keyOf = item => `${item.date}|${item.hour}`;
+    const priceDrivers = [
+      { label: `${bindingSideName(border.a)} price (€/MWh)`, get: item => item.priceA },
+      { label: `${bindingSideName(border.b)} − ${bindingSideName(border.a)} (€/MWh)`, get: item => item.gap },
+      { label: `Flow, ${bindingSideName(border.a)} → ${bindingSideName(border.b)} (MW)`, get: item => item.flow },
+      { label: "Limit in the flow's direction (MW)", get: item => (Number.isFinite(item.limit) ? Math.abs(item.limit) : NaN) }
+    ];
+    // Side a's price, hour by hour, this month and the month before.
+    const node = results.files.zonal.zones[BESS_ZONES.includes(border.a) ? border.a : "NORD"];
+    const priceA = new Map();
+    [...results.current.dates, ...(previous ? previous.dates : [])].forEach(date => {
+      const values = anaSeriesDay(node.quarter_hourly, node.hourly, date);
+      if (!values) return;
+      const sum = new Float64Array(24), n = new Float64Array(24);
+      values.forEach((value, t) => { if (Number.isFinite(value)) { const hour = Math.floor(bessClockMinutes(values.length, t) / 60); sum[hour] += value; n[hour] += 1; } });
+      for (let hour = 0; hour < 24; hour += 1) if (n[hour]) priceA.set(`${date}|${hour}`, sum[hour] / n[hour]);
+    });
+    hours.forEach(item => { item.priceA = priceA.get(keyOf(item)); });
+    const previousHours = previous ? ((previous.borders.find(item => item.key === border.key) || {}).hours || []).filter(item => item.known) : [];
+    previousHours.forEach(item => { item.priceA = priceA.get(keyOf(item)); });
+    const rows = [
+      ...priceDrivers.map(driver => ({ label: driver.label, value: item => driver.get(item), previousMean: () => previousHours.map(driver.get) })),
+      ...results.drivers.map(driver => ({ label: driver.label, value: item => driver.values.get(keyOf(item)),
+        previousMean: () => [...(((results.previousDrivers.find(prev => prev.label === driver.label) || {}).values) || new Map()).values()] }))
+    ];
+    const mean = list => { const values = list.filter(Number.isFinite); return values.length ? values.reduce((a, b) => a + b, 0) / values.length : NaN; };
+    const correlation = (xs, ys) => {
+      const pairs = xs.map((x, index) => [x, ys[index]]).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
+      if (pairs.length < 10) return NaN;
+      const mx = mean(pairs.map(p => p[0])), my = mean(pairs.map(p => p[1]));
+      let sxy = 0, sxx = 0, syy = 0;
+      pairs.forEach(([x, y]) => { sxy += (x - mx) * (y - my); sxx += (x - mx) ** 2; syy += (y - my) ** 2; });
+      return sxx && syy ? sxy / Math.sqrt(sxx * syy) : NaN;
+    };
+    const table = rows.map(row => {
+      const values = hours.map(row.value);
+      const boundMean = mean(bound.map(row.value));
+      let weighted = 0, weight = 0;
+      for (let hour = 0; hour < 24; hour += 1) {
+        if (!boundByHour[hour]) continue;
+        const other = mean(hours.filter(item => item.hour === hour && !(item.shadow > 0)).map(row.value));
+        if (Number.isFinite(other)) { weighted += other * boundByHour[hour]; weight += boundByHour[hour]; }
+      }
+      const prevMean = mean(row.previousMean());
+      return { label: row.label, bound: boundMean, other: weight ? weighted / weight : NaN, month: mean(values), previous: prevMean,
+        r: correlation(values, hours.map(item => item.shadow)), series: values };
+    });
+    const fmt = value => (Number.isFinite(value) ? formatNumber(value, Math.abs(value) < 100 ? 1 : 0) : "—");
+    document.getElementById("binding-drivers").innerHTML = bound.length
+      ? `<table class="bess-table"><thead><tr><th>Driver</th><th>Binding hours</th><th>Same hours, other days</th><th>${monthName(results.month).split(" ")[0]} average</th>` +
+        `<th>${monthName(previousMonth(results.month)).split(" ")[0]} average</th><th>r</th></tr></thead><tbody>` +
+        table.map(row => `<tr><td>${row.label}</td><td><b>${fmt(row.bound)}</b></td><td>${fmt(row.other)}</td><td>${fmt(row.month)}</td><td>${fmt(row.previous)}</td>` +
+          `<td>${Number.isFinite(row.r) ? `${row.r >= 0 ? "+" : "−"}${formatNumber(Math.abs(row.r), 2)}` : "—"}</td></tr>`).join("") + `</tbody></table>`
+      : `<p class="bess-note">The border did not bind in ${monthName(results.month)}.</p>`;
+    // When.
+    const whenText = (() => {
+      if (!bound.length) return `${bindingName(border)} did not bind in ${monthName(results.month)}.`;
+      const byHour = new Array(24).fill(0);
+      bound.forEach(item => { byHour[item.hour] += item.shadow; });
+      const order = byHour.map((value, hour) => [value, hour]).sort((a, b) => b[0] - a[0]);
+      let covered = 0;
+      const top = [];
+      for (const [value, hour] of order) { if (covered >= border.total * 0.8) break; covered += value; top.push(hour); }
+      top.sort((a, b) => a - b);
+      const ranges = [];
+      top.forEach(hour => { const last = ranges[ranges.length - 1]; if (last && hour === last[1] + 1) last[1] = hour; else ranges.push([hour, hour]); });
+      const weekend = bound.filter(item => [0, 6].includes(parseDate(item.date).getDay())).reduce((sum, item) => sum + item.shadow, 0);
+      const byDay = new Map();
+      bound.forEach(item => byDay.set(item.date, (byDay.get(item.date) || 0) + item.shadow));
+      const worst = [...byDay.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([date]) => parseDate(date).toLocaleDateString("en-GB", { day: "numeric", month: "short" }));
+      const direction = mean(bound.map(item => item.flow)) >= 0 ? `${bindingSideName(border.a)} to ${bindingSideName(border.b)}` : `${bindingSideName(border.b)} to ${bindingSideName(border.a)}`;
+      const dearer = mean(bound.map(item => item.gap)) >= 0 ? bindingSideName(border.b) : bindingSideName(border.a);
+      const strongest = table.filter(row => !row.label.includes("€/MWh") && !row.label.startsWith("Flow") && !row.label.startsWith("Limit") && Number.isFinite(row.r)).sort((a, b) => Math.abs(b.r) - Math.abs(a.r))[0];
+      const limitRow = table.find(row => row.label.startsWith("Limit"));
+      const limitNote = limitRow && Number.isFinite(limitRow.bound) && Number.isFinite(limitRow.other) && limitRow.other > 0 && limitRow.bound < 0.8 * limitRow.other
+        ? ` The limit was lower when it bound: ${fmt(limitRow.bound)} MW against ${fmt(limitRow.other)} MW in the same hours of other days, a sign of reduced capacity (an outage or maintenance) more than of more demand for it.` : "";
+      return `<b>When:</b> ${ranges.map(([a, b]) => (a === b ? `${a} h` : `${a}–${b + 1} h`)).join(", ")} carry 80% of the shadow price, on ${formatNumber(border.days.size)} days; ` +
+        `${formatNumber(border.total ? weekend / border.total * 100 : 0, 0)}% on weekends; worst days ${worst.join(", ")}. ` +
+        `In those hours the flow ran ${direction} at its limit and ${dearer} was the dearer side, by ${anaPrice(Math.abs(mean(bound.map(item => item.gap))))}/MWh on average ` +
+        `(${anaPrice(Math.abs(table[1].other))} in the same hours of other days).` +
+        (strongest ? ` The driver that moved most with it: ${strongest.label.replace(/ \(.*\)$/, "")}, ${fmt(strongest.bound)} in binding hours against ${fmt(strongest.other)} otherwise (r ${formatNumber(strongest.r, 2)}).` : "") + limitNote;
+    })();
+    document.getElementById("binding-when").innerHTML = whenText;
+    // JAO's limiting elements in binding hours (northern borders).
+    const elements = document.getElementById("binding-elements");
+    const limiting = results.files.jao && results.files.jao.limiting;
+    if (["NORD-FR", "NORD-AT", "NORD-SI"].includes(border.key) && limiting && bound.length) {
+      const counts = new Map();
+      const boundSet = new Set(bound.map(keyOf));
+      limiting.rows.forEach(([dayIndex, minute, minutes, element, contingency]) => {
+        const date = bessAddDays(limiting.start, dayIndex);
+        if (date < results.from || date > results.to) return;
+        for (let m = minute; m < minute + minutes; m += 60) {
+          const hour = Math.floor(m / 60);
+          if (!boundSet.has(`${date}|${hour}`)) continue;
+          const area = limiting.areas && limiting.areas[element];
+          const name = `${limiting.elements[element]}${area && !limiting.elements[element].includes(`[${area}]`) ? ` [${area}]` : ""}`;
+          const entry = counts.get(name) || { hours: new Set(), contingencies: new Map() };
+          const hourKey = `${date}|${hour}`;
+          if (entry.hours.has(hourKey)) continue;
+          entry.hours.add(hourKey);
+          const c = limiting.contingencies[contingency];
+          if (c) entry.contingencies.set(c, (entry.contingencies.get(c) || 0) + 1);
+          counts.set(name, entry);
+        }
+      });
+      const top = [...counts.entries()].sort((a, b) => b[1].hours.size - a[1].hours.size).slice(0, 6);
+      elements.innerHTML = top.length ? `<div class="binding-elements-title">Elements limiting the northern NTC in these hours (JAO)</div><ol class="binding-elements">` +
+        top.map(([name, entry]) => `<li><span>${name}</span><small>${formatNumber(entry.hours.size)} of ${formatNumber(bound.length)} binding h${entry.contingencies.size ? ` · after ${[...entry.contingencies.entries()].sort((a, b) => b[1] - a[1])[0][0]}` : ""}</small></li>`).join("") + `</ol>` : "";
+    } else elements.innerHTML = "";
+    // Hour by hour chart.
+    const strongest = table.filter(row => !row.label.includes("€/MWh") && !row.label.startsWith("Flow") && !row.label.startsWith("Limit") && Number.isFinite(row.r)).sort((a, b) => Math.abs(b.r) - Math.abs(a.r))[0];
+    const labels = hours.map(item => `${item.date} ${String(item.hour).padStart(2, "0")}:00`);
+    const weekendBands = [];
+    hours.forEach((item, index) => {
+      if (![0, 6].includes(parseDate(item.date).getDay())) return;
+      const last = weekendBands[weekendBands.length - 1];
+      if (last && last[1] === index - 1) last[1] = index; else weekendBands.push([index, index]);
+    });
+    const bands = weekendBands.map(([a, b]) => [{ xAxis: labels[a] }, { xAxis: labels[b] }]);
+    const grids = [{ left: 64, right: 16, top: 16, height: "28%" }, { left: 64, right: 16, top: "38%", height: "24%" }, { left: 64, right: 16, top: "70%", bottom: 34 }];
+    self.charts.hours.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: bessTooltip(params => bessTipHead(labels[params[0].dataIndex]) + params.filter(entry => Number.isFinite(entry.value)).map(entry =>
+        tooltipRow(entry.color, entry.seriesName, formatNumber(entry.value, 0), entry.seriesType === "line" ? "line" : "area")).join(""), { axisPointer: { type: "line", link: [{ xAxisIndex: "all" }] } }),
+      axisPointer: { link: [{ xAxisIndex: "all" }] },
+      grid: grids,
+      xAxis: grids.map((_, gridIndex) => ({ type: "category", gridIndex, data: labels, boundaryGap: false, axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: gridIndex === 2 ? { ...bessAxisLabel(), interval: index => hours[index].hour === 0 && parseDate(hours[index].date).getDate() % 5 === 1,
+          formatter: value => parseDate(value.slice(0, 10)).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) } : { show: false } })),
+      yAxis: [timelineYAxis("€/MW", { gridIndex: 0, nameGap: 48 }), timelineYAxis("MW", { gridIndex: 1, nameGap: 48 }),
+        timelineYAxis(strongest ? strongest.label.replace(/^.* \(/, "").replace(")", "") : "", { gridIndex: 2, nameGap: 48, scale: true })],
+      series: [
+        { name: "Shadow price (€/MW)", type: "bar", xAxisIndex: 0, yAxisIndex: 0, data: hours.map(item => (item.shadow > 0 ? Math.round(item.shadow * 10) / 10 : null)),
+          barCategoryGap: "0%", itemStyle: { color: cssVar("--border-2") }, markArea: bands.length ? { silent: true, itemStyle: { color: cssVar("--chart-zoom-filler") }, data: bands } : undefined },
+        { name: "Flow (MW)", type: "line", xAxisIndex: 1, yAxisIndex: 1, data: hours.map(item => (Number.isFinite(item.flow) ? Math.round(item.flow) : null)), showSymbol: false,
+          lineStyle: { color: cssVar("--chart-pun"), width: 1.2 }, itemStyle: { color: cssVar("--chart-pun") } },
+        { name: "Limit that way (MW)", type: "line", xAxisIndex: 1, yAxisIndex: 1, data: hours.map(item => (Number.isFinite(item.limit) ? Math.round(item.limit) : null)), showSymbol: false,
+          lineStyle: { color: cssVar("--border-1"), width: 1, type: "dashed" }, itemStyle: { color: cssVar("--border-1") } },
+        ...(strongest ? [{ name: strongest.label, type: "line", xAxisIndex: 2, yAxisIndex: 2, data: strongest.series.map(value => (Number.isFinite(value) ? Math.round(value) : null)),
+          showSymbol: false, lineStyle: { color: cssVar("--border-3"), width: 1.2 }, itemStyle: { color: cssVar("--border-3") } }] : [])
+      ]
+    }, true);
+    self.charts.hours.resize();
+  }
+
+  const ANALYSIS_VIEWS = { capture: captureView, imbalance: imbalanceView, congestion: congestionView, spikes: spikesView, binding: bindingView };
 
   /*
    * A tab is made of blocks: some sections, the files they need, how they
