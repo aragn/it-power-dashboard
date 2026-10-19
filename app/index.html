@@ -24,7 +24,7 @@
       --chart-tooltip-bg:#171b20; --chart-tooltip-border:#30363e; --chart-tooltip-text:#f1f3f5; --chart-tooltip-muted:#9aa2ac; --chart-pointer:#5d6670;
       --chart-axis-line:#30353c; --chart-axis-label:#727a84; --chart-grid:#20252b; --chart-legend:#b4bbc4;
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
-      --chart-pun:#d9dde2; --chart-eua:#e7a84b; --res-actual:#d9dde2; --res-day-ahead:#5b9cff; --res-intraday:#d55181; --chart-generation:#5ecb8a; --chart-load:#5b9cff; --chart-residual:#e0e3e7;
+      --chart-pun:#d9dde2; --chart-eua:#e7a84b; --chart-igi:#4fc3c9; --chart-srmc:#ef6b5b; --res-actual:#d9dde2; --res-day-ahead:#5b9cff; --res-intraday:#d55181; --chart-generation:#5ecb8a; --chart-load:#5b9cff; --chart-residual:#e0e3e7;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
       --mix-coal:#b8c2d0; --mix-geothermal:#b5651d; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
       --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
@@ -54,7 +54,7 @@
       --chart-tooltip-bg:#ffffff; --chart-tooltip-border:#d5dae0; --chart-tooltip-text:#14171a; --chart-tooltip-muted:#66707b; --chart-pointer:#a3aab3;
       --chart-axis-line:#cfd4da; --chart-axis-label:#66707b; --chart-grid:#eceef1; --chart-legend:#3f4750;
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
-      --chart-pun:#1f2429; --chart-eua:#b36b00; --res-actual:#1f2429; --res-day-ahead:#2f6fdb; --res-intraday:#c93d74; --chart-generation:#1f9d57; --chart-load:#2f6fdb; --chart-residual:#3d434b;
+      --chart-pun:#1f2429; --chart-eua:#b36b00; --chart-igi:#0f8a91; --chart-srmc:#c8392b; --res-actual:#1f2429; --res-day-ahead:#2f6fdb; --res-intraday:#c93d74; --chart-generation:#1f9d57; --chart-load:#2f6fdb; --chart-residual:#3d434b;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
       --mix-coal:#4b5563; --mix-geothermal:#9c5a3c; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
       --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
@@ -618,7 +618,7 @@
     <div class="app-body">
       <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="gas" type="button">Gas &amp; LNG</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue &amp; Market</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
-        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="market" type="button">Market</button><button class="subnav-tab" data-tab="balancing" type="button">Balancing</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index and the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range. <span class="info-hover" tabindex="0" aria-describedby="outages-info">Read here for more info<span id="outages-info" class="info-pop" role="tooltip"></span></span></div></section><section id="available-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Available Capacity</div><div id="available-subtitle" class="chart-subtitle"></div></div></div><div id="available-wrap" class="timeline-chart-wrap"><div id="available-chart" class="timeline-chart"></div><div id="available-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, available capacity of the generating units of 100 MW or more. Solid: the effective capacity, final the day after; shaded and marked "Expected": the capacity the operators expect for the days after the last effective one (up to 14 days ahead when the selected dates reach the latest one). A past day Terna did not publish is left blank. Dashed: the expected total over the whole period, to compare with what was then available. Click a source in the legend to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
+        <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="market" type="button">Market</button><button class="subnav-tab" data-tab="balancing" type="button">Balancing</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index, the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis), GME's IG Index of the PSV gas price (€/MWh of gas, by gas day 06:00–06:00) and the short-run marginal cost of a gas plant, SRMC = IGI / η + EUA × 0.202 tCO₂/MWh / η + VOM, with η = 55% and VOM = 3 €/MWh (€/MWh of electricity; no gas transport or other costs). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range. <span class="info-hover" tabindex="0" aria-describedby="outages-info">Read here for more info<span id="outages-info" class="info-pop" role="tooltip"></span></span></div></section><section id="available-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Available Capacity</div><div id="available-subtitle" class="chart-subtitle"></div></div></div><div id="available-wrap" class="timeline-chart-wrap"><div id="available-chart" class="timeline-chart"></div><div id="available-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, available capacity of the generating units of 100 MW or more. Solid: the effective capacity, final the day after; shaded and marked "Expected": the capacity the operators expect for the days after the last effective one (up to 14 days ahead when the selected dates reach the latest one). A past day Terna did not publish is left blank. Dashed: the expected total over the whole period, to compare with what was then available. Click a source in the legend to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
             <div class="chart-header">
               <div>
@@ -5539,6 +5539,15 @@
         tooltipRow(cssVar("--chart-pun"), PUN_INDEX_NAME, `${row.pun.toFixed(2)} €/MWh`, "line") + `</div>`;
     }
 
+    if (!PUBLIC_MODE && shown(IGI_NAME) && Number.isFinite(row.igi)) {
+      html += tooltipRow(cssVar("--chart-igi"), IGI_NAME, `${row.igi.toFixed(2)} €/MWh`, "line");
+    }
+    if (!PUBLIC_MODE && shown(SRMC_NAME) && Number.isFinite(row.srmc)) {
+      const fuel = row.igi / SRMC_EFFICIENCY, carbon = row.eua * GAS_EMISSION / SRMC_EFFICIENCY;
+      html += tooltipRow(cssVar("--chart-srmc"), SRMC_NAME, `${row.srmc.toFixed(2)} €/MWh`, "dashed") +
+        `<div style="margin-left:24px;color:${muted};">fuel ${fuel.toFixed(2)} + CO₂ ${carbon.toFixed(2)} + VOM ${SRMC_VOM.toFixed(2)}</div>`;
+    }
+
     return html;
   }
 
@@ -5564,7 +5573,12 @@
     generationMixRows = buildGenerationMixRows();
     const rows = generationMixRows;
     const eua = euaStepValues(rows);
-    rows.forEach((row, index) => { row.eua = eua[index]; });
+    const igi = igiValues(rows);
+    rows.forEach((row, index) => {
+      row.eua = eua[index];
+      row.igi = igi[index];
+      row.srmc = gasSrmc(row.igi, row.eua);
+    });
 
     if (!rows.length) {
       generationMixChart.clear();
@@ -5692,6 +5706,30 @@
         connectNulls: false,
         lineStyle: { color: cssVar("--chart-eua"), width: 1.5 },
         itemStyle: { color: cssVar("--chart-eua") }
+      },
+      {
+        name: IGI_NAME,
+        type: "line",
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        data: rows.map(row => row.igi),
+        step: "end",
+        showSymbol: false,
+        connectNulls: false,
+        lineStyle: { color: cssVar("--chart-igi"), width: 1.5 },
+        itemStyle: { color: cssVar("--chart-igi") }
+      },
+      {
+        name: SRMC_NAME,
+        type: "line",
+        xAxisIndex: 1,
+        yAxisIndex: 1,
+        data: rows.map(row => row.srmc),
+        step: "end",
+        showSymbol: false,
+        connectNulls: false,
+        lineStyle: { color: cssVar("--chart-srmc"), width: 1.5, type: "dashed" },
+        itemStyle: { color: cssVar("--chart-srmc") }
       }
     ];
 
@@ -6557,6 +6595,59 @@
       }
       return price;
     });
+  }
+
+  /* ============================================================
+     GAS: IG INDEX (GME) AND THE SRMC OF A GAS PLANT
+     ============================================================ */
+
+  const IGI_NAME = "IG Index (PSV gas)";
+  const SRMC_NAME = "Gas plant SRMC";
+  // SRMC = IGI / η + EUA × 0.202 / η + VOM, the Analysis tab's default plant.
+  const SRMC_EFFICIENCY = 0.55;
+  const SRMC_VOM = 3;   // €/MWh of electricity
+
+  let rawGasPriceData = null;
+
+  async function loadGasPriceData() {
+    try {
+      const response = await fetch("./data/gas_prices.json", { cache: "no-cache" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      const series = (payload.series || {}).igi;
+      const map = new Map();
+      if (series && series.start) {
+        series.values.forEach((value, i) => {
+          if (Number.isFinite(value)) map.set(dateKey(addDays(parseDate(series.start), i)), value);
+        });
+      }
+      rawGasPriceData = { igi: map };
+    } catch (error) {
+      console.warn("GME gas prices unavailable:", error);
+    }
+    refreshView();
+  }
+
+  /*
+   * The IGI of each row's gas day, which runs from 06:00 to 06:00: a daily
+   * row takes the gas day starting that day, an hour or quarter-hour before
+   * 06:00 the previous gas day.
+   */
+  function igiValues(rows) {
+    const igi = rawGasPriceData && rawGasPriceData.igi;
+    if (!igi) return rows.map(() => null);
+    const daily = currentGranularity === "daily";
+    return rows.map(row => {
+      const early = !daily && (row.time || "") < "06:00";
+      const date = early ? dateKey(addDays(parseDate(row.date), -1)) : row.date;
+      const value = igi.get(date);
+      return Number.isFinite(value) ? value : null;
+    });
+  }
+
+  function gasSrmc(igi, eua) {
+    if (!Number.isFinite(igi) || !Number.isFinite(eua)) return null;
+    return igi / SRMC_EFFICIENCY + eua * GAS_EMISSION / SRMC_EFFICIENCY + SRMC_VOM;
   }
 
   /* ============================================================
@@ -20404,7 +20495,7 @@ move the slider above to another one`,
     lazyBlock([generationLoadChartSection], () => { generationLoadChart.resize(); renderGenerationLoadChart(); },
       [loadGenerationLoadData, loadForecastData, loadResForecastData, loadTernaData]),
     lazyBlock([generationMixChartSection], () => { generationMixChart.resize(); renderGenerationMixChart(); },
-      [loadGenerationLoadData, loadForecastData, loadResForecastData, loadTernaData, loadEuaData, loadCrossBorderData]),
+      [loadGenerationLoadData, loadForecastData, loadResForecastData, loadTernaData, loadEuaData, loadGasPriceData, loadCrossBorderData]),
     lazyBlock(RES_FORECAST_TYPES.map(type => type.section), renderResForecastCharts,
       [loadGenerationLoadData, loadResForecastData, loadTernaData]),
     lazyBlock([outagesSection], () => { renderOutagesChart(); renderDataChecks(); }, [loadOutageData, loadDataChecks]),
