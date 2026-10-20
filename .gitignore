@@ -21,6 +21,7 @@ app/data/data_checks.json
 app/data/balancing/
 app/data/balancing_bids/
 app/data/neighbour_prices.json
+app/data/map_prices.json
 app/data/coupling.json
 app/data/transits.json
 app/data/zones/
