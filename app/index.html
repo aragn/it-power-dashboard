@@ -317,6 +317,7 @@
     .zmap-table-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px; }
     .zmap-table-head .zmap-table-title { margin:0; }
     .zmap-link { color:var(--muted); font-size:10.5px; }
+    .zmap-summary .bess-table th { white-space:normal; vertical-align:bottom; min-width:64px; }
     .zmap-latest { margin-bottom:10px; color:var(--muted); font-size:12px; line-height:1.5; }
     .zmap-latest button { display:block; margin-top:6px; border:1px solid var(--blue); background:var(--panel); color:var(--text); border-radius:6px; padding:5px 10px; font-size:12px; cursor:pointer; }
     @media (max-width: 1050px) { .grid-lower { grid-template-columns:1fr; } }
@@ -16349,13 +16350,19 @@ move the slider above to another one`,
    *     flows of each zone's borders (zones/<ZONE>/crossborder.json);
    *   - in an area's hover window, its generation and load (ENTSO-E): the
    *     zones' from zones/<ZONE>/generation_load.json, the neighbours' from
-   *     map_prices.json.
+   *     map_prices.json;
+   *   - day-ahead congestion of each border (ZMAP_DA): in the full version
+   *     GME's MGP flow against its limits (transits.json), congested when at
+   *     the limit with the prices split (market-coupled borders); in the
+   *     public version the split of ENTSO-E's prices alone, and JAO's ATC
+   *     into Italy against its schedule on the coupled northern borders
+   *     (jao_capacity.json), with the northern border's NTC.
    * Below the map, a summary of the period and of the slider's quarter-hour.
    */
   const ZMAP_ZONES = ["NORD", "CNOR", "CSUD", "SUD", "CALA", "SICI", "SARD"];
   // Where each area's label sits, lon/lat.
   const ZMAP_AREAS = {
-    NORD: [9.85, 45.45], CNOR: [10.95, 43.25], CSUD: [13.35, 41.95], SUD: [16.6, 40.85], CALA: [17.5, 38.95],
+    NORD: [9.85, 45.45], CNOR: [10.95, 43.25], CSUD: [13.35, 41.95], SUD: [16.95, 40.75], CALA: [17.5, 38.95],
     SICI: [14.15, 37.5], SARD: [9.0, 40.1],
     FR: [5.0, 44.05], CH: [7.95, 46.75], AT: [13.4, 47.3], SI: [14.8, 46.05], ME: [19.3, 42.8], GR: [21.4, 39.6],
     MT: [13.45, 35.5], CORS: [9.05, 42.1]
@@ -16400,6 +16407,35 @@ move the slider above to another one`,
   ].filter(price => !PUBLIC_MODE || !price.gme);
   // JAO's spreads (neighbour minus Italy) of the coupled neighbours, and the Italian zone each is against.
   const ZMAP_JAO = { AT: "NORD", FR: "NORD", SI: "NORD", GR: "SUD" };
+  /*
+   * Day-ahead congestion of each border: GME's pair for it in transits.json
+   * (the MGP flow and limits from the pair's first zone to its second; flip:
+   * the first is the border's far side); coupled: in SDAC, so a binding
+   * limit splits the prices across it; jao: JAO's ATC into Italy;
+   * north: in the northern border's NTC; explicit: not market-coupled;
+   * losses: a direct-current link whose losses SDAC prices in, so the prices
+   * differ whenever it flows, at its limit or not (the split tests nothing).
+   */
+  const ZMAP_DA = {
+    "NORD-CNOR": { pair: "CNOR|NORD", flip: true, coupled: true },
+    "CNOR-CSUD": { pair: "CNOR|CSUD", coupled: true },
+    "CSUD-SUD": { pair: "CSUD|SUD", coupled: true },
+    "SUD-CALA": { pair: "CALA|SUD", flip: true, coupled: true },
+    "CALA-SICI": { pair: "CALA|SICI", coupled: true },
+    "CSUD-SARD": { pair: "CSUD|SARD", coupled: true },
+    "CNOR-CORS": { pair: "CNOR|CORS" },
+    "SARD-CORS": { pair: "SARD|CORS" },
+    "SARD-COAC": { pair: "SARD|COAC" },
+    "NORD-FR": { pair: "COUP|XFRA", coupled: true, jao: "FR", north: true },
+    "NORD-CH": { north: true, explicit: true },
+    "NORD-AT": { pair: "COUP|XAUS", coupled: true, jao: "AT", north: true },
+    "NORD-SI": { pair: "BSP|COUP", flip: true, coupled: true, jao: "SI", north: true },
+    "CSUD-ME": { explicit: true },
+    "SUD-GR": { pair: "SUD|XGRE", coupled: true, losses: true },
+    "SICI-MT": { pair: "SICI|MALT" }
+  };
+  // Status "serious" (the dataviz status palette), always with the "DA limit" label.
+  const ZMAP_CONGESTED = "#ec835a";
   const zmapPrice = key => ZMAP_PRICES.find(price => price.key === key) || ZMAP_PRICES[0];
   const ZMAP_FLOWS = [
     { key: "scheduled_day_ahead", label: "Day-ahead", long: "Scheduled exchanges, day-ahead" },
@@ -16496,10 +16532,12 @@ move the slider above to another one`,
       PUBLIC_MODE ? null : zmapSeriesFile("intraday_prices.json", from),
       PUBLIC_MODE ? null : zmapSeriesFile("xbid_prices.json", from),
       PUBLIC_MODE ? null : zmapSeriesFile("jao_spreads.json", from),
+      PUBLIC_MODE ? null : zmapSeriesFile("transits.json", from),
+      zmapSeriesFile("jao_capacity.json", from),
       ...ZMAP_ZONES.map(zone => zmapFetch(`./data/balancing/${zone}.json`)),
       ...ZMAP_ZONES.map(zone => zmapSeriesFile(`zones/${zone}/generation_load.json`, from))
-    ])).then(([picasso, intraday, xbid, jao, ...zoneFiles]) => {
-      Object.assign(files, { picasso, intraday, xbid, jao, genLoad: {}, extra: true });
+    ])).then(([picasso, intraday, xbid, jao, transits, capacity, ...zoneFiles]) => {
+      Object.assign(files, { picasso, intraday, xbid, jao, transits, capacity, genLoad: {}, extra: true });
       ZMAP_ZONES.forEach((zone, index) => {
         files.balancing[zone] = zoneFiles[index];
         files.genLoad[zone] = zoneFiles[ZMAP_ZONES.length + index];
@@ -16682,6 +16720,99 @@ move the slider above to another one`,
         return Number.isFinite(x) || Number.isFinite(y) ? (Number.isFinite(x) ? x : 0) - (Number.isFinite(y) ? y : 0) : NaN;
       });
     });
+  }
+
+  /*
+   * A border's day-ahead congestion over the period, per quarter-hour: the
+   * flow (a to b) and the limit each way, the share of the limit used, the
+   * price gap (b less a, day-ahead) and the state (1 congested, 0 not, NaN
+   * unknown).  With GME's limits: congested at the limit, with the prices
+   * split where the border is coupled; with JAO's ATC (imports only):
+   * the same on imports; else, on a coupled border, the price split alone.
+   */
+  function zmapCongestion(files, period, border, daPrices) {
+    const key = `c|${border.id}`;
+    if (period.cache.has(key)) return period.cache.get(key);
+    const spec = ZMAP_DA[border.id] || {}, Q = period.Q;
+    const run = (name, quarter, hourly) => (quarter || hourly ? zmapRun(period, name, (date, T) => zmapDay(quarter, hourly, date, T)) : null);
+    let flow = null, ab = null, ba = null, source = null;
+    const transits = files.transits && files.transits.flows;
+    if (spec.pair && transits) {
+      const pick = name => run(`g|${name}|${spec.pair}`, ((transits.quarter_hourly || {})[spec.pair] || {})[name], ((transits.hourly || {})[spec.pair] || {})[name]);
+      const f = pick("flow"), forward = pick("limit_forward"), back = pick("limit_back");
+      if (f && (forward || back)) {
+        flow = spec.flip ? f.map(value => -value) : f;
+        [ab, ba] = spec.flip ? [back, forward] : [forward, back];
+        source = "gme";
+      }
+    }
+    if (!source && spec.jao && files.capacity && files.capacity.series) {
+      // JAO's ATC into Italy against its schedule (imports only), the direction from ENTSO-E's schedule.
+      const series = name => files.capacity.series[`${name}|${spec.jao}`];
+      const atc = series("atc_da") && run(`j|atc|${spec.jao}`, series("atc_da").quarter_hourly, series("atc_da").hourly);
+      const sched = series("sched_da") && run(`j|sched|${spec.jao}`, series("sched_da").quarter_hourly, series("sched_da").hourly);
+      const schedule = zmapFlowRun(files, period, "scheduled_day_ahead", border);
+      if (atc && schedule) {
+        flow = Float64Array.from(schedule, (value, q) => (value < 0 && sched && Number.isFinite(sched[q]) ? -sched[q] : value));
+        ba = atc;
+        source = "jao";
+      }
+    }
+    const pa = daPrices[border.a], pb = daPrices[border.to];
+    const gap = pa && pb ? Float64Array.from(pa, (value, q) => pb[q] - value) : null;
+    const use = new Float64Array(Q).fill(NaN), state = new Float64Array(Q).fill(NaN), closed = new Uint8Array(Q);
+    for (let q = 0; q < Q; q += 1) {
+      const split = spec.coupled && gap && Number.isFinite(gap[q]) ? Math.abs(gap[q]) > 0.005 : null;
+      // A lossy link's split proves nothing without its limit.
+      if (spec.losses && !source) continue;
+      const f = flow ? flow[q] : NaN;
+      const cap = Number.isFinite(f) ? (f >= 0 ? (ab ? ab[q] : NaN) : (ba ? ba[q] : NaN)) : NaN;
+      if (ab && ba && ab[q] === 0 && ba[q] === 0) { closed[q] = 1; continue; }
+      if (Number.isFinite(cap) && cap > 0) {
+        use[q] = Math.abs(f) / cap;
+        const at = Math.abs(f) >= cap - 1;
+        state[q] = split === null ? Number(at) : Number(at && split);
+      } else if (split !== null) state[q] = Number(split);
+    }
+    const result = { source, spec, flow, ab, ba, gap, use, state, closed };
+    period.cache.set(key, result);
+    return result;
+  }
+  /* Over [start, end): the quarter-hours known and congested, the mean share of the limit used, the mean price gap when congested. */
+  function zmapCongestionSpan(c, start, end) {
+    let known = 0, congested = 0, useSum = 0, useN = 0, gapSum = 0, gapN = 0, closed = 0;
+    if (c) for (let q = start; q < end; q += 1) {
+      if (c.closed[q]) closed += 1;
+      if (Number.isFinite(c.use[q])) { useSum += c.use[q]; useN += 1; }
+      if (!Number.isFinite(c.state[q])) continue;
+      known += 1;
+      if (c.state[q] === 1) {
+        congested += 1;
+        if (c.gap && Number.isFinite(c.gap[q])) { gapSum += Math.abs(c.gap[q]); gapN += 1; }
+      }
+    }
+    return { known, congested, share: known ? congested / known : NaN, use: useN ? useSum / useN : NaN, gap: gapN ? gapSum / gapN : NaN,
+      closed: closed === end - start && end > start };
+  }
+  /* The northern border (France, Switzerland, Austria, Slovenia): ENTSO-E's day-ahead scheduled imports against JAO's day-ahead NTC into Italy. */
+  function zmapNorthern(files, period) {
+    const key = "c|north";
+    if (period.cache.has(key)) return period.cache.get(key);
+    const ntcSeries = files.capacity && files.capacity.series && files.capacity.series["ntc_da|import"];
+    const node = files.crossborder.NORD && files.crossborder.NORD.scheduled_day_ahead;
+    let result = null;
+    if (ntcSeries && node) {
+      const ntc = zmapRun(period, "j|ntc", (date, T) => zmapDay(ntcSeries.quarter_hourly, ntcSeries.hourly, date, T));
+      const imports = zmapRun(period, "e|north-imports", (date, T) => {
+        const days = ["FR", "CH", "AT", "SI"].map(code => zmapDay(node.quarter_hourly && node.quarter_hourly.imports && node.quarter_hourly.imports[code],
+          node.hourly && node.hourly.imports && node.hourly.imports[code], date, T));
+        if (days.some(values => !values)) return null;
+        return Float64Array.from({ length: T }, (_, t) => days.reduce((sum, values) => sum + values[t], 0));
+      });
+      if (ntc && imports) result = { ntc, imports };
+    }
+    period.cache.set(key, result);
+    return result;
   }
 
   /* The slider's steps at the resolution chosen: [first, end) quarter-hours of the period, and the label. */
@@ -16900,7 +17031,15 @@ move the slider above to another one`,
       const averages = areas.map(area => area.stats.mean).filter(Number.isFinite);
       const flowMax = Math.max(1, ...borders.map(entry => Math.max(entry.stats.forwardMax || 0, entry.stats.backMax || 0)));
       const flowAvgMax = Math.max(1, ...borders.map(entry => Math.abs(entry.stats.mean) || 0));
-      view = { type, flowType, areas, borders, lastPrice, italyNet: italyAny ? italyNet : null, italyStats: zmapStats(italyAny ? italyNet : null),
+      // Day-ahead congestion, once the files with the limits are in.
+      const daPrices = {};
+      if (files.extra) [...ZMAP_ZONES, ...Object.keys(ZMAP_COUNTRIES)].forEach(code => { daPrices[code] = (zmapPriceRun(files, period, "da", code) || {}).run || null; });
+      borders.forEach(entry => {
+        entry.cong = files.extra ? zmapCongestion(files, period, entry.border, daPrices) : null;
+        entry.congStats = zmapCongestionSpan(entry.cong, 0, period.Q);
+      });
+      view = { type, flowType, areas, borders, lastPrice, north: files.extra ? zmapNorthern(files, period) : null,
+        italyNet: italyAny ? italyNet : null, italyStats: zmapStats(italyAny ? italyNet : null),
         scale: zmapState.avgPrices ? [Math.min(...averages), Math.max(...averages)] : [lo, hi], flowMax: zmapState.avgFlows ? flowAvgMax : flowMax };
       if (!(view.scale[1] > view.scale[0])) view.scale = [view.scale[0] - 1, view.scale[0] + 1];
     }
@@ -16909,6 +17048,9 @@ move the slider above to another one`,
     const flowAt = (entry, step) => (zmapState.avgFlows ? entry.stats.mean : zmapMean(entry.run, step.start, step.end));
     const shareOf = value => (value - view.scale[0]) / (view.scale[1] - view.scale[0]);
     const mw = value => (Number.isFinite(value) ? `${formatNumber(Math.abs(value))} MW` : "n/a");
+    // Congested in what the map shows: at least half the quarter-hours known.
+    const congestionAt = (entry, step) => (zmapState.avgFlows ? entry.congStats : zmapCongestionSpan(entry.cong, step.start, step.end));
+    const isCongested = (entry, step) => { const span = congestionAt(entry, step); return span.known > 0 && span.share >= 0.5; };
 
     function series(step) {
       const text = cssVar("--text"), muted = cssVar("--muted"), panel = cssVar("--panel");
@@ -16924,11 +17066,12 @@ move the slider above to another one`,
         if (value < 0) angle += 180;
         const s = Number.isFinite(value) ? Math.min(1, Math.abs(value) / view.flowMax) : 0;
         const known = Number.isFinite(value) && Math.abs(value) >= 0.5;
+        const congested = isCongested(entry, step);
         return {
           value: [...border.pos, value], border: border.id, symbol: known ? ZMAP_ARROW : "circle",
           symbolSize: known ? [22 + 20 * s, 7 + 13 * s] : 6, symbolRotate: known ? angle : 0,
-          itemStyle: known ? { color: text, borderColor: panel, borderWidth: 1 } : { color: muted, borderColor: panel, borderWidth: 1 },
-          label: { formatter: Number.isFinite(value) ? mw(value) : "n/a" }
+          itemStyle: known ? { color: congested ? ZMAP_CONGESTED : text, borderColor: panel, borderWidth: 1 } : { color: muted, borderColor: panel, borderWidth: 1 },
+          label: { formatter: (Number.isFinite(value) ? mw(value) : "n/a") + (congested ? " · DA limit" : "") }
         };
       });
       return [
@@ -16974,9 +17117,42 @@ move the slider above to another one`,
         const value = zmapMean(entry.run, step.start, step.end);
         const [a, b] = value < 0 ? [entry.border.to, entry.border.a] : [entry.border.a, entry.border.to];
         return `<div style="font-weight:600;margin-bottom:3px">${escapeHtml(zmapBorderName(entry.border))}</div>` +
-          line(zmapFlow(view.flowType).long, Number.isFinite(value) ? `${mw(value)}, ${escapeHtml(zmapName(a))} → ${escapeHtml(zmapName(b))}` : "n/a");
+          line(zmapFlow(view.flowType).long, Number.isFinite(value) ? `${mw(value)}, ${escapeHtml(zmapName(a))} → ${escapeHtml(zmapName(b))}` : "n/a") +
+          zmapCongestionLines(entry, step, line);
       }
       return "";
+    }
+
+    /* The day-ahead congestion lines of a border's hover window. */
+    function zmapCongestionLines(entry, step, line) {
+      const c = entry.cong, border = entry.border, spec = ZMAP_DA[border.id] || {};
+      if (!files.extra) return "";
+      const span = zmapCongestionSpan(c, step.start, step.end);
+      const mean = run => zmapMean(run, step.start, step.end);
+      const out = [];
+      if (c && c.source && !span.closed) {
+        const ab = mean(c.ab), ba = mean(c.ba), f = mean(c.flow);
+        const limits = c.source === "jao" ? `${mw(ba)} into Italy (JAO's ATC)`
+          : [Number.isFinite(ab) ? `→ ${mw(ab)}` : "", Number.isFinite(ba) ? `← ${mw(ba)}` : ""].filter(Boolean).join(" · ");
+        out.push(line("Day-ahead limit", limits || "n/a"));
+        if (Number.isFinite(f)) out.push(line(c.source === "gme" ? "Day-ahead flow (MGP)" : "Day-ahead imports (JAO)",
+          `${mw(f)} ${f < 0 ? "←" : "→"}${Number.isFinite(span.use) ? `, ${anaPct(span.use)} of the limit` : ""}`));
+      }
+      let state;
+      if (span.closed) state = "no day-ahead capacity";
+      else if (!span.known) state = spec.explicit ? "not market-coupled, no test" : "n/a";
+      else {
+        const gap = Number.isFinite(span.gap) ? `, prices split by ${zmapEuro(span.gap)}` : "";
+        state = span.known === 1 ? (span.congested ? `<b>yes</b>${gap || (spec.coupled ? "" : ", at the limit")}` : "no")
+          : `${span.congested ? "<b>" : ""}${formatNumber(span.congested)} of ${formatNumber(span.known)} quarter-hours${span.congested ? "</b>" : ""}${gap}`;
+      }
+      out.push(line("Day-ahead congestion", state));
+      if (spec.north && view.north) {
+        const imports = mean(view.north.imports), ntc = mean(view.north.ntc);
+        if (Number.isFinite(imports) && Number.isFinite(ntc) && ntc > 0)
+          out.push(line("Northern border imports", `${mw(imports)} of ${mw(ntc)} NTC (${anaPct(imports / ntc)}, JAO)`));
+      }
+      return out.join("");
     }
 
     function drawSide(step) {
@@ -16992,8 +17168,13 @@ move the slider above to another one`,
         return `<span><svg width="${w}" height="${h}" viewBox="0 0 20 12" preserveAspectRatio="none" aria-hidden="true"><path d="M0,3.5L13,3.5L13,0L20,6L13,12L13,8.5L0,8.5Z" fill="var(--text)"/></svg>${formatNumber(view.flowMax * s)} MW</span>`;
       });
       body.querySelector(".zmap-widths").innerHTML = `<div class="zmap-arrows">${widths.join("")}</div>` +
+        `<div class="zmap-arrows"><span><svg width="32" height="13" viewBox="0 0 20 12" preserveAspectRatio="none" aria-hidden="true">` +
+        `<path d="M0,3.5L13,3.5L13,0L20,6L13,12L13,8.5L0,8.5Z" fill="${ZMAP_CONGESTED}"/></svg>DA limit: congested in the day-ahead market</span></div>` +
         `<div class="queue-note">The arrow points the way the energy goes; its size is the flow against the period's largest on any border` +
-        `${zmapState.avgFlows ? " (averages)" : ""}. A dot: no flow, or none on file.</div>`;
+        `${zmapState.avgFlows ? " (averages)" : ""}. A dot: no flow, or none on file. Congested: ${PUBLIC_MODE
+          ? "the day-ahead prices split across a market-coupled border (its limit binding; not Greece's lossy link), or JAO's ATC into Italy used up"
+          : "the day-ahead flow at its limit (GME), with the prices split across a market-coupled border"}` +
+        `${zmapState.avgFlows ? ", in at least half the period's quarter-hours" : zmapState.resolution === "quarter" ? "" : ", in at least half the step's quarter-hours"}, whatever flows are shown.</div>`;
       // At a glance: Italy's net imports and the extremes of the step.
       const prices = view.areas.map(area => ({ code: area.code, value: priceAt(area, step) })).filter(entry => Number.isFinite(entry.value));
       const zonePrices = prices.filter(entry => ZMAP_ZONES.includes(entry.code));
@@ -17011,6 +17192,7 @@ move the slider above to another one`,
         (high ? `<dt>Highest price</dt><dd>${zmapEuro(high.value)} <span>${escapeHtml(zmapName(high.code))}</span></dd>` : "") +
         (low ? `<dt>Lowest price</dt><dd>${zmapEuro(low.value)} <span>${escapeHtml(zmapName(low.code))}</span></dd>` : "") +
         (zonePrices.length ? `<dt>Italian zones</dt><dd>${splits === 1 ? "one price" : `${splits} prices`} <span>${zonePrices.length === 7 ? "" : `${zonePrices.length} of 7 on file`}</span></dd>` : "") +
+        (files.extra ? `<dt>Congested borders</dt><dd>${formatNumber(view.borders.filter(entry => isCongested(entry, step)).length)} <span>day-ahead</span></dd>` : "") +
         `</dl>`;
     }
 
@@ -17042,8 +17224,9 @@ move the slider above to another one`,
         view.areas.filter(area => !ZMAP_ZONES.includes(area.code)).map(areaRow).join("") + `</tbody>`;
       summary.querySelector(".zmap-borders-title").textContent = `${flowLabel} across the borders`;
       summary.querySelector(".zmap-borders").innerHTML = `<thead><tr><th>Border (→ the way of a positive flow)</th><th>At ${escapeHtml(step.label)}</th>` +
-        `<th>Average</th><th>Highest →</th><th>Highest ←</th><th>Energy →</th><th>Energy ←</th><th>Share of the time →</th>` +
-        `<th>${escapeHtml(priceLabel)} gap, average</th></tr></thead><tbody>` +
+        `<th>Average</th><th>Highest → / ←</th><th>Energy → / ←</th><th>Share of the time →</th>` +
+        `<th>${escapeHtml(priceLabel)} gap, average</th><th>Day-ahead at ${escapeHtml(step.label)}</th><th>Limit used, average</th>` +
+        `<th>Congested, share of the time</th><th>Price gap when congested</th></tr></thead><tbody>` +
         view.borders.map(entry => {
           const border = entry.border, stats = entry.stats;
           const pa = view.areas.find(area => area.code === border.a), pb = view.areas.find(area => area.code === border.to);
@@ -17055,9 +17238,9 @@ move the slider above to another one`,
           }
           return `<tr><td>${escapeHtml(zmapName(border.a))} → ${escapeHtml(zmapName(border.to))}${border.link ? ` <span class="zmap-link">${border.link}</span>` : ""}</td>` +
             `<td>${zmapDirected(zmapMean(entry.run, step.start, step.end), border)}</td><td>${zmapDirected(stats.mean, border)}</td>` +
-            `<td>${Number.isFinite(stats.forwardMax) ? mw(stats.forwardMax) : "—"}</td><td>${Number.isFinite(stats.backMax) ? mw(stats.backMax) : "—"}</td>` +
-            `<td>${zmapGwh(stats.forwardGwh)}</td><td>${zmapGwh(stats.backGwh)}</td><td>${anaPct(stats.forwardShare)}</td>` +
-            `<td>${zmapSignedEuro(gap)}</td></tr>`;
+            `<td>${Number.isFinite(stats.forwardMax) ? `${formatNumber(stats.forwardMax)} / ${formatNumber(stats.backMax)} MW` : "—"}</td>` +
+            `<td>${Number.isFinite(stats.forwardGwh) ? `${zmapGwh(stats.forwardGwh).replace(" GWh", "")} / ${zmapGwh(stats.backGwh)}` : "—"}</td><td>${anaPct(stats.forwardShare)}</td>` +
+            `<td>${zmapSignedEuro(gap)}</td>${zmapCongestionCells(entry, step)}</tr>`;
         }).join("") + `</tbody>`;
       // Every price: the average of the period, or at the slider's time.
       const now = zmapState.table === "now";
@@ -17076,7 +17259,25 @@ move the slider above to another one`,
       summary.querySelector(".zmap-table-note").innerHTML = `Prices in €/MWh to the cent, averages of the quarter-hours on file; the slider's hour or day is the average of its quarter-hours. ` +
         `Spread and gap: the area's price less North's, and the far side's less the near side's. Net export: what flows out of the area over its borders on the map, ` +
         `less what flows in (MW); * the countries: their exchanges with Italy only. Energy in GWh. Flows: ENTSO-E (12.1.F scheduled, 12.1.G physical); ` +
-        `physical flows are published hourly on some borders, so their quarter-hours repeat the hour.`;
+        `physical flows are published hourly on some borders, so their quarter-hours repeat the hour. ` +
+        `Day-ahead congestion, whatever flows are shown: ${PUBLIC_MODE ? "on a market-coupled border (the Italian zones', France's, Austria's, Slovenia's, Greece's) " +
+          "the day-ahead prices split, which happens only when its limit binds (ENTSO-E's prices); on the coupled northern borders also JAO's day-ahead ATC into Italy " +
+          "against its schedule. Switzerland and Montenegro are not market-coupled, Malta's and Corsica's links have no public limits, and Greece's direct-current " +
+          "link carries losses that split the prices whenever it flows: no test."
+          : "GME's day-ahead (MGP) flow at its limit, with the prices split across a market-coupled border (GME's prices for the zones); Switzerland and Montenegro " +
+          "are not market-coupled and have no limit on file: no test."} Limit used: the flow's share of the limit its way. ` +
+        `Northern border (hover window): ENTSO-E's day-ahead scheduled imports from France, Switzerland, Austria and Slovenia against JAO's day-ahead NTC into Italy.`;
+    }
+
+    /* The congestion cells of a border's row: at the slider's time, and over the period. */
+    function zmapCongestionCells(entry, step) {
+      if (!files.extra) return `<td>…</td><td>…</td><td>…</td><td>…</td>`;
+      const spec = ZMAP_DA[entry.border.id] || {}, now = zmapCongestionSpan(entry.cong, step.start, step.end), all = entry.congStats;
+      const untested = spec.explicit ? "not coupled" : PUBLIC_MODE && spec.losses ? "no public test" : "—";
+      const nowText = now.closed ? "no capacity" : !now.known ? untested
+        : now.share >= 0.5 ? `at limit${Number.isFinite(now.use) ? ` (${anaPct(now.use)})` : ""}` : Number.isFinite(now.use) ? `${anaPct(now.use)} of limit` : "below limit";
+      return `<td>${nowText}</td><td>${Number.isFinite(all.use) ? anaPct(all.use) : "—"}</td>` +
+        `<td>${all.known ? anaPct(all.share) : all.closed ? "no capacity" : untested}</td><td>${Number.isFinite(all.gap) ? zmapEuro(all.gap) : "—"}</td>`;
     }
 
     function draw(full) {
