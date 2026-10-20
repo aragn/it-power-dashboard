@@ -16445,11 +16445,13 @@ move the slider above to another one`,
   const zmapFlow = key => ZMAP_FLOWS.find(flow => flow.key === key) || ZMAP_FLOWS[0];
   // Sequential blue, light to dark (dataviz reference ramp, steps 100-700); the dark theme runs it the other way.
   const ZMAP_RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"];
-  const ZMAP_RESOLUTIONS = [["quarter", "15 MIN"], ["hour", "HOURLY"], ["day", "DAILY"]];
+  // DAILY TOTAL: the day's energy (MWh) for flows, generation, load and net exports; prices stay the day's average.
+  const ZMAP_RESOLUTIONS = [["quarter", "15 MIN"], ["hour", "HOURLY"], ["day", "DAILY AVG"], ["dayTotal", "DAILY TOTAL"]];
   const ZMAP_SPEEDS = [["700", "Slow"], ["300", "Normal"], ["90", "Fast"]];
   const ZMAP_ARROW = "path://M0,3.5L13,3.5L13,0L20,6L13,12L13,8.5L0,8.5Z";
 
-  const zmapState = { price: "da", flow: "scheduled_day_ahead", avgPrices: false, avgFlows: false, resolution: "quarter",
+  // flowPeriod: "" (the slider's step), "average" (MW over the period) or "total" (MWh over the period).
+  const zmapState = { price: "da", flow: "scheduled_day_ahead", avgPrices: false, flowPeriod: "", resolution: "quarter",
     when: null, speed: 300, timer: null, table: "average", files: null, period: null, loading: null, extraLoading: null };
 
   function zmapStop() {
@@ -16819,7 +16821,7 @@ move the slider above to another one`,
   function zmapSteps(period, resolution) {
     const steps = [];
     period.days.forEach(day => {
-      if (resolution === "day") {
+      if (resolution === "day" || resolution === "dayTotal") {
         steps.push({ start: day.offset, end: day.offset + day.T, date: day.date, label: bessDateText(day.date) });
         return;
       }
@@ -16945,7 +16947,8 @@ move the slider above to another one`,
       `<div class="zmap-scale"></div></div>` +
       `<div class="map-box"><h3>Flows</h3><div class="market-period zmap-flow" role="group" aria-label="Flows">${ZMAP_FLOWS.map(flow =>
         `<button type="button" data-flow="${flow.key}">${flow.label}</button>`).join("")}</div>` +
-      `<label class="map-switch"><input type="checkbox" data-average="avgFlows"><i></i>Average over the period</label>` +
+      `<label class="map-switch"><input type="checkbox" data-flow-period="average"><i></i>Average over the period</label>` +
+      `<label class="map-switch"><input type="checkbox" data-flow-period="total"><i></i>Total over the period (MWh)</label>` +
       `<div class="zmap-widths"></div></div>` +
       `<div class="map-box"><h3 class="zmap-glance-title">At a glance</h3><div class="zmap-glance"></div></div>` +
       `</div></div><div class="queue-note zmap-note"></div>`;
@@ -16967,6 +16970,7 @@ move the slider above to another one`,
     priceSelect.value = zmapState.price;
     speed.value = String(zmapState.speed);
     body.querySelectorAll("[data-average]").forEach(input => { input.checked = zmapState[input.dataset.average]; });
+    body.querySelectorAll("[data-flow-period]").forEach(input => { input.checked = zmapState.flowPeriod === input.dataset.flowPeriod; });
 
     let steps = [], index = 0;
     function setSteps() {
@@ -17038,19 +17042,41 @@ move the slider above to another one`,
         entry.cong = files.extra ? zmapCongestion(files, period, entry.border, daPrices) : null;
         entry.congStats = zmapCongestionSpan(entry.cong, 0, period.Q);
       });
+      // The arrows' scale: MW (each step, or averaged over the period), or MWh (each day's total, or the period's).
+      let arrowMax = zmapState.flowPeriod === "average" ? flowAvgMax : flowMax;
+      if (zmapState.flowPeriod === "total") arrowMax = Math.max(1, ...borders.map(entry => Math.abs(zmapEnergySum(entry.run, 0, period.Q)) || 0));
+      else if (!zmapState.flowPeriod && zmapState.resolution === "dayTotal") {
+        arrowMax = Math.max(1, ...borders.map(entry => Math.max(0, ...period.days.map(day => Math.abs(zmapEnergySum(entry.run, day.offset, day.offset + day.T)) || 0))));
+      }
       view = { type, flowType, areas, borders, lastPrice, north: files.extra ? zmapNorthern(files, period) : null,
         italyNet: italyAny ? italyNet : null, italyStats: zmapStats(italyAny ? italyNet : null),
-        scale: zmapState.avgPrices ? [Math.min(...averages), Math.max(...averages)] : [lo, hi], flowMax: zmapState.avgFlows ? flowAvgMax : flowMax };
+        scale: zmapState.avgPrices ? [Math.min(...averages), Math.max(...averages)] : [lo, hi], flowMax: arrowMax };
       if (!(view.scale[1] > view.scale[0])) view.scale = [view.scale[0] - 1, view.scale[0] + 1];
     }
 
     const priceAt = (area, step) => (zmapState.avgPrices ? area.stats.mean : zmapMean(area.price, step.start, step.end));
-    const flowAt = (entry, step) => (zmapState.avgFlows ? entry.stats.mean : zmapMean(entry.run, step.start, step.end));
     const shareOf = value => (value - view.scale[0]) / (view.scale[1] - view.scale[0]);
     const mw = value => (Number.isFinite(value) ? `${formatNumber(Math.abs(value))} MW` : "n/a");
-    // Congested in what the map shows: at least half the quarter-hours known.
-    const congestionAt = (entry, step) => (zmapState.avgFlows ? entry.congStats : zmapCongestionSpan(entry.cong, step.start, step.end));
-    const isCongested = (entry, step) => { const span = congestionAt(entry, step); return span.known > 0 && span.share >= 0.5; };
+    // A step's value: the day's energy on DAILY TOTAL, else the mean MW.
+    const dayTotal = () => zmapState.resolution === "dayTotal";
+    const stepValue = (run, step) => (dayTotal() ? zmapEnergySum(run, step.start, step.end) : zmapMean(run, step.start, step.end));
+    const stepText = value => (dayTotal() ? (Number.isFinite(value) ? zmapEnergy(value) : "n/a") : mw(value));
+    const stepSigned = value => (dayTotal() ? zmapSignedEnergy(value) : zmapSignedMw(value));
+    const stepDirected = value => (dayTotal() ? zmapDirectedEnergy(value) : zmapDirected(value));
+    // The flows as the map shows them: the step's, or the period's average (MW) or total (MWh).
+    const flowEnergy = () => zmapState.flowPeriod === "total" || (!zmapState.flowPeriod && dayTotal());
+    const shownFlow = (run, stats, step) => (zmapState.flowPeriod === "average" ? (stats ? stats.mean : zmapMean(run, 0, period.Q))
+      : zmapState.flowPeriod === "total" ? zmapEnergySum(run, 0, period.Q) : stepValue(run, step));
+    const flowAt = (entry, step) => shownFlow(entry.run, entry.stats, step);
+    const flowText = value => (flowEnergy() ? (Number.isFinite(value) ? zmapEnergy(value) : "n/a") : mw(value));
+    // Congestion is a quarter-hour's state: marked on the 15 MIN and HOURLY steps (at least half the quarter-hours known);
+    // a day's or the period's share of congested quarter-hours is in the hover window and the table.
+    const congestionShown = () => !zmapState.flowPeriod && (zmapState.resolution === "quarter" || zmapState.resolution === "hour");
+    const isCongested = (entry, step) => {
+      if (!congestionShown()) return false;
+      const span = zmapCongestionSpan(entry.cong, step.start, step.end);
+      return span.known > 0 && span.share >= 0.5;
+    };
 
     function series(step) {
       const text = cssVar("--text"), muted = cssVar("--muted"), panel = cssVar("--panel");
@@ -17071,7 +17097,7 @@ move the slider above to another one`,
           value: [...border.pos, value], border: border.id, symbol: known ? ZMAP_ARROW : "circle",
           symbolSize: known ? [22 + 20 * s, 7 + 13 * s] : 6, symbolRotate: known ? angle : 0,
           itemStyle: known ? { color: congested ? ZMAP_CONGESTED : text, borderColor: panel, borderWidth: 1 } : { color: muted, borderColor: panel, borderWidth: 1 },
-          label: { formatter: (Number.isFinite(value) ? mw(value) : "n/a") + (congested ? " · DA limit" : "") }
+          label: { formatter: flowText(value) + (congested ? " · DA limit" : "") }
         };
       });
       return [
@@ -17103,21 +17129,19 @@ move the slider above to another one`,
       const line = (label, value) => `<div><span style="color:${muted}">${escapeHtml(label)}</span> ${value}</div>`;
       if (data.area) {
         const area = view.areas.find(entry => entry.code === data.area);
-        const system = kind => {
-          const value = zmapMean(zmapSystemRun(files, period, area.code, kind), step.start, step.end);
-          return Number.isFinite(value) ? `${formatNumber(value)} MW` : "n/a";
-        };
+        const system = kind => stepText(stepValue(zmapSystemRun(files, period, area.code, kind), step));
         return `<div style="font-weight:600;margin-bottom:3px">${escapeHtml(zmapName(area.code))}</div>` +
-          line(zmapPrice(view.type).label, zmapEuro(zmapMean(area.price, step.start, step.end))) +
+          line(`${zmapPrice(view.type).label}${dayTotal() ? ", day's average" : ""}`, zmapEuro(zmapMean(area.price, step.start, step.end))) +
           (area.code === "CORS" ? "" : line("Generation", system("generation")) + line("Load", system("load"))) +
-          (area.net ? line(ZMAP_ZONES.includes(area.code) ? "Net export" : "Net export to Italy", zmapSignedMw(zmapMean(area.net, step.start, step.end))) : "");
+          (area.net ? line(ZMAP_ZONES.includes(area.code) ? "Net export" : "Net export to Italy", stepSigned(stepValue(area.net, step))) : "");
       }
       if (data.border) {
         const entry = view.borders.find(item => item.border.id === data.border);
-        const value = zmapMean(entry.run, step.start, step.end);
+        const value = stepValue(entry.run, step);
         const [a, b] = value < 0 ? [entry.border.to, entry.border.a] : [entry.border.a, entry.border.to];
         return `<div style="font-weight:600;margin-bottom:3px">${escapeHtml(zmapBorderName(entry.border))}</div>` +
-          line(zmapFlow(view.flowType).long, Number.isFinite(value) ? `${mw(value)}, ${escapeHtml(zmapName(a))} → ${escapeHtml(zmapName(b))}` : "n/a") +
+          line(`${zmapFlow(view.flowType).long}${dayTotal() ? ", net over the day" : ""}`,
+            Number.isFinite(value) ? `${stepText(value)}, ${escapeHtml(zmapName(a))} → ${escapeHtml(zmapName(b))}` : "n/a") +
           zmapCongestionLines(entry, step, line);
       }
       return "";
@@ -17165,52 +17189,57 @@ move the slider above to another one`,
         `<i class="zmap-swatch" style="background:${cssVar("--map-land")}"></i>no price on file.</div>`;
       const widths = [0.25, 0.5, 1].map(s => {
         const w = 22 + 20 * s, h = 7 + 13 * s;
-        return `<span><svg width="${w}" height="${h}" viewBox="0 0 20 12" preserveAspectRatio="none" aria-hidden="true"><path d="M0,3.5L13,3.5L13,0L20,6L13,12L13,8.5L0,8.5Z" fill="var(--text)"/></svg>${formatNumber(view.flowMax * s)} MW</span>`;
+        return `<span><svg width="${w}" height="${h}" viewBox="0 0 20 12" preserveAspectRatio="none" aria-hidden="true"><path d="M0,3.5L13,3.5L13,0L20,6L13,12L13,8.5L0,8.5Z" fill="var(--text)"/></svg>${flowText(view.flowMax * s)}</span>`;
       });
+      const flowsAs = zmapState.flowPeriod === "average" ? " (the period's averages)" : zmapState.flowPeriod === "total" ? " (the period's net energy)"
+        : dayTotal() ? " (each day's net energy)" : "";
       body.querySelector(".zmap-widths").innerHTML = `<div class="zmap-arrows">${widths.join("")}</div>` +
-        `<div class="zmap-arrows"><span><svg width="32" height="13" viewBox="0 0 20 12" preserveAspectRatio="none" aria-hidden="true">` +
-        `<path d="M0,3.5L13,3.5L13,0L20,6L13,12L13,8.5L0,8.5Z" fill="${ZMAP_CONGESTED}"/></svg>DA limit: congested in the day-ahead market</span></div>` +
-        `<div class="queue-note">The arrow points the way the energy goes; its size is the flow against the period's largest on any border` +
-        `${zmapState.avgFlows ? " (averages)" : ""}. A dot: no flow, or none on file. Congested: ${PUBLIC_MODE
+        (congestionShown() ? `<div class="zmap-arrows"><span><svg width="32" height="13" viewBox="0 0 20 12" preserveAspectRatio="none" aria-hidden="true">` +
+          `<path d="M0,3.5L13,3.5L13,0L20,6L13,12L13,8.5L0,8.5Z" fill="${ZMAP_CONGESTED}"/></svg>DA limit: congested in the day-ahead market</span></div>` : "") +
+        `<div class="queue-note">The arrow points the way the energy goes; its size is the flow against the period's largest on any border${flowsAs}. ` +
+        `A dot: no flow, or none on file. ` +
+        (congestionShown() ? `Congested: ${PUBLIC_MODE
           ? "the day-ahead prices split across a market-coupled border (its limit binding; not Greece's lossy link), or JAO's ATC into Italy used up"
           : "the day-ahead flow at its limit (GME), with the prices split across a market-coupled border"}` +
-        `${zmapState.avgFlows ? ", in at least half the period's quarter-hours" : zmapState.resolution === "quarter" ? "" : ", in at least half the step's quarter-hours"}, whatever flows are shown.</div>`;
+          `${zmapState.resolution === "quarter" ? "" : ", in at least half the hour's quarter-hours"}, whatever flows are shown.`
+          : "Congestion is marked on the 15 MIN and HOURLY steps only: for a day or the period, the hover window and the table give the share of its quarter-hours congested.") +
+        `</div>`;
       // At a glance: Italy's net imports and the extremes of the step.
       const prices = view.areas.map(area => ({ code: area.code, value: priceAt(area, step) })).filter(entry => Number.isFinite(entry.value));
       const zonePrices = prices.filter(entry => ZMAP_ZONES.includes(entry.code));
       const high = prices.reduce((best, entry) => (!best || entry.value > best.value ? entry : best), null);
       const low = prices.reduce((best, entry) => (!best || entry.value < best.value ? entry : best), null);
-      const italy = zmapState.avgFlows ? view.italyStats.mean : zmapMean(view.italyNet, step.start, step.end);
+      const italy = shownFlow(view.italyNet, view.italyStats, step);
       const splits = new Set(zonePrices.map(entry => Math.round(entry.value * 100))).size;
-      body.querySelector(".zmap-glance-title").textContent = zmapState.avgPrices && zmapState.avgFlows ? "Over the period" : `At ${step.label}`;
+      body.querySelector(".zmap-glance-title").textContent = zmapState.avgPrices && zmapState.flowPeriod ? "Over the period" : `At ${step.label}`;
       const latest = !zmapState.avgPrices && !prices.length && view.lastPrice >= 0 && view.lastPrice < step.start
         ? steps.findIndex(entry => view.lastPrice >= entry.start && view.lastPrice < entry.end) : -1;
       body.querySelector(".zmap-glance").innerHTML = (latest >= 0 ? `<div class="zmap-latest">No ${escapeHtml(zmapPrice(view.type).long.toLowerCase())} on file yet ` +
         `at this time. <button type="button" data-latest="${latest}">Go to the latest, ${escapeHtml(steps[latest].label)}</button></div>` : "") +
         `<dl class="zmap-dl">` +
-        `<dt>Italy's net ${Number.isFinite(italy) && italy > 0 ? "export" : "import"}</dt><dd>${mw(italy)}</dd>` +
+        `<dt>Italy's net ${Number.isFinite(italy) && italy > 0 ? "export" : "import"}</dt><dd>${flowText(italy)}</dd>` +
         (high ? `<dt>Highest price</dt><dd>${zmapEuro(high.value)} <span>${escapeHtml(zmapName(high.code))}</span></dd>` : "") +
         (low ? `<dt>Lowest price</dt><dd>${zmapEuro(low.value)} <span>${escapeHtml(zmapName(low.code))}</span></dd>` : "") +
         (zonePrices.length ? `<dt>Italian zones</dt><dd>${splits === 1 ? "one price" : `${splits} prices`} <span>${zonePrices.length === 7 ? "" : `${zonePrices.length} of 7 on file`}</span></dd>` : "") +
-        (files.extra ? `<dt>Congested borders</dt><dd>${formatNumber(view.borders.filter(entry => isCongested(entry, step)).length)} <span>day-ahead</span></dd>` : "") +
+        (files.extra && congestionShown() ? `<dt>Congested borders</dt><dd>${formatNumber(view.borders.filter(entry => isCongested(entry, step)).length)} <span>day-ahead</span></dd>` : "") +
         `</dl>`;
     }
 
     function drawTables(step) {
       const priceLabel = zmapPrice(view.type).label, flowLabel = zmapFlow(view.flowType).long;
-      const at = zmapState.avgPrices && zmapState.avgFlows ? "" : step.label;
       const signed = zmapSignedMw;
       top.querySelector(".zmap-subtitle").textContent = `${bessDateText(period.from)}${period.to !== period.from ? ` – ${bessDateText(period.to)}` : ""} · ` +
-        `${zmapPrice(view.type).long}${zmapState.avgPrices ? ", period average" : ""} · ${flowLabel}${zmapState.avgFlows ? ", period average" : ""}`;
+        `${zmapPrice(view.type).long}${zmapState.avgPrices ? ", period average" : dayTotal() ? ", daily average" : ""} · ${flowLabel}` +
+        `${zmapState.flowPeriod === "average" ? ", period average" : zmapState.flowPeriod === "total" ? ", period total" : dayTotal() ? ", daily totals" : ""}`;
       summary.querySelector(".zmap-summary-subtitle").textContent = `${bessDateText(period.from)}${period.to !== period.from ? ` – ${bessDateText(period.to)}` : ""}, ` +
-        `${formatNumber(period.Q)} quarter-hours · the slider's ${zmapState.resolution === "quarter" ? "quarter-hour" : zmapState.resolution}: ${step.label}`;
+        `${formatNumber(period.Q)} quarter-hours · the slider's ${{ quarter: "quarter-hour", hour: "hour", day: "day", dayTotal: "day (totals)" }[zmapState.resolution]}: ${step.label}`;
       summary.querySelector(".zmap-areas-title").textContent = `${zmapPrice(view.type).long} and net exports`;
       const areaRow = area => {
         const zone = ZMAP_ZONES.includes(area.code);
         return `<tr><td>${escapeHtml(zmapName(area.code))}</td><td>${zmapEuro(zmapMean(area.price, step.start, step.end))}</td>` +
           `<td>${zmapEuro(area.stats.mean)}</td><td>${zmapEuro(area.stats.min)}</td><td>${zmapEuro(area.stats.max)}</td>` +
           `<td>${area.code === "NORD" ? "—" : zmapSignedEuro(area.spread)}</td>` +
-          `<td>${area.net ? signed(zmapMean(area.net, step.start, step.end)) : "—"}</td><td>${area.net ? signed(area.netStats.mean) : "—"}</td>` +
+          `<td>${area.net ? stepSigned(stepValue(area.net, step)) : "—"}</td><td>${area.net ? signed(area.netStats.mean) : "—"}</td>` +
           `<td>${area.net ? zmapGwh(area.netStats.mean * area.netStats.n / 4000) : "—"}${zone ? "" : "*"}</td></tr>`;
       };
       const italy = view.italyStats;
@@ -17219,7 +17248,7 @@ move the slider above to another one`,
         `<th>Net export, average</th><th>Net export over the period</th></tr></thead><tbody>` +
         view.areas.filter(area => ZMAP_ZONES.includes(area.code)).map(areaRow).join("") +
         `<tr class="bess-total"><td>Italy</td><td></td><td></td><td></td><td></td><td></td>` +
-        `<td>${view.italyNet ? signed(zmapMean(view.italyNet, step.start, step.end)) : "—"}</td><td>${view.italyNet ? signed(italy.mean) : "—"}</td>` +
+        `<td>${view.italyNet ? stepSigned(stepValue(view.italyNet, step)) : "—"}</td><td>${view.italyNet ? signed(italy.mean) : "—"}</td>` +
         `<td>${view.italyNet ? zmapGwh(italy.mean * italy.n / 4000) : "—"}</td></tr>` +
         view.areas.filter(area => !ZMAP_ZONES.includes(area.code)).map(areaRow).join("") + `</tbody>`;
       summary.querySelector(".zmap-borders-title").textContent = `${flowLabel} across the borders`;
@@ -17237,7 +17266,7 @@ move the slider above to another one`,
             gap = n ? sum / n : NaN;
           }
           return `<tr><td>${escapeHtml(zmapName(border.a))} → ${escapeHtml(zmapName(border.to))}${border.link ? ` <span class="zmap-link">${border.link}</span>` : ""}</td>` +
-            `<td>${zmapDirected(zmapMean(entry.run, step.start, step.end), border)}</td><td>${zmapDirected(stats.mean, border)}</td>` +
+            `<td>${stepDirected(stepValue(entry.run, step))}</td><td>${zmapDirected(stats.mean, border)}</td>` +
             `<td>${Number.isFinite(stats.forwardMax) ? `${formatNumber(stats.forwardMax)} / ${formatNumber(stats.backMax)} MW` : "—"}</td>` +
             `<td>${Number.isFinite(stats.forwardGwh) ? `${zmapGwh(stats.forwardGwh).replace(" GWh", "")} / ${zmapGwh(stats.backGwh)}` : "—"}</td><td>${anaPct(stats.forwardShare)}</td>` +
             `<td>${zmapSignedEuro(gap)}</td>${zmapCongestionCells(entry, step)}</tr>`;
@@ -17275,6 +17304,7 @@ move the slider above to another one`,
       const spec = ZMAP_DA[entry.border.id] || {}, now = zmapCongestionSpan(entry.cong, step.start, step.end), all = entry.congStats;
       const untested = spec.explicit ? "not coupled" : PUBLIC_MODE && spec.losses ? "no public test" : "—";
       const nowText = now.closed ? "no capacity" : !now.known ? untested
+        : step.end - step.start > 4 ? `${formatNumber(now.congested)} of ${formatNumber(now.known)} congested`
         : now.share >= 0.5 ? `at limit${Number.isFinite(now.use) ? ` (${anaPct(now.use)})` : ""}` : Number.isFinite(now.use) ? `${anaPct(now.use)} of limit` : "below limit";
       return `<td>${nowText}</td><td>${Number.isFinite(all.use) ? anaPct(all.use) : "—"}</td>` +
         `<td>${all.known ? anaPct(all.share) : all.closed ? "no capacity" : untested}</td><td>${Number.isFinite(all.gap) ? zmapEuro(all.gap) : "—"}</td>`;
@@ -17351,7 +17381,8 @@ move the slider above to another one`,
     body.querySelectorAll("[data-resolution]").forEach(button => button.addEventListener("click", () => {
       zmapState.resolution = button.dataset.resolution;
       setSteps();
-      draw(false);
+      // The arrows' scale changes with the unit (MW or the day's MWh).
+      redraw();
     }));
     priceSelect.addEventListener("change", () => { zmapState.price = priceSelect.value; redraw(); });
     body.querySelectorAll("[data-flow]").forEach(button => button.addEventListener("click", () => {
@@ -17362,6 +17393,12 @@ move the slider above to another one`,
     body.querySelectorAll("[data-flow]").forEach(button => button.classList.toggle("active", button.dataset.flow === zmapState.flow));
     body.querySelectorAll("[data-average]").forEach(input => input.addEventListener("change", () => {
       zmapState[input.dataset.average] = input.checked;
+      redraw();
+    }));
+    // Average or total over the period: one at a time.
+    body.querySelectorAll("[data-flow-period]").forEach(input => input.addEventListener("change", () => {
+      zmapState.flowPeriod = input.checked ? input.dataset.flowPeriod : "";
+      body.querySelectorAll("[data-flow-period]").forEach(other => { if (other !== input) other.checked = false; });
       redraw();
     }));
     summary.querySelectorAll("[data-table]").forEach(button => button.addEventListener("click", () => {
@@ -17375,6 +17412,16 @@ move the slider above to another one`,
   const zmapSignedEuro = value => (Number.isFinite(value)
     ? `${Math.abs(value) < 0.005 ? "" : value < 0 ? "−" : "+"}€${formatNumber(Math.abs(value), 2)}` : "—");
   const zmapSignedMw = value => (Number.isFinite(value) ? `${value < 0 ? "−" : value > 0 ? "+" : ""}${formatNumber(Math.abs(value))} MW` : "—");
+  /* MWh summed over [start, end) of a MW run (a quarter-hour is a quarter of an hour); NaN without a value. */
+  function zmapEnergySum(run, start, end) {
+    if (!run) return NaN;
+    let sum = 0, n = 0;
+    for (let q = start; q < end; q += 1) if (Number.isFinite(run[q])) { sum += run[q]; n += 1; }
+    return n ? sum / 4 : NaN;
+  }
+  const zmapEnergy = value => (Math.abs(value) >= 10000 ? `${formatNumber(Math.abs(value) / 1000, 1)} GWh` : `${formatNumber(Math.abs(value))} MWh`);
+  const zmapSignedEnergy = value => (Number.isFinite(value) ? `${value < 0 ? "−" : value > 0 ? "+" : ""}${zmapEnergy(value)}` : "—");
+  const zmapDirectedEnergy = value => (Number.isFinite(value) ? `${value < 0 ? "←" : "→"} ${zmapEnergy(value)}` : "—");
   const zmapGwh = value => (Number.isFinite(value) ? `${value < 0 ? "−" : ""}${formatNumber(Math.abs(value), Math.abs(value) < 10 ? 2 : 1)} GWh` : "—");
   /* A flow with the way it goes: "→ 1,234 MW" (a to b) or "← 567 MW". */
   const zmapDirected = value => (Number.isFinite(value) ? `${value < 0 ? "←" : "→"} ${formatNumber(Math.abs(value))} MW` : "—");
