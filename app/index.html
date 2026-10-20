@@ -294,6 +294,31 @@
     .grid-projects span { flex:1; }
     .grid-projects small { color:var(--muted); font-size:10.5px; white-space:nowrap; }
     .grid-lower { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-top:18px; align-items:start; }
+    .zmap-time { display:flex; align-items:center; flex-wrap:wrap; gap:10px 14px; margin:6px 0 14px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--panel-2); }
+    .zmap-play { border:1px solid var(--blue); background:var(--panel); color:var(--text); border-radius:6px; padding:6px 12px; font-size:12px; cursor:pointer; white-space:nowrap; }
+    .zmap-play:hover { background:var(--hover); }
+    .zmap-slider { flex:1 1 260px; min-width:160px; accent-color:var(--blue); }
+    .zmap-when { min-width:150px; font-size:13px; font-variant-numeric:tabular-nums; }
+    .zmap-speed { display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; }
+    .zmap-speed select, .zmap-price { border:1px solid var(--border); background:var(--panel); color:var(--text); border-radius:6px; padding:5px 8px; font-size:12px; }
+    .zmap-price { width:100%; margin-bottom:6px; }
+    .map-box .zmap-flow { margin-bottom:6px; }
+    .zmap-ramp { height:10px; border-radius:3px; margin-top:8px; }
+    .zmap-ticks { display:flex; justify-content:space-between; margin-top:4px; font-size:11px; font-variant-numeric:tabular-nums; }
+    .zmap-swatch { display:inline-block; width:10px; height:10px; border-radius:2px; border:1px solid var(--map-border); vertical-align:-1px; margin-right:3px; }
+    .zmap-arrows { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:6px; font-size:11px; font-variant-numeric:tabular-nums; }
+    .zmap-arrows span { display:flex; align-items:center; gap:6px; }
+    .zmap-dl { display:grid; grid-template-columns:auto 1fr; gap:5px 12px; margin:0; font-size:12px; }
+    .zmap-dl dt { color:var(--muted); }
+    .zmap-dl dd { margin:0; text-align:right; font-variant-numeric:tabular-nums; }
+    .zmap-dl dd span { color:var(--muted); font-size:11px; }
+    .zmap-summary { margin-top:18px; }
+    .zmap-table-title { margin:16px 0 6px; font-size:12.5px; font-weight:600; }
+    .zmap-table-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px; }
+    .zmap-table-head .zmap-table-title { margin:0; }
+    .zmap-link { color:var(--muted); font-size:10.5px; }
+    .zmap-latest { margin-bottom:10px; color:var(--muted); font-size:12px; line-height:1.5; }
+    .zmap-latest button { display:block; margin-top:6px; border:1px solid var(--blue); background:var(--panel); color:var(--text); border-radius:6px; padding:5px 10px; font-size:12px; cursor:pointer; }
     @media (max-width: 1050px) { .grid-lower { grid-template-columns:1fr; } }
     .grid-countries { margin-top:8px; color:var(--muted); font-size:11.5px; line-height:1.6; }
     .grid-countries b { color:var(--text); font-weight:500; }
@@ -670,7 +695,7 @@
           <section id="unit-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Estimated Revenues and Costs by Unit, All Markets</div><div id="unit-revenue-subtitle" class="chart-subtitle">Each unit across the markets</div></div><div class="merit-filters"><label class="mgp-source-filter">Market <select id="unit-revenue-market" aria-label="Show one market"><option value="">All markets</option><option value="MGP">MGP</option><option value="MI-A1">ID1 · MI-A1</option><option value="MI-A2">ID2 · MI-A2</option><option value="MI-A3">ID3 · MI-A3</option><option value="XBID">MI-XBID</option><option value="MSD">MSD</option><option value="MB">MB</option></select></label><label class="mgp-source-filter">Source <select id="unit-revenue-source" aria-label="Show the units of one source only"><option value="">All sources</option></select></label></div></div><div id="unit-revenue-table" class="mgp-table-host"></div><div id="unit-revenue-help" class="chart-help">Estimated, for the quarter-hour or the whole day chosen above, at the prices GME awarded (zonal for both sales and purchases; in MSD and MB the unit's own price): MGP, MI-A and MI-XBID, sales minus purchases; MSD and MB, upward minus downward (what Terna paid the unit minus what the unit paid Terna), start-ups and reserve bands not counted. Bilateral schedules registered in the MGP count at the zonal price, though settled between the parties. Before fees, imbalances, any hedge and the fuel saved or burnt. Each figure is revenue minus cost: above zero a net revenue, below zero a net cost. Volumes: MW for a quarter-hour, MWh for a day. Click a column to sort.</div></section>
         </div><div id="chart-mount-storage" style="display:none"><section id="storage-kpis-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Storage at a Glance</div><div id="storage-kpis-subtitle" class="chart-subtitle">Batteries and pumped hydro, Italy</div></div></div><div id="storage-kpis" class="gas-kpis storage-kpis"></div><div id="storage-kpis-help" class="chart-help" style="margin-left:0"></div></section><section id="storage-generation-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Storage Output, PUN, Solar and Wind</div><div id="storage-generation-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap tall"><div id="storage-generation-chart" class="timeline-chart"></div></div><div class="chart-help">ENTSO-E 16.1.B&amp;C, stacked from solar up: solar, wind (onshore and offshore), battery storage and pumped hydro output above zero; battery charging and pumping below; Italy's actual load (6.1.A, line); the PUN Index (right axis). Click a series in the legend to hide or show it.</div></section><section id="storage-arbitrage-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MGP Daily Arbitrage Spread by Zone</div><div id="storage-arbitrage-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap tall"><div id="storage-arbitrage-chart" class="timeline-chart"></div></div><div class="chart-help">Each day and bidding zone: the highest MGP quarter-hour price of the evening (18:00–21:00) minus the lowest of the whole day, the most a storage plant could earn per MWh moved in the day-ahead market by buying at the bottom and selling at the evening peak, before losses (a battery returns about 85–90% of what it takes, pumped hydro about 75%). Daily, whatever the resolution chosen above. Click a zone in the legend to hide or show it.</div></section><h3 class="capacity-heading">Battery storage</h3><section id="storage-bid-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated Average Bid per Plant</div><div id="storage-bid-battery-subtitle" class="chart-subtitle"></div></div><div class="market-period storage-bid-mode" role="group" aria-label="Bid shown as"><button type="button" data-mode="price" class="active">€/MWh</button><button type="button" data-mode="mw">MW</button></div></div><div class="storage-chart-wrap"><div id="storage-bid-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-bid-help"></div></section><section id="storage-mgp-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated MGP Revenues and Costs</div><div id="storage-mgp-battery-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="mgp-battery" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-mgp-battery-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-mgp-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-mgp-help"></div></section><section id="storage-all-battery-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated Revenues and Costs, All Markets</div><div id="storage-all-battery-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="all-battery" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-all-battery-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-all-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-all-help"></div></section><section id="storage-capture-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: TB2 Spread and Captured Spread</div><div id="storage-capture-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-capture-chart" class="timeline-chart"></div></div><div class="chart-help">Each day: the PUN's TB2 spread (dashed), the average price of its eight dearest quarter-hours (two hours) minus that of its eight cheapest, the most a two-hour battery cycling once could earn per MWh in the day-ahead market, before losses; the spread the batteries captured (solid), the average price of what they discharged minus that of what they charged, taken quarter-hour by quarter-hour from their net position across the MGP, MI-A and MI-XBID; the capture rate (bars, right axis), the captured spread as a share of the TB2 spread. The batteries trade at zonal prices and can cycle twice a day, so the rate can pass 100%. Daily, whatever the resolution chosen above.</div></section><section id="storage-heatmap-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Dispatch by Hour of the Day</div><div id="storage-heatmap-battery-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-heatmap-battery-chart" class="timeline-chart"></div></div><div class="chart-help">Each day (row) and clock hour (column): the batteries' net position together across the MGP, MI-A and MI-XBID, sold minus bought, averaged over the hour's quarter-hours; green selling (discharging), blue buying (charging). The schedules the markets accepted, not the metered output.</div></section><section id="storage-stack-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Battery Storage: Revenue Stack by Market</div><div id="storage-stack-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-stack-chart" class="timeline-chart"></div></div><div class="chart-help">The batteries' estimated net revenue in each market, all of them together, per MW of their capacity, week by week (Monday to Sunday) and scaled to a year (÷ the days on file × 365): MGP, MI-A and MI-XBID sales minus purchases, MSD and MB upward minus downward; the line, the total. Units that bid a portfolio of plants as one are left out. Before fees, imbalances, capacity payments (MACSE, capacity market) and any hedge. Every week on file, not linked to the dates chosen.</div></section><section id="storage-benchmark-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Weekly Empirical Benchmark: Top 10 Battery Storage Plants</div><div id="storage-benchmark-subtitle" class="chart-subtitle">€/MW/year</div></div></div><div class="storage-chart-wrap tall"><div id="storage-benchmark-chart" class="timeline-chart"></div></div><div id="storage-benchmark-help" class="chart-help"></div></section><h3 class="capacity-heading">Pumped hydro</h3><section id="storage-bid-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated Average Bid per Plant</div><div id="storage-bid-pumped-subtitle" class="chart-subtitle"></div></div><div class="market-period storage-bid-mode" role="group" aria-label="Bid shown as"><button type="button" data-mode="price" class="active">€/MWh</button><button type="button" data-mode="mw">MW</button></div></div><div class="storage-chart-wrap"><div id="storage-bid-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-bid-help"></div></section><section id="storage-mgp-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated MGP Revenues and Costs</div><div id="storage-mgp-pumped-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="mgp-pumped" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-mgp-pumped-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-mgp-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-mgp-help"></div></section><section id="storage-all-pumped-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated Revenues and Costs, All Markets</div><div id="storage-all-pumped-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="all-pumped" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-all-pumped-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-all-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-all-help"></div></section><section id="storage-heatmap-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Dispatch by Hour of the Day</div><div id="storage-heatmap-pumped-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-heatmap-pumped-chart" class="timeline-chart"></div></div><div class="chart-help">Each day (row) and clock hour (column): the pumped hydro plants' net position together across the MGP, MI-A and MI-XBID, sold minus bought, averaged over the hour's quarter-hours; green selling (generating), blue buying (pumping, or buying back what was sold earlier).</div></section><section id="storage-reservoirs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Hydro Reservoirs: Stored Energy</div><div id="storage-reservoirs-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-reservoirs-chart" class="timeline-chart"></div></div><div class="chart-help">ENTSO-E 16.1.D: the energy stored in Italy's water reservoirs and hydro storage plants, week by week: the last two years against the range (shaded) and the average (dashed) of the five years before. What the hydro and pumped hydro plants have in hand for the coming weeks. Not linked to the dates chosen.</div></section></div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-analysis" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net scheduled commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Scheduled commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Scheduled commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div id="transits-grid" class="coupling-grid" style="display:none"><div id="transits-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the flows between zones"><span class="legend-title">Day-ahead flows on each border (MGP)</span></div><p id="transits-note" class="coupling-note"></p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
         <div id="gas-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Gas storage and LNG</p></div><nav id="gas-subnav" class="subnav"><button class="subnav-tab active" data-gas-tab="overview" type="button">Overview</button><button class="subnav-tab" data-gas-tab="storage" type="button">Storage</button><button class="subnav-tab" data-gas-tab="lng" type="button">LNG</button><button class="subnav-tab" data-gas-tab="outages" type="button">Outages</button><button class="subnav-tab" data-gas-tab="tariffs" type="button">Tariffs</button></nav><div id="gas-mount"></div></div>
-        <div id="maps-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Maps</p></div><nav id="maps-subnav" class="subnav"><button class="subnav-tab active" data-maps-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-maps-tab="grid" type="button">Grid and power plants</button></nav><div id="maps-mount"></div></div>
+        <div id="maps-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Maps</p></div><nav id="maps-subnav" class="subnav"><button class="subnav-tab active" data-maps-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-maps-tab="grid" type="button">Grid and power plants</button><button class="subnav-tab" data-maps-tab="zones" type="button">Prices and flows</button></nav><div id="maps-mount"></div></div>
         <div id="queue-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Project pipeline, grid-connection queue and market units</p></div><nav id="queue-subnav" class="subnav"><button class="subnav-tab active" data-queue-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-queue-tab="connections" type="button">Grid connections (Terna, e-distribuzione)</button><button class="subnav-tab" data-queue-tab="units" type="button">Market connections (GME)</button></nav><div id="queue-mount"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO), GIE (AGSI+, ALSI, IIP), MASE, e-distribuzione.<p class="gme-notice"><strong>Notice on GME data.</strong> The data of Gestore dei Mercati Energetici S.p.A. (GME) shown on this site are re-elaborations and estimates made by the author, for information only; they are not GME's official data, which GME publishes on www.mercatoelettrico.org under its own terms. GME is not responsible for these elaborations nor for any use of them. They may not be extracted, downloaded, copied, reproduced or redistributed, in whole or in part, nor used for commercial purposes, without the prior written consent of the author and of GME.</p></footer>
@@ -15483,6 +15508,7 @@ move the slider above to another one`,
   function stopMapPlay() {
     if (mapState.timer) clearInterval(mapState.timer);
     mapState.timer = null;
+    zmapStop();
   }
 
   function openProject(project) {
@@ -15678,13 +15704,15 @@ move the slider above to another one`,
     document.querySelectorAll("#maps-subnav .subnav-tab").forEach(button =>
       button.classList.toggle("active", button.dataset.mapsTab === mapsTab));
     if (mapsTab === "grid") renderGridMap();
+    else if (mapsTab === "zones") renderZoneMap();
     else renderProjectMap();
   }
 
   document.querySelectorAll("#maps-subnav .subnav-tab").forEach(button => {
     button.addEventListener("click", () => {
       mapsTab = button.dataset.mapsTab;
-      renderMaps();
+      // The prices and flows map follows the calendar; the other two do not.
+      updateView();
     });
   });
 
@@ -16288,6 +16316,777 @@ move the slider above to another one`,
   }
 
   window.addEventListener("resize", () => { if (mapsChart) mapsChart.resize(); });
+
+
+  /* ============================================================
+     MAPS: PRICES AND FLOWS BY BIDDING ZONE
+     ============================================================ */
+
+  /*
+   * Italy's seven bidding zones (geo/bidding_zones.json: ISTAT's regions
+   * merged, etl/build_reference.py zones) and the areas round them, each
+   * coloured by a price, with an arrow on each border for the flow across
+   * it, quarter-hour by quarter-hour over the calendar's dates (the slider,
+   * which can play), or averaged over them.  As much as possible from
+   * ENTSO-E:
+   *   - day-ahead: the neighbours' (neighbour_prices.json) and the zones'
+   *     (map_prices.json, etl/fetch_map_prices.py); in the full version
+   *     GME's zonal prices stand in where ENTSO-E's are not on file;
+   *   - imbalance: the zones' (balancing/<ZONE>.json, 17.1.G) and the
+   *     neighbours' (map_prices.json);
+   *   - aFRR: PICASSO's cross-border marginal prices (picasso.json), Terna's
+   *     shown on the mainland zones (Sicily and Sardinia are aFRR areas of
+   *     their own, without a PICASSO price);
+   *   - intraday: GME's MI-A auctions and MI-XBID, the zones only and the
+   *     full version only (GME's terms);
+   *   - flows: ENTSO-E's scheduled exchanges (day-ahead, total) and physical
+   *     flows of each zone's borders (zones/<ZONE>/crossborder.json).
+   * Below the map, a summary of the period and of the slider's quarter-hour.
+   */
+  const ZMAP_ZONES = ["NORD", "CNOR", "CSUD", "SUD", "CALA", "SICI", "SARD"];
+  // Where each area's label sits, lon/lat.
+  const ZMAP_AREAS = {
+    NORD: [9.85, 45.45], CNOR: [10.95, 43.25], CSUD: [13.35, 41.95], SUD: [16.6, 40.85], CALA: [16.4, 39.1],
+    SICI: [14.15, 37.5], SARD: [9.0, 40.1],
+    FR: [5.0, 44.05], CH: [7.95, 46.75], AT: [13.4, 47.3], SI: [14.8, 46.05], ME: [19.3, 42.8], GR: [21.4, 39.6],
+    MT: [13.45, 35.5], CORS: [9.05, 42.1]
+  };
+  const ZMAP_COUNTRIES = { FR: "France", CH: "Switzerland", AT: "Austria", SI: "Slovenia", ME: "Montenegro", GR: "Greece",
+    MT: "Malta", CORS: "Corsica" };
+  const zmapName = code => ZONE_NAMES[code] || ZMAP_COUNTRIES[code] || code;
+  /*
+   * The borders, each read from the file of its first zone (a): the flow is
+   * positive from a to b.  key: the border in that file (the Corsica links
+   * under GME's zone names); to: the area the arrow points at; pos: where
+   * the arrow sits.
+   */
+  const ZMAP_BORDERS = [
+    { a: "NORD", b: "CNOR", pos: [11.1, 44.1] },
+    { a: "CNOR", b: "CSUD", pos: [12.15, 43.0] },
+    { a: "CSUD", b: "SUD", pos: [14.95, 41.4] },
+    { a: "SUD", b: "CALA", pos: [16.25, 39.98] },
+    { a: "CALA", b: "SICI", pos: [15.62, 38.22] },
+    { a: "CSUD", b: "SARD", pos: [11.25, 40.95], link: "SAPEI" },
+    { a: "CNOR", b: "CORS", pos: [9.98, 42.85], link: "SACOI" },
+    { a: "SARD", b: "CORS", pos: [8.7, 41.33], link: "SACOI" },
+    { a: "SARD", b: "COAC", to: "CORS", pos: [9.6, 41.33], link: "SARCO" },
+    { a: "NORD", b: "FR", pos: [6.9, 45.3] },
+    { a: "NORD", b: "CH", pos: [8.6, 46.2] },
+    { a: "NORD", b: "AT", pos: [11.65, 46.95] },
+    { a: "NORD", b: "SI", pos: [13.65, 45.88] },
+    { a: "CSUD", b: "ME", pos: [16.9, 42.35], link: "MONITA" },
+    { a: "SUD", b: "GR", pos: [18.95, 40.05], link: "GRITA" },
+    { a: "SICI", b: "MT", pos: [14.42, 36.45] }
+  ].map(border => ({ ...border, to: border.to || border.b, id: `${border.a}-${border.b}` }));
+  const zmapBorderName = border => `${zmapName(border.a)} – ${zmapName(border.to)}${border.link ? ` (${border.link})` : ""}`;
+  const ZMAP_PRICES = [
+    { key: "da", label: "Day-ahead", long: "Day-ahead price (MGP, SDAC)", group: "Day-ahead" },
+    { key: "MI-A1", label: "MI-A1", long: "MI-A1 intraday auction (IDA1)", group: "Intraday: Italian zones (GME)", gme: true },
+    { key: "MI-A2", label: "MI-A2", long: "MI-A2 intraday auction (IDA2)", group: "Intraday: Italian zones (GME)", gme: true },
+    { key: "MI-A3", label: "MI-A3", long: "MI-A3 intraday auction (IDA3, from midday)", group: "Intraday: Italian zones (GME)", gme: true },
+    { key: "xbid", label: "MI-XBID", long: "MI-XBID 15-minute reference price", group: "Intraday: Italian zones (GME)", gme: true },
+    { key: "imbalance", label: "Imbalance", long: "Imbalance price", group: "Balancing" },
+    { key: "afrr_up", label: "aFRR up", long: "aFRR upward, PICASSO marginal price", group: "Balancing" },
+    { key: "afrr_down", label: "aFRR down", long: "aFRR downward, PICASSO marginal price", group: "Balancing" }
+  ].filter(price => !PUBLIC_MODE || !price.gme);
+  const zmapPrice = key => ZMAP_PRICES.find(price => price.key === key) || ZMAP_PRICES[0];
+  const ZMAP_FLOWS = [
+    { key: "scheduled_day_ahead", label: "Day-ahead", long: "Scheduled exchanges, day-ahead" },
+    { key: "scheduled_total", label: "Total", long: "Scheduled exchanges, total" },
+    { key: "physical_flows", label: "Physical", long: "Physical flows" }
+  ];
+  const zmapFlow = key => ZMAP_FLOWS.find(flow => flow.key === key) || ZMAP_FLOWS[0];
+  // Sequential blue, light to dark (dataviz reference ramp, steps 100-700); the dark theme runs it the other way.
+  const ZMAP_RAMP = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"];
+  const ZMAP_RESOLUTIONS = [["quarter", "15 MIN"], ["hour", "HOURLY"], ["day", "DAILY"]];
+  const ZMAP_SPEEDS = [["700", "Slow"], ["300", "Normal"], ["90", "Fast"]];
+  const ZMAP_ARROW = "path://M0,3.5L13,3.5L13,0L20,6L13,12L13,8.5L0,8.5Z";
+
+  const zmapState = { price: "da", flow: "scheduled_day_ahead", avgPrices: false, avgFlows: false, resolution: "quarter",
+    when: null, speed: 300, timer: null, table: "average", files: null, period: null, loading: null, extraLoading: null };
+
+  function zmapStop() {
+    if (zmapState.timer) clearInterval(zmapState.timer);
+    zmapState.timer = null;
+  }
+
+  /* ----- Files ----- */
+
+  // url -> Promise of the parsed file (null when not on the server)
+  const zmapFileCache = {};
+  function zmapFetch(url) {
+    if (!zmapFileCache[url]) {
+      zmapFileCache[url] = fetch(url, { cache: "no-cache" }).then(response => {
+        if (response.status === 404) return null;
+        if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+        return response.json();
+      }).catch(error => { delete zmapFileCache[url]; console.warn("Prices and flows map:", error); return null; });
+    }
+    return zmapFileCache[url];
+  }
+  // A long series' recent version while the period starts within it, else the whole file.
+  async function zmapSeriesFile(path, from) {
+    const recent = await zmapFetch(`./data/${path.replace(/\.json$/, ".recent.json")}`);
+    if (recent && recent.recent_from && from >= recent.recent_from) return recent;
+    return zmapFetch(`./data/${path}`);
+  }
+
+  /*
+   * The outlines: the zones, the neighbouring countries with the areas on
+   * the map under their codes, and Corsica cut out of France.
+   */
+  let zmapGeo = null;
+  async function zmapLoadGeo() {
+    if (zmapGeo) return zmapGeo;
+    loadNeighbours();
+    const zones = await zmapFetch("./geo/bidding_zones.json");
+    const neighbours = await new Promise(resolve => {
+      const wait = () => (neighboursStatus === "ready" || neighboursStatus === "missing" ? resolve(neighboursGeo) : setTimeout(wait, 50));
+      wait();
+    });
+    if (!zones) return null;
+    const features = zones.features.map(feature => ({ ...feature, properties: { name: feature.properties.name } }));
+    (neighbours ? neighbours.features : []).forEach(feature => {
+      const code = feature.properties.code;
+      if (code === "FR") {
+        const isCorsica = polygon => {
+          const ring = polygon[0], lon = ring.reduce((sum, point) => sum + point[0], 0) / ring.length;
+          const lat = ring.reduce((sum, point) => sum + point[1], 0) / ring.length;
+          return lon > 8.3 && lon < 9.8 && lat > 41.2 && lat < 43.2;
+        };
+        const polygons = feature.geometry.coordinates;
+        features.push({ type: "Feature", properties: { name: "FR" }, geometry: { type: "MultiPolygon", coordinates: polygons.filter(polygon => !isCorsica(polygon)) } });
+        features.push({ type: "Feature", properties: { name: "CORS" }, geometry: { type: "MultiPolygon", coordinates: polygons.filter(isCorsica) } });
+        return;
+      }
+      features.push({ ...feature, properties: { name: ZMAP_AREAS[code] ? code : feature.properties.name } });
+    });
+    echarts.registerMap("zmap", { type: "FeatureCollection", features });
+    zmapGeo = { names: features.map(feature => feature.properties.name) };
+    return zmapGeo;
+  }
+
+  /* The files the map draws from: the ENTSO-E ones first, then the rest (balancing, GME's intraday). */
+  function zmapLoadFiles(from) {
+    const files = { crossborder: {}, balancing: {} };
+    const main = Promise.all([
+      zmapLoadGeo(),
+      zmapFetch("./data/map_prices.json"),
+      zmapSeriesFile("neighbour_prices.json", from),
+      PUBLIC_MODE ? null : zmapSeriesFile("zonal_prices.json", from),
+      ...ZMAP_ZONES.map(zone => zmapSeriesFile(`zones/${zone}/crossborder.json`, from))
+    ]).then(([geo, mapPrices, neighbours, zonal, ...crossborder]) => {
+      Object.assign(files, { geo, mapPrices, neighbours, zonal });
+      ZMAP_ZONES.forEach((zone, index) => { files.crossborder[zone] = crossborder[index]; });
+      return files;
+    });
+    const extra = main.then(() => Promise.all([
+      zmapFetch("./data/picasso.json"),
+      PUBLIC_MODE ? null : zmapSeriesFile("intraday_prices.json", from),
+      PUBLIC_MODE ? null : zmapSeriesFile("xbid_prices.json", from),
+      ...ZMAP_ZONES.map(zone => zmapFetch(`./data/balancing/${zone}.json`))
+    ])).then(([picasso, intraday, xbid, ...balancing]) => {
+      Object.assign(files, { picasso, intraday, xbid, extra: true });
+      ZMAP_ZONES.forEach((zone, index) => { files.balancing[zone] = balancing[index]; });
+      return files;
+    });
+    return { main, extra };
+  }
+
+  /* ----- The period, quarter-hour by quarter-hour ----- */
+
+  /* Quarter-hours in an Italian day: 92 on the last Sunday of March, 100 on the last of October. */
+  function zmapQuarters(date) {
+    const year = Number(date.slice(0, 4));
+    const lastSunday = month => {
+      const day = new Date(Date.UTC(year, month + 1, 0));
+      day.setUTCDate(day.getUTCDate() - day.getUTCDay());
+      return day.toISOString().slice(0, 10);
+    };
+    return date === lastSunday(2) ? 92 : date === lastSunday(9) ? 100 : 96;
+  }
+
+  /* The days of the period and where each starts in the run of its quarter-hours. */
+  function zmapPeriod(from, to) {
+    const days = [];
+    let offset = 0;
+    for (let date = from; date <= to; date = bessAddDays(date, 1)) {
+      const T = zmapQuarters(date);
+      days.push({ date, T, offset });
+      offset += T;
+    }
+    return { from, to, days, Q: offset, cache: new Map() };
+  }
+
+  /* A series over the period from its per-day reader (null for a day without data), NaN where missing; cached. */
+  function zmapRun(period, key, dayOf) {
+    if (period.cache.has(key)) return period.cache.get(key);
+    const run = new Float64Array(period.Q).fill(NaN);
+    let any = false;
+    period.days.forEach(day => {
+      const values = dayOf(day.date, day.T);
+      if (!values) return;
+      for (let t = 0; t < day.T && t < values.length; t += 1) {
+        if (Number.isFinite(values[t])) { run[day.offset + t] = values[t]; any = true; }
+      }
+    });
+    const result = any ? run : null;
+    period.cache.set(key, result);
+    return result;
+  }
+
+  /* A day's values per quarter-hour: the quarter-hourly series' (a day still under way too), else the hourly one's repeated. */
+  function zmapDay(quarter, hourly, date, T) {
+    const quarters = quarter ? bessRow(quarter, date) : null;
+    return quarters ? bessArray(quarters, T) : anaSeriesDay(null, hourly, date, T);
+  }
+
+  /* A price of an area over the period, and where it comes from; null where the area has none. */
+  function zmapPriceRun(files, period, type, area) {
+    const zone = ZMAP_ZONES.includes(area);
+    const day = (quarter, hourly) => (quarter || hourly ? (date, T) => zmapDay(quarter, hourly, date, T) : null);
+    const compactPair = (node, name) => (node && node.series ? [node.series.quarter_hourly && node.series.quarter_hourly[name],
+      node.series.hourly && node.series.hourly[name]] : [null, null]);
+    let reader = null, source = null;
+    if (type === "da") {
+      if (zone) {
+        const [quarter, hourly] = compactPair(files.mapPrices, `${area}|day_ahead`);
+        if (quarter || hourly) { reader = day(quarter, hourly); source = "entsoe"; }
+        if (!PUBLIC_MODE && files.zonal && files.zonal.zones && files.zonal.zones[area]) {
+          // GME's zonal price where ENTSO-E's is not on file (the same auction).
+          const own = reader, gme = day(files.zonal.zones[area].quarter_hourly, files.zonal.zones[area].hourly);
+          reader = (date, T) => (own && own(date, T)) || gme(date, T);
+          source = own ? "entsoe+gme" : "gme";
+        }
+      } else if (files.neighbours && files.neighbours.prices) {
+        const prices = files.neighbours.prices;
+        reader = day((prices.quarter_hourly || {})[area], (prices.hourly || {})[area]);
+        source = "entsoe";
+      }
+    } else if (type.startsWith("MI-A")) {
+      const market = files.intraday && files.intraday.markets && files.intraday.markets[type];
+      if (zone && market && market[area]) { reader = day(market[area].quarter_hourly, market[area].hourly); source = "gme"; }
+    } else if (type === "xbid") {
+      const market = files.xbid && files.xbid.markets && files.xbid.markets["XBID-15"];
+      if (zone && market && market[area]) { reader = day(market[area].quarter_hourly, market[area].hourly); source = "gme"; }
+    } else if (type === "imbalance") {
+      const [quarter, hourly] = zone ? compactPair(files.balancing[area], `${area}|imbalance_price`) : compactPair(files.mapPrices, `${area}|imbalance`);
+      if (quarter || hourly) { reader = day(quarter, hourly); source = "entsoe"; }
+    } else {
+      // PICASSO: Terna's area is the mainland; Sicily and Sardinia have no PICASSO price.
+      const owner = zone ? (["SICI", "SARD"].includes(area) ? null : "IT") : area;
+      const series = owner && files.picasso && files.picasso.series && files.picasso.series[`${owner}|${type === "afrr_up" ? "price_up" : "price_down"}`];
+      if (series) { reader = day(series.quarter_hourly, series.hourly); source = "picasso"; }
+    }
+    if (!reader) return null;
+    const run = zmapRun(period, `p|${type}|${area}`, reader);
+    return run ? { run, source } : null;
+  }
+
+  /* A border's flow over the period, positive from a to b. */
+  function zmapFlowRun(files, period, type, border) {
+    const file = files.crossborder[border.a];
+    const node = file && file[type];
+    if (!node) return null;
+    const pick = (resolution, direction) => node[resolution] && node[resolution][direction] && node[resolution][direction][border.b];
+    const exports = [pick("quarter_hourly", "exports"), pick("hourly", "exports")];
+    const imports = [pick("quarter_hourly", "imports"), pick("hourly", "imports")];
+    if (!exports[0] && !exports[1] && !imports[0] && !imports[1]) return null;
+    return zmapRun(period, `f|${type}|${border.id}`, (date, T) => {
+      const out = zmapDay(exports[0], exports[1], date, T), back = zmapDay(imports[0], imports[1], date, T);
+      if (!out && !back) return null;
+      return Float64Array.from({ length: T }, (_, t) => {
+        const x = out ? out[t] : NaN, y = back ? back[t] : NaN;
+        return Number.isFinite(x) || Number.isFinite(y) ? (Number.isFinite(x) ? x : 0) - (Number.isFinite(y) ? y : 0) : NaN;
+      });
+    });
+  }
+
+  /* The slider's steps at the resolution chosen: [first, end) quarter-hours of the period, and the label. */
+  function zmapSteps(period, resolution) {
+    const steps = [];
+    period.days.forEach(day => {
+      if (resolution === "day") {
+        steps.push({ start: day.offset, end: day.offset + day.T, date: day.date, label: bessDateText(day.date) });
+        return;
+      }
+      const size = resolution === "hour" ? 4 : 1;
+      for (let t = 0; t < day.T; t += size) {
+        steps.push({ start: day.offset + t, end: day.offset + Math.min(day.T, t + size), date: day.date, t,
+          label: `${bessDateText(day.date)}, ${bessClockLabel(day.T, t)}` });
+      }
+    });
+    return steps;
+  }
+  const zmapMean = (run, start, end) => {
+    if (!run) return NaN;
+    let sum = 0, n = 0;
+    for (let q = start; q < end; q += 1) if (Number.isFinite(run[q])) { sum += run[q]; n += 1; }
+    return n ? sum / n : NaN;
+  };
+  const zmapStatsCache = new WeakMap();
+  function zmapStats(run) {
+    if (run && zmapStatsCache.has(run)) return zmapStatsCache.get(run);
+    const stats = zmapStatsOf(run);
+    if (run) zmapStatsCache.set(run, stats);
+    return stats;
+  }
+  function zmapStatsOf(run) {
+    let sum = 0, n = 0, min = Infinity, max = -Infinity, forward = 0, back = 0, forwardMax = 0, backMax = 0, forwardN = 0;
+    if (run) for (let q = 0; q < run.length; q += 1) {
+      const value = run[q];
+      if (!Number.isFinite(value)) continue;
+      sum += value; n += 1;
+      if (value < min) min = value;
+      if (value > max) max = value;
+      if (value > 0) { forward += value; forwardN += 1; if (value > forwardMax) forwardMax = value; }
+      if (value < 0) { back -= value; if (-value > backMax) backMax = -value; }
+    }
+    // Energy in GWh: MW times a quarter of an hour.
+    return n ? { mean: sum / n, min, max, n, forwardGwh: forward / 4000, backGwh: back / 4000, forwardMax, backMax, forwardShare: forwardN / n }
+      : { mean: NaN, min: NaN, max: NaN, n: 0, forwardGwh: NaN, backGwh: NaN, forwardMax: NaN, backMax: NaN, forwardShare: NaN };
+  }
+  /* Quantile of the finite values of runs. */
+  function zmapQuantile(runs, p) {
+    const values = [];
+    runs.forEach(run => { if (run) for (let q = 0; q < run.length; q += 1) if (Number.isFinite(run[q])) values.push(run[q]); });
+    if (!values.length) return NaN;
+    values.sort((x, y) => x - y);
+    return values[Math.min(values.length - 1, Math.max(0, Math.round(p * (values.length - 1))))];
+  }
+
+  /* The ramp's colour at share s (0-1). */
+  function zmapColor(s) {
+    const ramp = anaTheme() === "light" ? ZMAP_RAMP : ZMAP_RAMP.slice().reverse();
+    const x = Math.min(1, Math.max(0, s)) * (ramp.length - 1), i = Math.min(ramp.length - 2, Math.floor(x)), f = x - i;
+    const rgb = hex => [1, 3, 5].map(k => parseInt(hex.slice(k, k + 2), 16));
+    const [a, b] = [rgb(ramp[i]), rgb(ramp[i + 1])];
+    return "#" + a.map((channel, k) => Math.round(channel + (b[k] - channel) * f).toString(16).padStart(2, "0")).join("");
+  }
+
+  /* "Now" in Italian time, as the period's step nearest to it; else the last step with a flow. */
+  function zmapDefaultWhen(period) {
+    const parts = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date()).map(part => [part.type, part.value]));
+    const today = `${parts.year}-${parts.month}-${parts.day}`;
+    const day = period.days.find(entry => entry.date === today);
+    if (day) return day.offset + Math.min(day.T - 1, Math.floor((Number(parts.hour) * 60 + Number(parts.minute)) / 15));
+    return period.Q - 1;
+  }
+
+  /* ----- The tab ----- */
+
+  function renderZoneMap() {
+    stopMapPlay();
+    if (mapsChart) mapsChart.dispose();
+    mapsChart = null;
+    mapsMount.innerHTML = "";
+    const from = currentStart ? dateKey(currentStart) : bessAddDays(dateKey(new Date()), -6);
+    const to = currentEnd ? dateKey(currentEnd) : currentStart ? from : dateKey(new Date());
+    const top = document.createElement("section");
+    top.className = "panel chart-panel";
+    top.innerHTML = `<div class="chart-header"><div><div class="chart-title">Prices and flows by bidding zone</div>` +
+      `<div class="chart-subtitle zmap-subtitle"></div></div></div><div class="queue-body"></div>`;
+    mapsMount.appendChild(top);
+    const body = top.querySelector(".queue-body");
+    const periodKey = `${from}|${to}`;
+    if (!zmapState.loading || zmapState.loading.key !== periodKey) {
+      const { main, extra } = zmapLoadFiles(from);
+      zmapState.loading = { key: periodKey, main, extra };
+      zmapState.files = null;
+      main.then(files => { if (zmapState.loading.key === periodKey) { zmapState.files = files; if (currentSection === "maps" && mapsTab === "zones") renderMaps(); } });
+      extra.then(() => { if (zmapState.loading.key === periodKey && zmapState.redraw) zmapState.redraw(); });
+    }
+    const files = zmapState.files;
+    if (!files) {
+      body.innerHTML = `<div class="queue-empty">Loading the prices and flows…</div>`;
+      return;
+    }
+    if (!files.geo) {
+      body.innerHTML = `<div class="queue-empty">The map of the bidding zones is not available.</div>`;
+      return;
+    }
+    if (!zmapState.period || zmapState.period.from !== from || zmapState.period.to !== to) {
+      zmapState.period = zmapPeriod(from, to);
+      zmapState.when = null;
+    }
+    const period = zmapState.period;
+    if (!ZMAP_PRICES.some(price => price.key === zmapState.price)) zmapState.price = "da";
+
+    body.innerHTML = `<div class="zmap-time">` +
+      `<button type="button" class="zmap-play">▶ Play</button>` +
+      `<input type="range" class="zmap-slider" min="0" step="1" aria-label="Time">` +
+      `<b class="zmap-when"></b>` +
+      `<div class="market-period zmap-resolution" role="group" aria-label="Slider steps">${ZMAP_RESOLUTIONS.map(([key, text]) =>
+        `<button type="button" data-resolution="${key}">${text}</button>`).join("")}</div>` +
+      `<label class="zmap-speed">Speed <select>${ZMAP_SPEEDS.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}</select></label>` +
+      `</div>` +
+      `<div class="map-layout"><div class="map-wrap"><div class="map-canvas"></div>` +
+      `<div class="map-hint">Scroll to zoom, drag to move</div></div>` +
+      `<div class="map-side">` +
+      `<div class="map-box"><h3>Price</h3><select class="zmap-price">` +
+      [...new Set(ZMAP_PRICES.map(price => price.group))].map(group => `<optgroup label="${escapeHtml(group)}">` +
+        ZMAP_PRICES.filter(price => price.group === group).map(price => `<option value="${price.key}">${escapeHtml(price.long)}</option>`).join("") +
+        `</optgroup>`).join("") + `</select>` +
+      `<label class="map-switch"><input type="checkbox" data-average="avgPrices"><i></i>Average over the period</label>` +
+      `<div class="zmap-scale"></div></div>` +
+      `<div class="map-box"><h3>Flows</h3><div class="market-period zmap-flow" role="group" aria-label="Flows">${ZMAP_FLOWS.map(flow =>
+        `<button type="button" data-flow="${flow.key}">${flow.label}</button>`).join("")}</div>` +
+      `<label class="map-switch"><input type="checkbox" data-average="avgFlows"><i></i>Average over the period</label>` +
+      `<div class="zmap-widths"></div></div>` +
+      `<div class="map-box"><h3 class="zmap-glance-title">At a glance</h3><div class="zmap-glance"></div></div>` +
+      `</div></div><div class="queue-note zmap-note"></div>`;
+    const summary = document.createElement("section");
+    summary.className = "panel chart-panel zmap-summary";
+    summary.innerHTML = `<div class="chart-header"><div><div class="chart-title">Summary</div><div class="chart-subtitle zmap-summary-subtitle"></div></div></div>` +
+      `<h3 class="zmap-table-title zmap-areas-title"></h3><div class="bess-table-wrap"><table class="bess-table zmap-areas"></table></div>` +
+      `<h3 class="zmap-table-title zmap-borders-title"></h3><div class="bess-table-wrap"><table class="bess-table zmap-borders"></table></div>` +
+      `<div class="zmap-table-head"><h3 class="zmap-table-title zmap-all-title">All prices</h3>` +
+      `<div class="market-period zmap-all-mode" role="group" aria-label="All prices"><button type="button" data-table="average">Period average</button>` +
+      `<button type="button" data-table="now">At the slider's time</button></div></div>` +
+      `<div class="bess-table-wrap"><table class="bess-table zmap-all"></table></div>` +
+      `<div class="queue-note zmap-table-note"></div>${PUBLIC_MODE ? "" : `<div class="gme-source zmap-gme" hidden>${GME_CREDIT}</div>`}`;
+    mapsMount.appendChild(summary);
+
+    const chart = mapsChart = echarts.init(body.querySelector(".map-canvas"));
+    const slider = body.querySelector(".zmap-slider"), whenLabel = body.querySelector(".zmap-when"), play = body.querySelector(".zmap-play");
+    const priceSelect = body.querySelector(".zmap-price"), speed = body.querySelector(".zmap-speed select");
+    priceSelect.value = zmapState.price;
+    speed.value = String(zmapState.speed);
+    body.querySelectorAll("[data-average]").forEach(input => { input.checked = zmapState[input.dataset.average]; });
+
+    let steps = [], index = 0;
+    function setSteps() {
+      steps = zmapSteps(period, zmapState.resolution);
+      const quarter = zmapState.when === null ? zmapDefaultWhen(period) : zmapState.when;
+      index = Math.max(0, steps.findIndex(step => quarter >= step.start && quarter < step.end));
+      slider.max = String(steps.length - 1);
+      slider.value = String(index);
+      body.querySelectorAll("[data-resolution]").forEach(button => button.classList.toggle("active", button.dataset.resolution === zmapState.resolution));
+    }
+    setSteps();
+
+    /* What the map and tables show, worked out again when a choice changes (not when the slider moves). */
+    let view = null;
+    function compute() {
+      const type = zmapState.price, flowType = zmapState.flow;
+      const areas = [...ZMAP_ZONES, ...Object.keys(ZMAP_COUNTRIES)].map(code => {
+        const price = zmapPriceRun(files, period, type, code);
+        return { code, price: price && price.run, source: price && price.source, stats: zmapStats(price && price.run) };
+      });
+      const borders = ZMAP_BORDERS.map(border => {
+        const run = zmapFlowRun(files, period, flowType, border);
+        return { border, run, stats: zmapStats(run) };
+      });
+      const north = areas.find(area => area.code === "NORD").price;
+      areas.forEach(area => {
+        let sum = 0, n = 0;
+        if (area.price && north) for (let q = 0; q < period.Q; q += 1) {
+          if (Number.isFinite(area.price[q]) && Number.isFinite(north[q])) { sum += area.price[q] - north[q]; n += 1; }
+        }
+        area.spread = n ? sum / n : NaN;
+        // Net export: the flows out over its borders on the map (the countries: with Italy only).
+        const net = new Float64Array(period.Q).fill(NaN);
+        let any = false;
+        borders.forEach(entry => {
+          const sign = entry.border.a === area.code ? 1 : entry.border.to === area.code ? -1 : 0;
+          if (!sign || !entry.run) return;
+          for (let q = 0; q < period.Q; q += 1) {
+            if (!Number.isFinite(entry.run[q])) continue;
+            net[q] = (Number.isFinite(net[q]) ? net[q] : 0) + sign * entry.run[q];
+            any = true;
+          }
+        });
+        area.net = any ? net : null;
+        area.netStats = zmapStats(area.net);
+      });
+      // Italy: the borders to the countries and Corsica.
+      const italyNet = new Float64Array(period.Q).fill(NaN);
+      let italyAny = false;
+      borders.forEach(entry => {
+        if (ZMAP_ZONES.includes(entry.border.to) || !entry.run) return;
+        for (let q = 0; q < period.Q; q += 1) if (Number.isFinite(entry.run[q])) {
+          italyNet[q] = (Number.isFinite(italyNet[q]) ? italyNet[q] : 0) + entry.run[q];
+          italyAny = true;
+        }
+      });
+      const runs = areas.map(area => area.price);
+      const lo = zmapQuantile(runs, 0.02), hi = zmapQuantile(runs, 0.98);
+      // The last quarter-hour with the price on file anywhere (imbalance and physical flows come in later).
+      let lastPrice = -1;
+      runs.forEach(run => { if (run) for (let q = period.Q - 1; q > lastPrice; q -= 1) if (Number.isFinite(run[q])) { lastPrice = q; break; } });
+      const averages = areas.map(area => area.stats.mean).filter(Number.isFinite);
+      const flowMax = Math.max(1, ...borders.map(entry => Math.max(entry.stats.forwardMax || 0, entry.stats.backMax || 0)));
+      const flowAvgMax = Math.max(1, ...borders.map(entry => Math.abs(entry.stats.mean) || 0));
+      view = { type, flowType, areas, borders, lastPrice, italyNet: italyAny ? italyNet : null, italyStats: zmapStats(italyAny ? italyNet : null),
+        scale: zmapState.avgPrices ? [Math.min(...averages), Math.max(...averages)] : [lo, hi], flowMax: zmapState.avgFlows ? flowAvgMax : flowMax };
+      if (!(view.scale[1] > view.scale[0])) view.scale = [view.scale[0] - 1, view.scale[0] + 1];
+    }
+
+    const priceAt = (area, step) => (zmapState.avgPrices ? area.stats.mean : zmapMean(area.price, step.start, step.end));
+    const flowAt = (entry, step) => (zmapState.avgFlows ? entry.stats.mean : zmapMean(entry.run, step.start, step.end));
+    const shareOf = value => (value - view.scale[0]) / (view.scale[1] - view.scale[0]);
+    const mw = value => (Number.isFinite(value) ? `${formatNumber(Math.abs(value))} MW` : "n/a");
+
+    function series(step) {
+      const text = cssVar("--text"), muted = cssVar("--muted"), panel = cssVar("--panel");
+      const labels = view.areas.map(area => {
+        const value = priceAt(area, step);
+        return { value: [...ZMAP_AREAS[area.code], value], area: area.code,
+          label: { formatter: `{n|${zmapName(area.code)}}\n{v|${Number.isFinite(value) ? zmapEuro(value) : area.code === "MT" || area.code === "CORS" ? "no market" : "n/a"}}` } };
+      });
+      const arrows = view.borders.map(entry => {
+        const border = entry.border, value = flowAt(entry, step);
+        const [ax, ay] = ZMAP_AREAS[border.a], [bx, by] = ZMAP_AREAS[border.to];
+        let angle = Math.atan2(by - ay, (bx - ax) * 0.78) * 180 / Math.PI;
+        if (value < 0) angle += 180;
+        const s = Number.isFinite(value) ? Math.min(1, Math.abs(value) / view.flowMax) : 0;
+        const known = Number.isFinite(value) && Math.abs(value) >= 0.5;
+        return {
+          value: [...border.pos, value], border: border.id, symbol: known ? ZMAP_ARROW : "circle",
+          symbolSize: known ? [22 + 20 * s, 7 + 13 * s] : 6, symbolRotate: known ? angle : 0,
+          itemStyle: known ? { color: text, borderColor: panel, borderWidth: 1 } : { color: muted, borderColor: panel, borderWidth: 1 },
+          label: { formatter: Number.isFinite(value) ? mw(value) : "n/a" }
+        };
+      });
+      return [
+        { type: "scatter", name: "flows", coordinateSystem: "geo", z: 5, data: arrows,
+          label: { show: true, position: "bottom", distance: 3, fontSize: 10, color: text, backgroundColor: panel, borderRadius: 3, padding: [1, 4], opacity: 0.92 },
+          emphasis: { scale: 1.15 } },
+        // A transparent chip under each label, so hovering the label shows the area.
+        { type: "scatter", name: "areas", coordinateSystem: "geo", z: 6, symbol: "roundRect", symbolSize: [92, 36], itemStyle: { color: "transparent" }, data: labels,
+          label: { show: true, position: "inside", backgroundColor: panel, borderColor: cssVar("--border"), borderWidth: 1, borderRadius: 4, padding: [3, 6],
+            rich: { n: { fontSize: 10, color: muted, lineHeight: 13, align: "center" }, v: { fontSize: 12, fontWeight: 600, color: text, lineHeight: 15, align: "center" } } },
+          emphasis: { disabled: true } }
+      ];
+    }
+
+    function regions(step) {
+      const land = cssVar("--map-land"), neighbour = cssVar("--map-neighbour"), border = cssVar("--map-border");
+      const coloured = new Map(view.areas.map(area => {
+        const value = priceAt(area, step);
+        return [area.code, Number.isFinite(value) ? zmapColor(shareOf(value)) : land];
+      }));
+      return files.geo.names.map(name => coloured.has(name)
+        ? { name, itemStyle: { areaColor: coloured.get(name), borderColor: ZMAP_ZONES.includes(name) ? cssVar("--panel") : border, borderWidth: ZMAP_ZONES.includes(name) ? 1.2 : 0.8 } }
+        : { name, itemStyle: { areaColor: neighbour, borderColor: border, borderWidth: 0.6 }, emphasis: { disabled: true } });
+    }
+
+    function tooltip(params) {
+      const step = steps[index], data = params.componentType === "geo" ? { area: ZMAP_AREAS[params.name] ? params.name : null } : params.data || {};
+      const muted = cssVar("--chart-tooltip-muted");
+      const line = (label, value) => `<div><span style="color:${muted}">${escapeHtml(label)}</span> ${value}</div>`;
+      if (data.area) {
+        const area = view.areas.find(entry => entry.code === data.area);
+        return `<div style="font-weight:600;margin-bottom:3px">${escapeHtml(zmapName(area.code))}</div>` +
+          line(zmapPrice(view.type).label, zmapEuro(zmapMean(area.price, step.start, step.end))) +
+          line("Period average", zmapEuro(area.stats.mean)) +
+          (area.net ? line(ZMAP_ZONES.includes(area.code) ? "Net export" : "Net export to Italy", zmapSignedMw(zmapMean(area.net, step.start, step.end))) : "");
+      }
+      if (data.border) {
+        const entry = view.borders.find(item => item.border.id === data.border);
+        const value = zmapMean(entry.run, step.start, step.end);
+        const [a, b] = value < 0 ? [entry.border.to, entry.border.a] : [entry.border.a, entry.border.to];
+        return `<div style="font-weight:600;margin-bottom:3px">${escapeHtml(zmapBorderName(entry.border))}</div>` +
+          line(zmapFlow(view.flowType).long, Number.isFinite(value) ? `${mw(value)}, ${escapeHtml(zmapName(a))} → ${escapeHtml(zmapName(b))}` : "n/a") +
+          line("Period average", zmapDirected(entry.stats.mean, entry.border));
+      }
+      return "";
+    }
+
+    function drawSide(step) {
+      const scale = body.querySelector(".zmap-scale");
+      const ticks = [0, 0.5, 1].map(s => view.scale[0] + s * (view.scale[1] - view.scale[0]));
+      scale.innerHTML = `<div class="zmap-ramp" style="background:linear-gradient(90deg,${[0, 0.17, 0.33, 0.5, 0.67, 0.83, 1].map(zmapColor).join(",")})"></div>` +
+        `<div class="zmap-ticks">${ticks.map(value => `<span>${zmapEuro(value, 0)}</span>`).join("")}</div>` +
+        `<div class="queue-note">€/MWh. ${zmapState.avgPrices ? "From the lowest to the highest average of the period" :
+          "The period's 2nd to 98th percentile, so the colours keep their meaning as the slider moves; beyond it, the end colours"}. ` +
+        `<i class="zmap-swatch" style="background:${cssVar("--map-land")}"></i>no price on file.</div>`;
+      const widths = [0.25, 0.5, 1].map(s => {
+        const w = 22 + 20 * s, h = 7 + 13 * s;
+        return `<span><svg width="${w}" height="${h}" viewBox="0 0 20 12" preserveAspectRatio="none" aria-hidden="true"><path d="M0,3.5L13,3.5L13,0L20,6L13,12L13,8.5L0,8.5Z" fill="var(--text)"/></svg>${formatNumber(view.flowMax * s)} MW</span>`;
+      });
+      body.querySelector(".zmap-widths").innerHTML = `<div class="zmap-arrows">${widths.join("")}</div>` +
+        `<div class="queue-note">The arrow points the way the energy goes; its size is the flow against the period's largest on any border` +
+        `${zmapState.avgFlows ? " (averages)" : ""}. A dot: no flow, or none on file.</div>`;
+      // At a glance: Italy's net imports and the extremes of the step.
+      const prices = view.areas.map(area => ({ code: area.code, value: priceAt(area, step) })).filter(entry => Number.isFinite(entry.value));
+      const zonePrices = prices.filter(entry => ZMAP_ZONES.includes(entry.code));
+      const high = prices.reduce((best, entry) => (!best || entry.value > best.value ? entry : best), null);
+      const low = prices.reduce((best, entry) => (!best || entry.value < best.value ? entry : best), null);
+      const italy = zmapState.avgFlows ? view.italyStats.mean : zmapMean(view.italyNet, step.start, step.end);
+      const splits = new Set(zonePrices.map(entry => Math.round(entry.value * 100))).size;
+      body.querySelector(".zmap-glance-title").textContent = zmapState.avgPrices && zmapState.avgFlows ? "Over the period" : `At ${step.label}`;
+      const latest = !zmapState.avgPrices && !prices.length && view.lastPrice >= 0 && view.lastPrice < step.start
+        ? steps.findIndex(entry => view.lastPrice >= entry.start && view.lastPrice < entry.end) : -1;
+      body.querySelector(".zmap-glance").innerHTML = (latest >= 0 ? `<div class="zmap-latest">No ${escapeHtml(zmapPrice(view.type).long.toLowerCase())} on file yet ` +
+        `at this time. <button type="button" data-latest="${latest}">Go to the latest, ${escapeHtml(steps[latest].label)}</button></div>` : "") +
+        `<dl class="zmap-dl">` +
+        `<dt>Italy's net ${Number.isFinite(italy) && italy > 0 ? "export" : "import"}</dt><dd>${mw(italy)}</dd>` +
+        (high ? `<dt>Highest price</dt><dd>${zmapEuro(high.value)} <span>${escapeHtml(zmapName(high.code))}</span></dd>` : "") +
+        (low ? `<dt>Lowest price</dt><dd>${zmapEuro(low.value)} <span>${escapeHtml(zmapName(low.code))}</span></dd>` : "") +
+        (zonePrices.length ? `<dt>Italian zones</dt><dd>${splits === 1 ? "one price" : `${splits} prices`} <span>${zonePrices.length === 7 ? "" : `${zonePrices.length} of 7 on file`}</span></dd>` : "") +
+        `</dl>`;
+    }
+
+    function drawTables(step) {
+      const priceLabel = zmapPrice(view.type).label, flowLabel = zmapFlow(view.flowType).long;
+      const at = zmapState.avgPrices && zmapState.avgFlows ? "" : step.label;
+      const signed = zmapSignedMw;
+      top.querySelector(".zmap-subtitle").textContent = `${bessDateText(period.from)}${period.to !== period.from ? ` – ${bessDateText(period.to)}` : ""} · ` +
+        `${zmapPrice(view.type).long}${zmapState.avgPrices ? ", period average" : ""} · ${flowLabel}${zmapState.avgFlows ? ", period average" : ""}`;
+      summary.querySelector(".zmap-summary-subtitle").textContent = `${bessDateText(period.from)}${period.to !== period.from ? ` – ${bessDateText(period.to)}` : ""}, ` +
+        `${formatNumber(period.Q)} quarter-hours · the slider's ${zmapState.resolution === "quarter" ? "quarter-hour" : zmapState.resolution}: ${step.label}`;
+      summary.querySelector(".zmap-areas-title").textContent = `${zmapPrice(view.type).long} and net exports`;
+      const areaRow = area => {
+        const zone = ZMAP_ZONES.includes(area.code);
+        return `<tr><td>${escapeHtml(zmapName(area.code))}</td><td>${zmapEuro(zmapMean(area.price, step.start, step.end))}</td>` +
+          `<td>${zmapEuro(area.stats.mean)}</td><td>${zmapEuro(area.stats.min)}</td><td>${zmapEuro(area.stats.max)}</td>` +
+          `<td>${area.code === "NORD" ? "—" : anaSigned(area.spread)}</td>` +
+          `<td>${area.net ? signed(zmapMean(area.net, step.start, step.end)) : "—"}</td><td>${area.net ? signed(area.netStats.mean) : "—"}</td>` +
+          `<td>${area.net ? zmapGwh(area.netStats.mean * area.netStats.n / 4000) : "—"}${zone ? "" : "*"}</td></tr>`;
+      };
+      const italy = view.italyStats;
+      summary.querySelector(".zmap-areas").innerHTML = `<thead><tr><th>Area</th><th>${escapeHtml(priceLabel)} at ${escapeHtml(step.label)}</th>` +
+        `<th>Average</th><th>Lowest</th><th>Highest</th><th>Spread to North, average</th><th>Net export at ${escapeHtml(step.label)}</th>` +
+        `<th>Net export, average</th><th>Net export over the period</th></tr></thead><tbody>` +
+        view.areas.filter(area => ZMAP_ZONES.includes(area.code)).map(areaRow).join("") +
+        `<tr class="bess-total"><td>Italy</td><td></td><td></td><td></td><td></td><td></td>` +
+        `<td>${view.italyNet ? signed(zmapMean(view.italyNet, step.start, step.end)) : "—"}</td><td>${view.italyNet ? signed(italy.mean) : "—"}</td>` +
+        `<td>${view.italyNet ? zmapGwh(italy.mean * italy.n / 4000) : "—"}</td></tr>` +
+        view.areas.filter(area => !ZMAP_ZONES.includes(area.code)).map(areaRow).join("") + `</tbody>`;
+      summary.querySelector(".zmap-borders-title").textContent = `${flowLabel} across the borders`;
+      summary.querySelector(".zmap-borders").innerHTML = `<thead><tr><th>Border (→ the way of a positive flow)</th><th>At ${escapeHtml(step.label)}</th>` +
+        `<th>Average</th><th>Highest →</th><th>Highest ←</th><th>Energy →</th><th>Energy ←</th><th>Share of the time →</th>` +
+        `<th>${escapeHtml(priceLabel)} gap, average</th></tr></thead><tbody>` +
+        view.borders.map(entry => {
+          const border = entry.border, stats = entry.stats;
+          const pa = view.areas.find(area => area.code === border.a), pb = view.areas.find(area => area.code === border.to);
+          let gap = NaN;
+          if (pa && pb && pa.price && pb.price) {
+            let sum = 0, n = 0;
+            for (let q = 0; q < period.Q; q += 1) if (Number.isFinite(pa.price[q]) && Number.isFinite(pb.price[q])) { sum += pb.price[q] - pa.price[q]; n += 1; }
+            gap = n ? sum / n : NaN;
+          }
+          return `<tr><td>${escapeHtml(zmapName(border.a))} → ${escapeHtml(zmapName(border.to))}${border.link ? ` <span class="zmap-link">${border.link}</span>` : ""}</td>` +
+            `<td>${zmapDirected(zmapMean(entry.run, step.start, step.end), border)}</td><td>${zmapDirected(stats.mean, border)}</td>` +
+            `<td>${Number.isFinite(stats.forwardMax) ? mw(stats.forwardMax) : "—"}</td><td>${Number.isFinite(stats.backMax) ? mw(stats.backMax) : "—"}</td>` +
+            `<td>${zmapGwh(stats.forwardGwh)}</td><td>${zmapGwh(stats.backGwh)}</td><td>${anaPct(stats.forwardShare)}</td>` +
+            `<td>${anaSigned(gap)}</td></tr>`;
+        }).join("") + `</tbody>`;
+      // Every price: the average of the period, or at the slider's time.
+      const now = zmapState.table === "now";
+      summary.querySelectorAll("[data-table]").forEach(button => button.classList.toggle("active", button.dataset.table === zmapState.table));
+      summary.querySelector(".zmap-all-title").textContent = now ? `All prices at ${step.label}` : "All prices, period average";
+      const loaded = files.extra;
+      summary.querySelector(".zmap-all").innerHTML = `<thead><tr><th>Area</th>${ZMAP_PRICES.map(price => `<th>${escapeHtml(price.label)}</th>`).join("")}</tr></thead><tbody>` +
+        [...ZMAP_ZONES, ...Object.keys(ZMAP_COUNTRIES)].map(code => `<tr><td>${escapeHtml(zmapName(code))}</td>` + ZMAP_PRICES.map(price => {
+          const entry = zmapPriceRun(files, period, price.key, code);
+          if (!entry) return `<td>${!loaded && price.key !== "da" ? "…" : "—"}</td>`;
+          return `<td>${zmapEuro(now ? zmapMean(entry.run, step.start, step.end) : zmapStats(entry.run).mean)}</td>`;
+        }).join("") + `</tr>`).join("") + `</tbody>`;
+      const gme = !PUBLIC_MODE && (view.areas.some(area => area.source && area.source.includes("gme")) || ZMAP_PRICES.some(price => price.gme));
+      const credit = summary.querySelector(".zmap-gme");
+      if (credit) credit.hidden = !gme;
+      summary.querySelector(".zmap-table-note").innerHTML = `Prices in €/MWh, averages of the quarter-hours on file; the slider's hour or day is the average of its quarter-hours. ` +
+        `Spread and gap: the area's price less North's, and the far side's less the near side's. Net export: what flows out of the area over its borders on the map, ` +
+        `less what flows in (MW); * the countries: their exchanges with Italy only. Energy in GWh. Flows: ENTSO-E (12.1.F scheduled, 12.1.G physical); ` +
+        `physical flows are published hourly on some borders, so their quarter-hours repeat the hour.`;
+    }
+
+    function draw(full) {
+      const step = steps[index];
+      whenLabel.textContent = step.label;
+      if (full) {
+        chart.setOption({
+          animation: false, backgroundColor: cssVar("--map-sea"),
+          tooltip: { trigger: "item", confine: true, backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"),
+            borderWidth: 1, textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 }, formatter: tooltip },
+          geo: { map: "zmap", roam: true, scaleLimit: { min: 0.8, max: 12 }, aspectScale: 0.78, layoutCenter: ["50%", "50%"], layoutSize: "100%",
+            boundingCoords: [[4.6, 47.6], [22.2, 35.4]], itemStyle: { areaColor: cssVar("--map-land"), borderColor: cssVar("--map-border"), borderWidth: 0.8 },
+            emphasis: { disabled: true }, select: { disabled: true }, tooltip: { show: true }, label: { show: false }, regions: regions(step) },
+          series: series(step)
+        }, true);
+      } else {
+        chart.setOption({ geo: { regions: regions(step) }, series: series(step) });
+      }
+      drawSide(step);
+      drawTables(step);
+    }
+
+    function redraw() {
+      compute();
+      draw(true);
+    }
+    zmapState.redraw = () => { if (mapsChart === chart) redraw(); };
+
+    // Sources, under the map.
+    const daSource = ZMAP_ZONES.map(zone => (zmapPriceRun(files, period, "da", zone) || {}).source).filter(Boolean).join(",");
+    body.querySelector(".zmap-note").innerHTML = `Day-ahead prices: ENTSO-E (12.1.D) for the neighbours` +
+      (daSource.includes("entsoe") ? " and the Italian zones" : "") +
+      (daSource.includes("gme") ? `${daSource.includes("entsoe") ? ", GME's zonal prices where ENTSO-E's are not on file" : "; the Italian zones: GME's zonal prices (ENTSO-E's are not on file yet)"}` : "") +
+      `. Imbalance prices: ENTSO-E (17.1.G; the neighbours' ${files.mapPrices ? "where published" : "are not on file yet"}). ` +
+      `aFRR: PICASSO's cross-border marginal prices (TransnetBW), Terna's on the mainland zones; Sicily and Sardinia are aFRR areas of their own without one, ` +
+      `Switzerland is in PICASSO without prices. ${PUBLIC_MODE ? "" : "MI-A and MI-XBID: GME, the Italian zones only. "}` +
+      `Flows: ENTSO-E, each zone's borders, Corsica's two links (SACOI, direct current; SARCO, alternating) and Malta's. ` +
+      `Malta and Corsica have no day-ahead market. Outlines: ISTAT (CC BY 4.0) via openpolis, regions merged into Terna's zones since 2021; Natural Earth.`;
+
+    function move(next) {
+      index = Math.max(0, Math.min(steps.length - 1, next));
+      zmapState.when = steps[index].start;
+      slider.value = String(index);
+      draw(false);
+    }
+    function stopPlay() {
+      zmapStop();
+      play.textContent = "▶ Play";
+    }
+    play.addEventListener("click", () => {
+      if (zmapState.timer) { stopPlay(); return; }
+      if (index >= steps.length - 1) move(0);
+      play.textContent = "❚❚ Pause";
+      zmapState.timer = setInterval(() => {
+        if (index >= steps.length - 1) { stopPlay(); return; }
+        move(index + 1);
+      }, zmapState.speed);
+    });
+    slider.addEventListener("input", () => move(Number(slider.value)));
+    body.querySelector(".zmap-glance").addEventListener("click", event => {
+      const target = event.target.closest("[data-latest]");
+      if (target) move(Number(target.dataset.latest));
+    });
+    speed.addEventListener("change", () => {
+      zmapState.speed = Number(speed.value);
+      if (zmapState.timer) { stopPlay(); play.click(); }
+    });
+    body.querySelectorAll("[data-resolution]").forEach(button => button.addEventListener("click", () => {
+      zmapState.resolution = button.dataset.resolution;
+      setSteps();
+      draw(false);
+    }));
+    priceSelect.addEventListener("change", () => { zmapState.price = priceSelect.value; redraw(); });
+    body.querySelectorAll("[data-flow]").forEach(button => button.addEventListener("click", () => {
+      zmapState.flow = button.dataset.flow;
+      body.querySelectorAll("[data-flow]").forEach(item => item.classList.toggle("active", item === button));
+      redraw();
+    }));
+    body.querySelectorAll("[data-flow]").forEach(button => button.classList.toggle("active", button.dataset.flow === zmapState.flow));
+    body.querySelectorAll("[data-average]").forEach(input => input.addEventListener("change", () => {
+      zmapState[input.dataset.average] = input.checked;
+      redraw();
+    }));
+    summary.querySelectorAll("[data-table]").forEach(button => button.addEventListener("click", () => {
+      zmapState.table = button.dataset.table;
+      drawTables(steps[index]);
+    }));
+    redraw();
+  }
+  const zmapEuro = (value, digits = 1) => (Number.isFinite(value)
+    ? `${value < 0 && Math.abs(value) >= 0.5 * 10 ** -digits ? "−" : ""}€${formatNumber(Math.abs(value), digits)}` : "—");
+  const zmapSignedMw = value => (Number.isFinite(value) ? `${value < 0 ? "−" : value > 0 ? "+" : ""}${formatNumber(Math.abs(value))} MW` : "—");
+  const zmapGwh = value => (Number.isFinite(value) ? `${value < 0 ? "−" : ""}${formatNumber(Math.abs(value), Math.abs(value) < 10 ? 2 : 1)} GWh` : "—");
+  /* A flow with the way it goes: "→ 1,234 MW" (a to b) or "← 567 MW". */
+  const zmapDirected = value => (Number.isFinite(value) ? `${value < 0 ? "←" : "→"} ${formatNumber(Math.abs(value))} MW` : "—");
 
 
   /* ============================================================
@@ -19509,7 +20308,7 @@ move the slider above to another one`,
   const bindingName = border => `${bindingSideName(border.a)} – ${bindingSideName(border.b)}`;
   const REGION_ZONES = {
     Piemonte: "NORD", "Valle d'Aosta": "NORD", Liguria: "NORD", Lombardia: "NORD", "Trentino-Alto Adige": "NORD", Veneto: "NORD",
-    "Friuli-Venezia Giulia": "NORD", "Emilia-Romagna": "NORD", Toscana: "CNOR", Umbria: "CNOR", Marche: "CNOR", Lazio: "CSUD", Abruzzo: "CSUD",
+    "Friuli-Venezia Giulia": "NORD", "Emilia-Romagna": "NORD", Toscana: "CNOR", Umbria: "CSUD", Marche: "CNOR", Lazio: "CSUD", Abruzzo: "CSUD",
     Campania: "CSUD", Molise: "SUD", Puglia: "SUD", Basilicata: "SUD", Calabria: "CALA", Sicilia: "SICI", Sardegna: "SARD"
   };
   const bindingState = { month: "", border: "" };
@@ -20562,10 +21361,13 @@ move the slider above to another one`,
     document.getElementById("queue-page").style.display = isQueueSection ? "block" : "none";
     const isMapsSection = currentSection === "maps";
     document.getElementById("maps-page").style.display = isMapsSection ? "block" : "none";
-    // The queue and the map are snapshots: the calendar does not apply.
-    // The analyses choose their own period.
+    // The queue and the project and grid maps are snapshots: the calendar
+    // does not apply (it does to the prices and flows map).  The analyses
+    // choose their own period.
     const isAnalysisTab = isDataSection && currentSubTab === "analysis";
-    document.querySelector(".calendar-trigger-wrap").style.display = isQueueSection || isMapsSection || isAnalysisTab ? "none" : "";
+    document.querySelector(".calendar-trigger-wrap").style.display =
+      isQueueSection || (isMapsSection && mapsTab !== "zones") || isAnalysisTab ? "none" : "";
+    if (!isMapsSection) zmapStop();
 
     document.getElementById("zone-tabs-wrap").style.display =
       isDataSection ? "flex" : "none";

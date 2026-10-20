@@ -15,12 +15,17 @@ they need refreshing; both are committed):
                                country a line ends in
   app/geo/neighbours.json      the same, coarse, drawn round Italy on the
                                grid map
+  app/geo/bidding_zones.json   Italy's seven bidding zones (Terna's
+                               configuration since 1 January 2021), the
+                               ISTAT regions of each zone merged, for the
+                               prices and flows map
 
-Run: python etl/build_reference.py [regions|municipalities|neighbours ...]
+Run: python etl/build_reference.py [regions|municipalities|neighbours|zones ...]
 """
 
 import json
 import os
+from collections import defaultdict
 
 import requests
 
@@ -38,6 +43,19 @@ NEIGHBOURS_MAP_PATH = os.path.join(HERE, "..", "app", "geo", "neighbours.json")
 NEIGHBOUR_BOX = (2.0, 33.0, 23.0, 49.5)   # west, south, east, north
 NEIGHBOUR_TOLERANCE = {"etl": 0.002, "map": 0.01}   # degrees
 NOT_NEIGHBOURS = {"IT", "SM", "VA"}       # San Marino and the Vatican are on Italy's grid
+ZONES_PATH = os.path.join(HERE, "..", "app", "geo", "bidding_zones.json")
+# The regions of each bidding zone since 1 January 2021 (ARERA 103/2019/R/eel:
+# Umbria moved from Centre-North to Centre-South, Calabria a zone of its own).
+REGION_ZONES = {
+    "Piemonte": "NORD", "Valle d'Aosta": "NORD", "Liguria": "NORD", "Lombardia": "NORD", "Trentino-Alto Adige": "NORD",
+    "Veneto": "NORD", "Friuli-Venezia Giulia": "NORD", "Emilia-Romagna": "NORD",
+    "Toscana": "CNOR", "Marche": "CNOR",
+    "Umbria": "CSUD", "Lazio": "CSUD", "Abruzzo": "CSUD", "Campania": "CSUD",
+    "Molise": "SUD", "Puglia": "SUD", "Basilicata": "SUD",
+    "Calabria": "CALA", "Sicilia": "SICI", "Sardegna": "SARD",
+}
+ZONE_LABELS = {"NORD": "North", "CNOR": "Centre-North", "CSUD": "Centre-South", "SUD": "South",
+               "CALA": "Calabria", "SICI": "Sicily", "SARD": "Sardinia"}
 
 MUNICIPALITY_QUERY = """
 SELECT ?istat ?name ?coord ?end WHERE {
@@ -159,6 +177,87 @@ def build_neighbours():
         print(f"Wrote {path} ({os.path.getsize(path) // 1024} KB): {', '.join(f['properties']['code'] for f in features)}")
 
 
+def ring_area(ring):
+    """Signed area (shoelace), square degrees."""
+    return sum(x1 * y2 - x2 * y1 for (x1, y1), (x2, y2) in zip(ring, ring[1:])) / 2
+
+
+def inside_ring(point, ring):
+    x, y = point
+    inside = False
+    for (x1, y1), (x2, y2) in zip(ring, ring[1:]):
+        if (y1 > y) != (y2 > y) and x < (x2 - x1) * (y - y1) / (y2 - y1) + x1:
+            inside = not inside
+    return inside
+
+
+def dissolve(rings):
+    """
+    The outline of polygons that share their borders vertex for vertex
+    (ISTAT's regions do): an edge that also runs the other way, in a
+    neighbour's ring, is inside the union and dropped; the edges left are
+    chained back into closed rings.
+    """
+    key = lambda point: (round(point[0], 7), round(point[1], 7))
+    edges = set()
+    for ring in rings:
+        for a, b in zip(ring, ring[1:]):
+            if key(a) != key(b):
+                edges.add((key(a), key(b)))
+    outgoing = defaultdict(list)
+    for a, b in edges:
+        if (b, a) not in edges:
+            outgoing[a].append(b)
+    out = []
+    while outgoing:
+        start = next(iter(outgoing))
+        ring, point = [start], start
+        while True:
+            following = outgoing[point]
+            nxt = following.pop()
+            if not following:
+                del outgoing[point]
+            ring.append(nxt)
+            point = nxt
+            if point == start or point not in outgoing:
+                break
+        if ring[0] == ring[-1] and len(ring) > 3:
+            out.append([list(point) for point in ring])
+    return out
+
+
+def build_zones():
+    data = requests.get(REGIONS_URL, timeout=120).json()
+    rings = defaultdict(list)
+    for feature in data["features"]:
+        zone = REGION_ZONES[feature["properties"]["reg_name"].split("/")[0]]
+        geometry = feature["geometry"]
+        for polygon in geometry["coordinates"] if geometry["type"] == "MultiPolygon" else [geometry["coordinates"]]:
+            rings[zone].extend(polygon)
+    features = []
+    for zone, label in ZONE_LABELS.items():
+        merged = [ring for ring in (simplify_ring(ring, TOLERANCE) for ring in dissolve(rings[zone]))
+                  if len(ring) >= MIN_RING_POINTS]
+        # Outer rings turn the way the largest one does; the others are holes
+        # (the Vatican, San Marino's edge), each put in the outer ring round it.
+        sign = 1 if ring_area(max(merged, key=lambda ring: abs(ring_area(ring)))) > 0 else -1
+        outers = [[ring] for ring in merged if ring_area(ring) * sign > 0]
+        for ring in merged:
+            if ring_area(ring) * sign < 0:
+                home = next((polygon for polygon in outers if inside_ring(ring[0], polygon[0])), None)
+                if home:
+                    home.append(ring)
+        features.append({"type": "Feature", "properties": {"name": zone, "label": label},
+                         "geometry": {"type": "MultiPolygon", "coordinates": outers}})
+    with open(ZONES_PATH, "w", encoding="utf-8") as handle:
+        json.dump({"type": "FeatureCollection",
+                   "source": "ISTAT via openpolis/geojson-italy (CC BY 4.0), regions merged into Terna's bidding zones "
+                             "(configuration since 1 January 2021), simplified",
+                   "features": features}, handle, ensure_ascii=False, separators=(",", ":"))
+    print(f"Wrote {ZONES_PATH} ({os.path.getsize(ZONES_PATH) // 1024} KB): "
+          + ", ".join(f"{f['properties']['name']} {len(f['geometry']['coordinates'])} polygons" for f in features))
+
+
 def sparql(query):
     response = requests.get(WIKIDATA_URL, params={"query": query}, timeout=180,
                             headers={"Accept": "application/sparql-results+json", "User-Agent": USER_AGENT})
@@ -187,10 +286,12 @@ def build_municipalities():
 
 if __name__ == "__main__":
     import sys
-    chosen = set(sys.argv[1:]) or {"regions", "municipalities", "neighbours"}
+    chosen = set(sys.argv[1:]) or {"regions", "municipalities", "neighbours", "zones"}
     if "regions" in chosen:
         build_regions()
     if "municipalities" in chosen:
         build_municipalities()
     if "neighbours" in chosen:
         build_neighbours()
+    if "zones" in chosen:
+        build_zones()
