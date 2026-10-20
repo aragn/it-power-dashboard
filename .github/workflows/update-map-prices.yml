@@ -1,11 +1,12 @@
-name: Update Map Prices (ENTSO-E)
+name: Update Map Prices, Generation and Load (ENTSO-E)
 
 on:
   schedule:
-    # The prices and flows map's own ENTSO-E prices: the Italian zones'
+    # The prices and flows map's own ENTSO-E series: the Italian zones'
     # day-ahead prices (out around 13:00 Italian time; 13:30 UTC leaves
-    # margin in summer and winter time) and the neighbours' imbalance prices,
-    # published within the hour (every 3 hours, as the balancing job).
+    # margin in summer and winter time), the neighbours' imbalance prices,
+    # generation and load, published within the hour (every 3 hours, as the
+    # balancing job).
     - cron: "30 13 * * *"
     - cron: "10 1-22/3 * * *"
   workflow_dispatch:
@@ -31,7 +32,9 @@ concurrency:
 jobs:
   update-map-prices:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # A series' first run reads its history from 2025 (the generation: some
+    # 650 weekly requests).
+    timeout-minutes: 90
 
     steps:
       - name: Checkout repository
