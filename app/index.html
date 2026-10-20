@@ -16329,16 +16329,22 @@ move the slider above to another one`,
    * it, quarter-hour by quarter-hour over the calendar's dates (the slider,
    * which can play), or averaged over them.  As much as possible from
    * ENTSO-E:
-   *   - day-ahead: the neighbours' (neighbour_prices.json) and the zones'
-   *     (map_prices.json, etl/fetch_map_prices.py); in the full version
-   *     GME's zonal prices stand in where ENTSO-E's are not on file;
+   *   - day-ahead: the neighbours' (neighbour_prices.json) and, in the
+   *     public version, the zones' (map_prices.json, etl/fetch_map_prices.py);
+   *     the full version shows GME's zonal prices for the zones, exact to the
+   *     cent (ENTSO-E's differ by a cent at times, and had +0.01 where GME's
+   *     were -0.01 on 14 October 2026), ENTSO-E's only where GME's are missing;
    *   - imbalance: the zones' (balancing/<ZONE>.json, 17.1.G) and the
    *     neighbours' (map_prices.json);
    *   - aFRR: PICASSO's cross-border marginal prices (picasso.json), Terna's
    *     shown on the mainland zones (Sicily and Sardinia are aFRR areas of
    *     their own, without a PICASSO price);
-   *   - intraday: GME's MI-A auctions and MI-XBID, the zones only and the
-   *     full version only (GME's terms);
+   *   - intraday: GME's MI-A auctions and MI-XBID, full version only (GME's
+   *     terms); the MI-A auctions are SIDC's intraday auctions (IDA 1-3), so
+   *     Austria's, France's and Slovenia's prices are North's plus JAO's
+   *     spread with it (jao_spreads.json), Greece's South's plus its spread,
+   *     on the days JAO's day-ahead spread gives ENTSO-E's day-ahead price to
+   *     the cent (Greece's did not on many days until August 2026);
    *   - flows: ENTSO-E's scheduled exchanges (day-ahead, total) and physical
    *     flows of each zone's borders (zones/<ZONE>/crossborder.json).
    * Below the map, a summary of the period and of the slider's quarter-hour.
@@ -16381,14 +16387,16 @@ move the slider above to another one`,
   const zmapBorderName = border => `${zmapName(border.a)} – ${zmapName(border.to)}${border.link ? ` (${border.link})` : ""}`;
   const ZMAP_PRICES = [
     { key: "da", label: "Day-ahead", long: "Day-ahead price (MGP, SDAC)", group: "Day-ahead" },
-    { key: "MI-A1", label: "MI-A1", long: "MI-A1 intraday auction (IDA1)", group: "Intraday: Italian zones (GME)", gme: true },
-    { key: "MI-A2", label: "MI-A2", long: "MI-A2 intraday auction (IDA2)", group: "Intraday: Italian zones (GME)", gme: true },
-    { key: "MI-A3", label: "MI-A3", long: "MI-A3 intraday auction (IDA3, from midday)", group: "Intraday: Italian zones (GME)", gme: true },
-    { key: "xbid", label: "MI-XBID", long: "MI-XBID 15-minute reference price", group: "Intraday: Italian zones (GME)", gme: true },
+    { key: "MI-A1", label: "MI-A1", long: "MI-A1 intraday auction (IDA1)", group: "Intraday auctions (GME; AT, FR, SI, GR with JAO's spreads)", gme: true },
+    { key: "MI-A2", label: "MI-A2", long: "MI-A2 intraday auction (IDA2)", group: "Intraday auctions (GME; AT, FR, SI, GR with JAO's spreads)", gme: true },
+    { key: "MI-A3", label: "MI-A3", long: "MI-A3 intraday auction (IDA3, from midday)", group: "Intraday auctions (GME; AT, FR, SI, GR with JAO's spreads)", gme: true },
+    { key: "xbid", label: "MI-XBID", long: "MI-XBID 15-minute reference price", group: "Continuous intraday: Italian zones (GME)", gme: true },
     { key: "imbalance", label: "Imbalance", long: "Imbalance price", group: "Balancing" },
     { key: "afrr_up", label: "aFRR up", long: "aFRR upward, PICASSO marginal price", group: "Balancing" },
     { key: "afrr_down", label: "aFRR down", long: "aFRR downward, PICASSO marginal price", group: "Balancing" }
   ].filter(price => !PUBLIC_MODE || !price.gme);
+  // JAO's spreads (neighbour minus Italy) of the coupled neighbours, and the Italian zone each is against.
+  const ZMAP_JAO = { AT: "NORD", FR: "NORD", SI: "NORD", GR: "SUD" };
   const zmapPrice = key => ZMAP_PRICES.find(price => price.key === key) || ZMAP_PRICES[0];
   const ZMAP_FLOWS = [
     { key: "scheduled_day_ahead", label: "Day-ahead", long: "Scheduled exchanges, day-ahead" },
@@ -16484,9 +16492,10 @@ move the slider above to another one`,
       zmapFetch("./data/picasso.json"),
       PUBLIC_MODE ? null : zmapSeriesFile("intraday_prices.json", from),
       PUBLIC_MODE ? null : zmapSeriesFile("xbid_prices.json", from),
+      PUBLIC_MODE ? null : zmapSeriesFile("jao_spreads.json", from),
       ...ZMAP_ZONES.map(zone => zmapFetch(`./data/balancing/${zone}.json`))
-    ])).then(([picasso, intraday, xbid, ...balancing]) => {
-      Object.assign(files, { picasso, intraday, xbid, extra: true });
+    ])).then(([picasso, intraday, xbid, jao, ...balancing]) => {
+      Object.assign(files, { picasso, intraday, xbid, jao, extra: true });
       ZMAP_ZONES.forEach((zone, index) => { files.balancing[zone] = balancing[index]; });
       return files;
     });
@@ -16551,13 +16560,12 @@ move the slider above to another one`,
     if (type === "da") {
       if (zone) {
         const [quarter, hourly] = compactPair(files.mapPrices, `${area}|day_ahead`);
-        if (quarter || hourly) { reader = day(quarter, hourly); source = "entsoe"; }
-        if (!PUBLIC_MODE && files.zonal && files.zonal.zones && files.zonal.zones[area]) {
-          // GME's zonal price where ENTSO-E's is not on file (the same auction).
-          const own = reader, gme = day(files.zonal.zones[area].quarter_hourly, files.zonal.zones[area].hourly);
-          reader = (date, T) => (own && own(date, T)) || gme(date, T);
-          source = own ? "entsoe+gme" : "gme";
-        }
+        const entsoe = quarter || hourly ? day(quarter, hourly) : null;
+        const gme = !PUBLIC_MODE && files.zonal && files.zonal.zones && files.zonal.zones[area]
+          ? day(files.zonal.zones[area].quarter_hourly, files.zonal.zones[area].hourly) : null;
+        // The full version: GME's price, exact to the cent; ENTSO-E's (the same auction) where GME's is missing.
+        if (gme) { reader = (date, T) => gme(date, T) || (entsoe && entsoe(date, T)); source = entsoe ? "gme+entsoe" : "gme"; }
+        else if (entsoe) { reader = entsoe; source = "entsoe"; }
       } else if (files.neighbours && files.neighbours.prices) {
         const prices = files.neighbours.prices;
         reader = day((prices.quarter_hourly || {})[area], (prices.hourly || {})[area]);
@@ -16565,7 +16573,42 @@ move the slider above to another one`,
       }
     } else if (type.startsWith("MI-A")) {
       const market = files.intraday && files.intraday.markets && files.intraday.markets[type];
-      if (zone && market && market[area]) { reader = day(market[area].quarter_hourly, market[area].hourly); source = "gme"; }
+      const home = zone ? area : ZMAP_JAO[area];
+      const spreads = !zone && home && files.jao && files.jao.markets && files.jao.markets[`IDA${type.slice(-1)}`];
+      const spread = spreads && spreads[area];
+      if (market && market[home] && (zone || spread)) {
+        const own = day(market[home].quarter_hourly, market[home].hourly);
+        if (zone) { reader = own; source = "gme"; } else {
+          // The neighbour's price in the same auction: the Italian zone's plus JAO's spread (neighbour minus Italy),
+          // on the days JAO's day-ahead spread turns the zone's day-ahead price into the neighbour's (ENTSO-E's) to the cent.
+          const gap = day(spread.quarter_hourly, spread.hourly);
+          const daSpread = files.jao.markets.DA && files.jao.markets.DA[area];
+          const homeDa = files.zonal && files.zonal.zones && files.zonal.zones[home];
+          const prices = files.neighbours && files.neighbours.prices;
+          const checked = new Map();
+          const trusted = (date, T) => {
+            if (!checked.has(date)) {
+              const a = daSpread && homeDa && prices ? day(homeDa.quarter_hourly, homeDa.hourly)(date, T) : null;
+              const s = a ? day(daSpread.quarter_hourly, daSpread.hourly)(date, T) : null;
+              const p = s ? day((prices.quarter_hourly || {})[area], (prices.hourly || {})[area])(date, T) : null;
+              let n = 0, ok = Boolean(p);
+              if (ok) for (let t = 0; t < T; t += 1) {
+                if (!Number.isFinite(a[t]) || !Number.isFinite(s[t]) || !Number.isFinite(p[t])) continue;
+                n += 1;
+                if (Math.abs(a[t] + s[t] - p[t]) > 0.011) { ok = false; break; }
+              }
+              checked.set(date, ok && n > 0);
+            }
+            return checked.get(date);
+          };
+          reader = (date, T) => {
+            if (!trusted(date, T)) return null;
+            const a = own(date, T), b = gap(date, T);
+            return a && b ? Float64Array.from(a, (value, t) => Math.round((value + b[t]) * 100) / 100) : null;
+          };
+          source = "gme+jao";
+        }
+      }
     } else if (type === "xbid") {
       const market = files.xbid && files.xbid.markets && files.xbid.markets["XBID-15"];
       if (zone && market && market[area]) { reader = day(market[area].quarter_hourly, market[area].hourly); source = "gme"; }
@@ -16942,7 +16985,7 @@ move the slider above to another one`,
         const zone = ZMAP_ZONES.includes(area.code);
         return `<tr><td>${escapeHtml(zmapName(area.code))}</td><td>${zmapEuro(zmapMean(area.price, step.start, step.end))}</td>` +
           `<td>${zmapEuro(area.stats.mean)}</td><td>${zmapEuro(area.stats.min)}</td><td>${zmapEuro(area.stats.max)}</td>` +
-          `<td>${area.code === "NORD" ? "—" : anaSigned(area.spread)}</td>` +
+          `<td>${area.code === "NORD" ? "—" : zmapSignedEuro(area.spread)}</td>` +
           `<td>${area.net ? signed(zmapMean(area.net, step.start, step.end)) : "—"}</td><td>${area.net ? signed(area.netStats.mean) : "—"}</td>` +
           `<td>${area.net ? zmapGwh(area.netStats.mean * area.netStats.n / 4000) : "—"}${zone ? "" : "*"}</td></tr>`;
       };
@@ -16972,7 +17015,7 @@ move the slider above to another one`,
             `<td>${zmapDirected(zmapMean(entry.run, step.start, step.end), border)}</td><td>${zmapDirected(stats.mean, border)}</td>` +
             `<td>${Number.isFinite(stats.forwardMax) ? mw(stats.forwardMax) : "—"}</td><td>${Number.isFinite(stats.backMax) ? mw(stats.backMax) : "—"}</td>` +
             `<td>${zmapGwh(stats.forwardGwh)}</td><td>${zmapGwh(stats.backGwh)}</td><td>${anaPct(stats.forwardShare)}</td>` +
-            `<td>${anaSigned(gap)}</td></tr>`;
+            `<td>${zmapSignedEuro(gap)}</td></tr>`;
         }).join("") + `</tbody>`;
       // Every price: the average of the period, or at the slider's time.
       const now = zmapState.table === "now";
@@ -16988,7 +17031,7 @@ move the slider above to another one`,
       const gme = !PUBLIC_MODE && (view.areas.some(area => area.source && area.source.includes("gme")) || ZMAP_PRICES.some(price => price.gme));
       const credit = summary.querySelector(".zmap-gme");
       if (credit) credit.hidden = !gme;
-      summary.querySelector(".zmap-table-note").innerHTML = `Prices in €/MWh, averages of the quarter-hours on file; the slider's hour or day is the average of its quarter-hours. ` +
+      summary.querySelector(".zmap-table-note").innerHTML = `Prices in €/MWh to the cent, averages of the quarter-hours on file; the slider's hour or day is the average of its quarter-hours. ` +
         `Spread and gap: the area's price less North's, and the far side's less the near side's. Net export: what flows out of the area over its borders on the map, ` +
         `less what flows in (MW); * the countries: their exchanges with Italy only. Energy in GWh. Flows: ENTSO-E (12.1.F scheduled, 12.1.G physical); ` +
         `physical flows are published hourly on some borders, so their quarter-hours repeat the hour.`;
@@ -17004,7 +17047,7 @@ move the slider above to another one`,
             borderWidth: 1, textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 }, formatter: tooltip },
           geo: { map: "zmap", roam: true, scaleLimit: { min: 0.8, max: 12 }, aspectScale: 0.78, layoutCenter: ["50%", "50%"], layoutSize: "100%",
             boundingCoords: [[4.6, 47.6], [22.2, 35.4]], itemStyle: { areaColor: cssVar("--map-land"), borderColor: cssVar("--map-border"), borderWidth: 0.8 },
-            emphasis: { disabled: true }, select: { disabled: true }, tooltip: { show: true }, label: { show: false }, regions: regions(step) },
+            emphasis: { disabled: true }, select: { disabled: true }, tooltip: { show: true, formatter: tooltip }, label: { show: false }, regions: regions(step) },
           series: series(step)
         }, true);
       } else {
@@ -17023,11 +17066,14 @@ move the slider above to another one`,
     // Sources, under the map.
     const daSource = ZMAP_ZONES.map(zone => (zmapPriceRun(files, period, "da", zone) || {}).source).filter(Boolean).join(",");
     body.querySelector(".zmap-note").innerHTML = `Day-ahead prices: ENTSO-E (12.1.D) for the neighbours` +
-      (daSource.includes("entsoe") ? " and the Italian zones" : "") +
-      (daSource.includes("gme") ? `${daSource.includes("entsoe") ? ", GME's zonal prices where ENTSO-E's are not on file" : "; the Italian zones: GME's zonal prices (ENTSO-E's are not on file yet)"}` : "") +
+      (daSource.includes("gme") ? `; the Italian zones: GME's zonal prices, exact to the cent${daSource.includes("entsoe") ? " (ENTSO-E's where GME's are not on file yet)" : ""}`
+        : daSource.includes("entsoe") ? " and the Italian zones (ENTSO-E's Italian prices differ from GME's by a cent at times)" : "") +
       `. Imbalance prices: ENTSO-E (17.1.G; the neighbours' ${files.mapPrices ? "where published" : "are not on file yet"}). ` +
       `aFRR: PICASSO's cross-border marginal prices (TransnetBW), Terna's on the mainland zones; Sicily and Sardinia are aFRR areas of their own without one, ` +
-      `Switzerland is in PICASSO without prices. ${PUBLIC_MODE ? "" : "MI-A and MI-XBID: GME, the Italian zones only. "}` +
+      `Switzerland is in PICASSO without prices. ${PUBLIC_MODE ? "" : "MI-A: GME's zonal prices; Austria's, France's and Slovenia's are North's plus JAO's spread " +
+        "with it in the same auction, Greece's South's plus its spread (JAO's Italy North and IBWT publication tool), on the days JAO's day-ahead spread " +
+        "gives ENTSO-E's day-ahead price to the cent (Greece's did not on many days until August 2026); none for Switzerland and Montenegro. " +
+        "MI-XBID: GME, the Italian zones only. "}` +
       `Flows: ENTSO-E, each zone's borders, Corsica's two links (SACOI, direct current; SARCO, alternating) and Malta's. ` +
       `Malta and Corsica have no day-ahead market. Outlines: ISTAT (CC BY 4.0) via openpolis, regions merged into Terna's zones since 2021; Natural Earth.`;
 
@@ -17081,8 +17127,10 @@ move the slider above to another one`,
     }));
     redraw();
   }
-  const zmapEuro = (value, digits = 1) => (Number.isFinite(value)
+  const zmapEuro = (value, digits = 2) => (Number.isFinite(value)
     ? `${value < 0 && Math.abs(value) >= 0.5 * 10 ** -digits ? "−" : ""}€${formatNumber(Math.abs(value), digits)}` : "—");
+  const zmapSignedEuro = value => (Number.isFinite(value)
+    ? `${Math.abs(value) < 0.005 ? "" : value < 0 ? "−" : "+"}€${formatNumber(Math.abs(value), 2)}` : "—");
   const zmapSignedMw = value => (Number.isFinite(value) ? `${value < 0 ? "−" : value > 0 ? "+" : ""}${formatNumber(Math.abs(value))} MW` : "—");
   const zmapGwh = value => (Number.isFinite(value) ? `${value < 0 ? "−" : ""}${formatNumber(Math.abs(value), Math.abs(value) < 10 ? 2 : 1)} GWh` : "—");
   /* A flow with the way it goes: "→ 1,234 MW" (a to b) or "← 567 MW". */

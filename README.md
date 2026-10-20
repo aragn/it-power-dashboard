@@ -38,10 +38,12 @@ Maps › Prices and flows colours Italy's seven bidding zones and the areas roun
 
 - **Outlines:** `app/geo/bidding_zones.json`, ISTAT's regions merged into Terna's zones (the configuration since 1 January 2021: Umbria in Centre-South, Calabria a zone of its own), `python etl/build_reference.py zones`; the countries from `app/geo/neighbours.json`, Corsica cut out of France.
 - **Prices**, as much as possible from ENTSO-E:
-  - day-ahead: the neighbours' (`neighbour_prices.json`) and the zones' (`map_prices.json`); in the full version GME's zonal prices stand in where ENTSO-E's are not on file;
+  - day-ahead: the neighbours' (`neighbour_prices.json`); the zones': GME's zonal prices in the full version, exact to the cent (ENTSO-E's differ by a cent in a few quarter-hours, and read +0.01 where GME's were −0.01 in South, Calabria and Sicily on 14 October 2026), ENTSO-E's (`map_prices.json`) where GME's are missing and in the public version;
   - imbalance: the zones' (`balancing/<ZONE>.json`, 17.1.G) and the neighbours' (`map_prices.json`; Switzerland's insufficient-balance price kept apart, as `imbalance_short`);
   - aFRR up and down: PICASSO's cross-border marginal prices (`picasso.json`), Terna's on the mainland zones (Sicily and Sardinia are aFRR areas of their own, without one);
-  - MI-A1/2/3 and MI-XBID: GME's, the zones only, full version only.
+  - MI-A1/2/3 (SIDC's intraday auctions IDA 1-3, full version only): GME's for the zones; Austria's, France's and Slovenia's are North's plus JAO's spread with it in the same auction (`jao_spreads.json`), Greece's South's plus its spread, on the days JAO's day-ahead spread gives ENTSO-E's day-ahead price to the cent (Greece's did not on many days until August 2026); none for Switzerland and Montenegro;
+  - MI-XBID: GME's, the zones only, full version only.
+- Prices are shown to the cent.
 - **Flows:** ENTSO-E's scheduled exchanges, day-ahead and total (12.1.F), and physical flows (12.1.G) of every zone's borders (`zones/<ZONE>/crossborder.json`), Corsica's two links and Malta's included.
 - `map_prices.json` (`etl/fetch_map_prices.py`, `update-map-prices.yml`, every 3 hours and after the day-ahead results): the zones' day-ahead prices (12.1.D, A44) and the neighbours' imbalance prices (17.1.G, A85); its first run reads from 1 January 2025.
 
