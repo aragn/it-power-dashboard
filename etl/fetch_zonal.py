@@ -11,6 +11,7 @@ from datetime import date, datetime, timedelta
 import requests
 
 import compact
+import gme_auth
 
 # ============================================================================
 # CONFIGURATION
@@ -60,38 +61,8 @@ INITIAL_RETRY_SECONDS = 30
 
 
 def get_token(login, password):
-    """Authenticate with GME and return the JWT token."""
-
-    response = requests.post(
-        AUTH_URL,
-        json={
-            "Login": login,
-            "Password": password,
-        },
-        timeout=60,
-    )
-
-    response.raise_for_status()
-
-    payload = response.json()
-
-    if not payload.get("success"):
-        reason = payload.get(
-            "reason",
-            "Unknown authentication error",
-        )
-        raise RuntimeError(
-            f"GME authentication failed: {reason}"
-        )
-
-    token = payload.get("token")
-
-    if not token:
-        raise RuntimeError(
-            "GME authentication succeeded but no token was returned."
-        )
-
-    return token
+    """Authenticate with GME and return the JWT token (retried: gme_auth)."""
+    return gme_auth.login(login, password, AUTH_URL)
 
 
 # ============================================================================

@@ -30,6 +30,8 @@ from datetime import date, timedelta
 
 import requests
 
+import gme_auth
+
 API_BASE = "https://api.mercatoelettrico.org/request/api/v1"
 REQUEST_PAUSE_SECONDS = 20
 MAX_RETRIES = 6
@@ -63,12 +65,8 @@ ZONE_EICS = {
 
 
 def get_token(login, password):
-    response = requests.post(f"{API_BASE}/Auth", json={"Login": login, "Password": password}, timeout=60)
-    response.raise_for_status()
-    payload = response.json()
-    if not payload.get("success"):
-        raise RuntimeError(f"GME authentication failed: {payload.get('reason')}")
-    return payload["token"]
+    """Authenticate with GME and return the JWT token (retried: gme_auth)."""
+    return gme_auth.login(login, password, f"{API_BASE}/Auth")
 
 
 def innermost(raw):
