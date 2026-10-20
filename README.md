@@ -45,7 +45,8 @@ Maps › Prices and flows colours Italy's seven bidding zones and the areas roun
   - MI-XBID: GME's, the zones only, full version only.
 - Prices are shown to the cent.
 - **Flows:** ENTSO-E's scheduled exchanges, day-ahead and total (12.1.F), and physical flows (12.1.G) of every zone's borders (`zones/<ZONE>/crossborder.json`), Corsica's two links and Malta's included.
-- `map_prices.json` (`etl/fetch_map_prices.py`, `update-map-prices.yml`, every 3 hours and after the day-ahead results): the zones' day-ahead prices (12.1.D, A44) and the neighbours' imbalance prices (17.1.G, A85); its first run reads from 1 January 2025.
+- **Hover windows** (full version): an area's price, generation and load (ENTSO-E: the zones' from `zones/<ZONE>/generation_load.json`, the neighbours' from `map_prices.json`) and net export at the slider's time; a border's flow and its direction.
+- `map_prices.json` (`etl/fetch_map_prices.py`, `update-map-prices.yml`, every 3 hours and after the day-ahead results): the zones' day-ahead prices (12.1.D, A44); the neighbours' imbalance prices (17.1.G, A85), generation (16.1.B&C, A75, the production types summed) and load (6.1.A&B, A65). A series is read from 1 January 2025 the first time (`history_read`), then over the last 7 days.
 
 ## Analysis tab
 

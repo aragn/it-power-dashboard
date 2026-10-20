@@ -16346,7 +16346,10 @@ move the slider above to another one`,
    *     on the days JAO's day-ahead spread gives ENTSO-E's day-ahead price to
    *     the cent (Greece's did not on many days until August 2026);
    *   - flows: ENTSO-E's scheduled exchanges (day-ahead, total) and physical
-   *     flows of each zone's borders (zones/<ZONE>/crossborder.json).
+   *     flows of each zone's borders (zones/<ZONE>/crossborder.json);
+   *   - in an area's hover window, its generation and load (ENTSO-E): the
+   *     zones' from zones/<ZONE>/generation_load.json, the neighbours' from
+   *     map_prices.json.
    * Below the map, a summary of the period and of the slider's quarter-hour.
    */
   const ZMAP_ZONES = ["NORD", "CNOR", "CSUD", "SUD", "CALA", "SICI", "SARD"];
@@ -16493,10 +16496,14 @@ move the slider above to another one`,
       PUBLIC_MODE ? null : zmapSeriesFile("intraday_prices.json", from),
       PUBLIC_MODE ? null : zmapSeriesFile("xbid_prices.json", from),
       PUBLIC_MODE ? null : zmapSeriesFile("jao_spreads.json", from),
-      ...ZMAP_ZONES.map(zone => zmapFetch(`./data/balancing/${zone}.json`))
-    ])).then(([picasso, intraday, xbid, jao, ...balancing]) => {
-      Object.assign(files, { picasso, intraday, xbid, jao, extra: true });
-      ZMAP_ZONES.forEach((zone, index) => { files.balancing[zone] = balancing[index]; });
+      ...ZMAP_ZONES.map(zone => zmapFetch(`./data/balancing/${zone}.json`)),
+      ...ZMAP_ZONES.map(zone => zmapSeriesFile(`zones/${zone}/generation_load.json`, from))
+    ])).then(([picasso, intraday, xbid, jao, ...zoneFiles]) => {
+      Object.assign(files, { picasso, intraday, xbid, jao, genLoad: {}, extra: true });
+      ZMAP_ZONES.forEach((zone, index) => {
+        files.balancing[zone] = zoneFiles[index];
+        files.genLoad[zone] = zoneFiles[ZMAP_ZONES.length + index];
+      });
       return files;
     });
     return { main, extra };
@@ -16624,6 +16631,38 @@ move the slider above to another one`,
     if (!reader) return null;
     const run = zmapRun(period, `p|${type}|${area}`, reader);
     return run ? { run, source } : null;
+  }
+
+  /*
+   * An area's generation or load (MW) over the period: the zones' from their
+   * ENTSO-E files (the production types summed, each day up to the last
+   * quarter-hour every type has reached, a type without a value before it
+   * counting as 0), the neighbours' from map_prices.json.
+   */
+  function zmapSystemRun(files, period, area, kind) {
+    if (ZMAP_ZONES.includes(area)) {
+      const file = files.genLoad && files.genLoad[area];
+      if (!file) return null;
+      if (kind === "load") {
+        const node = file.total_load;
+        return node ? zmapRun(period, `s|load|${area}`, (date, T) =>
+          zmapDay(node.quarter_hourly && node.quarter_hourly.TOTAL, node.hourly && node.hourly.TOTAL, date, T)) : null;
+      }
+      const quarter = (file.generation && file.generation.quarter_hourly) || {}, hourly = (file.generation && file.generation.hourly) || {};
+      const codes = [...new Set([...Object.keys(quarter), ...Object.keys(hourly)])];
+      return zmapRun(period, `s|generation|${area}`, (date, T) => {
+        const days = codes.map(code => zmapDay(quarter[code] && quarter[code].points, hourly[code] && hourly[code].points, date, T)).filter(Boolean);
+        const lasts = days.map(values => { for (let t = values.length - 1; t >= 0; t -= 1) if (Number.isFinite(values[t])) return t; return -1; })
+          .filter(t => t >= 0);
+        if (!lasts.length) return null;
+        const last = Math.min(...lasts);
+        return Float64Array.from({ length: T }, (_, t) => (t > last ? NaN
+          : days.reduce((sum, values) => sum + (Number.isFinite(values[t]) ? values[t] : 0), 0)));
+      });
+    }
+    const series = files.mapPrices && files.mapPrices.series, name = `${area}|${kind}`;
+    const quarter = series && series.quarter_hourly && series.quarter_hourly[name], hourly = series && series.hourly && series.hourly[name];
+    return quarter || hourly ? zmapRun(period, `s|${kind}|${area}`, (date, T) => zmapDay(quarter, hourly, date, T)) : null;
   }
 
   /* A border's flow over the period, positive from a to b. */
@@ -16921,9 +16960,13 @@ move the slider above to another one`,
       const line = (label, value) => `<div><span style="color:${muted}">${escapeHtml(label)}</span> ${value}</div>`;
       if (data.area) {
         const area = view.areas.find(entry => entry.code === data.area);
+        const system = kind => {
+          const value = zmapMean(zmapSystemRun(files, period, area.code, kind), step.start, step.end);
+          return Number.isFinite(value) ? `${formatNumber(value)} MW` : "n/a";
+        };
         return `<div style="font-weight:600;margin-bottom:3px">${escapeHtml(zmapName(area.code))}</div>` +
           line(zmapPrice(view.type).label, zmapEuro(zmapMean(area.price, step.start, step.end))) +
-          line("Period average", zmapEuro(area.stats.mean)) +
+          (area.code === "CORS" ? "" : line("Generation", system("generation")) + line("Load", system("load"))) +
           (area.net ? line(ZMAP_ZONES.includes(area.code) ? "Net export" : "Net export to Italy", zmapSignedMw(zmapMean(area.net, step.start, step.end))) : "");
       }
       if (data.border) {
@@ -16931,8 +16974,7 @@ move the slider above to another one`,
         const value = zmapMean(entry.run, step.start, step.end);
         const [a, b] = value < 0 ? [entry.border.to, entry.border.a] : [entry.border.a, entry.border.to];
         return `<div style="font-weight:600;margin-bottom:3px">${escapeHtml(zmapBorderName(entry.border))}</div>` +
-          line(zmapFlow(view.flowType).long, Number.isFinite(value) ? `${mw(value)}, ${escapeHtml(zmapName(a))} → ${escapeHtml(zmapName(b))}` : "n/a") +
-          line("Period average", zmapDirected(entry.stats.mean, entry.border));
+          line(zmapFlow(view.flowType).long, Number.isFinite(value) ? `${mw(value)}, ${escapeHtml(zmapName(a))} → ${escapeHtml(zmapName(b))}` : "n/a");
       }
       return "";
     }

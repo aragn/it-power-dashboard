@@ -80,8 +80,40 @@ def test_output_round_trips_through_the_compact_format():
     existing = {resolution: {} for resolution in map_prices.RESOLUTIONS}
     series = entsoe_api.merge_resolutions(existing, map_prices.imbalance_records(root, "AT"),
                                           map_prices.RESOLUTIONS, daily="mean")
-    payload = map_prices.build_output(series)
-    assert payload["areas"]["AT"] == "Austria" and payload["areas"]["CALA"] == "Calabria"
+    payload = map_prices.build_output(series, {"AT|imbalance"})
+    assert payload["areas"]["AT"] == "Austria" and payload["areas"]["CALA"] == "Calabria" and payload["areas"]["MT"] == "Malta"
+    assert payload["history_read"] == ["AT|imbalance"]
     decoded = compact.decode_tree(payload)["series"]
     assert decoded["hourly"]["AT|imbalance"] == [{"date": "2025-10-15", "time": "00:00", "value": 60.0}]
     assert decoded["daily"]["AT|imbalance"] == [{"date": "2025-10-15", "value": 60.0}]
+
+
+def generation_series(start, end, resolution, psr, points, consumption=False):
+    domain = "outBiddingZone_Domain.mRID" if consumption else "inBiddingZone_Domain.mRID"
+    body = "".join(f"<Point><position>{p}</position><quantity>{v}</quantity></Point>" for p, v in points)
+    return (f"<TimeSeries><{domain}>10YFR-RTE------C</{domain}><curveType>A01</curveType>"
+            f"<MktPSRType><psrType>{psr}</psrType></MktPSRType>"
+            f"<Period><timeInterval><start>{start}</start><end>{end}</end></timeInterval>"
+            f"<resolution>{resolution}</resolution>{body}</Period></TimeSeries>")
+
+
+def test_generation_sums_the_types_up_to_the_last_quarter_every_type_reached():
+    root = document(
+        # Gas every quarter-hour 00:00-00:45, nuclear hourly (all four quarter-hours).
+        generation_series("2025-10-14T22:00Z", "2025-10-14T23:00Z", "PT15M", "B04", [(1, 100), (2, 110), (3, 120), (4, 130)]),
+        generation_series("2025-10-14T22:00Z", "2025-10-14T23:00Z", "PT60M", "B14", [(1, 1000)]),
+        # Solar only reported to 00:15: the day stops there, not with a dip at 00:30.
+        generation_series("2025-10-14T22:00Z", "2025-10-14T22:30Z", "PT15M", "B16", [(1, 5), (2, 6)]),
+        # Pumping (consumption) is not generation.
+        generation_series("2025-10-14T22:00Z", "2025-10-14T23:00Z", "PT15M", "B10", [(1, 999)], consumption=True),
+    )
+    records = map_prices.generation_records(root, "FR")
+    assert values(records, "FR|generation") == [("00:00", 1105.0), ("00:15", 1116.0)]
+
+
+def test_a_type_missing_before_the_last_quarter_counts_as_zero():
+    root = document(
+        generation_series("2025-10-14T22:00Z", "2025-10-14T22:45Z", "PT15M", "B04", [(1, 100), (2, 100), (3, 100)]),
+        generation_series("2025-10-14T22:00Z", "2025-10-14T22:45Z", "PT15M", "B16", [(1, 5), (3, 7)]),
+    )
+    assert values(map_prices.generation_records(root, "AT"), "AT|generation") == [("00:00", 105.0), ("00:15", 100.0), ("00:30", 107.0)]
