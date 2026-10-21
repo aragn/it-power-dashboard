@@ -70,8 +70,9 @@ CHUNK_DAYS = 365
 # Incremental runs re-download this many days to pick up revisions.
 LOOKBACK_DAYS = 7
 
-# ENTSO-E allows 400 requests a minute per token; from GitHub's runners a
-# request takes about 7 s, so the 26 documents go 4 at a time.
+# ENTSO-E allows 400 requests a minute per token: the 26 documents go 4 at a
+# time (from GitHub's runners one after the other took 3 minutes, 4 at a time
+# 20 s, 21 October 2026).
 PARALLEL_REQUESTS = 4
 
 # The neighbours coupled with Italy in the MGP, and Switzerland.
@@ -215,10 +216,17 @@ def main():
     areas = [(zone, eic, ("price", "load_forecast", "res_forecast")) for zone, eic in ZONE_DOMAINS.items()]
     areas += [(code, BORDERS[code][1], ("price",)) for code in NEIGHBOURS]
 
+    # EUA: the years not on file yet, and always the current one; from EEX
+    # while ENTSO-E's documents come.
+    have_years = {int(day[:4]) for day in eua}
+    first_missing = next((year for year in range(HISTORY_START.year, end_date.year + 1)
+                          if year not in have_years), end_date.year)
+
     documents = [(area, eic, kind) for area, eic, kinds in areas for kind in kinds]
     new = {}
     failed = []
     with ThreadPoolExecutor(PARALLEL_REQUESTS) as pool:
+        eua_download = pool.submit(download_eua, min(first_missing, end_date.year), end_date.year)
         results = pool.map(lambda document: download(token, *document, start_date, end_date), documents)
         for (area, _, kind), series in zip(documents, results):
             if series is None:
@@ -230,12 +238,7 @@ def main():
         raise RuntimeError("Every request failed.")
 
     hourly = merge_group_series(existing, new)
-
-    # EUA: the years not on file yet, and always the current one.
-    have_years = {int(day[:4]) for day in eua}
-    first_missing = next((year for year in range(HISTORY_START.year, end_date.year + 1)
-                          if year not in have_years), end_date.year)
-    eua.update(download_eua(min(first_missing, end_date.year), end_date.year))
+    eua.update(eua_download.result())
 
     compact.dump(build_output(hourly, eua), OUTPUT_PATH)
 
