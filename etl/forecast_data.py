@@ -70,13 +70,20 @@ class Data:
     calendar    {"holiday", "saturday", "sunday"}: 0/1 arrays over the axis
     weather     {"<ZONE>|wind_speed|d<k>", ...}: Open-Meteo forecasts made k days
                 before each hour (etl/fetch_weather.py), when on file
+
+    until: a day the axis reaches at least (the day to forecast, before any
+    input for it is out).  latest_from: an axis position from which the
+    weather is the latest run's (d0) instead of the one made the day before:
+    the live forecast's own day.
     """
 
-    def __init__(self, inputs_path=INPUTS_PATH, gas_path=GAS_PATH, weather_path=WEATHER_PATH):
+    def __init__(self, inputs_path=INPUTS_PATH, gas_path=GAS_PATH, weather_path=WEATHER_PATH, until=None):
         payload = compact.load(inputs_path)
         hourly = payload["hourly"]
-        last = max(rows[-1]["date"] for rows in hourly.values() if rows)
-        self.days = [START + timedelta(days=i) for i in range((date.fromisoformat(last) - START).days + 1)]
+        last = max(date.fromisoformat(rows[-1]["date"]) for rows in hourly.values() if rows)
+        if until and until > last:
+            last = until
+        self.days = [START + timedelta(days=i) for i in range((last - START).days + 1)]
 
         self.day_start, self.hours = {}, {}
         position = 0
@@ -98,8 +105,10 @@ class Data:
             self.series[name] = values
 
         eua = {row["date"]: row["value"] for row in payload.get("daily", {}).get("eua", [])}
+        self.eua_prices = eua
+        self.gas_prices = load_gas(gas_path)
         self.eua_daily = self._daily_filled(eua)
-        self.gas_daily = self._daily_filled(load_gas(gas_path))
+        self.gas_daily = self._daily_filled(self.gas_prices)
         self.gas = self._hourly(self._lagged(self.gas_daily))
         self.eua = self._hourly(self._lagged(self.eua_daily))
 
@@ -122,14 +131,15 @@ class Data:
                         values[start + int(hours) + int(minutes) // 60] = row["value"]
                 self.weather[name] = values
         self.weather_cache = {}
+        self.latest_from = None
 
     def weather_ahead(self, zone, name, days_ahead=1):
         """A weather series as forecast `days_ahead` days before each day, before
         its 12:00 auction gate, so from the runs up to 00 UTC of that day: an
         hour takes the forecast made days_ahead days (24 h each) before it
         until 06 UTC of its day, and the one a day older after.  NaN where not
-        on file."""
-        key = (zone, name, days_ahead)
+        on file; from latest_from on, the latest run's."""
+        key = (zone, name, days_ahead, self.latest_from)
         if key not in self.weather_cache:
             early = self.weather.get(f"{zone}|{name}|d{days_ahead}")
             late = self.weather.get(f"{zone}|{name}|d{days_ahead + 1}")
@@ -140,6 +150,9 @@ class Data:
                     cut = start + hours_to_six_utc(day)
                     out[start:cut] = early[start:cut]
                     out[cut:end] = late[cut:end]
+            latest = self.weather.get(f"{zone}|{name}|d0")
+            if self.latest_from is not None and latest is not None:
+                out[self.latest_from:] = latest[self.latest_from:]
             self.weather_cache[key] = out
         return self.weather_cache[key]
 
