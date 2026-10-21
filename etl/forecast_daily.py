@@ -38,7 +38,7 @@ from zones import DATA_DIR, ZONE_NAMES  # noqa: E402
 LATEST_PATH = os.path.join(DATA_DIR, "forecast", "latest.json")
 HISTORY_PATH = os.path.join(DATA_DIR, "forecast", "history.json")
 
-MODEL = "timestral-28m-wx"
+MODEL = "timestral-209m-wx"
 WEEK_MODEL = "timestral-28m-week"
 # Quantiles in latest.json's week.
 WEEK_LEVELS = (0.05, 0.25, 0.5, 0.75, 0.95)
