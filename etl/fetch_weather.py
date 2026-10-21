@@ -71,10 +71,21 @@ FORECAST_DAYS = 7
 
 # A request covers this many days; Open-Meteo counts a call per location and
 # per two weeks, so a request of ~15 points and 90 days is ~100 calls of the
-# free API's 600 a minute and 10,000 a day.
+# free API's 600 a minute and 10,000 a day.  A shorter request (the daily
+# runs' 18 days) pauses for its share of a full one's pause.
 CHUNK_DAYS = 90
 REQUEST_PAUSE_SECONDS = 12
 MAX_RETRIES = 5
+
+# From GitHub's runners about half the new connections to Open-Meteo stall in
+# the TLS handshake, while a new attempt at once and the requests over a
+# kept-alive connection go through (21 October 2026): so the requests share
+# one session, a handshake gets CONNECT_TIMEOUT_SECONDS, and a stalled one is
+# tried again after STALL_RETRY_SECONDS.
+CONNECT_TIMEOUT_SECONDS = 10
+READ_TIMEOUT_SECONDS = 180
+STALL_RETRY_SECONDS = 5
+STALL_RETRIES = 8
 
 VARIABLES = {
     # name in the file: (Open-Meteo variable, points, decimals)
@@ -201,7 +212,7 @@ def api_url():
     return f"https://{host}/v1/forecast", key
 
 
-def request_points(locations, variable, start_date, end_date):
+def request_points(session, locations, variable, start_date, end_date):
     """[(times, {offset: values})] per location, UTC hours."""
     url, key = api_url()
     hourly = [variable] + [f"{variable}_previous_day{k}" for k in OFFSETS if k]
@@ -218,20 +229,22 @@ def request_points(locations, variable, start_date, end_date):
     if key:
         params["apikey"] = key
     wait = 30
-    for attempt in range(MAX_RETRIES + 1):
+    attempt = stalls = 0
+    while attempt <= MAX_RETRIES:
         try:
-            response = requests.get(url, params=params, timeout=180)
+            response = session.get(url, params=params, timeout=(CONNECT_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS))
         except (requests.ConnectionError, requests.Timeout) as error:
-            if attempt >= MAX_RETRIES:
+            stalls += 1
+            if stalls > STALL_RETRIES:
                 raise
-            print(f"    {type(error).__name__}. Waiting {wait}s...")
-            time.sleep(wait)
-            wait *= 2
+            print(f"    {type(error).__name__}. Again in {STALL_RETRY_SECONDS}s...", flush=True)
+            time.sleep(STALL_RETRY_SECONDS)
             continue
         if response.status_code == 429 or response.status_code >= 500:
-            if attempt >= MAX_RETRIES:
+            attempt += 1
+            if attempt > MAX_RETRIES:
                 response.raise_for_status()
-            print(f"    HTTP {response.status_code}: {response.text[:120]}. Waiting {wait}s...")
+            print(f"    HTTP {response.status_code}: {response.text[:120]}. Waiting {wait}s...", flush=True)
             time.sleep(wait)
             wait *= 2
             continue
@@ -264,6 +277,7 @@ def to_rows(times, values, variable):
 def download(points, start_date, end_date, names=None):
     """{"<ZONE>|<name>|d<k>": hourly rows}."""
     series = {}
+    session = requests.Session()
     for name, (variable, group, decimals) in VARIABLES.items():
         if names and name not in names:
             continue
@@ -273,7 +287,7 @@ def download(points, start_date, end_date, names=None):
         while chunk_start <= end_date:
             chunk_end = min(chunk_start + timedelta(days=CHUNK_DAYS - 1), end_date)
             print(f"  {name} ({variable}, {len(locations)} points): {chunk_start} -> {chunk_end}", flush=True)
-            results = request_points([p for _, p in locations], variable, chunk_start, chunk_end)
+            results = request_points(session, [p for _, p in locations], variable, chunk_start, chunk_end)
             # Weighted zone averages, per offset.
             sums = defaultdict(lambda: defaultdict(lambda: [0.0, 0.0]))
             for (zone, _), weight, (times, by_offset) in zip(locations, weights, results):
@@ -288,8 +302,9 @@ def download(points, start_date, end_date, names=None):
                     # Only when every point of the zone has a value.
                     if weight >= sum(w for (z, _), w in zip(locations, weights) if z == zone) - 1e-9:
                         rows.append({"date": day, "time": label, "value": round(total / weight, decimals)})
+            time.sleep(REQUEST_PAUSE_SECONDS * ((chunk_end - chunk_start).days + 1) / CHUNK_DAYS)
             chunk_start = chunk_end + timedelta(days=1)
-            time.sleep(REQUEST_PAUSE_SECONDS)
+    session.close()
     return series
 
 

@@ -33,6 +33,7 @@ import io
 import os
 import time
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
 import requests
@@ -69,6 +70,10 @@ CHUNK_DAYS = 365
 # Incremental runs re-download this many days to pick up revisions.
 LOOKBACK_DAYS = 7
 
+# ENTSO-E allows 400 requests a minute per token; from GitHub's runners a
+# request takes about 7 s, so the 26 documents go 4 at a time.
+PARALLEL_REQUESTS = 4
+
 # The neighbours coupled with Italy in the MGP, and Switzerland.
 NEIGHBOURS = ("FR", "CH", "AT", "SI", "GR")
 
@@ -103,7 +108,7 @@ def download(token, area, eic, kind, start_date, end_date):
         keep = lambda ts: production_type(ts) in RES_TYPES
 
     for chunk_start, chunk_end in day_chunks(start_date, end_date, CHUNK_DAYS):
-        print(f"  {area} {kind}: {chunk_start} -> {chunk_end}")
+        print(f"  {area} {kind}: {chunk_start} -> {chunk_end}", flush=True)
         requests_made += 1
         try:
             root = request_entsoe(token, {
@@ -113,10 +118,10 @@ def download(token, area, eic, kind, start_date, end_date):
             })
         except requests.HTTPError as error:
             failures += 1
-            print(f"    WARNING: {error}")
+            print(f"    {area} {kind} {chunk_start}: WARNING: {error}", flush=True)
             continue
         if root is None:
-            print("    No matching data")
+            print(f"    {area} {kind} {chunk_start}: No matching data", flush=True)
         records.extend(parse_points(root, group_of=group_of, keep=keep))
         time.sleep(REQUEST_PAUSE_SECONDS)
 
@@ -210,17 +215,18 @@ def main():
     areas = [(zone, eic, ("price", "load_forecast", "res_forecast")) for zone, eic in ZONE_DOMAINS.items()]
     areas += [(code, BORDERS[code][1], ("price",)) for code in NEIGHBOURS]
 
+    documents = [(area, eic, kind) for area, eic, kinds in areas for kind in kinds]
     new = {}
     failed = []
-    for area, eic, kinds in areas:
-        for kind in kinds:
-            series = download(token, area, eic, kind, start_date, end_date)
+    with ThreadPoolExecutor(PARALLEL_REQUESTS) as pool:
+        results = pool.map(lambda document: download(token, *document, start_date, end_date), documents)
+        for (area, _, kind), series in zip(documents, results):
             if series is None:
                 failed.append(f"{area} {kind}")
                 continue
             new.update(series)
 
-    if failed and len(failed) == sum(len(kinds) for _, _, kinds in areas):
+    if failed and len(failed) == len(documents):
         raise RuntimeError("Every request failed.")
 
     hourly = merge_group_series(existing, new)
