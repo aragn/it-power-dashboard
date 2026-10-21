@@ -14,6 +14,15 @@ What is known on the morning of D, for each day of the week:
   - the gas and EUA prices: the last known on D, held over the week;
   - the calendar.
 
+The weather helps the first days only: in the backtest (365 mornings to
+14 October 2026) the model with it had the lowest error 1 and 2 days ahead,
+but from day 4 a higher one than the prices alone, and too narrow a band (the
+weather beyond day 3 being far less sure than the next day's it learns from).
+The week's forecast ("timestral-28m-week") is therefore the weather model for
+days 1-2 and, from day 3, the average of its quantiles and the prices-only
+model's: the lowest error and best band from day 3 on (chosen on the same
+backtest, so its edge there is slightly flattering).
+
   forecast_week.py --backtest            the last 365 decision days -> backtest/week.json
   forecast_week.py --backtest --models naive-week
 
@@ -48,7 +57,22 @@ MODELS = {
     "timestral-28m-wx-week": {"label": "Timestral 28M, with weather", "size": "28M", "weather": True,
                               "description": "Timestral-28M zero-shot with the week's weather forecasts, tomorrow's load "
                                              "forecast, the gas and EUA prices and the calendar"},
+    "timestral-28m-week": {"label": "Timestral 28M, combined", "parts": ("timestral-28m-wx-week", "timestral-28m-ar-week"),
+                           "description": "With weather for days 1-2; from day 3 the average of that and the prices-only "
+                                          "forecast"},
 }
+# Days ahead the combined forecast takes the weather model alone.
+WEATHER_ONLY_DAYS = 2
+
+
+def combine(data, decision_day, weather, prices_only):
+    """The combined forecast of a week: `weather` for its first
+    WEATHER_ONLY_DAYS days, the average of the two models' quantiles after."""
+    days, start, _ = week_days(data, decision_day)
+    cut = data.day_start[days[WEATHER_ONLY_DAYS]] - start
+    out = weather.copy()
+    out[:, cut:] = (weather[:, cut:] + prices_only[:, cut:]) / 2
+    return out
 
 
 def week_days(data, day):
@@ -250,12 +274,21 @@ def main():
     if not args.report_only:
         for model in args.models.split(","):
             spec = MODELS[model]
+            if "parts" in spec:
+                continue
             print(f"  {model}", flush=True)
             started = time.time()
             forecasts = naive_week(data, decision_days) if model == "naive-week" else timestral_week(data, decision_days, spec)
             save(model, forecasts)
             print(f"  {model}: done in {(time.time() - started) / 60:.1f} min", flush=True)
 
+    # The combined forecast, from its parts.
+    for model, spec in MODELS.items():
+        if "parts" in spec:
+            weather, prices_only = (load(part, data) for part in spec["parts"])
+            if weather and prices_only:
+                save(model, {day: combine(data, day, weather[day], prices_only[day])
+                             for day in weather if day in prices_only})
     forecasts = {model: load(model, data) for model in MODELS}
     forecasts = {model: f for model, f in forecasts.items() if f is not None}
     common = [day for day in decision_days if all(day in f for f in forecasts.values())]

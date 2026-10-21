@@ -22498,16 +22498,21 @@ move the slider above to another one`,
       forecastSection("week", "The Week Ahead", `<div id="forecast-week-table" class="gas-table-wrap forecast-table-wrap"></div>`,
         "Daily baseload of the MGP price forecast, €/MWh (the hourly median's average) and, below, the average of the hours' 5% and " +
         "95% quantiles. Made on the morning before tomorrow's auction: tomorrow with Terna's load forecast when out, the days " +
-        "after with the weather forecasts, the calendar and the gas and EUA prices of today held over the week. The further " +
-        "ahead, the wider the band: see the errors by days ahead below.", true) +
+        "after with the weather forecasts, the calendar and the gas and EUA prices of today held over the week; from day 3 " +
+        "averaged with the forecast from the prices alone. The further ahead, the wider the band: see the errors by days ahead " +
+        "below.", true) +
       forecastSection("week-hours", "The Week, Hourly", chart("week-hours"),
         "€/MWh. Today's prices, then the week's forecast: the median with its 25–75% (darker) and 5–95% bands.", true,
         `<div class="merit-filters"><label class="mgp-source-filter">Zone <select id="forecast-week-zone" aria-label="Bidding zone">${zoneOptions}</select></label></div>`) +
       forecastSection("week-zones", "Daily Baseload by Zone", chart("week-zones"), "Median forecast, €/MWh, each day's average.") +
       forecastSection("week-leads", "Backtest: Error by Days Ahead", chart("week-leads"),
         "Mean absolute error of the median, €/MWh, by how many days ahead the forecast was made, over the backtest's year " +
-        "(a forecast each morning, all zones or the zone chosen above). Naive: the same weekday of the last week known. Day 7's " +
-        "weather is a few hours fresher than a trader had (Open-Meteo keeps forecasts up to 7 days before the hour).");
+        "(a forecast each morning, all zones or the zone chosen above). Naive: the same weekday of the last week known. The " +
+        "weather helps the first two days; further ahead the model with it does worse than the prices alone and its band gets " +
+        "too narrow, so the week shown above (combined) is the weather model for days 1–2 and, from day 3, the average of the " +
+        "two models' quantiles: the best from day 3 on in this backtest (the same year it was chosen on, so slightly " +
+        "flattering). Day 7's weather is a few hours fresher than a trader had (Open-Meteo keeps forecasts up to 7 days before " +
+        "the hour).");
     weekState.charts = {
       hours: echarts.init(document.getElementById("forecast-week-hours-chart")),
       zones: echarts.init(document.getElementById("forecast-week-zones-chart")),
@@ -22631,7 +22636,8 @@ move the slider above to another one`,
     const summary = weekState.summary;
     const zone = weekState.zone;
     const zoneName = summary.zones.find(item => item.code === zone).name;
-    const colors = { "naive-week": "--fc-naive", "timestral-28m-ar-week": "--fc-ts-ar", "timestral-28m-wx-week": "--fc-ts28-wx" };
+    const colors = { "naive-week": "--fc-naive", "timestral-28m-ar-week": "--fc-ts-ar", "timestral-28m-wx-week": "--fc-ts28-wx",
+      "timestral-28m-week": "--fc-ts28" };
     const names = [];
     const series = [];
     summary.models.forEach(model => {
@@ -22643,8 +22649,8 @@ move the slider above to another one`,
           { showSymbol: true, symbolSize: 5, lineStyle: { type } }));
       });
     });
-    setText("forecast-week-leads-subtitle", `${summary.days} forecasts, ${forecastShortDay(summary.decision_start)} ` +
-      `${summary.decision_start.slice(0, 4)} – ${forecastShortDay(summary.decision_end)} ${summary.decision_end.slice(0, 4)} · solid: all zones, dashed: ${zoneName}`);
+    setText("forecast-week-leads-subtitle", `${summary.days} forecasts, made ${forecastLongDay(summary.decision_start)} – ` +
+      `${forecastLongDay(summary.decision_end)} · solid: all zones, dashed: ${zoneName}`);
     chart.setOption({
       animation: false, backgroundColor: "transparent",
       tooltip: bessTooltip(items => bessTipHead(`${items[0].axisValue} ahead`) + items
