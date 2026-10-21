@@ -60,6 +60,15 @@ MODELS = {
     "timestral-28m-week": {"label": "Timestral 28M, combined", "parts": ("timestral-28m-wx-week", "timestral-28m-ar-week"),
                            "description": "With weather for days 1-2; from day 3 the average of that and the prices-only "
                                           "forecast"},
+    "timestral-209m-ar-week": {"label": "Timestral 209M, prices only", "size": "209M", "weather": False,
+                               "description": "Timestral-209M zero-shot, the zones' prices alone"},
+    "timestral-209m-wx-week": {"label": "Timestral 209M, with weather", "size": "209M", "weather": True,
+                               "description": "Timestral-209M zero-shot with the week's weather forecasts, tomorrow's load "
+                                              "forecast, the gas and EUA prices and the calendar"},
+    "timestral-209m-week": {"label": "Timestral 209M, combined",
+                            "parts": ("timestral-209m-wx-week", "timestral-209m-ar-week"),
+                            "description": "With weather for days 1-2; from day 3 the average of that and the prices-only "
+                                           "forecast"},
 }
 # Days ahead the combined forecast takes the weather model alone.
 WEATHER_ONLY_DAYS = 2
