@@ -31,7 +31,7 @@ The models:
                solar farms (and, for Timestral, the temperature in the cities)
 
 Only inputs out before the MGP's 12:00 gate on X-1: Terna's day-ahead load
-forecast for X is on ENTSO-E by about 11:30, its wind and solar forecasts only
+forecast for X is on ENTSO-E early on X-1 (by 07:15), its wind and solar forecasts only
 at about 18:00 (seen on the dashboard's update runs, October 2026), so the
 "-res" models have inputs a trader did not have from ENTSO-E: they show what a
 morning wind and solar forecast would be worth.  The files also hold the

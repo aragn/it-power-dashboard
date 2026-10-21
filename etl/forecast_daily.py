@@ -2,10 +2,12 @@
 Tomorrow's day-ahead (MGP) price forecast for the seven Italian bidding zones,
 for the Forecast tab: app/data/forecast/latest.json, and the forecast kept for
 its day in app/data/forecast/history.json, scored once the day's prices are out.
+latest.json also holds the week ahead (etl/forecast_week.py): the next 7 days,
+with the weather forecasts as their known inputs.
 
 Made with only what is out on the morning before the auction (12:00 Italian
 time): the zones' prices up to today (yesterday's auction), Terna's load
-forecast for tomorrow when it is out (on ENTSO-E by about 11:30), the latest
+forecast for tomorrow when it is out (on ENTSO-E by about 07:15), the latest
 weather run for tomorrow (etl/fetch_weather.py), the gas and EUA prices, the
 neighbours' prices and the calendar; the model is the backtest's
 (etl/forecast_backtest.py, MODELS).  Run after fetch_forecast_inputs.py and
@@ -28,6 +30,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import forecast_backtest as backtest  # noqa: E402
+import forecast_week  # noqa: E402
 from entsoe_api import MARKET_TZ, market_today  # noqa: E402
 from forecast_data import FUEL_LAG_DAYS, ZONES, Data  # noqa: E402
 from zones import DATA_DIR, ZONE_NAMES  # noqa: E402
@@ -36,6 +39,9 @@ LATEST_PATH = os.path.join(DATA_DIR, "forecast", "latest.json")
 HISTORY_PATH = os.path.join(DATA_DIR, "forecast", "history.json")
 
 MODEL = "timestral-28m-wx"
+WEEK_MODEL = "timestral-28m-week"
+# Quantiles in latest.json's week.
+WEEK_LEVELS = (0.05, 0.25, 0.5, 0.75, 0.95)
 # Quantiles kept in the history (latest.json has all 21).
 HISTORY_LEVELS = (0.05, 0.5, 0.95)
 GATE_HOUR = 12
@@ -102,15 +108,36 @@ def score(entry, actual):
     return out
 
 
+def week(data, decision_day):
+    """The week after `decision_day`, from forecast_week's model, for latest.json."""
+    spec = forecast_week.MODELS[WEEK_MODEL]
+    print(f"Forecasting the week after {decision_day} with {WEEK_MODEL}", flush=True)
+    weather, prices_only = (forecast_week.timestral_week(data, [decision_day], forecast_week.MODELS[part], batch=1)[decision_day]
+                            for part in spec["parts"])
+    quantiles = forecast_week.combine(data, decision_day, weather, prices_only)
+    days, _, _ = forecast_week.week_days(data, decision_day)
+    return {
+        "model": {"id": WEEK_MODEL, "label": spec["label"], "description": spec["description"]},
+        "days": [d.isoformat() for d in days],
+        "hours": [data.hours[d] for d in days],
+        "levels": list(WEEK_LEVELS),
+        # Per zone: one list of the week's hourly values per level.
+        "forecast": {zone: [rounded(quantiles[z, :, backtest.LEVELS.index(level)]) for level in WEEK_LEVELS]
+                     for z, zone in enumerate(ZONES)},
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--day", help="day to forecast YYYY-MM-DD (default: tomorrow)")
     parser.add_argument("--model", default=MODEL, help=f"one of the backtest's Timestral models (default {MODEL})")
+    parser.add_argument("--no-week", action="store_true", help="tomorrow only, not the week ahead")
     args = parser.parse_args()
 
     day = date.fromisoformat(args.day) if args.day else market_today() + timedelta(days=1)
     made_at = datetime.now(timezone.utc)
-    data = Data(until=day)
+    # The axis reaches the week's last day, before any input for it is out.
+    data = Data(until=day + timedelta(days=forecast_week.DAYS - 1))
     last_prices = data.last_price_day()
     if last_prices is None or last_prices < day - timedelta(days=1):
         raise SystemExit(f"The prices up to {day - timedelta(days=1)} are not on file (last: {last_prices}).")
@@ -141,6 +168,8 @@ def main():
         "today": {"day": today.isoformat(),
                   "prices": {zone: rounded(data.series[f"{zone}|price"][data.day_slice(today)]) for zone in ZONES}},
     }
+    if not args.no_week:
+        latest["week"] = week(data, today)
     os.makedirs(os.path.dirname(LATEST_PATH), exist_ok=True)
 
     history = {"forecasts": {}}
