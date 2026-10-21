@@ -104,6 +104,9 @@ MODELS = {
     "timestral-28m-wx": {"label": "Timestral 28M, with weather", "size": "28M", "covariates": True, "res_ahead": False,
                          "weather": True, "context": 4096,
                          "description": "Timestral-28M with wind, irradiance and temperature forecasts for the day, made before the auction"},
+    "timestral-209m-wx": {"label": "Timestral 209M, with weather", "size": "209M", "covariates": True, "res_ahead": False,
+                          "weather": True, "context": 4096,
+                          "description": "Timestral-209M with wind, irradiance and temperature forecasts for the day, made before the auction"},
 }
 
 # Zones whose wind moves prices (the north's and the centre-north's is small).
