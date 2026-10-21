@@ -25,6 +25,10 @@ The models:
                models see the prices alone
   ensemble     the average of LEAR's and Timestral's quantiles
   *-res        the same with the wind and solar forecasts of day X too
+  *-wx         the same with weather forecasts for day X made before the gate
+               (Open-Meteo, ECMWF IFS runs up to 00 UTC of X-1, etl/fetch_weather.py):
+               the wind speed at the wind farms and the irradiance at the
+               solar farms (and, for Timestral, the temperature in the cities)
 
 Only inputs out before the MGP's 12:00 gate on X-1: Terna's day-ahead load
 forecast for X is on ENTSO-E by about 11:30, its wind and solar forecasts only
@@ -95,7 +99,31 @@ MODELS = {
     "timestral-28m-res": {"label": "Timestral 28M, with the day's wind and solar", "size": "28M", "covariates": True,
                           "res_ahead": True, "context": 4096,
                           "description": "Timestral-28M with the wind and solar forecasts of the day, published after the auction"},
+    "lear-wx": {"label": "LEAR, with weather", "res_ahead": False, "weather": True,
+                "description": "LEAR with the zone's wind and solar weather forecasts for the day, made before the auction"},
+    "timestral-28m-wx": {"label": "Timestral 28M, with weather", "size": "28M", "covariates": True, "res_ahead": False,
+                         "weather": True, "context": 4096,
+                         "description": "Timestral-28M with wind, irradiance and temperature forecasts for the day, made before the auction"},
 }
+
+# Zones whose wind moves prices (the north's and the centre-north's is small).
+WIND_ZONES = ("CSUD", "SUD", "CALA", "SICI", "SARD")
+WEATHER_POINTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "weather_points.json")
+
+
+def weather_weights():
+    """Each zone's solar MW and city population in etl/weather_points.json."""
+    with open(WEATHER_POINTS, encoding="utf-8") as handle:
+        points = json.load(handle)
+    solar = {zone: sum(p["mw"] for p in items) for zone, items in points["solar"].items()}
+    people = {zone: sum(p["population_m"] for p in items) for zone, items in points["cities"].items()}
+    return solar, people
+
+
+def weighted_italy(data, name, weights):
+    """Italy's value of a weather series: the zones' weighted average."""
+    total = sum(weights.values())
+    return sum(data.weather_ahead(zone, name) * weight for zone, weight in weights.items()) / total
 
 # Battery for the trading test: 1 MW / 2 MWh, 85% round trip, half full at
 # midnight, at most one full cycle a day, scheduled on the forecast's median
@@ -154,12 +182,12 @@ def naive_point(data, days):
     return out
 
 
-def lear_point(data, days, res_ahead=False):
+def lear_point(data, days, res_ahead=False, weather=False):
     """{day: (zones, HORIZON)} point forecasts, refitted every LEAR_REFIT_DAYS."""
     from joblib import Parallel, delayed
 
     results = Parallel(n_jobs=len(ZONES), verbose=0)(
-        delayed(_lear_zone)(data, zone, days, res_ahead) for zone in ZONES
+        delayed(_lear_zone)(data, zone, days, res_ahead, weather) for zone in ZONES
     )
     out = {}
     for day in days:
@@ -168,7 +196,7 @@ def lear_point(data, days, res_ahead=False):
     return out
 
 
-def _lear_features(data, zone, res_ahead=False):
+def _lear_features(data, zone, res_ahead=False, weather=False):
     """(days, features) matrix and (days, 24) target of one zone; feature rows
     for day i use only what is known on day i-1 before the auction (and, with
     res_ahead, day i's wind and solar forecast, published after it)."""
@@ -187,6 +215,9 @@ def _lear_features(data, zone, res_ahead=False):
     holiday = np.array([[float(data.calendar["holiday"][data.day_start[day]])] for day in data.days])
     fuel = np.column_stack([data._lagged(data.gas_daily), data._lagged(data.eua_daily)])
     res_lags = [res] if res_ahead else []
+    if weather:
+        res_lags += [slot_matrix(data, data.weather_ahead(zone, "wind_speed")),
+                     slot_matrix(data, data.weather_ahead(zone, "ghi"))]
     continuous = np.hstack([lag(price, 1), lag(price, 2), lag(price, 3), lag(price, 7),
                             load, lag(load, 1), lag(load, 7), *res_lags, lag(res, 1), lag(res, 7), fuel])
     return continuous, np.hstack([weekday, holiday]), price
@@ -200,14 +231,14 @@ def _scale(train, apply):
     return np.arcsinh((apply - median) / mad), median, mad
 
 
-def _lear_zone(data, zone, days, res_ahead=False):
+def _lear_zone(data, zone, days, res_ahead=False, weather=False):
     import warnings
 
     from sklearn.exceptions import ConvergenceWarning
     from sklearn.linear_model import Lasso, LassoLarsIC
 
     warnings.filterwarnings("ignore", category=ConvergenceWarning)
-    continuous, dummies, price = _lear_features(data, zone, res_ahead)
+    continuous, dummies, price = _lear_features(data, zone, res_ahead, weather)
     index = {day: i for i, day in enumerate(data.days)}
     out = {}
     first = index[days[0]]
@@ -257,7 +288,7 @@ def conformal(data, points, days):
 # ============================================================================
 
 
-def timestral_rows(data, res_ahead=False):
+def timestral_rows(data, res_ahead=False, weather=False):
     """(known, past) covariate rows over the whole axis: each zone's load
     forecast, the gas and EUA prices and the calendar known ahead; the
     neighbours' prices and Italy's wind and solar forecasts up to the day
@@ -267,6 +298,10 @@ def timestral_rows(data, res_ahead=False):
     known = [data.series[f"{zone}|load_forecast"] for zone in ZONES]
     past = [data.series[f"{code}|price"] for code in NEIGHBOURS]
     (known if res_ahead else past).extend([wind, solar])
+    if weather:
+        solar_mw, people = weather_weights()
+        known += [data.weather_ahead(zone, "wind_speed") for zone in WIND_ZONES]
+        known += [weighted_italy(data, "ghi", solar_mw), weighted_italy(data, "temperature", people)]
     known += [data.gas, data.eua, data.calendar["holiday"], data.calendar["saturday"], data.calendar["sunday"]]
     return np.stack(known), np.stack(past)
 
@@ -305,7 +340,7 @@ def timestral_quantiles(data, days, spec, batch=4):
     forecaster = TimestralForecaster.from_pretrained(f"mistralai/Timestral-{spec['size']}")
     assert tuple(round(level, 2) for level in forecaster.quantile_levels) == LEVELS
     prices = data.prices()
-    rows = timestral_rows(data, spec["res_ahead"]) if spec["covariates"] else None
+    rows = timestral_rows(data, spec["res_ahead"], spec.get("weather", False)) if spec["covariates"] else None
     out = {}
     started = time.time()
     for i in range(0, len(days), batch):
@@ -366,9 +401,9 @@ def run_model(data, model, days):
         warm = [data.days[data.days.index(days[0]) - k] for k in range(CONFORMAL_DAYS, 0, -1)] + days
         point = naive_point(data, warm)
         quantiles = conformal(data, point, days)
-    elif model in ("lear", "lear-res"):
+    elif model.startswith("lear"):
         warm = [data.days[data.days.index(days[0]) - k] for k in range(CONFORMAL_DAYS, 0, -1)] + days
-        point = lear_point(data, warm, spec["res_ahead"])
+        point = lear_point(data, warm, spec["res_ahead"], spec.get("weather", False))
         quantiles = conformal(data, point, days)
     elif "parts" in spec:
         parts = [load_cache(part) for part in spec["parts"]]

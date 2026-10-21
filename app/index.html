@@ -26,7 +26,7 @@
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
       --chart-pun:#d9dde2; --chart-eua:#e7a84b; --chart-igi:#4fc3c9; --chart-srmc:#ef6b5b; --res-actual:#d9dde2; --res-day-ahead:#5b9cff; --res-intraday:#d55181; --chart-generation:#5ecb8a; --chart-load:#5b9cff; --chart-residual:#e0e3e7;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
-      --fc-actual:#e0e3e7; --fc-naive:#8c949e; --fc-lear:#e7a84b; --fc-ts-ar:#7fd1c5; --fc-ts28:#5b9cff; --fc-ts28-long:#c783ff; --fc-ts209:#5ecb8a; --fc-ensemble:#ef6fae; --fc-lear-res:#f2cf8f; --fc-ts28-res:#a8c8ff;
+      --fc-actual:#e0e3e7; --fc-naive:#8c949e; --fc-lear:#e7a84b; --fc-ts-ar:#7fd1c5; --fc-ts28:#5b9cff; --fc-ts28-long:#c783ff; --fc-ts209:#5ecb8a; --fc-ensemble:#ef6fae; --fc-lear-res:#f2cf8f; --fc-ts28-res:#a8c8ff; --fc-lear-wx:#ff9f5a; --fc-ts28-wx:#4fc3c9;
       --mix-coal:#b8c2d0; --mix-geothermal:#b5651d; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
       --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
       --border-1:#3987e5; --border-2:#d95926; --border-3:#199e70; --border-4:#c98500; --border-5:#d55181; --border-6:#008300; --border-7:#9085e9;
@@ -57,7 +57,7 @@
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
       --chart-pun:#1f2429; --chart-eua:#b36b00; --chart-igi:#0f8a91; --chart-srmc:#c8392b; --res-actual:#1f2429; --res-day-ahead:#2f6fdb; --res-intraday:#c93d74; --chart-generation:#1f9d57; --chart-load:#2f6fdb; --chart-residual:#3d434b;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
-      --fc-actual:#1f2429; --fc-naive:#6b7480; --fc-lear:#c27a0e; --fc-ts-ar:#15998a; --fc-ts28:#2f6fdb; --fc-ts28-long:#8a4fd6; --fc-ts209:#1f9d57; --fc-ensemble:#d23f84; --fc-lear-res:#e0a643; --fc-ts28-res:#7aa5ec;
+      --fc-actual:#1f2429; --fc-naive:#6b7480; --fc-lear:#c27a0e; --fc-ts-ar:#15998a; --fc-ts28:#2f6fdb; --fc-ts28-long:#8a4fd6; --fc-ts209:#1f9d57; --fc-ensemble:#d23f84; --fc-lear-res:#e0a643; --fc-ts28-res:#7aa5ec; --fc-lear-wx:#d9822b; --fc-ts28-wx:#0f8a91;
       --mix-coal:#4b5563; --mix-geothermal:#9c5a3c; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
       --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
       --border-1:#2a78d6; --border-2:#eb6834; --border-3:#1baf7a; --border-4:#eda100; --border-5:#e87ba4; --border-6:#008300; --border-7:#4a3aa7;
@@ -22146,7 +22146,8 @@ move the slider above to another one`,
   const FORECAST_MODEL_COLORS = {
     naive: "--fc-naive", lear: "--fc-lear", "timestral-28m-ar": "--fc-ts-ar", "timestral-28m": "--fc-ts28",
     "timestral-28m-long": "--fc-ts28-long", "timestral-209m": "--fc-ts209", ensemble: "--fc-ensemble",
-    "lear-res": "--fc-lear-res", "timestral-28m-res": "--fc-ts28-res"
+    "lear-res": "--fc-lear-res", "timestral-28m-res": "--fc-ts28-res", "lear-wx": "--fc-lear-wx",
+    "timestral-28m-wx": "--fc-ts28-wx"
   };
   // Models with the day's wind and solar forecasts, out only after the auction: dashed.
   const forecastAfterGate = model => model.endsWith("-res");
@@ -22282,12 +22283,17 @@ move the slider above to another one`,
         "forecasts up to the day before. Its band is its own (21 quantiles). <i>Prices only</i>: the history alone, no other " +
         "inputs. 28M and 209M: the model's size in parameters.</li>" +
         "<li><b>LEAR + Timestral</b>: the average of the two models' quantiles.</li>" +
+        "<li><b>With weather</b>: the same models also given weather forecasts for the day made before the gate (Open-Meteo, " +
+        "ECMWF IFS 0.25° runs up to 00 UTC of the day before, from March 2024): the 100 m wind speed at each zone's wind farms " +
+        "and the irradiance at its solar farms (weighted by the farms' MW) and, for Timestral, the temperature in the main cities. Points: etl/weather_points.json, from the grid map's " +
+        "OpenStreetMap plants.</li>" +
         "<li><b>With the day's wind and solar</b> (†, dashed): the same models also given Terna's wind and solar forecasts for the " +
         "day. Terna's load forecast for the next day is on ENTSO-E by about 11:30, before the MGP's 12:00 gate, its wind and solar " +
         "forecasts only at about 18:00, so a trader did not have these from ENTSO-E: the gap to the models without them is what a " +
         "morning wind and solar forecast (from weather forecasts) would be worth.</li>" +
         "<li><b>Data</b>: ENTSO-E (prices 12.1.D, load forecast 6.1.B, wind and solar forecasts 14.1.D) from January 2021; GME's " +
-        "IG Index of the PSV gas price; EEX's EU auction price of EUAs. Gas and EUA enter two days late, the last surely known " +
+        "IG Index of the PSV gas price (before July 2023 the MGP-GAS auction's); EEX's EU auction price of EUAs; Open-Meteo " +
+        "(CC BY 4.0) for the weather. Gas and EUA enter two days late, the last surely known " +
         "before the auction.</li>" +
         "<li><b>Caveat</b>: the files hold the forecasts' latest revision, which may be slightly better than the first one a " +
         "trader saw before the auction.</li></ul>", "", true);

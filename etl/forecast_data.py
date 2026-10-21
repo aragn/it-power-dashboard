@@ -12,7 +12,7 @@ Used by etl/forecast_backtest.py and the daily forecast.
 """
 
 import os
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 
 import numpy as np
 
@@ -22,6 +22,7 @@ from zones import DATA_DIR, ZONE_DOMAINS
 
 INPUTS_PATH = os.path.join(DATA_DIR, "forecast", "inputs.json")
 GAS_PATH = os.path.join(DATA_DIR, "gas_prices.json")
+WEATHER_PATH = os.path.join(DATA_DIR, "forecast", "weather.json")
 
 START = date(2021, 1, 1)
 ZONES = list(ZONE_DOMAINS)
@@ -67,9 +68,11 @@ class Data:
     series      {"NORD|price": float array over the axis, NaN = missing, ...}
     gas, eua    daily prices lagged FUEL_LAG_DAYS, held over the day's hours
     calendar    {"holiday", "saturday", "sunday"}: 0/1 arrays over the axis
+    weather     {"<ZONE>|wind_speed|d<k>", ...}: Open-Meteo forecasts made k days
+                before each hour (etl/fetch_weather.py), when on file
     """
 
-    def __init__(self, inputs_path=INPUTS_PATH, gas_path=GAS_PATH):
+    def __init__(self, inputs_path=INPUTS_PATH, gas_path=GAS_PATH, weather_path=WEATHER_PATH):
         payload = compact.load(inputs_path)
         hourly = payload["hourly"]
         last = max(rows[-1]["date"] for rows in hourly.values() if rows)
@@ -108,6 +111,38 @@ class Data:
         }
         self.weekday = weekday
 
+        self.weather = {}
+        if weather_path and os.path.exists(weather_path):
+            for name, rows in compact.load(weather_path).get("hourly", {}).items():
+                values = np.full(self.length, np.nan, dtype=np.float64)
+                for row in rows:
+                    start = by_iso.get(row["date"])
+                    if start is not None:
+                        hours, minutes = row["time"].split(":")
+                        values[start + int(hours) + int(minutes) // 60] = row["value"]
+                self.weather[name] = values
+        self.weather_cache = {}
+
+    def weather_ahead(self, zone, name, days_ahead=1):
+        """A weather series as forecast `days_ahead` days before each day, before
+        its 12:00 auction gate, so from the runs up to 00 UTC of that day: an
+        hour takes the forecast made days_ahead days (24 h each) before it
+        until 06 UTC of its day, and the one a day older after.  NaN where not
+        on file."""
+        key = (zone, name, days_ahead)
+        if key not in self.weather_cache:
+            early = self.weather.get(f"{zone}|{name}|d{days_ahead}")
+            late = self.weather.get(f"{zone}|{name}|d{days_ahead + 1}")
+            out = np.full(self.length, np.nan)
+            if early is not None and late is not None:
+                for day in self.days:
+                    start, end = self.day_start[day], self.day_start[day] + self.hours[day]
+                    cut = start + hours_to_six_utc(day)
+                    out[start:cut] = early[start:cut]
+                    out[cut:end] = late[cut:end]
+            self.weather_cache[key] = out
+        return self.weather_cache[key]
+
     def _daily_filled(self, values):
         """{iso date: value} -> array over self.days, carried forward over
         days without a value (weekends, days without an auction)."""
@@ -143,6 +178,12 @@ class Data:
             if not np.isnan(block).any():
                 return day
         return None
+
+
+def hours_to_six_utc(day):
+    """Hours from local midnight of `day` to 06:00 UTC of that date."""
+    six = datetime(day.year, day.month, day.day, 6, tzinfo=timezone.utc)
+    return int((six - local_midnight_utc(day)).total_seconds() // 3600)
 
 
 def load_gas(path=GAS_PATH):
