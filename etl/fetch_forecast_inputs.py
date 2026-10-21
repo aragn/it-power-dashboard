@@ -33,6 +33,7 @@ import io
 import os
 import time
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 
 import requests
@@ -69,6 +70,11 @@ CHUNK_DAYS = 365
 # Incremental runs re-download this many days to pick up revisions.
 LOOKBACK_DAYS = 7
 
+# ENTSO-E allows 400 requests a minute per token: the 26 documents go 4 at a
+# time (from GitHub's runners one after the other took 3 minutes, 4 at a time
+# 20 s, 21 October 2026).
+PARALLEL_REQUESTS = 4
+
 # The neighbours coupled with Italy in the MGP, and Switzerland.
 NEIGHBOURS = ("FR", "CH", "AT", "SI", "GR")
 
@@ -103,7 +109,7 @@ def download(token, area, eic, kind, start_date, end_date):
         keep = lambda ts: production_type(ts) in RES_TYPES
 
     for chunk_start, chunk_end in day_chunks(start_date, end_date, CHUNK_DAYS):
-        print(f"  {area} {kind}: {chunk_start} -> {chunk_end}")
+        print(f"  {area} {kind}: {chunk_start} -> {chunk_end}", flush=True)
         requests_made += 1
         try:
             root = request_entsoe(token, {
@@ -113,10 +119,10 @@ def download(token, area, eic, kind, start_date, end_date):
             })
         except requests.HTTPError as error:
             failures += 1
-            print(f"    WARNING: {error}")
+            print(f"    {area} {kind} {chunk_start}: WARNING: {error}", flush=True)
             continue
         if root is None:
-            print("    No matching data")
+            print(f"    {area} {kind} {chunk_start}: No matching data", flush=True)
         records.extend(parse_points(root, group_of=group_of, keep=keep))
         time.sleep(REQUEST_PAUSE_SECONDS)
 
@@ -210,26 +216,29 @@ def main():
     areas = [(zone, eic, ("price", "load_forecast", "res_forecast")) for zone, eic in ZONE_DOMAINS.items()]
     areas += [(code, BORDERS[code][1], ("price",)) for code in NEIGHBOURS]
 
+    # EUA: the years not on file yet, and always the current one; from EEX
+    # while ENTSO-E's documents come.
+    have_years = {int(day[:4]) for day in eua}
+    first_missing = next((year for year in range(HISTORY_START.year, end_date.year + 1)
+                          if year not in have_years), end_date.year)
+
+    documents = [(area, eic, kind) for area, eic, kinds in areas for kind in kinds]
     new = {}
     failed = []
-    for area, eic, kinds in areas:
-        for kind in kinds:
-            series = download(token, area, eic, kind, start_date, end_date)
+    with ThreadPoolExecutor(PARALLEL_REQUESTS) as pool:
+        eua_download = pool.submit(download_eua, min(first_missing, end_date.year), end_date.year)
+        results = pool.map(lambda document: download(token, *document, start_date, end_date), documents)
+        for (area, _, kind), series in zip(documents, results):
             if series is None:
                 failed.append(f"{area} {kind}")
                 continue
             new.update(series)
 
-    if failed and len(failed) == sum(len(kinds) for _, _, kinds in areas):
+    if failed and len(failed) == len(documents):
         raise RuntimeError("Every request failed.")
 
     hourly = merge_group_series(existing, new)
-
-    # EUA: the years not on file yet, and always the current one.
-    have_years = {int(day[:4]) for day in eua}
-    first_missing = next((year for year in range(HISTORY_START.year, end_date.year + 1)
-                          if year not in have_years), end_date.year)
-    eua.update(download_eua(min(first_missing, end_date.year), end_date.year))
+    eua.update(eua_download.result())
 
     compact.dump(build_output(hourly, eua), OUTPUT_PATH)
 
