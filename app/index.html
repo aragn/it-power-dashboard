@@ -26,6 +26,7 @@
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
       --chart-pun:#d9dde2; --chart-eua:#e7a84b; --chart-igi:#4fc3c9; --chart-srmc:#ef6b5b; --res-actual:#d9dde2; --res-day-ahead:#5b9cff; --res-intraday:#d55181; --chart-generation:#5ecb8a; --chart-load:#5b9cff; --chart-residual:#e0e3e7;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
+      --fc-actual:#e0e3e7; --fc-naive:#8c949e; --fc-lear:#e7a84b; --fc-ts-ar:#7fd1c5; --fc-ts28:#5b9cff; --fc-ts28-long:#c783ff; --fc-ts209:#5ecb8a; --fc-ensemble:#ef6fae; --fc-lear-res:#f2cf8f; --fc-ts28-res:#a8c8ff;
       --mix-coal:#b8c2d0; --mix-geothermal:#b5651d; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
       --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
       --border-1:#3987e5; --border-2:#d95926; --border-3:#199e70; --border-4:#c98500; --border-5:#d55181; --border-6:#008300; --border-7:#9085e9;
@@ -56,6 +57,7 @@
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
       --chart-pun:#1f2429; --chart-eua:#b36b00; --chart-igi:#0f8a91; --chart-srmc:#c8392b; --res-actual:#1f2429; --res-day-ahead:#2f6fdb; --res-intraday:#c93d74; --chart-generation:#1f9d57; --chart-load:#2f6fdb; --chart-residual:#3d434b;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
+      --fc-actual:#1f2429; --fc-naive:#6b7480; --fc-lear:#c27a0e; --fc-ts-ar:#15998a; --fc-ts28:#2f6fdb; --fc-ts28-long:#8a4fd6; --fc-ts209:#1f9d57; --fc-ensemble:#d23f84; --fc-lear-res:#e0a643; --fc-ts28-res:#7aa5ec;
       --mix-coal:#4b5563; --mix-geothermal:#9c5a3c; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
       --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
       --border-1:#2a78d6; --border-2:#eb6834; --border-3:#1baf7a; --border-4:#eda100; --border-5:#e87ba4; --border-6:#008300; --border-7:#4a3aa7;
@@ -145,6 +147,21 @@
     #gas-mount { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
     #gas-mount .gas-wide { grid-column:1 / -1; }
     @media (max-width: 1050px) { #gas-mount { grid-template-columns:1fr; } }
+    #forecast-mount { width:100%; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
+    #forecast-mount .forecast-wide { grid-column:1 / -1; }
+    @media (max-width: 1050px) { #forecast-mount { grid-template-columns:1fr; } }
+    .forecast-chart-wrap { position:relative; width:100%; height:340px; }
+    #forecast-hourly-section .forecast-chart-wrap { height:420px; }
+    .forecast-table-wrap { max-height:none; }
+    .forecast-table td.best { font-weight:700; color:var(--status-ok); }
+    .forecast-table tr.row-open td { background:var(--hover); }
+    .forecast-table span.muted { color:var(--muted); }
+    .forecast-swatch { display:inline-block; width:10px; height:3px; margin:0 8px 3px 0; border-radius:2px; vertical-align:middle; }
+    .forecast-message { padding:28px 4px; color:var(--muted); }
+    #forecast-mount .chart-help { margin:8px 0 0; line-height:1.45; }
+    .forecast-method { margin:6px 0 4px; padding-left:18px; color:var(--muted); font-size:12px; line-height:1.55; }
+    .forecast-method li { margin-bottom:6px; }
+    .forecast-method b { color:var(--text); font-weight:600; }
     .gas-kpis { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; margin-top:12px; }
     @media (max-width: 1050px) { .gas-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); } }
     .gas-kpi { padding:12px 14px; border:1px solid var(--border); border-radius:8px; background:var(--panel-2); min-width:0; }
@@ -642,7 +659,7 @@
       </div>
     </header>
     <div class="app-body">
-      <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="gas" type="button">Gas &amp; LNG</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue &amp; Market</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
+      <nav class="sidebar"><button class="sidebar-item active" data-section="data" type="button">Data</button><button class="sidebar-item" data-section="gas" type="button">Gas &amp; LNG</button><button class="sidebar-item" data-section="forecast" type="button">Forecast</button><button class="sidebar-item" data-section="maps" type="button">Maps</button><button class="sidebar-item" data-section="queue" type="button">Queue &amp; Market</button><button class="sidebar-item" data-section="policy" type="button">Policy</button></nav>
       <main class="main-content">
         <div id="zone-page"><div class="zone-header"><h1 id="zone-title">Italy</h1><p>Bidding zone dashboard</p></div><nav class="subnav"><button class="subnav-tab active" data-tab="overview" type="button">Overview</button><button class="subnav-tab" data-tab="prices" type="button">Prices</button><button class="subnav-tab" data-tab="market" type="button">Market</button><button class="subnav-tab" data-tab="balancing" type="button">Balancing</button><button class="subnav-tab" data-tab="interconnection" type="button">Interconnection</button><button class="subnav-tab" data-tab="storage" type="button">Storage</button><button class="subnav-tab" data-tab="analysis" type="button">Analysis</button></nav><div id="zone-placeholder" class="zone-placeholder"><div id="zone-placeholder-text">Data not yet available.</div></div><div id="chart-mount-overview"><section id="pun-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">PUN Index</div><div id="chart-subtitle" class="chart-subtitle">Daily average</div></div></div><div id="chart-wrap"><div id="chart"></div><div id="chart-drag-selection"></div><div id="chart-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-load-chart-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Generation &amp; Demand</div><div id="generation-load-chart-subtitle" class="chart-subtitle">Daily energy</div></div></div><div id="generation-load-chart-wrap"><div id="generation-load-chart"></div><div id="generation-load-drag-selection"></div><div id="generation-load-drag-hint">Click and drag on chart to zoom</div></div><div class="chart-help">Residual load = load − wind − solar. Dashed: day-ahead forecasts where actual data is not in yet. Drag horizontally across the chart to select a narrower range.</div></section><section id="generation-mix-chart-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Generation Mix, Load &amp; PUN</div><div id="generation-mix-chart-subtitle" class="chart-subtitle">Daily energy by source</div></div></div><div id="generation-mix-chart-wrap"><div id="generation-mix-chart"></div><div id="generation-mix-drag-selection"></div></div><div class="chart-help">Click a source in the legend to hide or show it. Geothermal is from Terna. Storage charging and pumping are shown below zero. Residual load = load − wind − solar. Dashed: day-ahead load, generation and residual load forecasts. Lower panel: PUN Index, the EU ETS EU auction clearing price (EEX, €/tCO₂, right axis), GME's IG Index of the PSV gas price (€/MWh of gas, by gas day 06:00–06:00) and the short-run marginal cost of a gas plant, SRMC = IGI / η + EUA × 0.202 tCO₂/MWh / η + VOM, with η = 55% and VOM = 3 €/MWh (€/MWh of electricity; no gas transport or other costs). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-wind-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Onshore Wind: Forecast vs Actual</div><div id="res-wind-subtitle" class="chart-subtitle"></div></div></div><div id="res-wind-wrap" class="timeline-chart-wrap"><div id="res-wind-chart" class="timeline-chart"></div><div id="res-wind-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="res-solar-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Solar: Forecast vs Actual</div><div id="res-solar-subtitle" class="chart-subtitle"></div></div></div><div id="res-solar-wrap" class="timeline-chart-wrap"><div id="res-solar-chart" class="timeline-chart"></div><div id="res-solar-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Actual generation (16.1.B&amp;C) against the day-ahead (dashed) and intraday (dotted) forecasts (14.1.D). Drag horizontally across the chart to select a narrower range.</div></section><section id="capacity-section" class="panel chart-panel chart-panel-wide"><div class="chart-header"><div><div class="chart-title">Installed Capacity</div><div id="capacity-subtitle" class="chart-subtitle">Net capacity at year end</div></div></div><div id="capacity-wrap" class="timeline-chart-wrap"><div id="capacity-chart" class="timeline-chart"></div><div id="capacity-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, net capacity at 31 December (solar includes small and rooftop plants); pumped hydro from ENTSO-E (14.1.A, split by zone with the 14.1.B units) and taken out of hydro. The tooltip compares ENTSO-E 14.1.A at 1 January of the following year. Not linked to the date range.</div></section><section id="outages-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Unavailable Capacity</div><div id="outages-subtitle" class="chart-subtitle"></div></div></div><div id="outages-wrap" class="timeline-chart-wrap"><div id="outages-chart" class="timeline-chart"></div><div id="outages-drag" class="timeline-drag-selection"></div></div><div class="chart-help">ENTSO-E 15.1 unavailability of generation units: nominal minus available capacity of units of 100 MW or more (smaller units, so nearly all solar and wind, do not report). Solid: planned; lighter: forced. Drag horizontally across the chart to select a narrower range. <span class="info-hover" tabindex="0" aria-describedby="outages-info">Read here for more info<span id="outages-info" class="info-pop" role="tooltip"></span></span></div></section><section id="available-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Available Capacity</div><div id="available-subtitle" class="chart-subtitle"></div></div></div><div id="available-wrap" class="timeline-chart-wrap"><div id="available-chart" class="timeline-chart"></div><div id="available-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna, available capacity of the generating units of 100 MW or more. Solid: the effective capacity, final the day after; shaded and marked "Expected": the capacity the operators expect for the days after the last effective one (up to 14 days ahead when the selected dates reach the latest one). A past day Terna did not publish is left blank. Dashed: the expected total over the whole period, to compare with what was then available. Click a source in the legend to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section></div><div id="chart-mount-prices"><div id="zonal-legend" class="panel crossborder-legend" role="group" aria-label="Bidding zones shown in the price charts"><span class="legend-title">Zones</span></div>
           <section id="zonal-chart-section" class="panel zonal-chart-panel">
@@ -696,6 +713,7 @@
           <section id="unit-revenue-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Estimated Revenues and Costs by Unit, All Markets</div><div id="unit-revenue-subtitle" class="chart-subtitle">Each unit across the markets</div></div><div class="merit-filters"><label class="mgp-source-filter">Market <select id="unit-revenue-market" aria-label="Show one market"><option value="">All markets</option><option value="MGP">MGP</option><option value="MI-A1">ID1 · MI-A1</option><option value="MI-A2">ID2 · MI-A2</option><option value="MI-A3">ID3 · MI-A3</option><option value="XBID">MI-XBID</option><option value="MSD">MSD</option><option value="MB">MB</option></select></label><label class="mgp-source-filter">Source <select id="unit-revenue-source" aria-label="Show the units of one source only"><option value="">All sources</option></select></label></div></div><div id="unit-revenue-table" class="mgp-table-host"></div><div id="unit-revenue-help" class="chart-help">Estimated, for the quarter-hour or the whole day chosen above, at the prices GME awarded (zonal for both sales and purchases; in MSD and MB the unit's own price): MGP, MI-A and MI-XBID, sales minus purchases; MSD and MB, upward minus downward (what Terna paid the unit minus what the unit paid Terna), start-ups and reserve bands not counted. Bilateral schedules registered in the MGP count at the zonal price, though settled between the parties. Before fees, imbalances, any hedge and the fuel saved or burnt. Each figure is revenue minus cost: above zero a net revenue, below zero a net cost. Volumes: MW for a quarter-hour, MWh for a day. Click a column to sort.</div></section>
         </div><div id="chart-mount-storage" style="display:none"><section id="storage-kpis-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Storage at a Glance</div><div id="storage-kpis-subtitle" class="chart-subtitle">Batteries and pumped hydro, Italy</div></div></div><div id="storage-kpis" class="gas-kpis storage-kpis"></div><div id="storage-kpis-help" class="chart-help" style="margin-left:0"></div></section><section id="storage-generation-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Storage Output, PUN, Solar and Wind</div><div id="storage-generation-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap tall"><div id="storage-generation-chart" class="timeline-chart"></div></div><div class="chart-help">ENTSO-E 16.1.B&amp;C, stacked from solar up: solar, wind (onshore and offshore), battery storage and pumped hydro output above zero; battery charging and pumping below; Italy's actual load (6.1.A, line); the PUN Index (right axis). Click a series in the legend to hide or show it.</div></section><section id="storage-arbitrage-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">MGP Daily Arbitrage Spread by Zone</div><div id="storage-arbitrage-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap tall"><div id="storage-arbitrage-chart" class="timeline-chart"></div></div><div class="chart-help">Each day and bidding zone: the highest MGP quarter-hour price of the evening (18:00–21:00) minus the lowest of the whole day, the most a storage plant could earn per MWh moved in the day-ahead market by buying at the bottom and selling at the evening peak, before losses (a battery returns about 85–90% of what it takes, pumped hydro about 75%). Daily, whatever the resolution chosen above. Click a zone in the legend to hide or show it.</div></section><h3 class="capacity-heading">Battery storage</h3><section id="storage-bid-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated Average Bid per Plant</div><div id="storage-bid-battery-subtitle" class="chart-subtitle"></div></div><div class="market-period storage-bid-mode" role="group" aria-label="Bid shown as"><button type="button" data-mode="price" class="active">€/MWh</button><button type="button" data-mode="mw">MW</button></div></div><div class="storage-chart-wrap"><div id="storage-bid-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-bid-help"></div></section><section id="storage-mgp-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated MGP Revenues and Costs</div><div id="storage-mgp-battery-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="mgp-battery" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-mgp-battery-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-mgp-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-mgp-help"></div></section><section id="storage-all-battery-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Battery Storage: Estimated Revenues and Costs, All Markets</div><div id="storage-all-battery-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="all-battery" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-all-battery-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-all-battery-chart" class="timeline-chart"></div></div><div class="chart-help storage-all-help"></div></section><section id="storage-capture-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: TB2 Spread and Captured Spread</div><div id="storage-capture-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-capture-chart" class="timeline-chart"></div></div><div class="chart-help">Each day: the PUN's TB2 spread (dashed), the average price of its eight dearest quarter-hours (two hours) minus that of its eight cheapest, the most a two-hour battery cycling once could earn per MWh in the day-ahead market, before losses; the spread the batteries captured (solid), the average price of what they discharged minus that of what they charged, taken quarter-hour by quarter-hour from their net position across the MGP, MI-A and MI-XBID; the capture rate (bars, right axis), the captured spread as a share of the TB2 spread. The batteries trade at zonal prices and can cycle twice a day, so the rate can pass 100%. Daily, whatever the resolution chosen above.</div></section><section id="storage-heatmap-battery-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Battery Storage: Dispatch by Hour of the Day</div><div id="storage-heatmap-battery-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-heatmap-battery-chart" class="timeline-chart"></div></div><div class="chart-help">Each day (row) and clock hour (column): the batteries' net position together across the MGP, MI-A and MI-XBID, sold minus bought, averaged over the hour's quarter-hours; green selling (discharging), blue buying (charging). The schedules the markets accepted, not the metered output.</div></section><section id="storage-stack-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Battery Storage: Revenue Stack by Market</div><div id="storage-stack-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-stack-chart" class="timeline-chart"></div></div><div class="chart-help">The batteries' estimated net revenue in each market, all of them together, per MW of their capacity, week by week (Monday to Sunday) and scaled to a year (÷ the days on file × 365): MGP, MI-A and MI-XBID sales minus purchases, MSD and MB upward minus downward; the line, the total. Units that bid a portfolio of plants as one are left out. Before fees, imbalances, capacity payments (MACSE, capacity market) and any hedge. Every week on file, not linked to the dates chosen.</div></section><section id="storage-benchmark-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Weekly Empirical Benchmark: Top 10 Battery Storage Plants</div><div id="storage-benchmark-subtitle" class="chart-subtitle">€/MW/year</div></div></div><div class="storage-chart-wrap tall"><div id="storage-benchmark-chart" class="timeline-chart"></div></div><div id="storage-benchmark-help" class="chart-help"></div></section><h3 class="capacity-heading">Pumped hydro</h3><section id="storage-bid-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated Average Bid per Plant</div><div id="storage-bid-pumped-subtitle" class="chart-subtitle"></div></div><div class="market-period storage-bid-mode" role="group" aria-label="Bid shown as"><button type="button" data-mode="price" class="active">€/MWh</button><button type="button" data-mode="mw">MW</button></div></div><div class="storage-chart-wrap"><div id="storage-bid-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-bid-help"></div></section><section id="storage-mgp-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated MGP Revenues and Costs</div><div id="storage-mgp-pumped-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="mgp-pumped" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-mgp-pumped-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-mgp-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-mgp-help"></div></section><section id="storage-all-pumped-section" class="panel chart-panel spread-wide"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Estimated Revenues and Costs, All Markets</div><div id="storage-all-pumped-subtitle" class="chart-subtitle"></div></div><div class="merit-filters"><div class="market-period storage-rev-mode" data-panel="all-pumped" role="group" aria-label="Shown as"><button type="button" data-mode="euro" class="active">€</button><button type="button" data-mode="mw">MW</button></div><div id="storage-all-pumped-filter" class="plant-filter"></div></div></div><div class="storage-chart-wrap"><div id="storage-all-pumped-chart" class="timeline-chart"></div></div><div class="chart-help storage-all-help"></div></section><section id="storage-heatmap-pumped-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Pumped Hydro: Dispatch by Hour of the Day</div><div id="storage-heatmap-pumped-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-heatmap-pumped-chart" class="timeline-chart"></div></div><div class="chart-help">Each day (row) and clock hour (column): the pumped hydro plants' net position together across the MGP, MI-A and MI-XBID, sold minus bought, averaged over the hour's quarter-hours; green selling (generating), blue buying (pumping, or buying back what was sold earlier).</div></section><section id="storage-reservoirs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Hydro Reservoirs: Stored Energy</div><div id="storage-reservoirs-subtitle" class="chart-subtitle"></div></div></div><div class="storage-chart-wrap"><div id="storage-reservoirs-chart" class="timeline-chart"></div></div><div class="chart-help">ENTSO-E 16.1.D: the energy stored in Italy's water reservoirs and hydro storage plants, week by week: the last two years against the range (shaded) and the average (dashed) of the five years before. What the hydro and pumped hydro plants have in hand for the coming weeks. Not linked to the dates chosen.</div></section></div><div id="chart-mount-balancing" style="display:none"></div><div id="chart-mount-analysis" style="display:none"></div><div id="chart-mount-interconnection" style="display:none"><div id="crossborder-legend" class="panel crossborder-legend" role="group" aria-label="Countries shown in the interconnection charts"><span class="legend-title">Countries</span></div><section id="neighbour-prices-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Neighbouring day-ahead prices</div><div id="neighbour-prices-subtitle" class="chart-subtitle">Day-ahead prices of the neighbouring bidding zones</div></div></div><div id="neighbour-prices-wrap" class="timeline-chart-wrap"><div id="neighbour-prices-chart" class="timeline-chart"></div><div id="neighbour-prices-drag" class="timeline-drag-selection"></div></div><div id="neighbour-prices-help" class="chart-help">Day-ahead prices of the neighbouring bidding zones (ENTSO-E 12.1.D). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-net-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Net cross-border exchange</div><div id="crossborder-net-subtitle" class="chart-subtitle">Positive = net import</div></div></div><div id="crossborder-net-wrap" class="timeline-chart-wrap"><div id="crossborder-net-chart" class="timeline-chart"></div><div id="crossborder-net-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Blue: net cross-border physical flow. Orange: net scheduled commercial exchange, total (solid, all allocations incl. intraday) and day-ahead (dashed, long-term + day-ahead allocations). Countries hidden above are left out of the net. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial imports by country</div><div id="crossborder-commercial-imports-subtitle" class="chart-subtitle">Scheduled commercial exchange into Italy</div></div></div><div id="crossborder-commercial-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-imports-chart" class="timeline-chart"></div><div id="crossborder-commercial-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-commercial-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Scheduled commercial exports by country</div><div id="crossborder-commercial-exports-subtitle" class="chart-subtitle">Scheduled commercial exchange out of Italy</div></div></div><div id="crossborder-commercial-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-commercial-exports-chart" class="timeline-chart"></div><div id="crossborder-commercial-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Scheduled commercial exchanges, total: all allocations including intraday. Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-imports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical imports by country</div><div id="crossborder-imports-subtitle" class="chart-subtitle">Physical flows into Italy</div></div></div><div id="crossborder-imports-wrap" class="timeline-chart-wrap"><div id="crossborder-imports-chart" class="timeline-chart"></div><div id="crossborder-imports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><section id="crossborder-exports-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Physical exports by country</div><div id="crossborder-exports-subtitle" class="chart-subtitle">Physical flows out of Italy</div></div></div><div id="crossborder-exports-wrap" class="timeline-chart-wrap"><div id="crossborder-exports-chart" class="timeline-chart"></div><div id="crossborder-exports-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Click a country above to hide or show it on all charts. Drag horizontally across the chart to select a narrower range.</div></section><div id="coupling-grid" class="coupling-grid"><div id="coupling-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the market coupling charts"><span class="legend-title">Market coupling</span></div><p id="coupling-note" class="coupling-note">Day-ahead market (MGP) coupling results from GME: the import and export flows of each coupled border against its limits, imports into Italy above zero and exports below. Day-ahead prices: the Italian side from GME (Italia Coupling; Sud for the Greek border), the coupled zones from ENTSO-E. GME's own Slovenia, Austria, Francia and Grecia Coupling prices always equal the Italian side's price, so they would hide the spreads. Click a series above to hide or show it. Drag horizontally across a chart to select a narrower range.</p></div><div id="transits-grid" class="coupling-grid" style="display:none"><div id="transits-legend" class="panel crossborder-legend" role="group" aria-label="Series shown in the flows between zones"><span class="legend-title">Day-ahead flows on each border (MGP)</span></div><p id="transits-note" class="coupling-note"></p></div><div class="panel capacity-intro"><div class="chart-title">Cross-zonal capacity on the northern border (JAO, Italy North CCR)</div><p>The TSOs of Italy, France, Switzerland, Austria and Slovenia compute together how much power may cross each border: the <b>NTC</b> (net transfer capacity). They check every <b>critical network element</b> (a line or transformer) under each <b>contingency</b> (the outage of another element); the one that runs out of margin first is the <b>limiting element</b>. The day-ahead market gets the <b>ATC</b>: the NTC minus the long-term nominations. On top of that, Terna can cap Italy's total imports with an <b>allocation constraint</b> ("special periods"): with low demand and high renewable output, enough Italian plants must stay online to control voltage and keep the system stable, so imports must leave room for them.</p></div><h3 class="capacity-heading">Allocation and use of cross-zonal capacity</h3><section id="cap-overview-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Northern border: import capacity and day-ahead use</div><div id="cap-overview-subtitle" class="chart-subtitle">Day-ahead</div></div></div><div id="cap-overview-wrap" class="timeline-chart-wrap"><div id="cap-overview-chart" class="timeline-chart"></div><div id="cap-overview-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Final day-ahead NTC into Italy summed over Austria, Switzerland, France and Slovenia (grey); Terna's allocation constraint on total imports (orange); the ATC the day-ahead market could use on the coupled borders, Austria, France and Slovenia (blue; Switzerland is not coupled); and the imports the day-ahead market scheduled on them (aqua). Where orange is below grey, the allocation constraint, not the grid, set the limit. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-use-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Day-ahead capacity use by border</div><div id="cap-use-subtitle" class="chart-subtitle">Imports into Italy</div></div></div><div id="cap-use-wrap" class="timeline-chart-wrap"><div id="cap-use-chart" class="timeline-chart"></div><div id="cap-use-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Day-ahead scheduled imports as a share of the ATC offered to the market. 100% means the border was congested: Italy would have imported more, and the price spread with the neighbour opens. Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-income-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Congestion income by border</div><div id="cap-income-subtitle" class="chart-subtitle">Day-ahead and intraday auctions</div></div></div><div id="cap-income-wrap" class="timeline-chart-wrap"><div id="cap-income-chart" class="timeline-chart"></div><div id="cap-income-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Exchange times price spread, both directions: what the market paid for the scarce capacity, collected by the TSOs. Day-ahead plus the intraday auctions IDA 1–3 (split in the tooltip). Click a country above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Allocation constraints, day-ahead and intraday</h3><section id="cap-ac-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint on imports</div><div id="cap-ac-subtitle" class="chart-subtitle">Northern border</div></div></div><div id="cap-ac-wrap" class="timeline-chart-wrap"><div id="cap-ac-chart" class="timeline-chart"></div><div id="cap-ac-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The cap on Italy's total imports at the northern border set for the day-ahead market (solid) and for intraday (dashed), against the day-ahead import NTC (grey). Set hour by hour from D-2 forecasts; there is no cap on exports. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-inputs-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">Allocation constraint and its inputs</div><div id="cap-inputs-subtitle" class="chart-subtitle">D-2 forecasts</div></div></div><div id="cap-inputs-wrap" class="timeline-chart-wrap"><div id="cap-inputs-chart" class="timeline-chart"></div><div id="cap-inputs-drag" class="timeline-drag-selection"></div></div><div class="chart-help">Terna sets the maximum import as load − downward reserve − non-dispatchable infeed − the minimum dispatchable generation needed + available pumping. JAO publishes the forecast load, the non-dispatchable infeed (renewables and must-run) and the minimum dispatchable generation (tooltip); the cap falls when renewables cover most of the load. Drag horizontally across the chart to select a narrower range.</div></section><h3 class="capacity-heading">Critical network elements and contingencies</h3><div id="cap-limit-legend" class="panel crossborder-legend" role="group" aria-label="Reasons shown in the limitation charts"><span class="legend-title">Limited by</span></div><section id="cap-limit-da-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the day-ahead NTC</div><div id="cap-limit-da-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-da-wrap" class="timeline-chart-wrap"><div id="cap-limit-da-chart" class="timeline-chart"></div><div id="cap-limit-da-drag" class="timeline-drag-selection"></div></div><div class="chart-help">JAO's "limited by" of the final day-ahead NTC: a critical network element in the grid model; the TSOs' validation (a TSO cut the capacity, e.g. for a risk the model does not cover); the long-term or a scheduled TTC; the ramp smoothing between consecutive hours; the minimum capacity rules (70% target, minimum margin). Click a reason above to hide or show it. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-limit-id-section" class="panel chart-panel"><div class="chart-header"><div><div class="chart-title">What limited the intraday NTC</div><div id="cap-limit-id-subtitle" class="chart-subtitle">Share of market time units</div></div></div><div id="cap-limit-id-wrap" class="timeline-chart-wrap"><div id="cap-limit-id-chart" class="timeline-chart"></div><div id="cap-limit-id-drag" class="timeline-drag-selection"></div></div><div class="chart-help">The same for the intraday recalculation, which covers the afternoon and evening. "Previous allocations": the capacity already taken by the day-ahead and earlier intraday schedules. Drag horizontally across the chart to select a narrower range.</div></section><section id="cap-elements-section" class="panel chart-panel capacity-wide"><div class="chart-header"><div><div class="chart-title">Most frequent limiting elements, day-ahead</div><div id="cap-elements-subtitle" class="chart-subtitle">Hours as the limiting element</div></div></div><div id="cap-elements-wrap" class="capacity-ranking-wrap"><div id="cap-elements-chart" class="timeline-chart"></div></div><div class="chart-help">For each market time unit the day-ahead calculation names the critical network element that limited the NTC and the contingency under which it did. Bars: hours in the selected dates; the tag in the name gives the countries of its ends ([FR-IT]) and the TSO that monitors it ([IT]), the tooltip its country and most frequent contingencies. Follows the dates selected at the top, not the zoom.</div></section></div></div>
         <div id="gas-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Gas storage and LNG</p></div><nav id="gas-subnav" class="subnav"><button class="subnav-tab active" data-gas-tab="overview" type="button">Overview</button><button class="subnav-tab" data-gas-tab="storage" type="button">Storage</button><button class="subnav-tab" data-gas-tab="lng" type="button">LNG</button><button class="subnav-tab" data-gas-tab="outages" type="button">Outages</button><button class="subnav-tab" data-gas-tab="tariffs" type="button">Tariffs</button></nav><div id="gas-mount"></div></div>
+        <div id="forecast-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Day-ahead price forecast</p></div><nav id="forecast-subnav" class="subnav"><button class="subnav-tab active" data-forecast-tab="backtest" type="button">Backtest</button></nav><div id="forecast-mount"></div></div>
         <div id="maps-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Maps</p></div><nav id="maps-subnav" class="subnav"><button class="subnav-tab active" data-maps-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-maps-tab="grid" type="button">Grid and power plants</button><button class="subnav-tab" data-maps-tab="zones" type="button">Prices and flows</button></nav><div id="maps-mount"></div></div>
         <div id="queue-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Project pipeline, grid-connection queue and market units</p></div><nav id="queue-subnav" class="subnav"><button class="subnav-tab active" data-queue-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-queue-tab="connections" type="button">Grid connections (Terna, e-distribuzione)</button><button class="subnav-tab" data-queue-tab="units" type="button">Market connections (GME)</button></nav><div id="queue-mount"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
@@ -21699,12 +21717,14 @@ move the slider above to another one`,
     document.getElementById("queue-page").style.display = isQueueSection ? "block" : "none";
     const isMapsSection = currentSection === "maps";
     document.getElementById("maps-page").style.display = isMapsSection ? "block" : "none";
+    const isForecastSection = currentSection === "forecast";
+    document.getElementById("forecast-page").style.display = isForecastSection ? "block" : "none";
     // The queue and the project and grid maps are snapshots: the calendar
     // does not apply (it does to the prices and flows map).  The analyses
     // choose their own period.
     const isAnalysisTab = isDataSection && currentSubTab === "analysis";
     document.querySelector(".calendar-trigger-wrap").style.display =
-      isQueueSection || (isMapsSection && mapsTab !== "zones") || isAnalysisTab ? "none" : "";
+      isQueueSection || (isMapsSection && mapsTab !== "zones") || isAnalysisTab || isForecastSection ? "none" : "";
     if (!isMapsSection) zmapStop();
 
     document.getElementById("zone-tabs-wrap").style.display =
@@ -21717,7 +21737,7 @@ move the slider above to another one`,
       isDataSection ? "block" : "none";
 
     document.getElementById("section-placeholder").style.display =
-      isDataSection || isGasSection || isQueueSection || isMapsSection ? "none" : "flex";
+      isDataSection || isGasSection || isQueueSection || isMapsSection || isForecastSection ? "none" : "flex";
 
     if (isGasSection) {
       setTimeout(renderGas, 0);
@@ -21731,6 +21751,11 @@ move the slider above to another one`,
 
     if (isMapsSection) {
       setTimeout(renderMaps, 0);
+      return;
+    }
+
+    if (isForecastSection) {
+      setTimeout(renderForecast, 0);
       return;
     }
 
@@ -22103,6 +22128,369 @@ move the slider above to another one`,
     Object.values(PICASSO_CHARTS).forEach(item => item.chart.resize());
     DEPTH_PRODUCTS.forEach(product => product.chart.resize());
   });
+
+  /* ============================================================
+     FORECAST: DAY-AHEAD PRICES (FULL VERSION ONLY)
+     ============================================================ */
+
+  /*
+   * The backtest of the day-ahead price forecast (etl/forecast_backtest.py,
+   * data/forecast/backtest/): each model's forecast of the seven zones' hourly
+   * MGP prices over the test year, made as on the day before the auction,
+   * scored against the prices and by a battery trading on it.  summary.json
+   * holds the scores, <ZONE>.json the hourly prices and forecasts (median and
+   * the 5/25/75/95% quantiles).  The files stay in the private repository: the
+   * public version has no Forecast section.
+   */
+  const FORECAST_DIR = "forecast/backtest";
+  const FORECAST_MODEL_COLORS = {
+    naive: "--fc-naive", lear: "--fc-lear", "timestral-28m-ar": "--fc-ts-ar", "timestral-28m": "--fc-ts28",
+    "timestral-28m-long": "--fc-ts28-long", "timestral-209m": "--fc-ts209", ensemble: "--fc-ensemble",
+    "lear-res": "--fc-lear-res", "timestral-28m-res": "--fc-ts28-res"
+  };
+  // Models with the day's wind and solar forecasts, out only after the auction: dashed.
+  const forecastAfterGate = model => model.endsWith("-res");
+  // Shown on the hourly chart at first; the legend shows or hides the others.
+  const FORECAST_FIRST_SHOWN = ["naive", "lear", "timestral-209m", "timestral-28m"];
+  const forecastMount = document.getElementById("forecast-mount");
+  let forecastTab = "backtest";
+  const forecastState = { zone: "NORD", band: null, summary: null, error: null, zones: {}, built: false, charts: {} };
+
+  const forecastColor = model => cssVar(FORECAST_MODEL_COLORS[model] || "--muted");
+  const forecastModels = () => (forecastState.summary ? forecastState.summary.models : []);
+  const forecastLabel = model => (forecastModels().find(item => item.id === model) || { label: model }).label;
+  const forecastEuro = (value, digits = 1) => (Number.isFinite(value) ? `€${formatNumber(value, digits)}` : "—");
+  const forecastDay = date => new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const forecastK = value => (Number.isFinite(value) ? `€${formatNumber(value / 1000, 1)}k` : "—");
+
+  function loadForecastSummary() {
+    if (forecastState.loading) return;
+    forecastState.loading = anaFetch(`${FORECAST_DIR}/summary.json`)
+      .then(summary => {
+        forecastState.summary = summary;
+        const banded = summary.models.filter(model => model.id !== "naive" && model.id !== "lear");
+        forecastState.band = (banded.find(model => model.id === "timestral-209m") || banded[0] || summary.models[0]).id;
+      })
+      .catch(error => { console.warn("Forecast backtest unavailable:", error); forecastState.error = error; })
+      .finally(() => { if (currentSection === "forecast") renderForecast(); });
+  }
+
+  function loadForecastZone(zone) {
+    if (forecastState.zones[zone]) return;
+    forecastState.zones[zone] = "loading";
+    anaFetch(`${FORECAST_DIR}/${zone}.json`)
+      .then(file => { forecastState.zones[zone] = forecastAxis(file); })
+      .catch(error => { console.warn(`Forecast ${zone} unavailable:`, error); forecastState.zones[zone] = "missing"; })
+      .finally(() => { if (currentSection === "forecast" && forecastState.zone === zone) drawForecastHourly(); });
+  }
+
+  /* A zone file's hourly series on one axis: the actual prices' hours. */
+  function forecastAxis(file) {
+    const actual = file.series.actual;
+    const labels = [];
+    const index = new Map();
+    actual.days.forEach((day, offset) => {
+      if (!day) return;
+      const date = compactDayKey(actual.start, offset);
+      day.forEach((value, slot) => {
+        index.set(`${date}|${slot}`, labels.length);
+        labels.push(`${date} ${String(slot).padStart(2, "0")}:00`);
+      });
+    });
+    const values = series => {
+      const out = new Array(labels.length).fill(null);
+      if (!series || !series.start) return out;
+      series.days.forEach((day, offset) => {
+        if (!day) return;
+        const date = compactDayKey(series.start, offset);
+        day.forEach((value, slot) => {
+          const at = index.get(`${date}|${slot}`);
+          if (at !== undefined) out[at] = value;
+        });
+      });
+      return out;
+    };
+    const series = {};
+    Object.entries(file.series).forEach(([name, item]) => { series[name] = values(item); });
+    return { labels, series };
+  }
+
+  function renderForecast() {
+    if (currentSection !== "forecast") return;
+    document.querySelectorAll("#forecast-subnav .subnav-tab").forEach(button =>
+      button.classList.toggle("active", button.dataset.forecastTab === forecastTab));
+    if (!forecastState.summary) {
+      if (forecastState.error) {
+        forecastMount.innerHTML = `<section class="panel chart-panel forecast-wide"><div class="forecast-message">` +
+          `The backtest is not on file here (data/${FORECAST_DIR}/summary.json): run etl/forecast_backtest.py.</div></section>`;
+        forecastState.built = false;
+        return;
+      }
+      forecastMount.innerHTML = `<section class="panel chart-panel forecast-wide"><div class="forecast-message">Loading the backtest…</div></section>`;
+      loadForecastSummary();
+      return;
+    }
+    if (!forecastState.built) buildForecastBacktest();
+    drawForecastBacktest();
+  }
+
+  function buildForecastBacktest() {
+    const summary = forecastState.summary;
+    const zoneOptions = summary.zones.map(zone =>
+      `<option value="${zone.code}"${zone.code === forecastState.zone ? " selected" : ""}>${escapeHtml(zone.name)}</option>`).join("");
+    const bandOptions = summary.models.map(model =>
+      `<option value="${model.id}"${model.id === forecastState.band ? " selected" : ""}>${escapeHtml(model.label)}</option>`).join("");
+    const section = (id, title, body, help, wide = false, extra = "") =>
+      `<section id="forecast-${id}-section" class="panel chart-panel${wide ? " forecast-wide" : ""}"><div class="chart-header"><div>` +
+      `<div class="chart-title">${title}</div><div id="forecast-${id}-subtitle" class="chart-subtitle"></div></div>${extra}</div>${body}` +
+      `${help ? `<div class="chart-help">${help}</div>` : ""}</section>`;
+    const chart = id => `<div class="forecast-chart-wrap"><div id="forecast-${id}-chart" class="timeline-chart"></div></div>`;
+    const table = id => `<div id="forecast-${id}-table" class="gas-table-wrap forecast-table-wrap"></div>`;
+    forecastMount.innerHTML =
+      section("summary", "Day-ahead Price Forecast: Backtest",
+        `<div id="forecast-kpis" class="gas-kpis"></div>`,
+        "Each day's 24 hourly MGP prices of the seven zones, forecast as on the day before the auction and scored against the " +
+        "actual prices over the test period. The models and their inputs are described at the bottom of the page.",
+        true,
+        `<div class="merit-filters"><label class="mgp-source-filter">Zone <select id="forecast-zone" aria-label="Bidding zone">${zoneOptions}</select></label></div>`) +
+      section("scores", "Scores by Model", table("scores"),
+        "MAE and RMSE: errors of the median forecast, €/MWh. CRPS: the error of the whole forecast distribution (from its quantiles; " +
+        "for a single value it equals the MAE), €/MWh. Band coverage: share of hours inside the 5–95% band (90% is right). Battery: " +
+        "1 MW / 2 MWh, 85% round trip, one cycle a day, scheduled on the median forecast and paid the actual prices; capture = its " +
+        "revenue / the revenue with the prices known in advance. Best in each column in bold. † With the day's wind and solar " +
+        "forecasts, which Terna publishes only after the auction: what a morning wind and solar forecast would be worth; the " +
+        "tiles above leave them out.", true) +
+      section("hourly", "Forecast vs Actual", chart("hourly"),
+        "Hourly prices, €/MWh. Bands: the 5–95% and 25–75% quantiles of the model chosen. Dotted: naive; dashed: with the day's wind " +
+        "and solar forecasts (out after the auction). Click a model in the legend to show or hide it; drag the slider below the " +
+        "chart, or scroll on it, to move through the year.", true,
+        `<div class="merit-filters"><label class="mgp-source-filter">Bands <select id="forecast-band" aria-label="Model whose bands are shown">${bandOptions}</select></label></div>`) +
+      section("monthly", "Mean Absolute Error by Month", chart("monthly"), "€/MWh, the zone chosen above.") +
+      section("zones", "Mean Absolute Error by Zone", table("zones"), "€/MWh. Best in each row in bold.") +
+      section("method", "How the Forecasts Are Made", `<ul class="forecast-method">` +
+        "<li><b>Naive</b>: last week's prices on Monday, Saturday and Sunday, the day before's on the other days. Its band comes " +
+        "from its own errors over the previous 182 days, hour by hour.</li>" +
+        "<li><b>LEAR</b> (Lago et al., 2021, the usual benchmark of price forecasting): a lasso regression per zone and hour on the " +
+        "zone's prices of the three days before and a week before, its day-ahead load forecasts of the day, the day before and a " +
+        "week before, its wind and solar forecasts of the day before and a week before, the weekday, holidays and the PSV gas and " +
+        "EUA prices; two years of data, refitted every week. Its band, like the naive one's, from its errors over the previous " +
+        "182 days.</li>" +
+        "<li><b>Timestral</b> (Mistral, 2026): a time-series foundation model, used zero-shot: it was not trained on Italian prices. " +
+        "It forecasts the seven zones together from their hourly history (4,096 hours, about 24 weeks; 8,192 for <i>long " +
+        "history</i>), with each zone's load forecast, the gas and EUA prices and the calendar (holidays, Saturdays, Sundays) known " +
+        "for the day, and the neighbours' prices (France, Switzerland, Austria, Slovenia, Greece) and Italy's wind and solar " +
+        "forecasts up to the day before. Its band is its own (21 quantiles). <i>Prices only</i>: the history alone, no other " +
+        "inputs. 28M and 209M: the model's size in parameters.</li>" +
+        "<li><b>LEAR + Timestral</b>: the average of the two models' quantiles.</li>" +
+        "<li><b>With the day's wind and solar</b> (†, dashed): the same models also given Terna's wind and solar forecasts for the " +
+        "day. Terna's load forecast for the next day is on ENTSO-E by about 11:30, before the MGP's 12:00 gate, its wind and solar " +
+        "forecasts only at about 18:00, so a trader did not have these from ENTSO-E: the gap to the models without them is what a " +
+        "morning wind and solar forecast (from weather forecasts) would be worth.</li>" +
+        "<li><b>Data</b>: ENTSO-E (prices 12.1.D, load forecast 6.1.B, wind and solar forecasts 14.1.D) from January 2021; GME's " +
+        "IG Index of the PSV gas price; EEX's EU auction price of EUAs. Gas and EUA enter two days late, the last surely known " +
+        "before the auction.</li>" +
+        "<li><b>Caveat</b>: the files hold the forecasts' latest revision, which may be slightly better than the first one a " +
+        "trader saw before the auction.</li></ul>", "", true);
+    forecastState.charts = { hourly: echarts.init(document.getElementById("forecast-hourly-chart")),
+      monthly: echarts.init(document.getElementById("forecast-monthly-chart")) };
+    document.getElementById("forecast-zone").addEventListener("change", event => {
+      forecastState.zone = event.target.value;
+      drawForecastBacktest();
+    });
+    document.getElementById("forecast-band").addEventListener("change", event => {
+      forecastState.band = event.target.value;
+      drawForecastHourly();
+    });
+    forecastState.built = true;
+  }
+
+  function drawForecastBacktest() {
+    const summary = forecastState.summary;
+    const zone = forecastState.zone;
+    const zoneName = summary.zones.find(item => item.code === zone).name;
+    const models = summary.models.map(model => model.id);
+    const scores = model => (summary.metrics[model] || {})[zone] || {};
+    const period = `${forecastDay(summary.test_start)} – ${forecastDay(summary.test_end)}, ${formatNumber(summary.days)} days`;
+    setText("forecast-summary-subtitle", `${zoneName} · ${period}`);
+
+    // Tiles: the best model by MAE against the naive one, CRPS and the battery.
+    const best = key => models.filter(model => !forecastAfterGate(model) && Number.isFinite(scores(model)[key]))
+      .sort((a, b) => (key === "battery_capture" ? scores(b)[key] - scores(a)[key] : scores(a)[key] - scores(b)[key]))[0];
+    const bestMae = best("mae");
+    const bestCrps = best("crps");
+    const bestBattery = best("battery_capture");
+    const naive = scores("naive");
+    const oracle = (summary.battery_oracle_eur_mw_year || {})[zone];
+    document.getElementById("forecast-kpis").innerHTML = [
+      anaTile("Lowest error (MAE)", forecastEuro(scores(bestMae).mae, 2), `${escapeHtml(forecastLabel(bestMae))}, €/MWh`),
+      anaTile("Better than naive", Number.isFinite(naive.mae) ? anaPct(1 - scores(bestMae).mae / naive.mae) : "—",
+        `Naive: ${forecastEuro(naive.mae, 2)}/MWh`),
+      anaTile("Lowest CRPS", forecastEuro(scores(bestCrps).crps, 2), `${escapeHtml(forecastLabel(bestCrps))}, €/MWh`),
+      anaTile("Battery on the forecast", anaPct(scores(bestBattery).battery_capture),
+        `${escapeHtml(forecastLabel(bestBattery))}: ${forecastK(scores(bestBattery).battery_eur_mw_year)} of ${forecastK(oracle)} per MW a year`),
+      anaTile("Test period", formatNumber(summary.days), `days, ${forecastDay(summary.test_start)} – ${forecastDay(summary.test_end)}`)
+    ].join("");
+
+    // Scores table.
+    const columns = [
+      ["mae", "MAE", value => forecastEuro(value, 2), "low"],
+      ["rmse", "RMSE", value => forecastEuro(value, 2), "low"],
+      ["crps", "CRPS", value => forecastEuro(value, 2), "low"],
+      ["coverage90", "5–95% band coverage", value => anaPct(value, 1), "near90"],
+      ["battery_eur_mw_year", "Battery, € per MW a year", forecastK, "high"],
+      ["battery_capture", "Battery capture", value => anaPct(value, 1), "high"]
+    ];
+    const bestOf = (key, rule) => {
+      const values = models.map(model => scores(model)[key]).filter(Number.isFinite);
+      if (!values.length) return null;
+      if (rule === "low") return Math.min(...values);
+      if (rule === "high") return Math.max(...values);
+      return values.reduce((closest, value) => (Math.abs(value - 0.9) < Math.abs(closest - 0.9) ? value : closest));
+    };
+    const bests = Object.fromEntries(columns.map(([key, , , rule]) => [key, bestOf(key, rule)]));
+    document.getElementById("forecast-scores-table").innerHTML =
+      `<table class="gas-table forecast-table"><thead><tr><th>Model</th>${columns.map(([, label]) => `<th class="num">${label}</th>`).join("")}</tr></thead><tbody>` +
+      models.map(model => `<tr><td title="${escapeHtml((summary.models.find(item => item.id === model) || {}).description || "")}">` +
+        `<span class="forecast-swatch" style="background:${forecastColor(model)}"></span>${escapeHtml(forecastLabel(model))}` +
+        `${forecastAfterGate(model) ? ' <span class="muted">†</span>' : ""}</td>` +
+        columns.map(([key, , format]) => {
+          const value = scores(model)[key];
+          return `<td class="num${Number.isFinite(value) && value === bests[key] ? " best" : ""}">${format(value)}</td>`;
+        }).join("") + `</tr>`).join("") +
+      `<tr><td class="muted">Prices known in advance</td><td class="num muted" colspan="4"></td><td class="num muted">${forecastK(oracle)}</td><td class="num muted">100%</td></tr>` +
+      `</tbody></table>`;
+
+    // MAE by zone.
+    const zoneRows = summary.zones.map(item => [item.code, item.name]).concat([["ALL", "All zones"]]);
+    document.getElementById("forecast-zones-table").innerHTML =
+      `<table class="gas-table forecast-table"><thead><tr><th>Zone</th>${models.map(model => `<th class="num">${escapeHtml(forecastLabel(model))}</th>`).join("")}</tr></thead><tbody>` +
+      zoneRows.map(([code, name]) => {
+        const values = models.map(model => ((summary.metrics[model] || {})[code] || {}).mae);
+        const low = Math.min(...values.filter(Number.isFinite));
+        return `<tr${code === zone ? ' class="row-open"' : ""}><td>${escapeHtml(name)}</td>` +
+          values.map(value => `<td class="num${value === low ? " best" : ""}">${forecastEuro(value, 2)}</td>`).join("") + `</tr>`;
+      }).join("") + `</tbody></table>`;
+
+    drawForecastMonthly();
+    drawForecastHourly();
+  }
+
+  function drawForecastMonthly() {
+    const summary = forecastState.summary;
+    const chart = forecastState.charts.monthly;
+    const months = [...new Set(Object.values(summary.monthly_mae).flatMap(byMonth => Object.keys(byMonth)))].sort();
+    const label = month => new Date(`${month}-15T12:00:00Z`).toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+    setText("forecast-monthly-subtitle", summary.zones.find(item => item.code === forecastState.zone).name);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: bessTooltip(items => bessTipHead(label(months[items[0].dataIndex])) + items
+        .filter(item => Number.isFinite(item.value))
+        .sort((a, b) => a.value - b.value)
+        .map(item => `<div>${item.marker} ${escapeHtml(item.seriesName)}: <b>${forecastEuro(item.value, 2)}</b></div>`).join("")),
+      legend: bessLegend(summary.models.map(model => model.label), { type: "scroll", right: 8 }),
+      grid: { left: 52, right: 16, top: 40, bottom: 28 },
+      xAxis: { type: "category", data: months.map(label), axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: bessAxisLabel() },
+      yAxis: timelineYAxis("€/MWh", { nameGap: 36 }),
+      series: summary.models.map(model => anaLineSeries(model.label, FORECAST_MODEL_COLORS[model.id] || "--muted",
+        months.map(month => (((summary.monthly_mae[model.id] || {})[month] || {})[forecastState.zone] ?? null)),
+        { showSymbol: true, symbolSize: 4, lineStyle: forecastAfterGate(model.id) ? { type: "dashed" } : {} }))
+    }, true);
+  }
+
+  function drawForecastHourly() {
+    const chart = forecastState.charts.hourly;
+    if (!chart) return;
+    const zone = forecastState.zone;
+    const file = forecastState.zones[zone];
+    const zoneName = forecastState.summary.zones.find(item => item.code === zone).name;
+    if (!file) { loadForecastZone(zone); anaEmpty(chart, "Loading…"); return; }
+    if (file === "loading") { anaEmpty(chart, "Loading…"); return; }
+    if (file === "missing") { anaEmpty(chart, `No hourly forecasts on file for ${zoneName}.`); return; }
+
+    const band = forecastState.band;
+    const bandColor = forecastColor(band);
+    const series = [];
+    const q = level => file.series[`${band}|q${level}`];
+    if (q("05") && q("95")) {
+      // Each band: its lower edge (invisible) and its width stacked on top.
+      [["05", "95", 0.14], ["25", "75", 0.26]].forEach(([low, high, opacity]) => {
+        const lower = q(low), upper = q(high);
+        series.push({ name: `band-${low}`, type: "line", stack: `band-${low}`, data: lower, symbol: "none", lineStyle: { opacity: 0 },
+          silent: true, tooltip: { show: false } });
+        series.push({ name: `${low}–${high}%`, type: "line", stack: `band-${low}`, symbol: "none", lineStyle: { opacity: 0 },
+          areaStyle: { color: bandColor, opacity }, silent: true,
+          data: upper.map((value, index) => (value === null || lower[index] === null ? null : value - lower[index])) });
+      });
+    }
+    const actualName = "Actual";
+    series.push({ name: actualName, type: "line", data: file.series.actual, symbol: "none", z: 5,
+      lineStyle: { color: cssVar("--fc-actual"), width: 1.6 }, itemStyle: { color: cssVar("--fc-actual") } });
+    forecastModels().forEach(model => {
+      const values = file.series[`${model.id}|q50`];
+      if (!values) return;
+      series.push({ name: model.label, type: "line", data: values, symbol: "none", z: 4,
+        lineStyle: { color: forecastColor(model.id), width: model.id === band ? 1.6 : 1.1,
+          type: model.id === "naive" ? "dotted" : forecastAfterGate(model.id) ? "dashed" : "solid" },
+        itemStyle: { color: forecastColor(model.id) } });
+    });
+    const selected = Object.fromEntries(forecastModels().map(model =>
+      [model.label, FORECAST_FIRST_SHOWN.includes(model.id) || model.id === band]));
+    const names = [actualName, ...forecastModels().map(model => model.label)];
+    const total = file.labels.length;
+    const keep = previous => {
+      const zoom = previous && previous.dataZoom && previous.dataZoom[0];
+      return zoom && forecastState.zoomZone === zone ? { start: zoom.start, end: zoom.end } : null;
+    };
+    const previousZoom = keep(chart.getOption());
+    const twoWeeks = Math.min(100, (14 * 24 / total) * 100);
+    const zoom = previousZoom || { start: 100 - twoWeeks, end: 100 };
+    forecastState.zoomZone = zone;
+    const bandLabel = forecastLabel(band);
+    setText("forecast-hourly-subtitle", `${zoneName} · hourly MGP price and forecasts, bands of ${bandLabel}`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: bessTooltip(items => {
+        const index = items[0].dataIndex;
+        const lines = items.filter(item => !String(item.seriesName).includes("%") && !String(item.seriesName).startsWith("band-")
+          && Number.isFinite(item.value))
+          .map(item => `<div>${item.marker} ${escapeHtml(item.seriesName)}: <b>${forecastEuro(item.value, 2)}</b></div>`);
+        const low = q("05"), high = q("95");
+        if (low && high && Number.isFinite(low[index]) && Number.isFinite(high[index])) {
+          lines.push(`<div style="color:${cssVar("--chart-tooltip-muted")}">${escapeHtml(bandLabel)} 5–95%: ` +
+            `${forecastEuro(low[index], 1)} – ${forecastEuro(high[index], 1)}</div>`);
+        }
+        return bessTipHead(file.labels[index]) + lines.join("");
+      }),
+      legend: bessLegend(names, { type: "scroll", right: 8, selected }),
+      grid: { left: 52, right: 16, top: 40, bottom: 64 },
+      xAxis: { type: "category", data: file.labels, boundaryGap: false, axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: { ...bessAxisLabel(), hideOverlap: true, formatter: value => value.slice(5, 10).split("-").reverse().join("/") + " " + value.slice(11) } },
+      yAxis: timelineYAxis("€/MWh", { nameGap: 36, scale: true }),
+      dataZoom: [{ type: "inside", start: zoom.start, end: zoom.end, zoomOnMouseWheel: "shift", moveOnMouseWheel: true },
+        { type: "slider", start: zoom.start, end: zoom.end, height: 20, bottom: 10, borderColor: cssVar("--chart-zoom-border"),
+          backgroundColor: cssVar("--chart-zoom-bg"), fillerColor: cssVar("--chart-zoom-filler"),
+          handleStyle: { color: cssVar("--chart-zoom-handle") }, textStyle: { color: cssVar("--chart-zoom-text"), fontSize: 10 },
+          labelFormatter: index => (file.labels[index] || "").slice(0, 10) }],
+      series
+    }, true);
+  }
+
+  document.querySelectorAll("#forecast-subnav .subnav-tab").forEach(button => {
+    button.addEventListener("click", () => {
+      forecastTab = button.dataset.forecastTab;
+      renderForecast();
+    });
+  });
+
+  window.addEventListener("resize", () => {
+    if (currentSection !== "forecast") return;
+    Object.values(forecastState.charts).forEach(chart => chart.resize());
+  });
+
+  // The public version has no forecast.
+  if (PUBLIC_MODE) document.querySelector('.sidebar-item[data-section="forecast"]').remove();
 
   /* ============================================================
      LIGHT / DARK THEME
