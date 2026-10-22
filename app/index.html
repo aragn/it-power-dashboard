@@ -16356,6 +16356,8 @@ move the slider above to another one`,
    *     the full version shows GME's zonal prices for the zones, exact to the
    *     cent (ENTSO-E's differ by a cent at times, and had +0.01 where GME's
    *     were -0.01 on 14 October 2026), ENTSO-E's only where GME's are missing;
+   *     ENTSO-E drops the minus sign of Italy's negative prices, which the
+   *     ETL puts back from JAO's day-ahead spreads (sign_restored);
    *   - imbalance: the zones' (balancing/<ZONE>.json, 17.1.G) and the
    *     neighbours' (map_prices.json);
    *   - aFRR: PICASSO's cross-border marginal prices (picasso.json), Terna's
@@ -17359,9 +17361,16 @@ move the slider above to another one`,
 
     // Sources, under the map.
     const daSource = ZMAP_ZONES.map(zone => (zmapPriceRun(files, period, "da", zone) || {}).source).filter(Boolean).join(",");
+    // The zones whose minus sign the ETL put back in the period (ENTSO-E publishes Italy's negative prices without it).
+    const restored = ZMAP_ZONES.filter(zone => Object.keys(((files.mapPrices && files.mapPrices.sign_restored) || {})[`${zone}|day_ahead`] || {})
+      .some(date => date >= period.from && date <= period.to)).map(zmapName);
+    const restoredText = restored.length > 1 ? `${restored.slice(0, -1).join(", ")} and ${restored[restored.length - 1]}` : restored.join("");
     body.querySelector(".zmap-note").innerHTML = `Day-ahead prices: ENTSO-E (12.1.D) for the neighbours` +
       (daSource.includes("gme") ? `; the Italian zones: GME's zonal prices, exact to the cent${daSource.includes("entsoe") ? " (ENTSO-E's where GME's are not on file yet)" : ""}`
-        : daSource.includes("entsoe") ? " and the Italian zones (ENTSO-E's Italian prices differ from GME's by a cent at times)" : "") +
+        : daSource.includes("entsoe") ? " and the Italian zones (ENTSO-E's Italian prices differ from GME's by a cent at times" +
+          (restored.length ? `; ENTSO-E publishes negative Italian prices without their minus sign, put back here for ${escapeHtml(restoredText)} ` +
+            "where the neighbour's price minus JAO's day-ahead spread with it gives the zone's price (Greece's for the South; Austria's, France's " +
+            "and Slovenia's for the North), and in the zones next to it at the same price" : "") + ")" : "") +
       `. Imbalance prices: ENTSO-E (17.1.G; the neighbours' ${files.mapPrices ? "where published" : "are not on file yet"}). ` +
       `aFRR: PICASSO's cross-border marginal prices (TransnetBW), Terna's on the mainland zones; Sicily and Sardinia are aFRR areas of their own without one, ` +
       `Switzerland is in PICASSO without prices. ${PUBLIC_MODE ? "" : "MI-A: GME's zonal prices; Austria's, France's and Slovenia's are North's plus JAO's spread " +
