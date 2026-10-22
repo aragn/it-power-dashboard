@@ -26,6 +26,15 @@ flows) shows and no other script fetches, into app/data/map_prices.json:
                           counting as 0), and the same areas and Malta;
   <AREA>|load             Actual Total Load 6.1.A&B (A65), MW.
 
+ENTSO-E publishes the Italian zones' negative day-ahead prices without their
+sign: +0.01 where the auction cleared at -0.01 EUR/MWh (South, Calabria and
+Sicily, 14 October 2026, 12:00-15:15; still so on 22 October).  The sign is
+put back from public data (restore_signs): a border zone's price is also the
+neighbour's day-ahead price (neighbour_prices.json) minus JAO's day-ahead
+spread with it (jao_spreads.json): North's with Austria, France and
+Slovenia, South's with Greece.  The quarter-hours put back are listed in
+sign_restored.
+
 (The Italian zones' generation and load are in zones/<ZONE>/
 generation_load.json, fetch_entsoe.py.)  An area that publishes nothing is
 simply absent; a series is read from 1 January 2025 the first time
@@ -62,9 +71,11 @@ from entsoe_api import (
     to_quarter_hourly,
 )
 from fetch_balancing import expand_points, number, point_records
-from fetch_crossborder import BORDERS
+from fetch_crossborder import BORDERS, ZONE_BORDERS
 from fetch_entsoe import is_generation, psr_type
+from fetch_jao_spreads import OUTPUT_PATH as JAO_SPREADS_PATH
 from fetch_neighbour_prices import DEFAULT_HISTORY_START, PT15_START, finest_resolution, is_day_ahead
+from fetch_neighbour_prices import OUTPUT_PATH as NEIGHBOUR_PRICES_PATH
 from zones import ZONE_DOMAINS, ZONE_NAMES
 
 # ============================================================================
@@ -86,6 +97,13 @@ CHUNK_DAYS = {"day_ahead": 183, "imbalance": 31, "generation": 7, "load": 31}
 LOOKBACK_DAYS = 7
 
 RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
+
+# The JAO borders (fetch_jao_spreads.COUNTRIES) and the Italian zone each
+# spread is against.
+JAO_HOME = {"AT": "NORD", "FR": "NORD", "SI": "NORD", "GR": "SUD"}
+
+# ENTSO-E's Italian prices differ from the auction's by a cent at times.
+CENT = 0.011
 
 
 # ============================================================================
@@ -202,24 +220,120 @@ def download(token, start_of, end_date):
 
 
 # ============================================================================
+# SIGNS
+# ============================================================================
+
+
+def load_border_inputs():
+    """JAO's day-ahead spreads and the neighbours' day-ahead prices,
+    quarter-hourly rows by country ({} where a file is missing)."""
+    spreads = compact.load(JAO_SPREADS_PATH).get("markets", {}).get("DA", {}) if os.path.exists(JAO_SPREADS_PATH) else {}
+    prices = (compact.load(NEIGHBOUR_PRICES_PATH).get("prices", {}).get("quarter_hourly", {})
+              if os.path.exists(NEIGHBOUR_PRICES_PATH) else {})
+    return {country: series.get("quarter_hourly", []) for country, series in spreads.items()}, prices
+
+
+def border_views(spreads, neighbour_prices):
+    """{(country, zone): {(date, time): price}}: a border zone's day-ahead
+    price as each JAO border gives it, the neighbour's price minus JAO's
+    spread (neighbour minus the zone), in the quarter-hours with both."""
+    views = {}
+    for country, zone in JAO_HOME.items():
+        neighbour = {(row["date"], row["time"]): row["value"] for row in neighbour_prices.get(country, [])}
+        views[(country, zone)] = {
+            key: round(neighbour[key] - row["value"], 2)
+            for row in spreads.get(country, []) if (key := (row["date"], row["time"])) in neighbour
+        }
+    return views
+
+
+def restore_signs(records, views):
+    """
+    The point records with the minus sign ENTSO-E dropped from the zones'
+    day-ahead prices put back, and the quarter-hours put back
+    ({group: {date: [times]}}).
+
+    A border's day counts only if the price it gives is ENTSO-E's to the
+    cent, or its negative, in every quarter-hour both have (JAO's Greek
+    spread was wrong on many days until August 2026).  A positive ENTSO-E
+    price is negative where a border gives its negative and none gives it as
+    it is; from such a zone the sign goes on to the neighbouring zones at
+    the same published price that no border speaks for (a price area is
+    zones next to each other).
+    """
+    published = {(row["group"].split("|")[0], row["date"], row["time"]): row["value"]
+                 for row in records if row["group"].endswith("|day_ahead") and row["minutes"] == 15}
+
+    verdicts = defaultdict(set)   # (zone, date, time) -> {"same", "negative"}
+    for (_, zone), view in views.items():
+        days = defaultdict(dict)
+        for (day, time_label), price in view.items():
+            value = published.get((zone, day, time_label))
+            if value is None:
+                continue
+            days[day][time_label] = ("same" if abs(price - value) <= CENT
+                                     else "negative" if value > 0 and abs(price + value) <= CENT else None)
+        for day, by_time in days.items():
+            if all(by_time.values()):
+                for time_label, verdict in by_time.items():
+                    verdicts[(zone, day, time_label)].add(verdict)
+
+    negative = {key for key, found in verdicts.items() if found == {"negative"}}
+    queue = list(negative)
+    while queue:
+        zone, day, time_label = queue.pop()
+        for other in ZONE_BORDERS[zone]:
+            key = (other, day, time_label)
+            if (other in ZONE_DOMAINS and key not in verdicts and key not in negative and key in published
+                    and abs(published[key] - published[(zone, day, time_label)]) < 0.005):
+                negative.add(key)
+                queue.append(key)
+
+    restored = defaultdict(lambda: defaultdict(list))
+    output = []
+    for row in records:
+        if row["group"].endswith("|day_ahead") and (row["group"].split("|")[0], row["date"], row["time"]) in negative:
+            row = {**row, "value": -row["value"]}
+            restored[row["group"]][row["date"]].append(row["time"])
+        output.append(row)
+    return output, {group: dict(days) for group, days in restored.items()}
+
+
+def merge_restored(before, restored, records):
+    """The quarter-hours put back on file: a day downloaded again takes this
+    run's (none if ENTSO-E has its sign now); the others stay."""
+    downloaded = {(row["group"], row["date"]) for row in records if row["group"].endswith("|day_ahead")}
+    merged = {}
+    for group, days in before.items():
+        kept = {day: times for day, times in days.items() if (group, day) not in downloaded}
+        if kept:
+            merged[group] = kept
+    for group, days in restored.items():
+        merged.setdefault(group, {}).update(days)
+    return {group: {day: sorted(times, key=label_minutes) for day, times in sorted(days.items())}
+            for group, days in sorted(merged.items())}
+
+
+# ============================================================================
 # LOAD / SAVE
 # ============================================================================
 
 
 def load_existing():
-    """{resolution: {group: rows}}, and the series whose history was read."""
+    """{resolution: {group: rows}}, the series whose history was read, and
+    the quarter-hours whose sign was put back."""
     existing = {resolution: {} for resolution in RESOLUTIONS}
     if not os.path.exists(OUTPUT_PATH):
-        return existing, set()
+        return existing, set(), {}
     payload = compact.load(OUTPUT_PATH)
     for resolution in RESOLUTIONS:
         existing[resolution] = dict(payload.get("series", {}).get(resolution, {}))
     # Files written before history_read: every series on file had its history read.
     read = payload.get("history_read")
-    return existing, set(read) if read is not None else set(existing["daily"])
+    return existing, set(read) if read is not None else set(existing["daily"]), payload.get("sign_restored", {})
 
 
-def build_output(series, history_read):
+def build_output(series, history_read, sign_restored=None):
     return {
         "source": "ENTSO-E Transparency Platform",
         "description": (
@@ -236,10 +350,17 @@ def build_output(series, history_read):
             "average of the hours. Italian market time (Europe/Rome), labelled by "
             "elapsed time since local midnight like GME periods. Quarter-hourly "
             "series start at quarter_hourly_native_from; earlier quarter-hours "
-            "repeat the hourly value."
+            "repeat the hourly value. ENTSO-E publishes the Italian zones' "
+            "negative day-ahead prices without their sign: sign_restored lists "
+            "the quarter-hours ({series: {date: [times]}}) given back their "
+            "minus sign, where JAO's day-ahead spread with a neighbour (North: "
+            "Austria, France, Slovenia; South: Greece) and the neighbour's "
+            "day-ahead price give the zone's price, and in the neighbouring "
+            "zones at the same published price."
         ),
         "quarter_hourly_native_from": PT15_START.isoformat(),
         "history_read": sorted(history_read),
+        "sign_restored": sign_restored or {},
         "areas": {**{zone: ZONE_NAMES[zone] for zone in ZONE_DOMAINS},
                   **{area: label for area, (label, _) in SYSTEM_AREAS.items()}},
         "series": {
@@ -271,7 +392,8 @@ def main():
 
     # Tomorrow's day-ahead prices are published around midday.
     end_date = parse_date(args.end) if args.end else market_today() + timedelta(days=1)
-    existing, history_read = ({resolution: {} for resolution in RESOLUTIONS}, set()) if args.full_history else load_existing()
+    existing, history_read, sign_restored = (({resolution: {} for resolution in RESOLUTIONS}, set(), {})
+                                             if args.full_history else load_existing())
     recent = market_today() - timedelta(days=LOOKBACK_DAYS)
     first_reads = set()
 
@@ -303,6 +425,10 @@ def main():
     # A history read with a failed request is tried again next time.
     history_read |= first_reads - failed
     print(f"  {len(records):,} points")
+    records, restored = restore_signs(records, border_views(*load_border_inputs()))
+    for group, days in restored.items():
+        print(f"  {group}: minus sign put back on " + ", ".join(f"{day} ({len(times)} quarter-hours)" for day, times in days.items()))
+    sign_restored = merge_restored(sign_restored, restored, records)
     series = merge_resolutions(existing, records, RESOLUTIONS, daily="mean")
 
     for group in sorted(series["daily"]):
@@ -311,7 +437,7 @@ def main():
     if not any(series["daily"].values()):
         raise RuntimeError("No data downloaded; not writing output.")
 
-    compact.dump(build_output(series, history_read), OUTPUT_PATH)
+    compact.dump(build_output(series, history_read, sign_restored), OUTPUT_PATH)
     print("=" * 70)
     print(f"Wrote: {OUTPUT_PATH}")
     print("=" * 70)

@@ -117,3 +117,92 @@ def test_a_type_missing_before_the_last_quarter_counts_as_zero():
         generation_series("2025-10-14T22:00Z", "2025-10-14T22:45Z", "PT15M", "B16", [(1, 5), (3, 7)]),
     )
     assert values(map_prices.generation_records(root, "AT"), "AT|generation") == [("00:00", 105.0), ("00:15", 100.0), ("00:30", 107.0)]
+
+
+def da(zone, day, points):
+    """The zone's quarter-hourly day-ahead point records: (time, price)."""
+    return [{"group": f"{zone}|day_ahead", "date": day, "time": t, "minutes": 15, "value": v} for t, v in points]
+
+
+def border(day, points):
+    """A JAO border's view of its zone's price: (time, price)."""
+    return {(day, t): v for t, v in points}
+
+
+DAY = "2026-10-14"
+# ENTSO-E's prices on 14 October 2026: South, Calabria and Sicily +0.01 where the auction cleared at -0.01.
+SOUTH = [("11:45", 0.0), ("12:00", 0.01), ("12:15", 0.01), ("15:15", 0.0)]
+
+
+def test_jao_border_view_is_the_neighbours_price_minus_the_spread():
+    spreads = {"GR": [{"date": DAY, "time": "12:00", "value": 0.02}, {"date": DAY, "time": "12:15", "value": 0.03}]}
+    prices = {"GR": [{"date": DAY, "time": "12:00", "value": 0.01}], "FR": [{"date": DAY, "time": "12:00", "value": 9}]}
+    views = map_prices.border_views(spreads, prices)
+    assert views[("GR", "SUD")] == {(DAY, "12:00"): -0.01}
+    assert views[("FR", "NORD")] == {}
+
+
+def test_sign_put_back_from_jao_and_carried_to_the_zones_at_the_same_price():
+    records = (da("SUD", DAY, SOUTH) + da("CALA", DAY, SOUTH) + da("SICI", DAY, SOUTH)
+               + da("CSUD", DAY, [("12:00", 0.01), ("12:15", 5.0)]) + da("SARD", DAY, [("12:00", 0.01)])
+               + da("NORD", DAY, [("12:00", 0.01)]))
+    views = {("GR", "SUD"): border(DAY, [("11:45", 0.0), ("12:00", -0.01), ("12:15", -0.02), ("15:15", 0.0)]),
+             # North's own border gives its price as ENTSO-E has it.
+             ("FR", "NORD"): border(DAY, [("12:00", 0.01)])}
+    output, restored = map_prices.restore_signs(records, views)
+    assert values(output, "SUD|day_ahead") == [("11:45", 0.0), ("12:00", -0.01), ("12:15", -0.01), ("15:15", 0.0)]
+    assert values(output, "SICI|day_ahead") == values(output, "SUD|day_ahead")
+    # Centre-South, next to the South, at the same published price at 12:00 only; Sardinia through it.
+    assert values(output, "CSUD|day_ahead") == [("12:00", -0.01), ("12:15", 5.0)]
+    assert values(output, "SARD|day_ahead") == [("12:00", -0.01)]
+    # The North has a border of its own that says +0.01.
+    assert values(output, "NORD|day_ahead") == [("12:00", 0.01)]
+    assert restored == {"SUD|day_ahead": {DAY: ["12:00", "12:15"]}, "CALA|day_ahead": {DAY: ["12:00", "12:15"]},
+                        "SICI|day_ahead": {DAY: ["12:00", "12:15"]}, "CSUD|day_ahead": {DAY: ["12:00"]},
+                        "SARD|day_ahead": {DAY: ["12:00"]}}
+    # The records given are not changed.
+    assert values(records, "SUD|day_ahead") == SOUTH
+
+
+def test_a_border_day_that_misses_a_quarter_hour_puts_nothing_back():
+    # JAO's Greek spread wrong at 15:15 (as on many days until August 2026): the day does not count.
+    records = da("SUD", DAY, SOUTH) + da("CALA", DAY, SOUTH)
+    views = {("GR", "SUD"): border(DAY, [("11:45", 0.0), ("12:00", -0.01), ("12:15", -0.01), ("15:15", 3.5)])}
+    output, restored = map_prices.restore_signs(records, views)
+    assert output == records and restored == {}
+
+
+def test_borders_that_disagree_put_nothing_back():
+    records = da("NORD", DAY, [("12:00", 0.01), ("12:15", 0.01)])
+    views = {("AT", "NORD"): border(DAY, [("12:00", -0.01), ("12:15", -0.01)]),
+             ("FR", "NORD"): border(DAY, [("12:00", 0.01), ("12:15", -0.01)])}
+    output, restored = map_prices.restore_signs(records, views)
+    assert values(output, "NORD|day_ahead") == [("12:00", 0.01), ("12:15", -0.01)]
+    assert restored == {"NORD|day_ahead": {DAY: ["12:15"]}}
+
+
+def test_a_cent_off_and_prices_already_negative_stay_as_they_are():
+    records = da("SUD", DAY, [("12:00", 0.01), ("12:15", -0.05), ("12:30", 40.0)])
+    views = {("GR", "SUD"): border(DAY, [("12:00", 0.0), ("12:15", -0.05), ("12:30", 40.01)])}
+    output, restored = map_prices.restore_signs(records, views)
+    assert output == records and restored == {}
+
+
+def test_sign_restored_on_file_follows_the_days_downloaded_again():
+    before = {"SUD|day_ahead": {DAY: ["12:00"], "2026-10-20": ["13:00"]}, "CALA|day_ahead": {DAY: ["12:00"]}}
+    # 14 October downloaded again: ENTSO-E has the sign now in Calabria; 20 October not downloaded.
+    records = da("SUD", DAY, SOUTH) + da("CALA", DAY, SOUTH)
+    merged = map_prices.merge_restored(before, {"SUD|day_ahead": {DAY: ["12:15", "12:00"]}}, records)
+    assert merged == {"SUD|day_ahead": {DAY: ["12:00", "12:15"], "2026-10-20": ["13:00"]}}
+
+
+def test_restored_signs_reach_the_hourly_and_daily_prices():
+    records, restored = map_prices.restore_signs(
+        da("SUD", DAY, [("12:00", 0.01), ("12:15", 0.01), ("12:30", 0.01), ("12:45", 0.03)]),
+        {("GR", "SUD"): border(DAY, [("12:00", -0.01), ("12:15", -0.01), ("12:30", -0.01), ("12:45", 0.03)])})
+    existing = {resolution: {} for resolution in map_prices.RESOLUTIONS}
+    series = entsoe_api.merge_resolutions(existing, records, map_prices.RESOLUTIONS, daily="mean")
+    assert series["hourly"]["SUD|day_ahead"] == [{"date": DAY, "time": "12:00", "value": 0.0}]
+    payload = compact.decode_tree(map_prices.build_output(series, set(), restored))
+    assert payload["sign_restored"] == {"SUD|day_ahead": {DAY: ["12:00", "12:15", "12:30"]}}
+    assert [row["value"] for row in payload["series"]["quarter_hourly"]["SUD|day_ahead"]] == [-0.01, -0.01, -0.01, 0.03]
