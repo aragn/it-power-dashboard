@@ -15,13 +15,17 @@ What is known on the morning of D, for each day of the week:
   - the calendar.
 
 The weather helps the first days only: in the backtest (365 mornings to
-14 October 2026) the model with it had the lowest error 1 and 2 days ahead,
-but from day 4 a higher one than the prices alone, and too narrow a band (the
-weather beyond day 3 being far less sure than the next day's it learns from).
-The week's forecast ("timestral-28m-week") is therefore the weather model for
-days 1-2 and, from day 3, the average of its quantiles and the prices-only
-model's: the lowest error and best band from day 3 on (chosen on the same
-backtest, so its edge there is slightly flattering).
+14 October 2026) the 28M model with it had the lowest error 1 and 2 days
+ahead, but from day 4 a higher one than the prices alone, and too narrow a band
+(the weather beyond day 3 being far less sure than the next day's it learns
+from).  A combined forecast is therefore the weather model for its first
+"weather_days" and then the average of its quantiles and the prices-only
+model's: from day 3 for 28M, from day 2 for 209M (whose average already beats
+both its parts on day 2).  The week's forecast is "timestral-209m-week": against
+"timestral-28m-week" a lower error on days 1-5 (MAE 11.13 against 11.77 on
+day 1, 15.44 against 15.86 on day 3; significant on days 1-4) and level on
+days 6-7.  Both choices were made on the same backtest, so their edge there is
+slightly flattering.
 
   forecast_week.py --backtest            the last 365 decision days -> backtest/week.json
   forecast_week.py --backtest --models naive-week
@@ -58,6 +62,7 @@ MODELS = {
                               "description": "Timestral-28M zero-shot with the week's weather forecasts, tomorrow's load "
                                              "forecast, the gas and EUA prices and the calendar"},
     "timestral-28m-week": {"label": "Timestral 28M, combined", "parts": ("timestral-28m-wx-week", "timestral-28m-ar-week"),
+                           "weather_days": 2,
                            "description": "With weather for days 1-2; from day 3 the average of that and the prices-only "
                                           "forecast"},
     "timestral-209m-ar-week": {"label": "Timestral 209M, prices only", "size": "209M", "weather": False,
@@ -66,19 +71,17 @@ MODELS = {
                                "description": "Timestral-209M zero-shot with the week's weather forecasts, tomorrow's load "
                                               "forecast, the gas and EUA prices and the calendar"},
     "timestral-209m-week": {"label": "Timestral 209M, combined",
-                            "parts": ("timestral-209m-wx-week", "timestral-209m-ar-week"),
-                            "description": "With weather for days 1-2; from day 3 the average of that and the prices-only "
+                            "parts": ("timestral-209m-wx-week", "timestral-209m-ar-week"), "weather_days": 1,
+                            "description": "With weather for day 1; from day 2 the average of that and the prices-only "
                                            "forecast"},
 }
-# Days ahead the combined forecast takes the weather model alone.
-WEATHER_ONLY_DAYS = 2
 
 
-def combine(data, decision_day, weather, prices_only):
+def combine(data, decision_day, weather, prices_only, weather_days):
     """The combined forecast of a week: `weather` for its first
-    WEATHER_ONLY_DAYS days, the average of the two models' quantiles after."""
+    `weather_days` days, the average of the two models' quantiles after."""
     days, start, _ = week_days(data, decision_day)
-    cut = data.day_start[days[WEATHER_ONLY_DAYS]] - start
+    cut = data.day_start[days[weather_days]] - start
     out = weather.copy()
     out[:, cut:] = (weather[:, cut:] + prices_only[:, cut:]) / 2
     return out
@@ -296,7 +299,7 @@ def main():
         if "parts" in spec:
             weather, prices_only = (load(part, data) for part in spec["parts"])
             if weather and prices_only:
-                save(model, {day: combine(data, day, weather[day], prices_only[day])
+                save(model, {day: combine(data, day, weather[day], prices_only[day], spec["weather_days"])
                              for day in weather if day in prices_only})
     forecasts = {model: load(model, data) for model in MODELS}
     forecasts = {model: f for model, f in forecasts.items() if f is not None}

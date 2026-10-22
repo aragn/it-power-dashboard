@@ -39,7 +39,7 @@ LATEST_PATH = os.path.join(DATA_DIR, "forecast", "latest.json")
 HISTORY_PATH = os.path.join(DATA_DIR, "forecast", "history.json")
 
 MODEL = "timestral-209m-wx"
-WEEK_MODEL = "timestral-28m-week"
+WEEK_MODEL = "timestral-209m-week"
 # Quantiles in latest.json's week.
 WEEK_LEVELS = (0.05, 0.25, 0.5, 0.75, 0.95)
 # Quantiles kept in the history (latest.json has all 21).
@@ -114,7 +114,7 @@ def week(data, decision_day):
     print(f"Forecasting the week after {decision_day} with {WEEK_MODEL}", flush=True)
     weather, prices_only = (forecast_week.timestral_week(data, [decision_day], forecast_week.MODELS[part], batch=1)[decision_day]
                             for part in spec["parts"])
-    quantiles = forecast_week.combine(data, decision_day, weather, prices_only)
+    quantiles = forecast_week.combine(data, decision_day, weather, prices_only, spec["weather_days"])
     days, _, _ = forecast_week.week_days(data, decision_day)
     return {
         "model": {"id": WEEK_MODEL, "label": spec["label"], "description": spec["description"]},

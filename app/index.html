@@ -22498,7 +22498,7 @@ move the slider above to another one`,
       forecastSection("week", "The Week Ahead", `<div id="forecast-week-table" class="gas-table-wrap forecast-table-wrap"></div>`,
         "Daily baseload of the MGP price forecast, €/MWh (the hourly median's average) and, below, the average of the hours' 5% and " +
         "95% quantiles. Made on the morning before tomorrow's auction: tomorrow with Terna's load forecast when out, the days " +
-        "after with the weather forecasts, the calendar and the gas and EUA prices of today held over the week; from day 3 " +
+        "after with the weather forecasts, the calendar and the gas and EUA prices of today held over the week; from day 2 " +
         "averaged with the forecast from the prices alone. The further ahead, the wider the band: see the errors by days ahead " +
         "below.", true) +
       forecastSection("week-hours", "The Week, Hourly", chart("week-hours"),
@@ -22508,11 +22508,11 @@ move the slider above to another one`,
       forecastSection("week-leads", "Backtest: Error by Days Ahead", chart("week-leads"),
         "Mean absolute error of the median, €/MWh, by how many days ahead the forecast was made, over the backtest's year " +
         "(a forecast each morning, all zones or the zone chosen above). Naive: the same weekday of the last week known. The " +
-        "weather helps the first two days; further ahead the model with it does worse than the prices alone and its band gets " +
-        "too narrow, so the week shown above (combined) is the weather model for days 1–2 and, from day 3, the average of the " +
-        "two models' quantiles: the best from day 3 on in this backtest (the same year it was chosen on, so slightly " +
-        "flattering). Day 7's weather is a few hours fresher than a trader had (Open-Meteo keeps forecasts up to 7 days before " +
-        "the hour).");
+        "weather helps the first days; further ahead the model with it does worse than the prices alone, so the combined " +
+        "forecasts take the weather model for the first days and then the average of the two models' quantiles: 28M from " +
+        "day 3, 209M from day 2. The week shown above is Timestral 209M, combined: the lowest error on days 1–5 in this " +
+        "backtest, level with 28M's on days 6–7 (the same year it was chosen on, so slightly flattering). Day 7's weather is " +
+        "a few hours fresher than a trader had (Open-Meteo keeps forecasts up to 7 days before the hour).");
     weekState.charts = {
       hours: echarts.init(document.getElementById("forecast-week-hours-chart")),
       zones: echarts.init(document.getElementById("forecast-week-zones-chart")),
@@ -22579,7 +22579,8 @@ move the slider above to another one`,
       .concat(...forecastWeekDays(week).map(span =>
         Array.from({ length: span.end - span.start }, (_, hour) => `${forecastShortDay(span.day)} ${hourLabel(hour)}`)));
     const pad = values => new Array(today.length).fill(null).concat(values);
-    const color = forecastColor("timestral-28m-wx");
+    // The week model's weather part's colour, as tomorrow's chart.
+    const color = forecastColor(week.model.id.replace(/-week$/, "-wx"));
     const series = [];
     [["05", "95", 0.14], ["25", "75", 0.26]].forEach(([low, high, opacity]) => {
       const lower = quantiles[at(Number(low) / 100)], upper = quantiles[at(Number(high) / 100)];
