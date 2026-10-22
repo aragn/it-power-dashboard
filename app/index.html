@@ -26,7 +26,7 @@
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
       --chart-pun:#d9dde2; --chart-eua:#e7a84b; --chart-igi:#4fc3c9; --chart-srmc:#ef6b5b; --res-actual:#d9dde2; --res-day-ahead:#5b9cff; --res-intraday:#d55181; --chart-generation:#5ecb8a; --chart-load:#5b9cff; --chart-residual:#e0e3e7;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
-      --fc-actual:#e0e3e7; --fc-naive:#8c949e; --fc-lear:#e7a84b; --fc-ts-ar:#7fd1c5; --fc-ts28:#5b9cff; --fc-ts28-long:#c783ff; --fc-ts209:#5ecb8a; --fc-ensemble:#ef6fae; --fc-lear-res:#f2cf8f; --fc-ts28-res:#a8c8ff; --fc-lear-wx:#ff9f5a; --fc-ts28-wx:#4fc3c9; --fc-ts209-wx:#b5d65a;
+      --fc-actual:#e0e3e7; --fc-naive:#8c949e; --fc-lear:#e7a84b; --fc-ts-ar:#7fd1c5; --fc-ts28:#5b9cff; --fc-ts28-long:#c783ff; --fc-ts209:#5ecb8a; --fc-ensemble:#ef6fae; --fc-lear-res:#f2cf8f; --fc-ts28-res:#a8c8ff; --fc-lear-wx:#ff9f5a; --fc-ts28-wx:#4fc3c9; --fc-ts209-wx:#b5d65a; --fc-ts209-ar:#ff7b72;
       --mix-coal:#b8c2d0; --mix-geothermal:#b5651d; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
       --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
       --border-1:#3987e5; --border-2:#d95926; --border-3:#199e70; --border-4:#c98500; --border-5:#d55181; --border-6:#008300; --border-7:#9085e9;
@@ -57,7 +57,7 @@
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
       --chart-pun:#1f2429; --chart-eua:#b36b00; --chart-igi:#0f8a91; --chart-srmc:#c8392b; --res-actual:#1f2429; --res-day-ahead:#2f6fdb; --res-intraday:#c93d74; --chart-generation:#1f9d57; --chart-load:#2f6fdb; --chart-residual:#3d434b;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
-      --fc-actual:#1f2429; --fc-naive:#6b7480; --fc-lear:#c27a0e; --fc-ts-ar:#15998a; --fc-ts28:#2f6fdb; --fc-ts28-long:#8a4fd6; --fc-ts209:#1f9d57; --fc-ensemble:#d23f84; --fc-lear-res:#e0a643; --fc-ts28-res:#7aa5ec; --fc-lear-wx:#d9822b; --fc-ts28-wx:#0f8a91; --fc-ts209-wx:#66900f;
+      --fc-actual:#1f2429; --fc-naive:#6b7480; --fc-lear:#c27a0e; --fc-ts-ar:#15998a; --fc-ts28:#2f6fdb; --fc-ts28-long:#8a4fd6; --fc-ts209:#1f9d57; --fc-ensemble:#d23f84; --fc-lear-res:#e0a643; --fc-ts28-res:#7aa5ec; --fc-lear-wx:#d9822b; --fc-ts28-wx:#0f8a91; --fc-ts209-wx:#66900f; --fc-ts209-ar:#cf3f35;
       --mix-coal:#4b5563; --mix-geothermal:#9c5a3c; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
       --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
       --border-1:#2a78d6; --border-2:#eb6834; --border-3:#1baf7a; --border-4:#eda100; --border-5:#e87ba4; --border-6:#008300; --border-7:#4a3aa7;
@@ -22507,7 +22507,7 @@ move the slider above to another one`,
       forecastSection("week", "The Week Ahead", `<div id="forecast-week-table" class="gas-table-wrap forecast-table-wrap"></div>`,
         "Daily baseload of the MGP price forecast, €/MWh (the hourly median's average) and, below, the average of the hours' 5% and " +
         "95% quantiles. Made on the morning before tomorrow's auction: tomorrow with Terna's load forecast when out, the days " +
-        "after with the weather forecasts, the calendar and the gas and EUA prices of today held over the week; from day 3 " +
+        "after with the weather forecasts, the calendar and the gas and EUA prices of today held over the week; from day 2 " +
         "averaged with the forecast from the prices alone. The further ahead, the wider the band: see the errors by days ahead " +
         "below.", true) +
       forecastSection("week-hours", "The Week, Hourly", chart("week-hours"),
@@ -22517,11 +22517,11 @@ move the slider above to another one`,
       forecastSection("week-leads", "Backtest: Error by Days Ahead", chart("week-leads"),
         "Mean absolute error of the median, €/MWh, by how many days ahead the forecast was made, over the backtest's year " +
         "(a forecast each morning, all zones or the zone chosen above). Naive: the same weekday of the last week known. The " +
-        "weather helps the first two days; further ahead the model with it does worse than the prices alone and its band gets " +
-        "too narrow, so the week shown above (combined) is the weather model for days 1–2 and, from day 3, the average of the " +
-        "two models' quantiles: the best from day 3 on in this backtest (the same year it was chosen on, so slightly " +
-        "flattering). Day 7's weather is a few hours fresher than a trader had (Open-Meteo keeps forecasts up to 7 days before " +
-        "the hour).");
+        "weather helps the first days; further ahead the model with it does worse than the prices alone, so the combined " +
+        "forecasts take the weather model for the first days and then the average of the two models' quantiles: 28M from " +
+        "day 3, 209M from day 2. The week shown above is Timestral 209M, combined: the lowest error on days 1–5 in this " +
+        "backtest, level with 28M's on days 6–7 (the same year it was chosen on, so slightly flattering). Day 7's weather is " +
+        "a few hours fresher than a trader had (Open-Meteo keeps forecasts up to 7 days before the hour).");
     weekState.charts = {
       hours: echarts.init(document.getElementById("forecast-week-hours-chart")),
       zones: echarts.init(document.getElementById("forecast-week-zones-chart")),
@@ -22588,7 +22588,8 @@ move the slider above to another one`,
       .concat(...forecastWeekDays(week).map(span =>
         Array.from({ length: span.end - span.start }, (_, hour) => `${forecastShortDay(span.day)} ${hourLabel(hour)}`)));
     const pad = values => new Array(today.length).fill(null).concat(values);
-    const color = forecastColor("timestral-28m-wx");
+    // The week model's weather part's colour, as tomorrow's chart.
+    const color = forecastColor(week.model.id.replace(/-week$/, "-wx"));
     const series = [];
     [["05", "95", 0.14], ["25", "75", 0.26]].forEach(([low, high, opacity]) => {
       const lower = quantiles[at(Number(low) / 100)], upper = quantiles[at(Number(high) / 100)];
@@ -22646,7 +22647,8 @@ move the slider above to another one`,
     const zone = weekState.zone;
     const zoneName = summary.zones.find(item => item.code === zone).name;
     const colors = { "naive-week": "--fc-naive", "timestral-28m-ar-week": "--fc-ts-ar", "timestral-28m-wx-week": "--fc-ts28-wx",
-      "timestral-28m-week": "--fc-ts28" };
+      "timestral-28m-week": "--fc-ts28", "timestral-209m-ar-week": "--fc-ts209-ar", "timestral-209m-wx-week": "--fc-ts209-wx",
+      "timestral-209m-week": "--fc-ts209" };
     const names = [];
     const series = [];
     summary.models.forEach(model => {
