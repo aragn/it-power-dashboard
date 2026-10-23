@@ -152,6 +152,58 @@ INITIATIVES = {"IMPIANTO NUOVO": "new", "RIPOTENZIAMENTO": "repowering"}
 # A list's footnotes, put in the plant's name.
 PLANT_NOTES = {(2027, "Più impianti*"): "Più impianti: Castenedolo, Fiesse1, Fiesse2, Sospiro, Remedello"}
 
+# Derating: the share of a plant's power Terna credits as CDP (1 - the
+# derating rate), from Terna's yearly annex to its technical rules (DTF 2)
+# and, for 2028, the ministry's decree approving it.  For 2022-2024 Terna
+# published only preliminary ranges, so those units get none.
+DERATING = {
+    "sources": [
+        {"years": "2027", "url": TERNA + "Allegato_3_alla_DTF2_Anno_di_consegna_2027_8dd20da26b4b11d.pdf",
+         "note": "Terna, Allegato 3 alla DTF n. 2, delivery 2027 (tables 9-11)"},
+        {"years": "2025-2026", "url": "https://www.staffettaonline.com/articolo.aspx?id=391859",
+         "note": "Staffetta Quotidiana: the 2027 annex confirms the 2025 and 2026 auctions' derating rates"},
+        {"years": "2028", "url": "https://www.mase.gov.it/portale/documents/d/guest/dm_327_16-10-2026-pdf",
+         "note": "MASE decree 327 of 16 October 2026, Allegato 4 to DTF n. 2 (tables 9-11)"},
+    ],
+    # Batteries: CDP as % of power for 1 to 8 hours of storage.
+    "batteries": {
+        "2025-2027": {"zones": "Italy", "values": [24, 44, 56, 67, 74, 81, 86, 90]},
+        "2028": {
+            "NORD_CNOR": [11, 21, 30, 40, 44, 49, 52, 55],
+            "CSUD": [13, 26, 39, 51, 58, 64, 68, 71],
+            "SUD_CALA": [7, 13, 17, 21, 24, 26, 28, 29],
+            "SICI_SARD": [7, 13, 17, 21, 24, 27, 30, 33],
+        },
+    },
+    # Derating rates (%): renewables by source, the other technologies' expected averages, new thermal plants.
+    "technologies": {
+        "2027": {"solar": 88, "wind": 84, "run_of_river": 67, "thermal": 23, "geothermal": 25, "hydro": 41, "pumped": 39,
+                 "new_thermal": 10, "new_ccgt_water": 20},
+        "2028": {"solar": 91.7, "wind": 84, "run_of_river": 67, "thermal": 21, "geothermal": 27, "hydro": 43, "pumped": 40,
+                 "new_thermal": 10, "new_ccgt_water": 20},
+    },
+}
+DERATED_YEARS = (2025, 2026, 2027)
+
+
+def unit_rating(unit):
+    """The share of the unit's power counted as CDP, and how it was found:
+    batteries by their hours (between two whole hours, interpolated), solar
+    and wind by source; None where the tables do not say."""
+    if unit["year"] not in DERATED_YEARS:
+        return None, None
+    if unit["technology"] in ("solar", "wind"):
+        return round(1 - DERATING["technologies"]["2027"][unit["technology"]] / 100, 4), "source"
+    if unit["technology"] == "battery" and unit["hours"]:
+        values = DERATING["batteries"]["2025-2027"]["values"]
+        hours = min(max(unit["hours"], 1), 8)
+        low = int(hours)
+        if hours == low:
+            return values[low - 1] / 100, "hours"
+        share = values[low - 1] + (values[low] - values[low - 1]) * (hours - low)
+        return round(share / 100, 4), "interpolated"
+    return None, None
+
 # Participants -> the group they belong to (the author's reading of the
 # names, for the totals by group); the rest stand alone.
 GROUPS = [
@@ -449,6 +501,7 @@ def build_auction(auction, transcribed, cache_dir):
     for unit in units:
         unit["year"] = year
         unit["plant"] = PLANT_NOTES.get((year, unit["plant"]), unit["plant"])
+        unit["rating"], unit["rating_basis"] = unit_rating(unit)
         # From 2025 all new capacity had to be authorised; before, the
         # tables tell (units they do not cover stay unknown).
         unit["authorised"] = True if not mw["new_not_authorised"] else None
@@ -545,7 +598,8 @@ def build(cache_dir):
         auctions.append(built)
         units += auction_units
     names = sorted({row[1] for auction in auctions for row in auction["national"] + auction["foreign"]} | {unit["participant"] for unit in units})
-    unit_fields = ["year", "participant", "area", "plant", "technology", "technology_it", "initiative", "authorised", "mw", "hours", "premium"]
+    unit_fields = ["year", "participant", "area", "plant", "technology", "technology_it", "initiative", "authorised", "mw", "hours", "premium",
+                   "rating", "rating_basis"]
     return {
         "generated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "source": "Terna, Mercato della capacità: Rendiconto degli esiti (asta madre), 2022-2027 delivery years",
@@ -553,6 +607,7 @@ def build(cache_dir):
         "units": [[unit[field] for field in unit_fields] for unit in units],
         "auctions": auctions,
         "groups": {name: group_of(name) for name in names},
+        "derating": DERATING,
     }
 
 
