@@ -113,3 +113,7 @@ def test_the_published_file():
         assert abs(payments / 1e6 - auction["cost"]["total"]) <= 0.005 * auction["cost"]["total"]
     assert all(row[1] in data["groups"] for auction in data["auctions"] for row in auction["national"] + auction["foreign"])
     assert all(unit["participant"] in data["groups"] for unit in found)
+    contracts = {auction["year"]: auction["contract"] for auction in data["auctions"]}
+    assert all(contract["years"] == 15 for contract in contracts.values())
+    assert [year for year, contract in contracts.items() if not contract["confirmed"]] == [2025]
+    assert all(contract["source"] for contract in contracts.values() if contract["confirmed"])

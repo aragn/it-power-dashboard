@@ -23069,6 +23069,8 @@ move the slider above to another one`,
       unit.zone = unit.area.startsWith("SARD") ? "SARD" : unit.area;
       unit.payment = isEmpty(unit.premium) ? null : unit.mw * unit.premium;
       unit.auction = auctions[unit.year];
+      // New capacity is paid from its delivery year for the contract's years.
+      unit.contractUntil = unit.auction.contract ? unit.year + unit.auction.contract.years - 1 : null;
       unit.search = [unit.year, unit.participant, unit.group, unit.plant, CM_AREAS[unit.area], CM_TECH[unit.technology], unit.technology_it]
         .join(" ").toLowerCase();
       return unit;
@@ -23123,7 +23125,7 @@ move the slider above to another one`,
       `<h2>Capacity market</h2><p class="analysis-lede">Terna buys capacity years ahead in a yearly auction per delivery year. ` +
       `What it buys is CDP (capacità disponibile in probabilità), each plant's MW derated for how much of it is reliably there; ` +
       `a plant awarded is paid a premium per MW of CDP a year and pays back the day-ahead price above a strike price (the reliability ` +
-      `option). Existing capacity is bought for the delivery year, new capacity for 15 years (under the first auctions' rules). ` +
+      `option). Existing capacity is bought for the delivery year, new capacity for 15 years (not confirmed for the 2025 auction). ` +
       `Terna names the new units; the existing capacity it gives only by participant and area.</p></div>` +
       `<nav class="subnav" id="policy-subnav"><button class="subnav-tab${policyTab === "units" ? " active" : ""}" data-policy-tab="units" type="button">Units awarded</button>` +
       `<button class="subnav-tab${policyTab === "totals" ? " active" : ""}" data-policy-tab="totals" type="button">Totals by operator, area and technology</button></nav>` +
@@ -23200,8 +23202,9 @@ move the slider above to another one`,
   }
 
   const CM_UNIT_COLUMNS = [
-    { key: "year", label: "Year", num: true, value: row => row.year, cell: row => String(row.year),
-      title: "Delivery year: the first year the capacity is paid for" },
+    { key: "year", label: "Year", num: true, value: row => row.year, className: "nowrap",
+      cell: row => `${row.year}${isEmpty(row.contractUntil) ? "" : `<br><span class="muted"${row.auction.contract.confirmed ? "" : ` title="Contract length not confirmed for this auction"`}>to ${row.contractUntil}${row.auction.contract.confirmed ? "" : "?"}</span>`}`,
+      title: "Delivery year, the first year the capacity is paid for, and the last year of its contract" },
     { key: "participant", label: "Participant", value: row => row.participant, className: "clip cm-name",
       cell: row => `<span title="${escapeHtml(row.participant)}">${escapeHtml(row.participant)}</span><br><span class="muted">${escapeHtml(row.group)}</span>` },
     { key: "plant", label: "Plant", value: row => row.plant, className: "clip cm-plant",
@@ -23245,6 +23248,9 @@ move the slider above to another one`,
       fact("Premium", isEmpty(row.premium) ? `€${formatNumber(auction.premium.new)} if authorised, else €${formatNumber(cmOtherPremium(auction, row.area))}, per MW a year`
         : `€${formatNumber(row.premium)} per MW a year · ${bessMoney(row.payment)} a year`) +
       fact("Auction", `${cmDate(auction.date)} · delivery ${row.year} · rules: ${escapeHtml(auction.rules)}`) +
+      fact("Contract", isEmpty(row.contractUntil) ? null : `${auction.contract.years} years, ${row.year}–${row.contractUntil}` +
+        `${auction.contract.confirmed ? "" : " (not confirmed)"} <span class="muted">· ${escapeHtml(auction.contract.note)}` +
+        `${auction.contract.source ? ` <a href="${escapeHtml(auction.contract.source)}" target="_blank" rel="noopener">source ↗</a>` : ""}</span>`) +
       fact("GME unit", `<span class="muted">Not matched yet</span>`) +
       `</div><p>${sources.map(url => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(decodeURIComponent(url.split("/").pop()).replace(/_[0-9a-f]{12,}\.pdf$/, ".pdf"))} ↗</a>`).join(" · ")}</p>`;
   }
@@ -23256,7 +23262,10 @@ move the slider above to another one`,
       ["Plant type", row => row.initiative === "new" ? "New" : "Repowering"],
       ["Authorised at the auction", row => row.authorised === null ? "" : row.authorised ? "yes" : "no"],
       ["CDP MW", row => row.mw], ["Hours", row => row.hours], ["Premium EUR/MW/year", row => row.premium],
-      ["EUR a year", row => row.payment === null ? "" : Math.round(row.payment)], ["Auction date", row => row.auction.date],
+      ["EUR a year", row => row.payment === null ? "" : Math.round(row.payment)],
+      ["Contract years", row => row.auction.contract ? row.auction.contract.years : ""], ["Contract until", row => row.contractUntil],
+      ["Contract length confirmed", row => row.auction.contract ? (row.auction.contract.confirmed ? "yes" : "no") : ""],
+      ["Contract length source", row => row.auction.contract ? row.auction.contract.source : ""], ["Auction date", row => row.auction.date],
       ["Report", row => row.auction.report]];
     const quote = value => isEmpty(value) ? "" : /[",\n;]/.test(String(value)) ? `"${String(value).replace(/"/g, '""')}"` : String(value);
     const csv = [columns.map(([name]) => name).join(","), ...rows.map(row => columns.map(([, get]) => quote(get(row))).join(","))].join("\n");
@@ -23739,6 +23748,11 @@ move the slider above to another one`,
       `different prices); the lists do not say which unit was which. It is inferred from each participant's MW of each (per area in ` +
       `2024): a unit is marked when it falls on the same side of every split of its participant's units that matches them (≈); else ` +
       `not known, and so is its price.</li>` +
+      `<li><b>Contracts</b>: existing capacity for its delivery year, new capacity for 15 years from it, at its auction's price: ` +
+      data.years.map(year => {
+        const contract = data.auctions[year].contract;
+        return `${year} ${contract.source ? `<a href="${escapeHtml(contract.source)}" target="_blank" rel="noopener">${escapeHtml(contract.note)}</a>` : escapeHtml(contract.note)}`;
+      }).join("; ") + `.</li>` +
       `<li><b>Premiums</b>: € per MW of CDP a year, at the auction's marginal price. What a holder gets is less: it pays back the ` +
       `day-ahead price above the strike price, and penalties if it is not available.</li>` +
       `<li><b>Groups</b>: participants put together by their names (Enel Produzione, A2A Gencogas, Eni Plenitude, EP Produzione's ` +
