@@ -1,0 +1,255 @@
+{
+  "_about": [
+    "Tables of Terna's capacity market reports (Rendiconto degli esiti, asta madre) that Terna publishes as images, typed by hand.",
+    "national: per area, [participant, existing MW, new authorised MW] (2025-2027) or [participant, existing, new authorised, new not authorised] (2024), CDP as the report rounds it.",
+    "area_totals: the area rows of the same table, in the same columns. foreign: per foreign area, [participant, MW].",
+    "etl/build_capacity_market.py checks every area against its total and the country against the report's text."
+  ],
+  "2024": {
+    "pages": "Tabella 6, pp. 10-11; Tabella 7, p. 12",
+    "national": {
+      "CALABRIA": [
+        ["A2A SPA", 202, 0, 0], ["AXPO ITALIA SPA", 650, 0, 0], ["EDISON SPA", 1219, 0, 0], ["ENEL PRODUZIONE SPA", 184, 0, 0],
+        ["ERGOSUD S.P.A.", 588, 0, 0]
+      ],
+      "CENTRO NORD": [
+        ["AXPO ITALIA SPA", 25, 0, 0], ["EGO ENERGY S.R.L.", 6, 0, 0], ["ENEL PRODUZIONE SPA", 710, 14, 0], ["ENGIE ITALIA S.P.A.", 344, 14, 0],
+        ["METAENERGIAPRODUZIONE", 0, 16, 0], ["SOLVAY CHIMICA ITALIA SPA", 125, 0, 0]
+      ],
+      "CENTRO SUD": [
+        ["A2A SPA", 360, 10, 0], ["ACEA ENERGIA SPA", 38, 2, 0], ["ALPIQ ENERGIA ITALIA SPA", 1, 0, 0], ["AXPO ITALIA SPA", 554, 0, 0],
+        ["BURGO ENERGIA SRL", 44, 0, 0], ["EDISON SPA", 0, 0, 7], ["EGO ENERGY S.R.L.", 1, 0, 0], ["ENEL PRODUZIONE SPA", 1680, 361, 32],
+        ["ERG POWER GENERATION S.P.A.", 0, 0, 6], ["SORGENIA SPA", 674, 0, 0], ["TAMARETE ENERGIA SRL", 50, 0, 0],
+        ["TERMICA CELANO SRL", 133, 0, 0], ["TIRRENO POWER SPA", 1261, 0, 0]
+      ],
+      "SARDEGNA NORD": [
+        ["ENEL PRODUZIONE SPA", 176, 0, 229], ["IREN ENERGIA SPA", 0, 0, 18]
+      ],
+      "SARDEGNA SUD": [
+        ["EGO ENERGY S.R.L.", 1, 0, 0], ["ENEL PRODUZIONE SPA", 0, 28, 249], ["IREN ENERGIA SPA", 0, 0, 4]
+      ],
+      "NORD": [
+        ["A2A SPA", 3534, 10, 1311], ["ALPERIA TRADING SRL", 632, 0, 22], ["ALPIQ ENERGIA ITALIA SPA", 79, 43, 0], ["AXPO ITALIA SPA", 10, 0, 0],
+        ["BURGO ENERGIA SRL", 51, 0, 0], ["CVA ENERGIE S.R.L.", 313, 0, 0], ["DOLOMITI ENERGIA TRADING SPA", 820, 0, 0],
+        ["EDELWEISS ENERGIA SPA", 15, 0, 0], ["EDISON SPA", 747, 0, 0], ["EGEA COMMERCIALE SRL", 5, 0, 0], ["EGO ENERGY S.R.L.", 36, 0, 0],
+        ["ENEL PRODUZIONE SPA", 6033, 178, 367], ["ENGIE ITALIA S.P.A.", 361, 14, 21], ["ENI SPA", 2796, 0, 0],
+        ["EP PRODUZIONE S.P.A.", 1800, 0, 0], ["EPP2 SRL", 0, 775, 0], ["HERA TRADING SRL", 55, 0, 0], ["IREN ENERGIA SPA", 1861, 7, 0],
+        ["SORGENIA SPA", 653, 0, 0], ["TIRRENO POWER SPA", 622, 0, 0]
+      ],
+      "SICILIA": [
+        ["ALPIQ ENERGIA ITALIA SPA", 13, 0, 0], ["ENEL PRODUZIONE SPA", 1433, 0, 0], ["ERG POWER GENERATION S.P.A.", 0, 0, 8],
+        ["ERG POWER SRL", 290, 0, 0], ["SASOL ITALY SPA", 32, 0, 0], ["SORGENIA SPA", 3, 0, 0]
+      ],
+      "SUD": [
+        ["ALPIQ ENERGIA ITALIA SPA", 263, 0, 0], ["BKW ITALIA SPA", 5, 0, 0], ["DEL ENERGY S.R.L.", 0, 1, 0], ["EDISON SPA", 309, 0, 0],
+        ["ENEL PRODUZIONE SPA", 218, 0, 0], ["ENI SPA", 834, 0, 0], ["FALCK NEXT ENERGY S.R.L.", 3, 0, 0], ["SORGENIA SPA", 1301, 0, 0],
+        ["STORAGE SYSTEMS S.R.L.S.", 0, 11, 0], ["VEOS", 0, 20, 0]
+      ]
+    },
+    "area_totals": {
+      "CALABRIA": [2843, 0, 0], "CENTRO NORD": [1210, 44, 0], "CENTRO SUD": [4796, 373, 45], "SARDEGNA NORD": [176, 0, 247],
+      "SARDEGNA SUD": [1, 28, 253], "NORD": [20423, 1027, 1721], "SICILIA": [1771, 0, 8], "SUD": [2933, 32, 0]
+    },
+    "foreign": {
+      "ESTERO CSUD": [
+        ["AXPO ITALIA SPA", 9], ["ENEL PRODUZIONE SPA", 25], ["ENGIE ITALIA S.P.A.", 11], ["EPLUS SRL", 8], ["REPOWER ITALIA SPA", 60]
+      ],
+      "ESTERO NORD": [
+        ["ALPIQ AG", 50], ["AXPO ITALIA SPA", 300], ["CVA ENERGIE S.R.L.", 150], ["DOLOMITI ENERGIA TRADING SPA", 30], ["ELECTRADE SPA", 125],
+        ["ENEL PRODUZIONE SPA", 1000], ["ENGIE ITALIA S.P.A.", 399], ["EP COMMODITIES, A.S.", 500], ["EP PRODUZIONE S.P.A.", 400],
+        ["EPLUS SRL", 241], ["REPOWER ITALIA SPA", 200], ["SORGENIA SPA", 50]
+      ],
+      "ESTERO SUD": [
+        ["AXPO ITALIA SPA", 32], ["ENEL PRODUZIONE SPA", 10], ["ENGIE ITALIA S.P.A.", 6], ["EPLUS SRL", 4]
+      ]
+    }
+  },
+  "2025": {
+    "pages": "Tabella 6, pp. 9-10; Tabella 7, p. 11",
+    "national": {
+      "CALABRIA": [
+        ["A2A SPA", 169, 0], ["AXPO ITALIA SPA", 660, 0], ["DUFERCO ENERGIA S.P.A.", 2, 0], ["DXT COMMODITIES SA", 3, 0], ["EDISON SPA", 1358, 0],
+        ["ENEL PRODUZIONE SPA", 247, 0], ["ERGOSUD S.P.A.", 578, 0], ["RENANTIS ENERGY TRADING", 7, 0]
+      ],
+      "CENTRO NORD": [
+        ["ALPIQ ENERGIA ITALIA SPA", 5, 0], ["CONSORZIO TOSCANA ENERGIA SPA", 40, 0], ["CVA ENERGIE S.R.L.", 1, 0], ["EGO ENERGY S.R.L.", 14, 0],
+        ["ENEL PRODUZIONE SPA", 879, 0], ["ENGIE ITALIA S.P.A.", 343, 0], ["SOLVAY CHIMICA ITALIA SPA", 125, 0]
+      ],
+      "CENTRO SUD": [
+        ["A2A GENCOGAS SPA", 360, 0], ["ACEA ENERGIA SPA", 35, 0], ["AXPO ITALIA SPA", 637, 0], ["BURGO ENERGIA SRL", 27, 0],
+        ["DUFERCO ENERGIA S.P.A.", 2, 0], ["EDISON SPA", 210, 0], ["EGO ENERGY S.R.L.", 4, 0], ["ENEL PRODUZIONE SPA", 1667, 0], ["SET SPA", 316, 0],
+        ["SORGENIA SPA", 676, 0], ["TAMARETE ENERGIA SRL", 92, 0], ["TIRRENO POWER SPA", 1260, 0]
+      ],
+      "SARDEGNA NORD": [
+        ["ENEL PRODUZIONE SPA", 218, 0], ["EP BESS FIUME SANTO SRL", 0, 44]
+      ],
+      "SARDEGNA SUD": [
+        ["DXT COMMODITIES SA", 3, 0], ["EGO ENERGY S.R.L.", 4, 0], ["ENEL PRODUZIONE SPA", 3, 0]
+      ],
+      "NORD": [
+        ["A2A SPA", 4040, 0], ["ALPERIA TRADING SRL", 700, 0], ["ALPIQ ENERGIA ITALIA SPA", 129, 0], ["AXPO ITALIA SPA", 28, 0],
+        ["BKW HYDRO ITALIA S.R.L.", 14, 0], ["BURGO ENERGIA SRL", 56, 0], ["CVA ENERGIE S.R.L.", 323, 0], ["DOLOMITI ENERGIA TRADING SPA", 870, 0],
+        ["EDELWEISS ENERGIA SPA", 13, 0], ["EDISON SPA", 1499, 0], ["EGO ENERGY S.R.L.", 116, 0], ["ENEL PRODUZIONE SPA", 5820, 0],
+        ["ENGIE ITALIA S.P.A.", 676, 0], ["ENI SPA", 2691, 0], ["EP CENTRALE TAVAZZANO MONTANASO", 2255, 116], ["HERA TRADING SRL", 65, 0],
+        ["IREN ENERGIA SPA", 1943, 0], ["SORGENIA SPA", 658, 0], ["TIRRENO POWER SPA", 670, 0]
+      ],
+      "SICILIA": [
+        ["ALPIQ ENERGIA ITALIA SPA", 33, 0], ["B2G SICILY SRL", 328, 0], ["DXT COMMODITIES SA", 12, 0], ["EGO ENERGY S.R.L.", 3, 0],
+        ["ENEL PRODUZIONE SPA", 1406, 0], ["RENANTIS ENERGY TRADING SRL.", 1, 0], ["SORGENIA SPA", 15, 0]
+      ],
+      "SUD": [
+        ["ALPIQ ENERGIA ITALIA SPA", 334, 0], ["BKW ITALIA SPA", 8, 0], ["DXT COMMODITIES SA", 8, 0], ["EDISON SPA", 328, 0], ["EGO ENERGY S.R.L.", 1, 0],
+        ["ENEL PRODUZIONE SPA", 263, 0], ["ENI SPA", 939, 0], ["MYT APULIA STORAGE 3 S.R.L.", 0, 14], ["RENANTIS ENERGY TRADING SRL.", 8, 0],
+        ["SORGENIA SPA", 1383, 0]
+      ]
+    },
+    "area_totals": {
+      "CALABRIA": [3024, 0], "CENTRO NORD": [1407, 0], "CENTRO SUD": [5286, 0], "SARDEGNA NORD": [218, 44], "SARDEGNA SUD": [10, 0],
+      "NORD": [22566, 116], "SICILIA": [1798, 0], "SUD": [3272, 14]
+    },
+    "foreign": {
+      "ESTERO CSUD": [
+        ["CVA ENERGIE S.R.L.", 10], ["DUFERCO ENERGIA S.P.A.", 10], ["ENEL PRODUZIONE SPA", 25], ["ENGIE ITALIA S.P.A.", 11],
+        ["EP COMMODITIES AG", 20], ["REPOWER ITALIA SPA", 37]
+      ],
+      "ESTERO NORD": [
+        ["A2A SPA", 500], ["CVA ENERGIE S.R.L.", 200], ["DUFERCO ENERGIA S.P.A.", 185], ["ENEL PRODUZIONE SPA", 925], ["ENGIE ITALIA S.P.A.", 560],
+        ["ENI SPA", 530], ["EP CENTRALE TAVAZZANO MONTANASO", 400], ["EP COMMODITIES AG", 600], ["ITAL GREEN ENERGY SRL", 100],
+        ["REPOWER ITALIA SPA", 200]
+      ],
+      "ESTERO SUD": [
+        ["CVA ENERGIE S.R.L.", 5], ["DUFERCO ENERGIA S.P.A.", 5], ["ENGIE ITALIA S.P.A.", 6], ["ENI SPA", 36]
+      ]
+    }
+  },
+  "2026": {
+    "pages": "Tabella 6, pp. 10-12; Tabella 7, p. 13",
+    "national": {
+      "CALABRIA": [
+        ["A2A SPA", 169, 0], ["ALPIQ ENERGIA ITALIA SPA", 1, 0], ["AXPO ITALIA SPA", 660, 0], ["EDISON SPA", 1361, 0], ["ENEL PRODUZIONE SPA", 280, 0],
+        ["ENGIE ITALIA S.P.A.", 4, 0], ["ENI PLENITUDE SPA SOCIETA' BENEFIT", 3, 0], ["ERGOSUD S.P.A.", 578, 0], ["RENANTIS ENERGY TRADING SRL.", 13, 0]
+      ],
+      "CENTRO NORD": [
+        ["CONSORZIO TOSCANA ENERGIA SPA", 25, 0], ["CVA ENERGIE S.R.L.", 1, 0], ["DXT COMMODITIES SA", 1, 0], ["EGO ENERGY S.R.L.", 19, 0],
+        ["ENEL PRODUZIONE SPA", 981, 8], ["Energyxplore", 3, 0], ["ENGIE ITALIA S.P.A.", 343, 0], ["GLAYX SRL", 11, 1],
+        ["SOLVAY CHIMICA ITALIA SPA", 130, 0]
+      ],
+      "SARDEGNA NORD": [
+        ["ENEL PRODUZIONE SPA", 218, 0], ["ENI PLENITUDE SPA SOCIETA' BENEFIT", 2, 0]
+      ],
+      "SARDEGNA SUD": [
+        ["EGO ENERGY S.R.L.", 4, 0], ["ENEL PRODUZIONE SPA", 3, 0], ["ENI PLENITUDE SPA SOCIETA' BENEFIT", 1, 0], ["SARAS ENERGY MANAGEMENT", 26, 0]
+      ],
+      "CENTRO SUD": [
+        ["A2A GENCOGAS SPA", 360, 0], ["ACEA ENERGIA SPA", 35, 0], ["AXPO ITALIA SPA", 637, 0], ["BURGO ENERGIA SRL", 27, 0],
+        ["DOLOMITI ENERGIA TRADING SPA", 1, 0], ["ECO TRADE SRL", 3, 0], ["EDISON SPA", 210, 0], ["EGO ENERGY S.R.L.", 6, 0],
+        ["ENEL PRODUZIONE SPA", 1829, 0], ["Energyxplore", 16, 0], ["ENGIE ITALIA S.P.A.", 5, 0], ["ENI PLENITUDE SPA SOCIETA' BENEFIT", 3, 0],
+        ["ERG POWER GENERATION S.P.A.", 20, 0], ["MAGNOLIA SOL S.R.L.", 0, 6], ["MYT GG ENERGY 8", 0, 2], ["SET SPA", 316, 0],
+        ["SORGENIA SPA", 676, 0], ["TAMARETE ENERGIA SRL", 92, 0], ["TIRRENO POWER SPA", 1260, 0]
+      ],
+      "SUD": [
+        ["ALPIQ ENERGIA ITALIA SPA", 334, 22], ["BKW ITALIA SPA", 8, 0], ["DOLOMITI ENERGIA TRADING SPA", 4, 0], ["DXT COMMODITIES SA", 16, 0],
+        ["EDISON SPA", 329, 0], ["EGO ENERGY S.R.L.", 1, 0], ["ENEL PRODUZIONE SPA", 283, 0], ["ENI PLENITUDE SPA SOCIETA' BENEFIT", 10, 0],
+        ["ENI SPA", 939, 0], ["ERG POWER GENERATION S.P.A.", 14, 0], ["MYT APULIA STORAGE 1 S.R.L.", 0, 14],
+        ["RENANTIS ENERGY TRADING SRL.", 8, 0], ["SORGENIA SPA", 1383, 4], ["VENETA ENERGIA S.R.L.", 0, 10]
+      ],
+      "NORD": [
+        ["A2A SPA", 3648, 0], ["ALPERIA TRADING SRL", 588, 0], ["ALPIQ ENERGIA ITALIA SPA", 118, 0], ["AXPO ITALIA SPA", 56, 0],
+        ["BURGO ENERGIA SRL", 56, 0], ["CVA ENERGIE S.R.L.", 326, 0], ["DOLOMITI ENERGIA TRADING SPA", 1010, 0], ["DXT COMMODITIES SA", 32, 0],
+        ["ECO TRADE SRL", 0, 1], ["EDELWEISS ENERGIA SPA", 10, 0], ["EDISON SPA", 1532, 0], ["EGO ENERGY S.R.L.", 131, 0],
+        ["ENEL PRODUZIONE SPA", 5888, 0], ["Energyxplore", 32, 0], ["ENGIE ITALIA S.P.A.", 678, 0], ["ENI SPA", 2691, 0],
+        ["EP CENTRALE OSTIGLIA S.P.A", 2172, 0], ["HERA TRADING SRL", 65, 0], ["IREN ENERGIA SPA", 2047, 0], ["NEOEN ENERGIA VERDE 15", 0, 7],
+        ["RESOL GHISLARENGO", 0, 5], ["SORGENIA SPA", 658, 4], ["TIRRENO POWER SPA", 670, 0]
+      ],
+      "SICILIA": [
+        ["ALPIQ ENERGIA ITALIA SPA", 13, 0], ["B2G SICILY SRL", 327, 0], ["DXT COMMODITIES SA", 12, 0], ["EDISON SPA", 69, 0], ["EGO ENERGY S.R.L.", 3, 0],
+        ["ENEL PRODUZIONE SPA", 1495, 12], ["ENGIE ITALIA S.P.A.", 11, 0], ["EPP4 S.R.L.", 0, 44], ["ERG POWER GENERATION S.P.A.", 36, 0],
+        ["ISAB SRL", 180, 0], ["RENANTIS ENERGY TRADING SRL.", 1, 0], ["SASOL ITALY SPA", 33, 0], ["SORGENIA SPA", 15, 0]
+      ]
+    },
+    "area_totals": {
+      "CALABRIA": [3069, 0], "CENTRO NORD": [1514, 9], "SARDEGNA NORD": [220, 0], "SARDEGNA SUD": [34, 0], "CENTRO SUD": [5496, 8],
+      "SUD": [3329, 50], "NORD": [22408, 17], "SICILIA": [2195, 56]
+    },
+    "foreign": {
+      "ESTERO CSUD": [
+        ["A2A SPA", 20], ["CVA ENERGIE S.R.L.", 10], ["DUFERCO ENERGIA S.P.A.", 10], ["ENEL PRODUZIONE SPA", 10], ["ENGIE ITALIA S.P.A.", 11],
+        ["GREEN ENERGY FOR STEEL S.R.L.", 10], ["Lumnia srl", 5], ["REPOWER ITALIA SPA", 37]
+      ],
+      "ESTERO NORD": [
+        ["A2A SPA", 500], ["ALPIQ ENERGIA ITALIA SPA", 50], ["AXPO ITALIA SPA", 200], ["CVA ENERGIE S.R.L.", 200],
+        ["DOLOMITI ENERGIA TRADING SPA", 200], ["DUFERCO ENERGIA S.P.A.", 185], ["DXT COMMODITIES SA", 50], ["ENEL PRODUZIONE SPA", 400],
+        ["ENGIE ITALIA S.P.A.", 495], ["ENI SPA", 530], ["EP CENTRALE OSTIGLIA S.P.A", 400], ["EP COMMODITIES AG", 600],
+        ["GREEN ENERGY FOR STEEL S.R.L.", 120], ["Lumnia srl", 150], ["REPOWER ITALIA SPA", 120]
+      ],
+      "ESTERO SUD": [
+        ["CVA ENERGIE S.R.L.", 5], ["DUFERCO ENERGIA S.P.A.", 5], ["ENEL PRODUZIONE SPA", 10], ["ENGIE ITALIA S.P.A.", 6], ["ENI SPA", 2],
+        ["EP COMMODITIES AG", 11], ["GREEN ENERGY FOR STEEL S.R.L.", 10], ["Lumnia srl", 3]
+      ]
+    }
+  },
+  "2027": {
+    "pages": "Tabella 5, pp. 11-13; Tabella 6, p. 14",
+    "national": {
+      "CALABRIA": [
+        ["A2A SPA", 169, 0], ["ALPIQ ENERGIA ITALIA SPA", 1, 0], ["AXPO ITALIA SPA", 660, 0], ["EDISON SPA", 1362, 0], ["ENEL PRODUZIONE SPA", 280, 0],
+        ["ENGIE ITALIA S.P.A.", 4, 0], ["ENI PLENITUDE SPA SOCIETA' BENEFIT", 8, 0], ["ERGOSUD S.P.A.", 578, 0], ["RENANTIS ENERGY TRADING SRL", 13, 0]
+      ],
+      "SARDEGNA NORD": [
+        ["ENEL PRODUZIONE SPA", 218, 0], ["ENI PLENITUDE SPA SOCIETA' BENEFIT", 2, 0], ["RENANTIS ENERGY TRADING SRL", 22, 0]
+      ],
+      "SARDEGNA SUD": [
+        ["EGO ENERGY S.R.L.", 4, 0], ["ENEL PRODUZIONE SPA", 17, 0], ["ENI PLENITUDE SPA SOCIETA' BENEFIT", 2, 0], ["SARAS ENERGY MANAGEMENT", 26, 0]
+      ],
+      "SICILIA": [
+        ["ALPIQ ENERGIA ITALIA SPA", 13, 0], ["B2G SICILY SRL", 328, 0], ["ENEL PRODUZIONE SPA", 1495, 0], ["ENGIE ITALIA S.P.A.", 11, 0],
+        ["ENI PLENITUDE SPA SOCIETA' BENEFIT", 5, 0], ["ERG POWER GENERATION S.P.A.", 24, 0], ["ISAB SRL", 380, 0],
+        ["Italian Smart Storage SRL", 0, 13], ["RENANTIS ENERGY TRADING SRL", 1, 0], ["SASOL ITALY SPA", 33, 0], ["SORGENIA SPA", 35, 0]
+      ],
+      "CENTRO SUD": [
+        ["A2A GENCOGAS SPA", 360, 0], ["ACEA ENERGIA SPA", 35, 0], ["AXPO ITALIA SPA", 637, 0], ["BURGO ENERGIA SRL", 40, 0], ["CVA ENERGIE S.R.L.", 7, 0],
+        ["DXT COMMODITIES SA", 6, 0], ["ECO TRADE SRL", 3, 0], ["EDISON SPA", 210, 0], ["EGO ENERGY S.R.L.", 6, 0], ["ENEL PRODUZIONE SPA", 1778, 0],
+        ["Energyxplore", 16, 0], ["ENGIE ITALIA S.P.A.", 7, 0], ["ENI PLENITUDE SPA SOCIETA' BENEFIT", 5, 0], ["ERG POWER GENERATION S.P.A.", 18, 0],
+        ["Italian Smart Storage SRL", 0, 7], ["LA RICCIA SRL", 0, 66], ["SET SPA", 316, 0], ["SORGENIA SPA", 676, 0], ["SUNPRIME AGIRA SRL", 0, 8],
+        ["TAMARETE ENERGIA SRL", 92, 0], ["TIRRENO POWER SPA", 1260, 0]
+      ],
+      "SUD": [
+        ["ALPIQ ENERGIA ITALIA SPA", 334, 0], ["BKW ITALIA SPA", 12, 0], ["DOLOMITI ENERGIA TRADING SPA", 2, 0], ["EDISON SPA", 329, 0],
+        ["ENEL PRODUZIONE SPA", 283, 0], ["Energyxplore", 4, 0], ["ENI PLENITUDE SPA SOCIETA' BENEFIT", 23, 0], ["ENI SPA", 939, 0],
+        ["ERG POWER GENERATION S.P.A.", 18, 0], ["Italian Smart Storage SRL", 0, 7], ["RENANTIS ENERGY TRADING SRL", 8, 0], ["SORGENIA SPA", 1383, 0]
+      ],
+      "CENTRO NORD": [
+        ["CVA ENERGIE S.R.L.", 1, 0], ["EGO ENERGY S.R.L.", 16, 0], ["ENEL PRODUZIONE SPA", 981, 0], ["Energyxplore", 3, 0], ["ENGIE ITALIA S.P.A.", 343, 0],
+        ["GLAYX SRL", 12, 1], ["RNE10 S.R.L.", 0, 34], ["SOLVAY CHIMICA ITALIA SPA", 130, 0]
+      ],
+      "NORD": [
+        ["A2A SPA", 3499, 28], ["ACL SPV 1", 0, 73], ["ALPERIA TRADING SRL", 588, 0], ["ALPIQ ENERGIA ITALIA SPA", 106, 0], ["AS STORAGE S.R.L.", 0, 168],
+        ["ATLAS STORAGE 1 S.R.L.", 0, 17], ["ATLAS STORAGE 3 S.R.L.", 0, 17], ["AXPO ITALIA SPA", 14, 0], ["BURGO ENERGIA SRL", 53, 0],
+        ["CVA ENERGIE S.R.L.", 300, 0], ["DOLOMITI ENERGIA TRADING SPA", 1021, 0], ["DXT COMMODITIES SA", 21, 0], ["ECO TRADE SRL", 1, 3],
+        ["EDISON SPA", 1514, 0], ["EGO ENERGY S.R.L.", 104, 0], ["ENEL PRODUZIONE SPA", 5742, 127], ["Energyxplore", 103, 0],
+        ["ENGIE ITALIA S.P.A.", 681, 0], ["ENI SPA", 2686, 0], ["EP CENTRALE OSTIGLIA S.P.A", 2172, 0], ["HERA TRADING SRL", 71, 0], ["IGS", 0, 6],
+        ["IREN ENERGIA SPA", 2055, 0], ["Italian Smart Storage SRL", 0, 5], ["RENANTIS ENERGY TRADING SRL", 4, 0], ["SORGENIA SPA", 658, 0],
+        ["SUNPRIME AGIRA SRL", 0, 14], ["TIRRENO POWER SPA", 670, 0]
+      ]
+    },
+    "area_totals": {
+      "CALABRIA": [3075, 0], "SARDEGNA NORD": [242, 0], "SARDEGNA SUD": [49, 0], "SICILIA": [2325, 13], "CENTRO SUD": [5472, 81], "SUD": [3335, 7],
+      "CENTRO NORD": [1486, 35], "NORD": [22063, 458]
+    },
+    "foreign": {
+      "ESTERO CSUD": [
+        ["A2A SPA", 20], ["CVA ENERGIE S.R.L.", 10], ["DUFERCO ENERGIA S.P.A.", 10], ["ENEL PRODUZIONE SPA", 25], ["ENGIE ITALIA S.P.A.", 11],
+        ["EP COMMODITIES AG", 20], ["GREEN ENERGY FOR STEEL S.R.L.", 10], ["REPOWER ITALIA SPA", 7]
+      ],
+      "ESTERO NORD": [
+        ["A2A SPA", 500], ["CVA ENERGIE S.R.L.", 200], ["DOLOMITI ENERGIA TRADING SPA", 200], ["DUFERCO ENERGIA S.P.A.", 235],
+        ["ENEL PRODUZIONE SPA", 765], ["ENGIE ITALIA S.P.A.", 560], ["ENI SPA", 530], ["EP CENTRALE OSTIGLIA S.P.A", 400],
+        ["EP COMMODITIES AG", 600], ["GREEN ENERGY FOR STEEL S.R.L.", 110], ["REPOWER ITALIA SPA", 100]
+      ],
+      "ESTERO SUD": [
+        ["AXPO ITALIA SPA", 5], ["CVA ENERGIE S.R.L.", 5], ["DUFERCO ENERGIA S.P.A.", 5], ["ENEL PRODUZIONE SPA", 10], ["ENGIE ITALIA S.P.A.", 6],
+        ["EP COMMODITIES AG", 11], ["GREEN ENERGY FOR STEEL S.R.L.", 10]
+      ]
+    }
+  }
+}

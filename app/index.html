@@ -455,6 +455,14 @@
     .analysis-soon-box .analysis-badge { margin-left:0; }
     .analysis-soon-box p { margin:12px 0 0; }
     .analysis-soon-note { color:var(--muted-2); font-size:12px; }
+    .policy-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:stretch; }
+    .policy-grid .queue-wide, .policy-grid .queue-heading { grid-column:1 / -1; }
+    @media (max-width: 1050px) { .policy-grid { grid-template-columns:1fr; } }
+    .policy-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; margin:0 0 14px; }
+    .policy-toolbar label { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:12px; }
+    .policy-toolbar .gas-kpis { flex-basis:100%; margin-top:0; }
+    .queue-table td.clip.cm-name { max-width:170px; }
+    .queue-table td.clip.cm-plant { max-width:150px; }
     .bess-layout { display:grid; grid-template-columns:330px minmax(0,1fr); gap:16px; align-items:start; }
     @media (max-width:1150px) { .bess-layout { grid-template-columns:1fr; } }
     .bess-inputs { position:sticky; top:112px; max-height:calc(100vh - 128px); overflow:auto; padding:2px 0 8px; }
@@ -719,6 +727,7 @@
         <div id="forecast-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Day-ahead price forecast</p></div><nav id="forecast-subnav" class="subnav"><button class="subnav-tab active" data-forecast-tab="tomorrow" type="button">Tomorrow</button><button class="subnav-tab" data-forecast-tab="week" type="button">Week</button><button class="subnav-tab" data-forecast-tab="backtest" type="button">Backtest</button></nav><div id="forecast-mount"></div></div>
         <div id="maps-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Maps</p></div><nav id="maps-subnav" class="subnav"><button class="subnav-tab active" data-maps-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-maps-tab="grid" type="button">Grid and power plants</button><button class="subnav-tab" data-maps-tab="zones" type="button">Prices and flows</button></nav><div id="maps-mount"></div></div>
         <div id="queue-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Project pipeline, grid-connection queue and market units</p></div><nav id="queue-subnav" class="subnav"><button class="subnav-tab active" data-queue-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-queue-tab="connections" type="button">Grid connections (Terna, e-distribuzione)</button><button class="subnav-tab" data-queue-tab="units" type="button">Market connections (GME)</button></nav><div id="queue-mount"></div></div>
+        <div id="policy-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Policy and market design</p></div><div id="policy-mount"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO), GIE (AGSI+, ALSI, IIP), MASE, e-distribuzione.<p class="gme-notice"><strong>Notice on GME data.</strong> The data of Gestore dei Mercati Energetici S.p.A. (GME) shown on this site are re-elaborations and estimates made by the author, for information only; they are not GME's official data, which GME publishes on www.mercatoelettrico.org under its own terms. GME is not responsible for these elaborations nor for any use of them. They may not be extracted, downloaded, copied, reproduced or redistributed, in whole or in part, nor used for commercial purposes, without the prior written consent of the author and of GME.</p></footer>
       </main>
@@ -21731,12 +21740,14 @@ move the slider above to another one`,
     document.getElementById("maps-page").style.display = isMapsSection ? "block" : "none";
     const isForecastSection = currentSection === "forecast";
     document.getElementById("forecast-page").style.display = isForecastSection ? "block" : "none";
+    const isPolicySection = currentSection === "policy";
+    document.getElementById("policy-page").style.display = isPolicySection ? "block" : "none";
     // The queue and the project and grid maps are snapshots: the calendar
     // does not apply (it does to the prices and flows map).  The analyses
-    // choose their own period.
+    // choose their own period, the policy topics show their own years.
     const isAnalysisTab = isDataSection && currentSubTab === "analysis";
     document.querySelector(".calendar-trigger-wrap").style.display =
-      isQueueSection || (isMapsSection && mapsTab !== "zones") || isAnalysisTab || isForecastSection ? "none" : "";
+      isQueueSection || (isMapsSection && mapsTab !== "zones") || isAnalysisTab || isForecastSection || isPolicySection ? "none" : "";
     if (!isMapsSection) zmapStop();
 
     document.getElementById("zone-tabs-wrap").style.display =
@@ -21749,7 +21760,7 @@ move the slider above to another one`,
       isDataSection ? "block" : "none";
 
     document.getElementById("section-placeholder").style.display =
-      isDataSection || isGasSection || isQueueSection || isMapsSection || isForecastSection ? "none" : "flex";
+      isDataSection || isGasSection || isQueueSection || isMapsSection || isForecastSection || isPolicySection ? "none" : "flex";
 
     if (isGasSection) {
       setTimeout(renderGas, 0);
@@ -21771,10 +21782,13 @@ move the slider above to another one`,
       return;
     }
 
+    if (isPolicySection) {
+      setTimeout(renderPolicy, 0);
+      return;
+    }
+
     if (!isDataSection) {
-      const titles = {
-        policy: "Policy"
-      };
+      const titles = {};
 
       document.getElementById(
         "section-placeholder-title"
@@ -22964,6 +22978,775 @@ move the slider above to another one`,
 
   // The public version has no forecast.
   if (PUBLIC_MODE) document.querySelector('.sidebar-item[data-section="forecast"]').remove();
+
+  /* ============================================================
+     POLICY
+     ============================================================ */
+
+  /*
+   * Policy: a card per topic, as in Data › Analysis, and the view a card
+   * opens.  First topic: Terna's capacity market, from
+   * policy/capacity_market.json (etl/build_capacity_market.py, which reads
+   * the auction reports): the new units awarded, and the totals by
+   * participant, area and technology.
+   */
+  const policyMount = document.getElementById("policy-mount");
+  const POLICY_ICONS = {
+    pillars: '<path d="M3 21h18"/><path d="M5.5 18V11M10 18V11M14 18V11M18.5 18V11"/><path d="M4 18h16"/><path d="M3 11h18L12 4z"/>'
+  };
+  const POLICY_CARDS = [
+    { id: "capacity", icon: "pillars", tag: "Adequacy · Terna auctions",
+      title: "Capacity market",
+      text: "Terna's main auctions for the delivery years 2022 to 2027: every new unit awarded, with its operator, area, technology, MW and premium, and the totals by operator, area and technology, the prices and what each auction cost." }
+  ];
+  let policyView = "home";
+  let policyTab = "units";
+  let policyCharts = [];
+
+  const CM_AREAS = { NORD: "North", CNOR: "Centre-North", CSUD: "Centre-South", SUD: "South", CALA: "Calabria", SICI: "Sicily",
+    SARD: "Sardinia", SARD_N: "Sardinia North", SARD_S: "Sardinia South" };
+  const CM_AREAS_SHORT = { NORD: "North", CNOR: "C-North", CSUD: "C-South", SUD: "South", CALA: "Calabria", SICI: "Sicily",
+    SARD: "Sardinia", SARD_N: "Sard. N", SARD_S: "Sard. S" };
+  const CM_FOREIGN = { NORD: "Foreign North", CSUD: "Foreign Centre-South", SUD: "Foreign South" };
+  const CM_TECH = { battery: "Battery storage", battery_solar: "Battery + solar", ccgt: "Combined cycle (CCGT)", ocgt: "Gas turbine (OCGT)",
+    engine: "Internal combustion engine", thermal: "Other thermal", hydro: "Hydro reservoir", solar: "Solar", wind: "Wind" };
+  const CM_TECH_SHORT = { battery: "Battery", battery_solar: "Battery + PV", ccgt: "CCGT", ocgt: "OCGT", engine: "Engine",
+    thermal: "Other thermal", hydro: "Hydro", solar: "Solar", wind: "Wind" };
+  // The technologies in the charts: a few families, each with its colour.
+  const CM_FAMILIES = [
+    { key: "storage", label: "Batteries", color: "--mix-battery", techs: ["battery", "battery_solar"] },
+    { key: "ccgt", label: "Combined cycle", color: "--mix-gas", techs: ["ccgt"] },
+    { key: "thermal", label: "Gas turbines, engines, other thermal", color: "--mix-coal", techs: ["ocgt", "engine", "thermal"] },
+    { key: "hydro", label: "Hydro", color: "--mix-hydro", techs: ["hydro"] },
+    { key: "solar", label: "Solar", color: "--mix-solar", techs: ["solar"] },
+    { key: "wind", label: "Wind", color: "--mix-wind", techs: ["wind"] }
+  ];
+  const cmFamily = key => CM_FAMILIES.find(family => family.key === key);
+  const CM_KINDS = [
+    { key: "existing", label: "Existing", color: "--border-1" },
+    { key: "new", label: "New, authorised", color: "--border-3" },
+    { key: "new_not_authorised", label: "New, not yet authorised", color: "--border-4" },
+    { key: "foreign", label: "Foreign", color: "--border-7" }
+  ];
+  const CM_EARLIER_COLOR = "--border-5";
+  // The groups with the most capacity keep a colour in the share chart; the rest are "Others".
+  const CM_GROUP_COLORS = ["--zone-1", "--zone-3", "--zone-4", "--zone-5", "--zone-6"];
+  const CM_AUTHORISED = { yes: "Authorised", no: "Not yet authorised", unknown: "Not known" };
+  const cmAuthorisedKey = unit => unit.authorised === true ? "yes" : unit.authorised === false ? "no" : "unknown";
+
+  const cmState = {
+    data: null, error: null, loading: false,
+    filters: { year: new Set(), family: new Set(), area: new Set(), initiative: new Set(), authorised: new Set(), group: new Set() },
+    closed: new Set(["initiative", "authorised", "group"]),
+    search: "", sort: "mw", direction: "desc", page: 0, open: null,
+    year: null, by: "group", table: { sort: "total", direction: "desc", page: 0, open: null }
+  };
+
+  function loadCapacityMarket() {
+    if (cmState.loading || cmState.data || cmState.error) return;
+    cmState.loading = true;
+    fetch("./policy/capacity_market.json", { cache: "no-cache" })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then(data => { cmState.data = cmPrepare(data); })
+      .catch(error => { cmState.error = error; })
+      .finally(() => {
+        cmState.loading = false;
+        renderPolicy();
+      });
+  }
+
+  /* The file's rows as objects, with the groups, families and money. */
+  function cmPrepare(data) {
+    const groupOf = name => data.groups[name] || name;
+    const auctions = Object.fromEntries(data.auctions.map(auction => [auction.year, auction]));
+    const units = data.units.map(row => {
+      const unit = Object.fromEntries(data.units_columns.map((key, index) => [key, row[index]]));
+      unit.group = groupOf(unit.participant);
+      unit.family = CM_FAMILIES.find(family => family.techs.includes(unit.technology)).key;
+      unit.zone = unit.area.startsWith("SARD") ? "SARD" : unit.area;
+      unit.payment = isEmpty(unit.premium) ? null : unit.mw * unit.premium;
+      unit.auction = auctions[unit.year];
+      unit.search = [unit.year, unit.participant, unit.group, unit.plant, CM_AREAS[unit.area], CM_TECH[unit.technology], unit.technology_it]
+        .join(" ").toLowerCase();
+      return unit;
+    });
+    const years = data.auctions.map(auction => auction.year);
+    const totals = {};
+    data.auctions.forEach(auction => auction.national.forEach(([, name, existing, added]) => {
+      totals[groupOf(name)] = (totals[groupOf(name)] || 0) + existing + added;
+    }));
+    const topGroups = Object.keys(totals).sort((a, b) => totals[b] - totals[a]).slice(0, CM_GROUP_COLORS.length);
+    return { ...data, auctions, years, units, groupOf, topGroups };
+  }
+
+  const cmGw = mw => formatGwValue(mw, mw >= 10000 ? 1 : 2);
+  const cmHours = hours => formatNumber(hours, Number.isInteger(hours) ? 0 : Math.abs(Math.round(hours * 10) - hours * 10) < 1e-9 ? 1 : 2);
+  const cmEuroK = value => `€${formatNumber(value / 1000, value % 100 ? 2 : value % 1000 ? 1 : 0)}k`;
+  const cmDate = day => formatQueueDate(day);
+  const cmTipHead = text => `<div style="margin-bottom:6px;font-weight:600;">${text}</div>`;
+  // New capacity's prices: one, or per area for the capacity not yet authorised (2024).
+  function cmOtherPremium(auction, area) {
+    const other = auction.premium.new_not_authorised ?? auction.premium.new;
+    return typeof other === "object" ? other[area] : other;
+  }
+  function cmOtherPremiumText(auction) {
+    const other = auction.premium.new_not_authorised;
+    if (isEmpty(other)) return null;
+    if (typeof other !== "object") return other === auction.premium.new ? null : `€${formatNumber(other)}`;
+    const values = [...new Set(Object.values(other))].sort((a, b) => a - b);
+    return `€${formatNumber(values[0])}–${formatNumber(values[values.length - 1])}`;
+  }
+
+  /* ---------- Page ---------- */
+
+  function renderPolicy() {
+    if (currentSection !== "policy") return;
+    policyCharts.forEach(chart => chart.dispose());
+    policyCharts = [];
+    if (!POLICY_CARDS.some(card => card.id === policyView)) policyView = "home";
+    if (policyView === "home") {
+      const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${POLICY_ICONS[name]}</svg>`;
+      policyMount.innerHTML = `<p class="analysis-lede">The rules and schemes that shape what gets built and run, a topic per card, from Terna's and the regulators' own documents. Choose one to open it.</p>` +
+        `<div class="analysis-cards">${POLICY_CARDS.map(item =>
+          `<button type="button" class="analysis-card live" data-policy="${item.id}">` +
+          `<span class="analysis-card-top"><span class="analysis-card-icon">${icon(item.icon)}</span><span class="analysis-badge live">Ready</span></span>` +
+          `<span class="analysis-card-tag">${item.tag}</span><span class="analysis-card-title">${item.title}</span>` +
+          `<span class="analysis-card-text">${item.text}</span>` +
+          `<span class="analysis-card-foot">Open <span aria-hidden="true">→</span></span></button>`).join("")}</div>`;
+      return;
+    }
+    policyMount.innerHTML =
+      `<div class="analysis-view-head"><button type="button" class="analysis-back"><span aria-hidden="true">←</span> All topics</button>` +
+      `<h2>Capacity market</h2><p class="analysis-lede">Terna buys capacity years ahead in a yearly auction per delivery year. ` +
+      `What it buys is CDP (capacità disponibile in probabilità), each plant's MW derated for how much of it is reliably there; ` +
+      `a plant awarded is paid a premium per MW of CDP a year and pays back the day-ahead price above a strike price (the reliability ` +
+      `option). Existing capacity is bought for the delivery year, new capacity for 15 years (under the first auctions' rules). ` +
+      `Terna names the new units; the existing capacity it gives only by participant and area.</p></div>` +
+      `<nav class="subnav" id="policy-subnav"><button class="subnav-tab${policyTab === "units" ? " active" : ""}" data-policy-tab="units" type="button">Units awarded</button>` +
+      `<button class="subnav-tab${policyTab === "totals" ? " active" : ""}" data-policy-tab="totals" type="button">Totals by operator, area and technology</button></nav>` +
+      `<div id="policy-body"></div>`;
+    const body = document.getElementById("policy-body");
+    if (!cmState.data) {
+      body.innerHTML = `<div class="panel queue-empty">${cmState.error
+        ? `The capacity market file is not available (policy/capacity_market.json): run etl/build_capacity_market.py.`
+        : "Loading the capacity market auctions…"}</div>`;
+      loadCapacityMarket();
+      return;
+    }
+    if (policyTab === "units") renderCapacityUnits(body);
+    else renderCapacityTotals(body);
+  }
+
+  policyMount.addEventListener("click", event => {
+    const card = event.target.closest("[data-policy]");
+    if (card) { policyView = card.dataset.policy; renderPolicy(); window.scrollTo({ top: 0 }); return; }
+    if (event.target.closest(".analysis-back")) { policyView = "home"; renderPolicy(); window.scrollTo({ top: 0 }); return; }
+    const tab = event.target.closest("[data-policy-tab]");
+    if (tab && tab.dataset.policyTab !== policyTab) { policyTab = tab.dataset.policyTab; renderPolicy(); }
+  });
+
+  window.addEventListener("resize", () => policyCharts.forEach(chart => chart.resize()));
+
+  function policyPanel(host, title, subtitle = "", wide = false) {
+    const section = document.createElement("section");
+    section.className = `panel chart-panel${wide ? " queue-wide" : ""}`;
+    section.innerHTML = `<div class="chart-header"><div><div class="chart-title">${title}</div>` +
+      `<div class="chart-subtitle">${subtitle}</div></div></div><div class="queue-body"></div>`;
+    host.appendChild(section);
+    return section.querySelector(".queue-body");
+  }
+
+  function policyChart(body, height, note) {
+    const holder = document.createElement("div");
+    holder.className = "queue-chart";
+    holder.style.height = `${height}px`;
+    body.appendChild(holder);
+    if (note) body.insertAdjacentHTML("beforeend", `<div class="queue-note">${note}</div>`);
+    const chart = echarts.init(holder);
+    policyCharts.push(chart);
+    return chart;
+  }
+
+  const cmCategoryAxis = data => ({ type: "category", data, axisTick: { show: false },
+    axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: queueAxisLabel() });
+
+  /* ---------- Units awarded ---------- */
+
+  function cmFacets(data) {
+    return [
+      { key: "year", title: "Delivery year", values: unit => [String(unit.year)], label: value => value,
+        order: data.years.slice().reverse().map(String) },
+      { key: "family", title: "Technology", values: unit => [unit.family], label: key => cmFamily(key).label,
+        order: CM_FAMILIES.map(family => family.key) },
+      { key: "area", title: "Area", values: unit => [unit.area], label: key => CM_AREAS[key], order: Object.keys(CM_AREAS) },
+      { key: "initiative", title: "Kind", values: unit => [unit.initiative], label: key => ({ new: "New plant", repowering: "Repowering" })[key],
+        order: ["new", "repowering"] },
+      { key: "authorised", title: "At the auction", values: unit => [cmAuthorisedKey(unit)], label: key => CM_AUTHORISED[key],
+        order: ["yes", "no", "unknown"] },
+      { key: "group", title: "Group", values: unit => [unit.group], label: value => value }
+    ];
+  }
+
+  function cmUnitMatches(unit, facets, skip) {
+    for (const facet of facets) {
+      const chosen = cmState.filters[facet.key];
+      if (facet.key === skip || !chosen.size) continue;
+      if (!facet.values(unit).some(value => chosen.has(value))) return false;
+    }
+    return matchesSearch(unit.search, cmState.search);
+  }
+
+  const CM_UNIT_COLUMNS = [
+    { key: "year", label: "Year", num: true, value: row => row.year, cell: row => String(row.year),
+      title: "Delivery year: the first year the capacity is paid for" },
+    { key: "participant", label: "Participant", value: row => row.participant, className: "clip cm-name",
+      cell: row => `<span title="${escapeHtml(row.participant)}">${escapeHtml(row.participant)}</span><br><span class="muted">${escapeHtml(row.group)}</span>` },
+    { key: "plant", label: "Plant", value: row => row.plant, className: "clip cm-plant",
+      cell: row => `<span title="${escapeHtml(row.plant)}">${escapeHtml(row.plant)}</span><br><span class="muted">${row.initiative === "new" ? "New plant" : "Repowering"}</span>` },
+    { key: "area", label: "Area", value: row => CM_AREAS[row.area], className: "nowrap" },
+    { key: "technology", label: "Technology", value: row => CM_TECH[row.technology], className: "nowrap",
+      cell: row => queueBadge(cmFamily(row.family).color, CM_TECH_SHORT[row.technology], CM_TECH[row.technology]) },
+    { key: "mw", label: "MW", num: true, value: row => row.mw, cell: row => formatQueueMw(row.mw),
+      title: "CDP awarded: the MW Terna credits the unit with (derated)" },
+    { key: "hours", label: "Hours", num: true, value: row => row.hours,
+      cell: row => isEmpty(row.hours) ? "—" : cmHours(row.hours),
+      title: "Storage: the energy it holds, in hours at its CDP" },
+    { key: "premium", label: "€/MW·yr", num: true, value: row => row.premium, title: "Premium, € per MW of CDP a year",
+      cell: row => isEmpty(row.premium)
+        ? `<span class="muted" title="Authorised or not at the auction is not known">${formatNumber(row.auction.premium.new)} or ${formatNumber(cmOtherPremium(row.auction, row.area))}</span>`
+        : formatNumber(row.premium) },
+    { key: "payment", label: "€ a year", num: true, value: row => row.payment, cell: row => bessMoney(row.payment),
+      title: "MW × premium, before the reliability option's paybacks" },
+    { key: "authorised", label: "Authorised", value: row => cmAuthorisedKey(row), className: "nowrap",
+      title: "Whether the plant had its permits at the auction (inferred for 2022-2024, see the notes)",
+      cell: row => row.authorised === null ? `<span class="muted">—</span>` : `${row.authorised ? "Yes" : "Not yet"}${row.year <= 2024 ? ` <span class="muted" title="Inferred from the participant's MW of each">≈</span>` : ""}` }
+  ];
+
+  function cmUnitDetail(row) {
+    const fact = (label, value) => `<div><span>${label}</span>${isEmpty(value) ? "—" : value}</div>`;
+    const auction = row.auction;
+    const energy = isEmpty(row.hours) ? null : `${cmHours(row.hours)} h · ${formatQueueMw(row.mw * row.hours)} MWh at its CDP`;
+    const authorised = row.authorised === null ? "Not known (more than one split of the participant's MW fits)"
+      : `${row.authorised ? "Authorised" : "Not yet authorised"}${row.year <= 2024 ? " (inferred from the participant's MW of each)" : ""}`;
+    const sources = [...new Set([auction.report, ...auction.units_source])];
+    return `<div class="queue-facts">` +
+      fact("Participant (Terna)", escapeHtml(row.participant)) +
+      fact("Group", escapeHtml(row.group)) +
+      fact("Plant (Terna)", escapeHtml(row.plant)) +
+      fact("Area · bidding zone", `${escapeHtml(CM_AREAS[row.area])} · ${escapeHtml(row.zone)}`) +
+      fact("Technology", `${escapeHtml(CM_TECH[row.technology])} <span class="muted">(${escapeHtml(row.technology_it.toLowerCase())})</span>`) +
+      fact("Kind", row.initiative === "new" ? "New plant" : "Repowering of an existing plant") +
+      fact("CDP awarded", `${formatQueueMw(row.mw)} MW`) +
+      fact("Storage", energy) +
+      fact("At the auction", authorised) +
+      fact("Premium", isEmpty(row.premium) ? `€${formatNumber(auction.premium.new)} if authorised, else €${formatNumber(cmOtherPremium(auction, row.area))}, per MW a year`
+        : `€${formatNumber(row.premium)} per MW a year · ${bessMoney(row.payment)} a year`) +
+      fact("Auction", `${cmDate(auction.date)} · delivery ${row.year} · rules: ${escapeHtml(auction.rules)}`) +
+      fact("GME unit", `<span class="muted">Not matched yet</span>`) +
+      `</div><p>${sources.map(url => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(decodeURIComponent(url.split("/").pop()).replace(/_[0-9a-f]{12,}\.pdf$/, ".pdf"))} ↗</a>`).join(" · ")}</p>`;
+  }
+
+  function downloadCapacityCsv(rows) {
+    const columns = [["Delivery year", row => row.year], ["Participant", row => row.participant], ["Group", row => row.group],
+      ["Area", row => CM_AREAS[row.area]], ["Bidding zone", row => row.zone], ["Plant", row => row.plant],
+      ["Technology", row => CM_TECH[row.technology]], ["Technology (Terna)", row => row.technology_it],
+      ["Plant type", row => row.initiative === "new" ? "New" : "Repowering"],
+      ["Authorised at the auction", row => row.authorised === null ? "" : row.authorised ? "yes" : "no"],
+      ["CDP MW", row => row.mw], ["Hours", row => row.hours], ["Premium EUR/MW/year", row => row.premium],
+      ["EUR a year", row => row.payment === null ? "" : Math.round(row.payment)], ["Auction date", row => row.auction.date],
+      ["Report", row => row.auction.report]];
+    const quote = value => isEmpty(value) ? "" : /[",\n;]/.test(String(value)) ? `"${String(value).replace(/"/g, '""')}"` : String(value);
+    const csv = [columns.map(([name]) => name).join(","), ...rows.map(row => columns.map(([, get]) => quote(get(row))).join(","))].join("\n");
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+    link.download = `capacity-market-units-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+
+  function renderCapacityUnits(host) {
+    const data = cmState.data;
+    const units = data.units;
+    const facets = cmFacets(data);
+    host.innerHTML = `<div id="cm-unit-kpis" class="gas-kpis" style="margin:0 0 16px"></div>`;
+    const body = policyPanel(host, "New capacity awarded, unit by unit",
+      `Terna's main auctions, delivery years ${data.years[0]}–${data.years[data.years.length - 1]}`, true);
+    body.innerHTML = `<div class="queue-note" style="margin:0 0 4px">Every new unit Terna lists in its auction reports: new plants and repowerings, ` +
+      `with the participant (the company that bid, not always the owner), Terna's area and plant name, and the CDP awarded. ` +
+      `For the 2022 and 2023 auctions, the units nominated after the auction (Terna's list of March 2021). Existing capacity is not ` +
+      `listed by unit: see the totals. Terna gives no UP codes, so the GME units are not matched yet. Click a row for the details.</div>` +
+      `<div class="queue-layout"><aside class="queue-filters" aria-label="Filters"></aside><div class="queue-main">` +
+      `<div class="queue-toolbar"><div class="queue-count"></div></div><div class="queue-table-host"></div></div></div>`;
+    const filters = body.querySelector(".queue-filters");
+    const toolbar = body.querySelector(".queue-toolbar");
+    toolbar.appendChild(queueSearch("Search participant, group, plant, area", cmState.search, value => {
+      cmState.search = value;
+      cmState.page = 0;
+      update();
+    }));
+    const download = document.createElement("button");
+    download.type = "button";
+    download.className = "queue-button";
+    download.textContent = "Download CSV";
+    download.title = "The units matching the filters, as a CSV file";
+    toolbar.appendChild(download);
+    let shown = [];
+    download.addEventListener("click", () => downloadCapacityCsv(shown));
+
+    filters.addEventListener("change", event => {
+      const box = event.target.closest("input[data-facet]");
+      if (!box) return;
+      const chosen = cmState.filters[box.dataset.facet];
+      if (box.checked) chosen.add(box.value); else chosen.delete(box.value);
+      cmState.page = 0;
+      update();
+    });
+    filters.addEventListener("click", event => {
+      const head = event.target.closest(".queue-group-head");
+      if (head) {
+        const key = head.dataset.group;
+        if (cmState.closed.has(key)) cmState.closed.delete(key); else cmState.closed.add(key);
+        head.parentElement.classList.toggle("closed");
+        head.setAttribute("aria-expanded", String(!cmState.closed.has(key)));
+        return;
+      }
+      if (event.target.closest(".queue-clear")) {
+        Object.values(cmState.filters).forEach(chosen => chosen.clear());
+        cmState.page = 0;
+        update();
+      }
+    });
+
+    function drawFilters() {
+      const any = Object.values(cmState.filters).some(chosen => chosen.size);
+      filters.innerHTML = facets.map(facet => {
+        const counts = new Map();
+        units.forEach(unit => {
+          if (!cmUnitMatches(unit, facets, facet.key)) return;
+          facet.values(unit).forEach(value => counts.set(value, (counts.get(value) || 0) + 1));
+        });
+        const chosen = cmState.filters[facet.key];
+        let values = facet.order ? facet.order.slice() : [...new Set(units.flatMap(facet.values))].sort((a, b) => a.localeCompare(b));
+        values = values.filter(value => counts.get(value) || chosen.has(value));
+        const closed = cmState.closed.has(facet.key);
+        return `<div class="queue-group${closed ? " closed" : ""}"><button type="button" class="queue-group-head" data-group="${facet.key}" aria-expanded="${!closed}">` +
+          `${facet.title} <span>${chosen.size ? `${chosen.size} selected` : values.length}</span></button><div class="queue-options">` +
+          values.map(value => `<label class="queue-option${counts.get(value) ? "" : " empty"}"><input type="checkbox" data-facet="${facet.key}" ` +
+            `value="${escapeHtml(value)}"${chosen.has(value) ? " checked" : ""}>${escapeHtml(facet.label(value))}` +
+            `<span class="count">${formatNumber(counts.get(value) || 0)}</span></label>`).join("") + `</div></div>`;
+      }).join("") + (any ? `<button type="button" class="queue-clear">Clear all filters</button>` : "");
+    }
+
+    function drawKpis() {
+      const mw = shown.reduce((sum, unit) => sum + unit.mw, 0);
+      const storage = shown.filter(unit => unit.family === "storage");
+      const storageMw = storage.reduce((sum, unit) => sum + unit.mw, 0);
+      const priced = shown.filter(unit => !isEmpty(unit.payment));
+      const payments = priced.reduce((sum, unit) => sum + unit.payment, 0);
+      const years = [...new Set(shown.map(unit => unit.year))].sort();
+      const groups = {};
+      shown.forEach(unit => { groups[unit.group] = (groups[unit.group] || 0) + unit.mw; });
+      const [topGroup, topMw] = Object.entries(groups).sort((a, b) => b[1] - a[1])[0] || ["—", 0];
+      document.getElementById("cm-unit-kpis").innerHTML = [
+        anaTile("Units", formatNumber(shown.length), years.length ? `delivery ${years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : years[0]}` : "none match"),
+        anaTile("New capacity", `${formatNumber(mw, 0)}<small>MW</small>`, "CDP awarded"),
+        anaTile("Batteries", `${formatNumber(storageMw, 0)}<small>MW</small>`,
+          `${mw ? anaPct(storageMw / mw) : "—"} of the MW · ${formatNumber(storage.length)} units`),
+        anaTile("Premiums a year", bessMoney(payments), `${priced.length < shown.length ? `${formatNumber(shown.length - priced.length)} units' price not known · ` : ""}before paybacks`),
+        anaTile("Largest group", escapeHtml(topGroup), `${formatNumber(topMw, 0)} MW${mw ? ` · ${anaPct(topMw / mw)}` : ""}`)
+      ].join("");
+    }
+
+    function update() {
+      shown = units.filter(unit => cmUnitMatches(unit, facets));
+      const mw = shown.reduce((sum, unit) => sum + unit.mw, 0);
+      body.querySelector(".queue-count").innerHTML = `<b>${formatNumber(shown.length)}</b> of ${formatNumber(units.length)} units ` +
+        `<small>· ${formatNumber(mw, 0)} MW of CDP</small>`;
+      drawFilters();
+      drawKpis();
+      queueTable(body.querySelector(".queue-table-host"), {
+        columns: CM_UNIT_COLUMNS, rows: shown, state: cmState, pageSize: 50,
+        rowKey: row => `${row.year}|${row.participant}|${row.area}|${row.plant}|${row.mw}`, detail: cmUnitDetail,
+        empty: "No unit matches the filters."
+      });
+    }
+    update();
+  }
+
+  /* ---------- Totals ---------- */
+
+  /* A delivery year's capacity by participant or group: national (existing, new) and foreign MW, and the premiums. */
+  function cmTotalsBy(auction, by) {
+    const key = name => by === "group" ? cmState.data.groupOf(name) : name;
+    const rows = {};
+    const entry = name => rows[key(name)] || (rows[key(name)] = { name: key(name), existing: 0, added: 0, foreign: 0, payment: 0,
+      participants: new Set(), areas: {} });
+    auction.national.forEach(([area, name, existing, added, payment]) => {
+      const row = entry(name);
+      row.existing += existing;
+      row.added += added;
+      row.payment += payment;
+      row.participants.add(name);
+      const place = row.areas[area] || (row.areas[area] = { existing: 0, added: 0 });
+      place.existing += existing;
+      place.added += added;
+    });
+    auction.foreign.forEach(([border, name, mw, payment]) => {
+      const row = entry(name);
+      row.foreign += mw;
+      row.payment += payment;
+      row.participants.add(name);
+      const place = row.areas[`foreign:${border}`] || (row.areas[`foreign:${border}`] = { existing: 0, added: 0, foreign: 0 });
+      place.foreign = (place.foreign || 0) + mw;
+    });
+    return Object.values(rows).map(row => ({ ...row, total: row.existing + row.added + row.foreign }));
+  }
+
+  function renderCapacityTotals(host) {
+    const data = cmState.data;
+    const years = data.years;
+    if (!years.includes(cmState.year)) cmState.year = years[years.length - 1];
+    const auction = data.auctions[cmState.year];
+    host.innerHTML = `<div class="policy-toolbar"><label>Delivery year <select class="queue-select" id="cm-year" aria-label="Delivery year">` +
+      years.slice().reverse().map(year => `<option value="${year}"${year === cmState.year ? " selected" : ""}>${year}</option>`).join("") +
+      `</select></label><label>Operators by <select class="queue-select" id="cm-by" aria-label="Operators by">` +
+      `<option value="group"${cmState.by === "group" ? " selected" : ""}>Group</option>` +
+      `<option value="participant"${cmState.by === "participant" ? " selected" : ""}>Participant (as Terna lists it)</option></select></label>` +
+      `<div id="cm-year-kpis" class="gas-kpis"></div></div><div class="policy-grid" id="cm-grid"></div>`;
+    host.querySelector("#cm-year").addEventListener("change", event => {
+      cmState.year = Number(event.target.value);
+      cmState.table.open = null;
+      renderPolicy();
+    });
+    host.querySelector("#cm-by").addEventListener("change", event => {
+      cmState.by = event.target.value;
+      cmState.table.open = null;
+      renderPolicy();
+    });
+    const grid = host.querySelector("#cm-grid");
+    const national = auction.mw.existing + auction.mw.new + auction.mw.new_not_authorised;
+    const foreign = Object.values(auction.mw.foreign).reduce((sum, mw) => sum + mw, 0);
+    const added = auction.mw.new + auction.mw.new_not_authorised;
+    const yearUnits = data.units.filter(unit => unit.year === cmState.year);
+    const storageMw = yearUnits.filter(unit => unit.family === "storage").reduce((sum, unit) => sum + unit.mw, 0);
+    const otherText = cmOtherPremiumText(auction);
+    document.getElementById("cm-year-kpis").innerHTML = [
+      anaTile("Capacity awarded", cmGw(national + foreign), `${cmGw(national)} in Italy · ${cmGw(foreign)} abroad`),
+      anaTile("Existing capacity", cmEuroK(auction.premium.existing), `per MW a year · ${cmGw(auction.mw.existing)}`),
+      anaTile("New capacity", cmEuroK(auction.premium.new),
+        `per MW a year${otherText ? ` (not yet authorised ${otherText})` : ""} · ${formatNumber(added)} MW, ${added ? anaPct(storageMw / added) : "—"} batteries`),
+      anaTile("Auction cost", `€${formatNumber(auction.cost.total, 0)}m`,
+        auction.cost.earlier_new ? `+ €${formatNumber(auction.cost.earlier_new, 0)}m for earlier auctions' new capacity` : "the first auction"),
+      anaTile("Auction", cmDate(auction.date), `rules: ${escapeHtml(auction.rules)}`)
+    ].join("");
+
+    grid.insertAdjacentHTML("beforeend", `<div class="queue-heading"><h2>Delivery year ${cmState.year}</h2>` +
+      `<p>Who was awarded what, and where. National capacity by Terna's areas (the bidding zones, with Sardinia split from 2024); ` +
+      `foreign capacity is capacity abroad that delivers through the borders.</p></div>`);
+    cmAreaChart(grid, auction);
+    cmShareChart(grid, auction);
+    cmOperatorChart(grid, auction);
+    cmOperatorTable(grid, auction);
+
+    grid.insertAdjacentHTML("beforeend", `<div class="queue-heading"><h2>All auctions</h2>` +
+      `<p>The six main auctions held so far, by delivery year. The next, for 2028, follows MACSE's second auction (24 November 2026).</p></div>`);
+    cmCapacityChart(grid);
+    cmPremiumChart(grid);
+    cmCostChart(grid);
+    cmTechnologyChart(grid);
+    cmOfferedChart(grid);
+    cmNotes(grid);
+  }
+
+  function cmAreaChart(grid, auction) {
+    const body = policyPanel(grid, "Capacity by area", `${auction.year} · MW of CDP, national`);
+    const areas = Object.keys(CM_AREAS).filter(area => auction.national.some(row => row[0] === area));
+    const sum = (area, index) => auction.national.filter(row => row[0] === area).reduce((total, row) => total + row[index], 0);
+    const existing = areas.map(area => sum(area, 2));
+    const added = areas.map(area => sum(area, 3));
+    const chart = policyChart(body, 300, "Existing and new capacity awarded in each of Terna's areas. Click a name in the legend to hide or show it.");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(["Existing", "New"]),
+      tooltip: queueTooltip(params => {
+        const index = params[0].dataIndex;
+        return cmTipHead(escapeHtml(CM_AREAS[areas[index]])) +
+          tooltipRow(cssVar("--border-3"), "New", `${formatNumber(added[index])} MW`) +
+          tooltipRow(cssVar("--border-1"), "Existing", `${formatNumber(existing[index])} MW`) +
+          tooltipRow(cssVar("--chart-legend"), "Total", `${formatNumber(existing[index] + added[index])} MW`, "line");
+      }),
+      grid: { left: 58, right: 16, top: 34, bottom: 28 },
+      xAxis: { ...cmCategoryAxis(areas.map(area => CM_AREAS_SHORT[area])), axisLabel: { ...queueAxisLabel(), interval: 0 } },
+      yAxis: timelineYAxis("MW", { nameGap: 44 }),
+      series: [stackedBar("Existing", "--border-1", existing, { barMaxWidth: 34 }), stackedBar("New", "--border-3", added, { barMaxWidth: 34 })]
+    }, true);
+  }
+
+  function cmShareChart(grid, auction) {
+    const body = policyPanel(grid, "Share of the national capacity", `${auction.year} · the largest groups`);
+    const totals = cmTotalsBy(auction, "group");
+    const national = totals.reduce((sum, row) => sum + row.existing + row.added, 0);
+    const top = cmState.data.topGroups;
+    const slices = top.map((group, index) => {
+      const row = totals.find(item => item.name === group);
+      return { name: group, value: row ? row.existing + row.added : 0, color: CM_GROUP_COLORS[index] };
+    }).filter(slice => slice.value);
+    const others = national - slices.reduce((sum, slice) => sum + slice.value, 0);
+    slices.push({ name: "Others", value: others, color: "--mix-other" });
+    const chart = policyChart(body, 300, `The five groups with the most national capacity over all the auctions, each in its own colour; ` +
+      `${formatNumber(totals.filter(row => row.existing + row.added > 0 && !top.includes(row.name)).length)} other groups together. Foreign capacity left out.`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: { trigger: "item", confine: true, backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"),
+        borderWidth: 1, textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
+        formatter: item => cmTipHead(escapeHtml(item.name)) + tooltipRow(item.color, "CDP", `${formatNumber(item.value)} MW · ${anaPct(item.value / national, 1)}`) },
+      legend: { orient: "vertical", right: 8, top: "middle", itemWidth: 12, itemHeight: 8, itemGap: 10, icon: "rect",
+        textStyle: { color: cssVar("--chart-legend"), fontSize: 11 },
+        formatter: name => `${name}  ${anaPct((slices.find(slice => slice.name === name) || { value: 0 }).value / national)}` },
+      series: [{ type: "pie", radius: ["48%", "76%"], center: ["34%", "52%"], avoidLabelOverlap: true, label: { show: false },
+        itemStyle: { borderColor: cssVar("--panel"), borderWidth: 2 },
+        data: slices.map(slice => ({ name: slice.name, value: slice.value, itemStyle: { color: cssVar(slice.color) } })) }]
+    }, true);
+  }
+
+  function cmOperatorChart(grid, auction) {
+    const by = cmState.by;
+    const rows = cmTotalsBy(auction, by).sort((a, b) => b.total - a.total).slice(0, 15);
+    const body = policyPanel(grid, `Largest ${by === "group" ? "groups" : "participants"}`, `${auction.year} · MW of CDP, the 15 with the most`, true);
+    const chart = policyChart(body, 60 + rows.length * 24, "Existing and new capacity in Italy and foreign capacity, stacked. " +
+      (by === "group" ? "Groups: the participants put together by their names (the author's reading). " : "") +
+      "Click a name in the legend to hide or show it.");
+    const series = [["Existing", "--border-1", row => row.existing], ["New", "--border-3", row => row.added], ["Foreign", "--border-7", row => row.foreign]];
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(series.map(item => item[0])),
+      tooltip: queueTooltip(params => {
+        const row = rows[params[0].dataIndex];
+        return cmTipHead(escapeHtml(row.name)) +
+          series.slice().reverse().map(([name, color, get]) => tooltipRow(cssVar(color), name, `${formatNumber(get(row))} MW`)).join("") +
+          tooltipRow(cssVar("--chart-legend"), "Total", `${formatNumber(row.total)} MW`, "line") +
+          tooltipRow(cssVar("--chart-legend"), "Premiums", `${bessMoney(row.payment)} a year`, "line");
+      }),
+      grid: { left: 200, right: 24, top: 30, bottom: 26 },
+      xAxis: { type: "value", axisLabel: { ...timelineAxisTextStyle(), formatter: value => `${formatNumber(value)} MW` },
+        splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      yAxis: { ...cmCategoryAxis(rows.map(row => row.name)), inverse: true,
+        axisLabel: { ...queueAxisLabel(), width: 185, overflow: "truncate" } },
+      series: series.map(([name, color, get]) => stackedBar(name, color, rows.map(get), { barMaxWidth: 16 }))
+    }, true);
+  }
+
+  function cmOperatorTable(grid, auction) {
+    const by = cmState.by;
+    const rows = cmTotalsBy(auction, by);
+    const national = rows.reduce((sum, row) => sum + row.existing + row.added, 0);
+    const body = policyPanel(grid, `By ${by === "group" ? "group" : "participant"}`,
+      `${auction.year} · ${formatNumber(rows.length)} ${by === "group" ? "groups" : "participants"}`, true);
+    const columns = [
+      { key: "name", label: by === "group" ? "Group" : "Participant", value: row => row.name, className: "clip project",
+        cell: row => `${escapeHtml(row.name)}${by === "group" && row.participants.size > 1 ? `<br><span class="muted">${formatNumber(row.participants.size)} participants</span>` : ""}` },
+      { key: "existing", label: "Existing MW", num: true, value: row => row.existing, cell: row => row.existing ? formatNumber(row.existing) : "—" },
+      { key: "added", label: "New MW", num: true, value: row => row.added, cell: row => row.added ? formatNumber(row.added) : "—" },
+      { key: "foreign", label: "Foreign MW", num: true, value: row => row.foreign, cell: row => row.foreign ? formatNumber(row.foreign) : "—" },
+      { key: "total", label: "Total MW", num: true, value: row => row.total, cell: row => formatNumber(row.total) },
+      { key: "share", label: "Share in Italy", num: true, value: row => (row.existing + row.added) / national,
+        cell: row => row.existing + row.added ? anaPct((row.existing + row.added) / national, 1) : "—", title: "Of the national capacity awarded" },
+      { key: "payment", label: "Premiums a year", num: true, value: row => row.payment, cell: row => bessMoney(row.payment),
+        title: "CDP × premium, before the reliability option's paybacks" }
+    ];
+    const detail = row => {
+      const places = Object.entries(row.areas).sort(([a], [b]) => a.localeCompare(b));
+      const name = key => key.startsWith("foreign:") ? CM_FOREIGN[key.slice(8)] : CM_AREAS[key];
+      return `<table><thead><tr><th>Area</th><th class="num">Existing MW</th><th class="num">New MW</th><th class="num">Foreign MW</th></tr></thead><tbody>` +
+        places.map(([key, place]) => `<tr><td>${escapeHtml(name(key))}</td><td class="num">${place.existing ? formatNumber(place.existing) : "—"}</td>` +
+          `<td class="num">${place.added ? formatNumber(place.added) : "—"}</td><td class="num">${place.foreign ? formatNumber(place.foreign) : "—"}</td></tr>`).join("") +
+        `</tbody></table>` + (by === "group" ? `<p style="margin:10px 0 0" class="muted">${[...row.participants].sort().map(escapeHtml).join(" · ")}</p>` : "");
+    };
+    body.innerHTML = `<div class="queue-table-host"></div><div class="queue-note">From Terna's tables of the capacity awarded by area and participant ` +
+      `(existing and new) and by foreign area. Premiums: each MW × the premium of its kind and area. Click a row for its areas${by === "group" ? " and participants" : ""}. ` +
+      `Click a column to sort.</div>`;
+    queueTable(body.querySelector(".queue-table-host"), {
+      columns, rows, state: cmState.table, pageSize: 25, rowKey: row => row.name, detail, empty: "No capacity awarded."
+    });
+  }
+
+  function cmCapacityChart(grid) {
+    const data = cmState.data;
+    const body = policyPanel(grid, "Capacity awarded by delivery year", "GW of CDP", true);
+    const value = (auction, key) => key === "foreign" ? Object.values(auction.mw.foreign).reduce((sum, mw) => sum + mw, 0) : auction.mw[key];
+    const chart = policyChart(body, 320, "Existing capacity, new capacity authorised and not yet authorised at the auction (the first auctions " +
+      "bought both; from 2025 only authorised), and foreign capacity. Click a name in the legend to hide or show it.");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(CM_KINDS.map(kind => kind.label)),
+      tooltip: queueTooltip(params => {
+        const auction = data.auctions[data.years[params[0].dataIndex]];
+        const total = CM_KINDS.reduce((sum, kind) => sum + value(auction, kind.key), 0);
+        return cmTipHead(`Delivery ${auction.year} <span style="font-weight:400">· auction ${cmDate(auction.date)}</span>`) +
+          CM_KINDS.slice().reverse().map(kind => tooltipRow(cssVar(kind.color), kind.label, `${formatNumber(value(auction, kind.key))} MW`)).join("") +
+          tooltipRow(cssVar("--chart-legend"), "Total", `${formatNumber(total)} MW`, "line");
+      }),
+      grid: { left: 52, right: 16, top: 34, bottom: 28 },
+      xAxis: cmCategoryAxis(data.years.map(String)),
+      yAxis: timelineYAxis("GW", { nameGap: 36 }),
+      series: CM_KINDS.map(kind => stackedBar(kind.label, kind.color,
+        data.years.map(year => +(value(data.auctions[year], kind.key) / 1000).toFixed(3)), { barMaxWidth: 46 }))
+    }, true);
+  }
+
+  function cmPremiumChart(grid) {
+    const data = cmState.data;
+    const body = policyPanel(grid, "Premiums by delivery year", "€ thousand per MW of CDP a year");
+    // New capacity not yet authorised: its average price where it varied by area (2024).
+    const otherAverage = auction => {
+      if (!auction.mw.new_not_authorised) return null;
+      return auction.cost.new_not_authorised * 1e6 / auction.mw.new_not_authorised;
+    };
+    const lines = [
+      ["Existing", "--border-1", auction => auction.premium.existing],
+      ["New, authorised", "--border-3", auction => auction.premium.new],
+      ["New, not yet authorised", "--border-4", otherAverage],
+      ["Foreign North", "--border-7", auction => auction.premium.foreign.NORD]
+    ];
+    const chart = policyChart(body, 300, "The marginal prices, the same in every area but for the new capacity not yet authorised in 2024 " +
+      "(48.1k in the North, 51.0k in Sardinia, 33.5k in the Centre-South and Sicily: their average, weighted by MW). Foreign North: " +
+      "the northern borders' capacity. Click a name in the legend to hide or show it.");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(lines.map(line => line[0])),
+      tooltip: { ...queueTooltip(params => cmTipHead(`Delivery ${data.years[params[0].dataIndex]}`) + params
+        .filter(item => Number.isFinite(item.value))
+        .map(item => tooltipRow(item.color, item.seriesName, `€${formatNumber(item.value * 1000)}`, "line")).join("")),
+        axisPointer: { type: "line", lineStyle: { color: cssVar("--chart-pointer"), width: 1 } } },
+      grid: { left: 46, right: 16, top: 34, bottom: 28 },
+      xAxis: cmCategoryAxis(data.years.map(String)),
+      yAxis: timelineYAxis("k€/MW", { nameGap: 32, min: 0 }),
+      series: lines.map(([name, color, get]) => ({ name, type: "line", symbol: "circle", symbolSize: 8, connectNulls: false,
+        data: data.years.map(year => {
+          const value = get(data.auctions[year]);
+          return isEmpty(value) ? null : +(value / 1000).toFixed(3);
+        }),
+        lineStyle: { color: cssVar(color), width: 2 }, itemStyle: { color: cssVar(color), borderColor: cssVar("--panel"), borderWidth: 2 } }))
+    }, true);
+  }
+
+  function cmCostChart(grid) {
+    const data = cmState.data;
+    const body = policyPanel(grid, "Cost by delivery year", "€ million a year");
+    const parts = [
+      ["Existing", "--border-1", auction => auction.cost.existing],
+      ["New, this auction", "--border-3", auction => auction.cost.new + auction.cost.new_not_authorised],
+      ["Foreign", "--border-7", auction => auction.cost.foreign],
+      ["New, earlier auctions", CM_EARLIER_COLOR, auction => auction.cost.earlier_new]
+    ];
+    const chart = policyChart(body, 300, "The premiums the auction awarded (CDP × premium) and, on top, what the new capacity of the earlier " +
+      "auctions still costs in the year, as Terna states it (after the contracts terminated: 886 MW by the 2024 report, about 1.5 GW " +
+      "from 2025). Before the reliability option's paybacks, which lower the net cost. Click a name in the legend to hide or show it.");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(parts.map(part => part[0])),
+      tooltip: queueTooltip(params => {
+        const auction = data.auctions[data.years[params[0].dataIndex]];
+        const total = parts.reduce((sum, [, , get]) => sum + get(auction), 0);
+        return cmTipHead(`Delivery ${auction.year}`) +
+          parts.slice().reverse().map(([name, color, get]) => tooltipRow(cssVar(color), name, `€${formatNumber(get(auction), 1)}m`)).join("") +
+          tooltipRow(cssVar("--chart-legend"), "Total", `€${formatNumber(total, 0)}m`, "line");
+      }),
+      grid: { left: 58, right: 16, top: 34, bottom: 28 },
+      xAxis: cmCategoryAxis(data.years.map(String)),
+      yAxis: timelineYAxis("€m", { nameGap: 44 }),
+      series: parts.map(([name, color, get]) => stackedBar(name, color, data.years.map(year => +get(data.auctions[year]).toFixed(2)), { barMaxWidth: 34 }))
+    }, true);
+  }
+
+  function cmTechnologyChart(grid) {
+    const data = cmState.data;
+    const body = policyPanel(grid, "New capacity by technology", "MW of CDP, the units listed");
+    const value = (year, family) => data.units.filter(unit => unit.year === year && unit.family === family.key).reduce((sum, unit) => sum + unit.mw, 0);
+    const families = CM_FAMILIES.filter(family => data.years.some(year => value(year, family)));
+    const chart = policyChart(body, 300, "The new units of each auction, new plants and repowerings, by technology. Batteries: also those with solar. " +
+      "Click a name in the legend to hide or show it.");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(families.map(family => family.label)),
+      tooltip: queueTooltip(params => {
+        const year = data.years[params[0].dataIndex];
+        const total = families.reduce((sum, family) => sum + value(year, family), 0);
+        return cmTipHead(`Delivery ${year}`) +
+          families.slice().reverse().filter(family => value(year, family)).map(family =>
+            tooltipRow(cssVar(family.color), family.label, `${formatNumber(value(year, family))} MW · ${anaPct(value(year, family) / total)}`)).join("") +
+          tooltipRow(cssVar("--chart-legend"), "Total", `${formatNumber(total)} MW`, "line");
+      }),
+      grid: { left: 52, right: 16, top: 52, bottom: 28 },
+      xAxis: cmCategoryAxis(data.years.map(String)),
+      yAxis: timelineYAxis("MW", { nameGap: 40 }),
+      series: families.map(family => stackedBar(family.label, family.color, data.years.map(year => value(year, family)), { barMaxWidth: 34 }))
+    }, true);
+  }
+
+  function cmOfferedChart(grid) {
+    const data = cmState.data;
+    const body = policyPanel(grid, "Qualified, offered and awarded", "GW of CDP, national");
+    const steps = [
+      ["Qualified", "--queue-step-2", auction => auction.offered.national_qualified],
+      ["Offered", "--queue-step-3", auction => auction.offered.national_offered],
+      ["Awarded", "--queue-step-4", auction => auction.mw.existing + auction.mw.new + auction.mw.new_not_authorised]
+    ];
+    const chart = policyChart(body, 300, "The national capacity qualified to take part, offered in the auction and awarded (in 2022 and 2023 " +
+      "Terna gives GW to one decimal). The tooltip adds the foreign capacity. Click a name in the legend to hide or show it.");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(steps.map(step => step[0])),
+      tooltip: queueTooltip(params => {
+        const auction = data.auctions[data.years[params[0].dataIndex]];
+        const foreign = Object.values(auction.mw.foreign).reduce((sum, mw) => sum + mw, 0);
+        return cmTipHead(`Delivery ${auction.year}`) +
+          steps.map(([name, color, get]) => tooltipRow(cssVar(color), name, cmGw(get(auction)))).join("") +
+          tooltipRow(cssVar("--chart-legend"), "Foreign: qualified · offered · awarded",
+            `${cmGw(auction.offered.foreign_qualified)} · ${cmGw(auction.offered.foreign_offered)} · ${cmGw(foreign)}`, "line");
+      }),
+      grid: { left: 52, right: 16, top: 34, bottom: 28 },
+      xAxis: cmCategoryAxis(data.years.map(String)),
+      yAxis: timelineYAxis("GW", { nameGap: 36, min: 0 }),
+      series: steps.map(([name, color, get]) => ({ name, type: "bar", barMaxWidth: 14, barGap: "20%",
+        data: data.years.map(year => +(get(data.auctions[year]) / 1000).toFixed(3)),
+        itemStyle: { color: cssVar(color), borderRadius: [3, 3, 0, 0] } }))
+    }, true);
+  }
+
+  function cmNotes(grid) {
+    const data = cmState.data;
+    const body = policyPanel(grid, "How the figures are made", `Source: Terna · built ${cmDate(data.generated.slice(0, 10))}`, true);
+    const name = url => decodeURIComponent(url.split("/").pop()).replace(/_[0-9a-f]{12,}\.pdf$/, ".pdf");
+    const sources = data.years.map(year => {
+      const auction = data.auctions[year];
+      return `<li>Delivery ${year} (auction ${cmDate(auction.date)}): ` +
+        [...new Set([auction.report, ...auction.units_source])].map(url => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(name(url))}</a>`).join(", ") + `</li>`;
+    }).join("");
+    body.innerHTML = `<ul class="gas-notes">` +
+      `<li><b>Units</b>: the new units each report lists (participant, area, plant, technology, CDP, for storage its hours); for the ` +
+      `2022 and 2023 auctions, Terna's list of the units nominated after the auction (March 2021). Contracts later terminated ` +
+      `(886 MW by the 2024 report, about 1.5 GW from the 2025 one) are still listed: Terna does not say which.</li>` +
+      `<li><b>Existing capacity</b>: only as totals by participant and area, and by foreign area. From the 2024 report these tables ` +
+      `are images, typed by hand (etl/capacity_market_transcribed.json); every area and the country add up to Terna's totals, and the ` +
+      `premiums × MW to the cost each report states.</li>` +
+      `<li><b>Authorised or not</b>: the 2022-2024 auctions bought new capacity already authorised and not yet authorised (in 2024 at ` +
+      `different prices); the lists do not say which unit was which. It is inferred from each participant's MW of each (per area in ` +
+      `2024): a unit is marked when it falls on the same side of every split of its participant's units that matches them (≈); else ` +
+      `not known, and so is its price.</li>` +
+      `<li><b>Premiums</b>: € per MW of CDP a year, at the auction's marginal price. What a holder gets is less: it pays back the ` +
+      `day-ahead price above the strike price, and penalties if it is not available.</li>` +
+      `<li><b>Groups</b>: participants put together by their names (Enel Produzione, A2A Gencogas, Eni Plenitude, EP Produzione's ` +
+      `plant companies and so on), the author's reading, not Terna's.</li>` +
+      `<li><b>Foreign areas</b>: North (the northern borders), Centre-South and South, as Terna sets them.</li>` +
+      `<li><b>GME units</b>: Terna gives no UP codes; matching the units to GME's by name, area and size is still to do.</li>` +
+      sources + `</ul>`;
+  }
 
   /* ============================================================
      LIGHT / DARK THEME
