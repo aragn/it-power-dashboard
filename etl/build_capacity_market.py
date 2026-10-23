@@ -60,7 +60,8 @@ NOMINATED_2022_2023 = TERNA + "2021_03_26_Capacit%C3%A0%20Nuova%202022%202023_V1
 # delivery year, after the contracts terminated); offered: CDP qualified and
 # offered, national and foreign (in GW to one decimal in 2022 and 2023).
 # units: the pages (and table on the page) of the new-capacity lists, with
-# what a list leaves out.
+# what a list leaves out.  contract: how many delivery years a new unit's
+# contract runs (existing capacity's: the delivery year alone), and who says so.
 AUCTIONS = [
     {
         "year": 2022, "date": "2019-11-06", "rules": "DM 28 June 2019",
@@ -73,6 +74,7 @@ AUCTIONS = [
         "cost": {"total": 1299, "foreign": 19.2, "earlier_new": 0},
         "offered": {"national_qualified": 42800, "national_offered": 36500, "foreign_qualified": 21800, "foreign_offered": 4800,
                     "rounded": True},
+        "contract": {"years": 15, "confirmed": True, "source": TERNA + "2019_12_06_Rendiconto%20EsitiAsta%202022_PUBBLICATO_8d7c06cc9f8470b.pdf", "note": "Terna's report: new capacity's delivery period lasts 15 years"},
     },
     {
         "year": 2023, "date": "2019-11-28", "rules": "DM 28 June 2019",
@@ -85,6 +87,7 @@ AUCTIONS = [
         "cost": {"total": 1475, "foreign": 19.4, "earlier_new": 133},
         "offered": {"national_qualified": 45300, "national_offered": 39000, "foreign_qualified": 19000, "foreign_offered": 4700,
                     "rounded": True},
+        "contract": {"years": 15, "confirmed": True, "source": "https://www.teleborsa.it/News/2019/12/05/a2a-si-aggiudica-5gw-nella-seconda-asta-mercato-della-capacita-35.html", "note": "A2A on the auction: 75,000 €/MW for 15 years for the capacity to be built"},
     },
     {
         "year": 2024, "date": "2022-02-21", "rules": "DM 28 October 2021",
@@ -96,6 +99,7 @@ AUCTIONS = [
         "mw": {"existing": 34153, "new": 1504, "new_not_authorised": 2274, "foreign": {"NORD": 3445, "CSUD": 113, "SUD": 52}},
         "cost": {"total": 1459.3, "foreign": 116.9, "earlier_new": 366, "terminated_mw": 886},
         "offered": {"national_qualified": 50234, "national_offered": 41502, "foreign_qualified": 10470, "foreign_offered": 3744},
+        "contract": {"years": 15, "confirmed": True, "source": "https://corporate.enel.it/content/dam/enel-common/press/it/2022-febbraio/CS%20capacity%20market%20asta%202024.pdf", "note": "Enel and A2A on the auction: one-year contracts for existing capacity, 15-year for new"},
     },
     {
         "year": 2025, "date": "2024-07-25", "rules": "DM 9 May 2024",
@@ -105,6 +109,7 @@ AUCTIONS = [
         "mw": {"existing": 37581, "new": 174, "new_not_authorised": 0, "foreign": {"NORD": 4200, "CSUD": 113, "SUD": 52}},
         "cost": {"total": 1723.6, "foreign": 20.74, "earlier_new": 550, "terminated_mw": 1500},
         "offered": {"national_qualified": 40189, "national_offered": 37959, "foreign_qualified": 18179, "foreign_offered": 6348},
+        "contract": {"years": 15, "confirmed": False, "source": None, "note": "Not confirmed: no statement found for this auction; assumed 15 years like the auctions before and after it"},
     },
     {
         "year": 2026, "date": "2024-12-18", "rules": "DM 17 October 2024",
@@ -114,6 +119,7 @@ AUCTIONS = [
         "mw": {"existing": 38265, "new": 140, "new_not_authorised": 0, "foreign": {"NORD": 4200, "CSUD": 113, "SUD": 52}},
         "cost": {"total": 1816.1, "foreign": 48.09, "earlier_new": 565, "terminated_mw": 1500},
         "offered": {"national_qualified": 40887, "national_offered": 38414, "foreign_qualified": 16492, "foreign_offered": 5959},
+        "contract": {"years": 15, "confirmed": True, "source": "https://www.energy-storage.news/?p=85454", "note": "Neoen (Broni battery, this auction): a 15-year capacity contract"},
     },
     {
         "year": 2027, "date": "2025-02-26", "rules": "DM 17 October 2024",
@@ -123,6 +129,7 @@ AUCTIONS = [
         "mw": {"existing": 38047, "new": 594, "new_not_authorised": 0, "foreign": {"NORD": 4200, "CSUD": 113, "SUD": 52}},
         "cost": {"total": 1847.3, "foreign": 31.2, "earlier_new": 572, "terminated_mw": 1500},
         "offered": {"national_qualified": 41886, "national_offered": 39239, "foreign_qualified": 15281, "foreign_offered": 5791},
+        "contract": {"years": 15, "confirmed": True, "source": "https://www.power-technology.com/news/aer-soleir-rondissone-bess-project/", "note": "Aer Soléir (Rondissone battery, AS Storage, this auction): a 15-year capacity contract"},
     },
 ]
 
@@ -520,7 +527,7 @@ def build_auction(auction, transcribed, cache_dir):
     print(f"  {year}: {len(units)} units, {listed_mw:.0f} MW new; authorised {status.count(True)}, not {status.count(False)}, "
           f"unknown {status.count(None)}; {len(rows)} participant-area rows, {len(foreign_rows)} foreign")
 
-    out = {key: auction[key] for key in ("year", "date", "rules", "report", "premium", "mw", "offered")}
+    out = {key: auction[key] for key in ("year", "date", "rules", "report", "premium", "mw", "offered", "contract")}
     out["units_source"] = sorted({spec.get("url", auction["report"]) for spec in auction["units"]})
     out["cost"] = {**{key: round(value, 2) for key, value in costs.items()}, "total": stated["total"],
                    "earlier_new": stated["earlier_new"], **({"terminated_mw": stated["terminated_mw"]} if "terminated_mw" in stated else {})}
