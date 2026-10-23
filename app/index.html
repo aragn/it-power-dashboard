@@ -23071,6 +23071,8 @@ move the slider above to another one`,
       unit.auction = auctions[unit.year];
       // New capacity is paid from its delivery year for the contract's years.
       unit.contractUntil = unit.auction.contract ? unit.year + unit.auction.contract.years - 1 : null;
+      // The power behind the CDP, where Terna's derating tables give the unit's share.
+      unit.power = isEmpty(unit.rating) ? null : unit.mw / unit.rating;
       unit.search = [unit.year, unit.participant, unit.group, unit.plant, CM_AREAS[unit.area], CM_TECH[unit.technology], unit.technology_it]
         .join(" ").toLowerCase();
       return unit;
@@ -23212,8 +23214,9 @@ move the slider above to another one`,
     { key: "area", label: "Area", value: row => CM_AREAS[row.area], className: "nowrap" },
     { key: "technology", label: "Technology", value: row => CM_TECH[row.technology], className: "nowrap",
       cell: row => queueBadge(cmFamily(row.family).color, CM_TECH_SHORT[row.technology], CM_TECH[row.technology]) },
-    { key: "mw", label: "MW", num: true, value: row => row.mw, cell: row => formatQueueMw(row.mw),
-      title: "CDP awarded: the MW Terna credits the unit with (derated)" },
+    { key: "mw", label: "MW", num: true, value: row => row.mw, className: "nowrap",
+      cell: row => `${formatQueueMw(row.mw)}${isEmpty(row.power) ? "" : `<br><span class="muted" title="${escapeHtml(cmRatingText(row))}">of ≈${formatNumber(row.power, 0)}</span>`}`,
+      title: "CDP awarded: the MW Terna credits the unit with (derated); under it, the power that implies (2025-2027 batteries, solar and wind)" },
     { key: "hours", label: "Hours", num: true, value: row => row.hours,
       cell: row => isEmpty(row.hours) ? "—" : cmHours(row.hours),
       title: "Storage: the energy it holds, in hours at its CDP" },
@@ -23243,6 +23246,7 @@ move the slider above to another one`,
       fact("Technology", `${escapeHtml(CM_TECH[row.technology])} <span class="muted">(${escapeHtml(row.technology_it.toLowerCase())})</span>`) +
       fact("Kind", row.initiative === "new" ? "New plant" : "Repowering of an existing plant") +
       fact("CDP awarded", `${formatQueueMw(row.mw)} MW`) +
+      fact("Derating", isEmpty(row.rating) ? null : `${escapeHtml(cmRatingText(row))} · power ≈${formatNumber(row.power, 0)} MW`) +
       fact("Storage", energy) +
       fact("At the auction", authorised) +
       fact("Premium", isEmpty(row.premium) ? `€${formatNumber(auction.premium.new)} if authorised, else €${formatNumber(cmOtherPremium(auction, row.area))}, per MW a year`
@@ -23261,7 +23265,8 @@ move the slider above to another one`,
       ["Technology", row => CM_TECH[row.technology]], ["Technology (Terna)", row => row.technology_it],
       ["Plant type", row => row.initiative === "new" ? "New" : "Repowering"],
       ["Authorised at the auction", row => row.authorised === null ? "" : row.authorised ? "yes" : "no"],
-      ["CDP MW", row => row.mw], ["Hours", row => row.hours], ["Premium EUR/MW/year", row => row.premium],
+      ["CDP MW", row => row.mw], ["CDP share of power", row => row.rating],
+      ["Power MW (estimate)", row => isEmpty(row.power) ? "" : Math.round(row.power * 10) / 10], ["Hours", row => row.hours], ["Premium EUR/MW/year", row => row.premium],
       ["EUR a year", row => row.payment === null ? "" : Math.round(row.payment)],
       ["Contract years", row => row.auction.contract ? row.auction.contract.years : ""], ["Contract until", row => row.contractUntil],
       ["Contract length confirmed", row => row.auction.contract ? (row.auction.contract.confirmed ? "yes" : "no") : ""],
@@ -23468,6 +23473,8 @@ move the slider above to another one`,
     cmPremiumChart(grid);
     cmCostChart(grid);
     cmTechnologyChart(grid);
+    cmBatteryDeratingChart(grid);
+    cmTechnologyDeratingChart(grid);
     cmOfferedChart(grid);
     cmNotes(grid);
   }
@@ -23698,6 +23705,67 @@ move the slider above to another one`,
     }, true);
   }
 
+  // Terna's derating, as a sentence for a unit.
+  function cmRatingText(row) {
+    if (isEmpty(row.rating)) return "";
+    const share = anaPct(row.rating, row.rating_basis === "interpolated" ? 1 : 0);
+    if (row.rating_basis === "source") return `CDP ${share} of power (${CM_TECH[row.technology].toLowerCase()}, Terna's 2025-2027 rate)`;
+    return `CDP ${share} of power (${cmHours(row.hours)}-hour battery, Terna's 2025-2027 table${row.rating_basis === "interpolated" ? ", interpolated" : ""})`;
+  }
+
+  function cmBatteryDeratingChart(grid) {
+    const batteries = cmState.data.derating.batteries;
+    const body = policyPanel(grid, "Batteries: CDP by hours of storage", "% of the battery's power counted as CDP");
+    const hours = [1, 2, 3, 4, 5, 6, 7, 8];
+    const lines = [
+      ["2025-2027, Italy", "--chart-pun", batteries["2025-2027"].values, "dashed"],
+      ["2028, North and Centre-North", "--zone-1", batteries["2028"].NORD_CNOR],
+      ["2028, Centre-South", "--zone-3", batteries["2028"].CSUD],
+      ["2028, South and Calabria", "--zone-4", batteries["2028"].SUD_CALA],
+      ["2028, Sicily and Sardinia", "--zone-6", batteries["2028"].SICI_SARD]
+    ];
+    const chart = policyChart(body, 300, "Terna's tables: the longer a battery lasts, the more of its power counts. For 2028 the ministry " +
+      "(decree 327, 16 October 2026) cut them and split them by zone, as batteries spread: a 4-hour battery counts for 40% " +
+      "in the North, 21% in the South and the islands, against 67% before. Batteries already contracted, and MACSE's for 2028, keep the " +
+      "2025-2027 table. Click a name in the legend to hide or show it.");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: { ...queueLegend(lines.map(line => line[0])), type: "scroll" },
+      tooltip: { ...queueTooltip(params => cmTipHead(`${hours[params[0].dataIndex]} hour${params[0].dataIndex ? "s" : ""} of storage`) + params
+        .map(item => tooltipRow(item.color, item.seriesName, `${item.value}%`, "line")).join("")),
+        axisPointer: { type: "line", lineStyle: { color: cssVar("--chart-pointer"), width: 1 } } },
+      grid: { left: 46, right: 16, top: 52, bottom: 34 },
+      xAxis: { ...cmCategoryAxis(hours.map(String)), name: "hours", nameLocation: "middle", nameGap: 22, nameTextStyle: timelineAxisTextStyle() },
+      yAxis: timelineYAxis("CDP, % of power", { nameGap: 32, min: 0, max: 100 }),
+      series: lines.map(([name, color, data, type]) => ({ name, type: "line", symbol: "circle", symbolSize: 7, data,
+        lineStyle: { color: cssVar(color), width: 2, type: type || "solid" },
+        itemStyle: { color: cssVar(color), borderColor: cssVar("--panel"), borderWidth: 2 } }))
+    }, true);
+  }
+
+  function cmTechnologyDeratingChart(grid) {
+    const rates = cmState.data.derating.technologies;
+    const body = policyPanel(grid, "Other technologies: CDP by source", "% of the power counted as CDP, 2027 and 2028");
+    const kinds = [["solar", "Solar"], ["wind", "Wind"], ["run_of_river", "Run-of-river"], ["hydro", "Hydro, reservoir"],
+      ["pumped", "Pumped hydro"], ["geothermal", "Geothermal"], ["thermal", "Thermal"], ["new_thermal", "New thermal"]];
+    const years = [["2027", "--queue-step-2"], ["2028", "--queue-step-4"]];
+    const chart = policyChart(body, 300, "100% minus Terna's derating rate. Solar, wind and run-of-river by source; hydro, pumped hydro, " +
+      "geothermal and thermal: Terna's expected averages over the country (each plant has its own); new thermal plants 90% (80% for a " +
+      "new combined cycle cooled only with water). 2028 solar: the new plants only, the rest keep 12%. Click a year in the legend to hide or show it.");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(years.map(year => year[0])),
+      tooltip: queueTooltip(params => cmTipHead(kinds[params[0].dataIndex][1]) + params
+        .map(item => tooltipRow(item.color, item.seriesName, `${formatNumber(item.value, 1)}% · derating ${formatNumber(100 - item.value, 1)}%`)).join("")),
+      grid: { left: 46, right: 16, top: 34, bottom: 46 },
+      xAxis: { ...cmCategoryAxis(kinds.map(kind => kind[1])), axisLabel: { ...queueAxisLabel(), interval: 0, rotate: 28 } },
+      yAxis: timelineYAxis("CDP, % of power", { nameGap: 32, min: 0, max: 100 }),
+      series: years.map(([year, color]) => ({ name: year, type: "bar", barMaxWidth: 14, barGap: "20%",
+        data: kinds.map(([key]) => +(100 - rates[year][key]).toFixed(1)),
+        itemStyle: { color: cssVar(color), borderRadius: [3, 3, 0, 0] } }))
+    }, true);
+  }
+
   function cmOfferedChart(grid) {
     const data = cmState.data;
     const body = policyPanel(grid, "Qualified, offered and awarded", "GW of CDP, national");
@@ -23748,6 +23816,11 @@ move the slider above to another one`,
       `different prices); the lists do not say which unit was which. It is inferred from each participant's MW of each (per area in ` +
       `2024): a unit is marked when it falls on the same side of every split of its participant's units that matches them (≈); else ` +
       `not known, and so is its price.</li>` +
+      `<li><b>Derating</b>: the share of a plant's power Terna counts as CDP, set before each auction: batteries by their hours of ` +
+      `storage (2028: also by zone), solar, wind and run-of-river by source, the rest by plant. A unit's power is its CDP ÷ that share, ` +
+      `so an estimate from rounded MW; between whole hours the share is interpolated. For 2022-2024 Terna published only ` +
+      `preliminary ranges (a 4-hour battery 60-80%), so those units have none. Sources: ` +
+      data.derating.sources.map(source => `${escapeHtml(source.years)} <a href="${escapeHtml(source.url)}" target="_blank" rel="noopener">${escapeHtml(source.note)}</a>`).join("; ") + `.</li>` +
       `<li><b>Contracts</b>: existing capacity for its delivery year, new capacity for 15 years from it, at its auction's price: ` +
       data.years.map(year => {
         const contract = data.auctions[year].contract;

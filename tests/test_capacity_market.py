@@ -63,6 +63,17 @@ def test_authorised_or_not_from_the_participants_split():
     assert [unit["authorised"] for unit in found] == [False, False]
 
 
+def test_derating_of_a_unit():
+    battery = {"year": 2027, "technology": "battery", "hours": 4.0}
+    assert cm.unit_rating(battery) == (0.67, "hours")
+    assert cm.unit_rating({**battery, "hours": 2.2}) == (0.464, "interpolated")
+    assert cm.unit_rating({"year": 2026, "technology": "solar", "hours": None}) == (0.12, "source")
+    assert cm.unit_rating({**battery, "year": 2024}) == (None, None)
+    assert cm.unit_rating({"year": 2027, "technology": "ccgt", "hours": None}) == (None, None)
+    # Rondissone: 168 MW of CDP at 4 hours is the 250 MW plant.
+    assert round(168 / cm.unit_rating(battery)[0]) == 251
+
+
 def test_unit_lists_and_their_totals():
     state = {"running": 0.0}
     rows = [["ASTA MADRE 2022", "", "", "", "", ""],
