@@ -192,7 +192,7 @@
     .queue-heading p { margin:0; color:var(--muted); font-size:12px; line-height:1.55; max-width:1100px; }
     .queue-heading a, .queue-note a { color:var(--blue); }
     .queue-layout { display:grid; grid-template-columns:230px minmax(0,1fr); gap:18px; margin-top:6px; }
-    @media (max-width: 900px) { .queue-layout { grid-template-columns:1fr; } }
+    @media (max-width: 900px) { .queue-layout { grid-template-columns:minmax(0,1fr); } }
     .queue-filters { align-self:start; position:sticky; top:112px; max-height:calc(100vh - 130px); overflow:auto; border:1px solid var(--border); border-radius:8px; background:var(--panel-2); }
     @media (max-width: 900px) { .queue-filters { position:static; max-height:none; } }
     .queue-group { border-bottom:1px solid var(--border); padding-bottom:6px; }
