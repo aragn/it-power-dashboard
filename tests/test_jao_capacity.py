@@ -87,3 +87,19 @@ def test_a_failing_limiting_elements_request_does_not_stop_the_rest(monkeypatch)
     monkeypatch.setattr(fc, "PAUSE_SECONDS", 0)
     records, limiting = fc.download(fc.parse_date("2026-10-10"), fc.parse_date("2026-10-11"))
     assert limiting == [] and "CCR_finalTtcNtc" in calls
+
+
+def test_the_repeated_hour_stamped_late_is_put_back():
+    # 25 October 2026 as JAO's final NTC endpoint gives it: 00:00Z-00:45Z stamped 01:00Z-01:45Z.
+    rows = [{"id": 8, "dateTimeUtc": "2026-10-24T23:45:00Z"}]
+    rows += [{"id": 9 + i, "dateTimeUtc": f"2026-10-25T01:{15 * i:02d}:00Z"} for i in range(4)]
+    rows += [{"id": 13 + i, "dateTimeUtc": f"2026-10-25T01:{15 * i:02d}:00Z"} for i in range(4)]
+    fixed = sorted(fc.repeated_hour(rows), key=lambda row: row["id"])
+    assert [row["dateTimeUtc"][11:16] for row in fixed] == ["23:45", "00:00", "00:15", "00:30", "00:45", "01:00", "01:15", "01:30", "01:45"]
+    # Labelled by elapsed time: the hour 02:00-03:00 twice, 08 to 15 quarter-hours after midnight.
+    rows = [dict(row, border_AT_IT=1, border_CH_IT=1, border_FR_IT=1, border_SI_IT=1) for row in fixed]
+    times = [r["time"] for r in fc.ntc_records(rows, "da") if r["group"] == "ntc_da|import"]
+    assert times == ["01:45", "02:00", "02:15", "02:30", "02:45", "03:00", "03:15", "03:30", "03:45"]
+    # A series without the error is left alone.
+    plain = [{"id": 1, "dateTimeUtc": "2026-10-20T10:00:00Z"}, {"id": 2, "dateTimeUtc": "2026-10-20T10:15:00Z"}]
+    assert fc.repeated_hour(plain) == plain
