@@ -38,7 +38,7 @@ import os
 import time
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import requests
 
@@ -199,6 +199,29 @@ LIMITING_ENDPOINT = ("CCR_cnecInfo", {"Filter": '{"limiting":true}'})
 PARALLEL_REQUESTS = 4
 
 
+def repeated_hour(rows):
+    """
+    JAO's capacity endpoints stamp the first pass of the autumn clock
+    change's repeated hour an hour late: two rows each at 01:00-01:45 UTC and
+    none at 00:00-00:45 on 25 October 2026 (the price spreads are right).  A
+    stamp given twice with none an hour before: the earlier row of the two
+    (the lower id) is put back an hour.
+    """
+    by_stamp = defaultdict(list)
+    for row in rows:
+        by_stamp[row.get("dateTimeUtc")].append(row)
+    out = []
+    for stamp, group in by_stamp.items():
+        if stamp and len(group) == 2:
+            earlier = (datetime.fromisoformat(stamp.replace("Z", "+00:00")) - timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            if earlier not in by_stamp:
+                first, second = sorted(group, key=lambda row: row.get("id") or 0)
+                out += [{**first, "dateTimeUtc": earlier}, second]
+                continue
+        out += group
+    return out
+
+
 def download(start_day, end_day):
     """Each chunk's requests run in parallel (PARALLEL_REQUESTS at a time)."""
     session = requests.Session()
@@ -211,9 +234,9 @@ def download(start_day, end_day):
             ida = []
             for (endpoint, _, to_records), job in zip(ENDPOINTS, jobs):
                 if endpoint.endswith("_congestionIncome") and not endpoint.startswith("DA"):
-                    ida += to_records(job.result())
+                    ida += to_records(repeated_hour(job.result()))
                 else:
-                    records += to_records(job.result())
+                    records += to_records(repeated_hour(job.result()))
             records += sum_by_slot(ida)
             # The limiting elements' endpoint (CCR_cnecInfo) is the one JAO
             # most often fails on (HTTP 500 after the retries): those days
