@@ -33,6 +33,9 @@ NEIGHBOURS = ("FR", "CH", "AT", "SI", "GR")
 # sure to be out (Lipiecki and Weron, 2026, lag them the same way).
 FUEL_LAG_DAYS = 2
 
+# Days over which solar_share fits each zone's solar output to irradiance.
+SOLAR_WINDOW_DAYS = 60
+
 
 def day_hours(day):
     return int((local_midnight_utc(day + timedelta(days=1)) - local_midnight_utc(day)).total_seconds() // 3600)
@@ -155,6 +158,40 @@ class Data:
                 out[self.latest_from:] = latest[self.latest_from:]
             self.weather_cache[key] = out
         return self.weather_cache[key]
+
+    def solar_share(self, zone, days_ahead=1, window_days=SOLAR_WINDOW_DAYS):
+        """The zone's expected solar output as a share of its load forecast,
+        hour by hour: irradiance as forecast before the gate (weather_ahead)
+        times a scale fitted, for each day, on Terna's day-ahead solar forecast
+        against that irradiance over the window_days days before it (all out by
+        the morning before the day's auction), over Terna's load forecast.
+        Near zero at night; high at sunny midday in a light-load zone, the hours
+        that clear near zero."""
+        key = ("solar_share", zone, days_ahead, window_days, self.latest_from)
+        if key in self.weather_cache:
+            return self.weather_cache[key]
+        ghi = self.weather_ahead(zone, "ghi", days_ahead)
+        solar = self.series[f"{zone}|solar_forecast"]
+        load = self.series[f"{zone}|load_forecast"]
+        both = np.isfinite(ghi) & np.isfinite(solar) & (ghi > 0)
+        sg, gg = np.where(both, solar * ghi, 0.0), np.where(both, ghi * ghi, 0.0)
+        starts = [self.day_start[day] for day in self.days]
+        day_sg = np.add.reduceat(sg, starts)
+        day_gg = np.add.reduceat(gg, starts)
+        cum_sg, cum_gg = np.concatenate([[0], np.cumsum(day_sg)]), np.concatenate([[0], np.cumsum(day_gg)])
+        out = np.full(self.length, np.nan)
+        for i, day in enumerate(self.days):
+            # Days i - window_days .. i - 1 (the day before is out on the morning of the auction).
+            first = max(0, i - window_days)
+            denominator = cum_gg[i] - cum_gg[first]
+            if denominator <= 0:
+                continue
+            scale = (cum_sg[i] - cum_sg[first]) / denominator
+            span = self.day_slice(day)
+            with np.errstate(divide="ignore", invalid="ignore"):
+                out[span] = scale * ghi[span] / load[span]
+        self.weather_cache[key] = out
+        return out
 
     def _daily_filled(self, values):
         """{iso date: value} -> array over self.days, carried forward over
