@@ -333,6 +333,8 @@
     .zmap-dl dd { margin:0; text-align:right; font-variant-numeric:tabular-nums; }
     .zmap-dl dd span { color:var(--muted); font-size:11px; }
     .zmap-summary { margin-top:18px; }
+    .zmap-mode { flex-wrap:wrap; }
+    .zrtg-key { display:flex; align-items:center; gap:8px; margin-top:6px; font-size:11px; }
     .zmap-table-title { margin:16px 0 6px; font-size:12.5px; font-weight:600; }
     .zmap-table-head { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-top:16px; }
     .zmap-table-head .zmap-table-title { margin:0; }
@@ -16483,7 +16485,8 @@ move the slider above to another one`,
   const ZMAP_ARROW = "path://M0,3.5L13,3.5L13,0L20,6L13,12L13,8.5L0,8.5Z";
 
   // flowPeriod: "" (the slider's step), "average" (MW over the period) or "total" (MWh over the period).
-  const zmapState = { price: "da", flow: "scheduled_day_ahead", avgPrices: false, flowPeriod: "", resolution: "quarter",
+  // mode: "prices" (prices and flows) or "grid" (the real time grid).
+  const zmapState = { mode: "prices", gridResolution: "quarter", price: "da", flow: "scheduled_day_ahead", avgPrices: false, flowPeriod: "", resolution: "quarter",
     when: null, speed: 300, timer: null, table: "average", files: null, period: null, loading: null, extraLoading: null };
 
   function zmapStop() {
@@ -16568,10 +16571,12 @@ move the slider above to another one`,
       PUBLIC_MODE ? null : zmapSeriesFile("jao_spreads.json", from),
       PUBLIC_MODE ? null : zmapSeriesFile("transits.json", from),
       zmapSeriesFile("jao_capacity.json", from),
+      // The physical lines of the real time grid.
+      zmapFetch("./data/grid/ties.json"),
       ...ZMAP_ZONES.map(zone => zmapFetch(`./data/balancing/${zone}.json`)),
       ...ZMAP_ZONES.map(zone => zmapSeriesFile(`zones/${zone}/generation_load.json`, from))
-    ])).then(([picasso, intraday, xbid, jao, transits, capacity, ...zoneFiles]) => {
-      Object.assign(files, { picasso, intraday, xbid, jao, transits, capacity, genLoad: {}, extra: true });
+    ])).then(([picasso, intraday, xbid, jao, transits, capacity, ties, ...zoneFiles]) => {
+      Object.assign(files, { picasso, intraday, xbid, jao, transits, capacity, ties, genLoad: {}, extra: true });
       ZMAP_ZONES.forEach((zone, index) => {
         files.balancing[zone] = zoneFiles[index];
         files.genLoad[zone] = zoneFiles[ZMAP_ZONES.length + index];
@@ -16932,9 +16937,20 @@ move the slider above to another one`,
     const to = currentEnd ? dateKey(currentEnd) : currentStart ? from : dateKey(new Date());
     const top = document.createElement("section");
     top.className = "panel chart-panel";
-    top.innerHTML = `<div class="chart-header"><div><div class="chart-title">Prices and flows by bidding zone</div>` +
-      `<div class="chart-subtitle zmap-subtitle"></div></div></div><div class="queue-body"></div>`;
+    const grid = zmapState.mode === "grid";
+    top.innerHTML = `<div class="chart-header"><div><div class="chart-title">${grid ? "Real time grid" : "Prices and flows by bidding zone"}</div>` +
+      `<div class="chart-subtitle zmap-subtitle"></div></div>` +
+      `<div class="market-period zmap-mode" role="group" aria-label="Map view"><button type="button" data-mode="prices">Prices and flows</button>` +
+      `<button type="button" data-mode="grid">Real time grid</button></div></div><div class="queue-body"></div>`;
     mapsMount.appendChild(top);
+    top.querySelectorAll("[data-mode]").forEach(button => {
+      button.classList.toggle("active", button.dataset.mode === (grid ? "grid" : "prices"));
+      button.addEventListener("click", () => {
+        if (zmapState.mode === button.dataset.mode) return;
+        zmapState.mode = button.dataset.mode;
+        renderZoneMap();
+      });
+    });
     const body = top.querySelector(".queue-body");
     const periodKey = `${from}|${to}`;
     if (!zmapState.loading || zmapState.loading.key !== periodKey) {
@@ -16958,6 +16974,7 @@ move the slider above to another one`,
       zmapState.when = null;
     }
     const period = zmapState.period;
+    if (grid) { zrtgRender(top, body, files, period); return; }
     if (!ZMAP_PRICES.some(price => price.key === zmapState.price)) zmapState.price = "da";
 
     body.innerHTML = `<div class="zmap-time">` +
@@ -17446,6 +17463,520 @@ move the slider above to another one`,
     }));
     redraw();
   }
+  /* ----- Real time grid ----- */
+
+  /*
+   * The map's other view (the switch in its header): every physical line
+   * between the zones and to the neighbours (Terna's Grid Code Annex A.24,
+   * grid/ties.json, etl/build_grid_ties.py, on OpenStreetMap's routes), each
+   * from grey to strong yellow as its border's physical flow (ENTSO-E
+   * 12.1.G, quarter-hourly where the TSOs publish it so) nears the border's
+   * capacity the way it goes: ENTSO-E publishes one netted flow per border,
+   * none per line, so a border's lines share its colour.  Each area goes
+   * from light to dark blue by its generation against its demand: the total
+   * load plus what storage takes in (ENTSO-E's total load is "net generation
+   * - exports + imports - absorbed energy", so it leaves out the pumping of
+   * pumped hydro and the charging of batteries, published as those
+   * production types' consumption, B10 and B25; the neighbours' in
+   * map_prices.json).  The capacity, the way the flow goes, each quarter-hour,
+   * the first on file of:
+   *   - full version: GME's MGP limits (transits.json), Terna's transit
+   *     limits between the zones and on the links to Sardinia, Corsica,
+   *     Malta and Greece, deratings included (on the northern borders GME's
+   *     are the ATC left after the long-term allocations, so not used);
+   *   - the northern borders: JAO's day-ahead NTC of each border
+   *     (jao_capacity.json, ntc_da|<country> into Italy, ntc_da_out out);
+   *   - ENTSO-E's day-ahead forecasted transfer capacity (11.1.A, A61) of
+   *     the border (zones/<ZONE>/crossborder.json, capacity_day_ahead);
+   *   - off the northern borders, ZRTG_TYPICAL: the usual limit, rounded,
+   *     until ENTSO-E's is on file.
+   */
+  // MW, [a to b, b to a] of ZMAP_BORDERS.
+  const ZRTG_TYPICAL = {
+    "NORD-CNOR": [4050, 3800], "CNOR-CSUD": [3350, 3600], "CSUD-SUD": [3150, 5400], "SUD-CALA": [1650, 2550],
+    "CALA-SICI": [1650, 1500], "CSUD-SARD": [700, 850], "CNOR-CORS": [150, 150], "SARD-CORS": [150, 150], "SARD-COAC": [100, 20],
+    "CSUD-ME": [600, 600], "SUD-GR": [500, 500], "SICI-MT": [200, 200]
+  };
+  // The northern borders' countries (JAO's NTC per border).
+  const ZRTG_JAO = { "NORD-FR": "FR", "NORD-CH": "CH", "NORD-AT": "AT", "NORD-SI": "SI" };
+  const ZRTG_NO_GME = new Set(["NORD-FR", "NORD-CH", "NORD-AT", "NORD-SI", "CSUD-ME"]);
+  // Where a quarter-hour's capacity comes from (zrtgCapacity's src).
+  const ZRTG_SOURCES = [null, "Terna's limit via GME", "JAO's NTC", "ENTSO-E's NTC", "typical limit"];
+  const ZRTG_YELLOW = [255, 200, 0];
+  // A border this full or more counts as at its capacity in the counts and the table.
+  const ZRTG_FULL = 0.9;
+  const ZRTG_RESOLUTIONS = ZMAP_RESOLUTIONS.filter(([key]) => key !== "dayTotal");
+  // A line's width by its voltage.
+  const zrtgWidth = kv => (kv >= 380 ? 3.2 : kv >= 200 ? 2.4 : 1.6);
+
+  /* A line's colour at share s of its capacity: grey, turning yellow as it fills (strong yellow at 100% and over). */
+  function zrtgLineColor(s) {
+    const grey = anaTheme() === "light" ? [150, 160, 172] : [104, 114, 126];
+    const f = Math.min(1, Math.max(0, s)) ** 1.6;
+    return "#" + grey.map((channel, k) => Math.round(channel + (ZRTG_YELLOW[k] - channel) * f).toString(16).padStart(2, "0")).join("");
+  }
+  /* An area's colour at generation ÷ demand r: light blue at a quarter or less, dark blue at four times or more (log scale, 1 in the middle). */
+  function zrtgAreaColor(r) {
+    const s = (Math.log2(r) + 2) / 4, ramp = ZMAP_RAMP;
+    const x = Math.min(1, Math.max(0, s)) * (ramp.length - 1), i = Math.min(ramp.length - 2, Math.floor(x)), f = x - i;
+    const rgb = hex => [1, 3, 5].map(k => parseInt(hex.slice(k, k + 2), 16));
+    const [a, b] = [rgb(ramp[i]), rgb(ramp[i + 1])];
+    return "#" + a.map((channel, k) => Math.round(channel + (b[k] - channel) * f).toString(16).padStart(2, "0")).join("");
+  }
+
+  /* A border's capacity each way over the period, and the source of each quarter-hour's (ZRTG_SOURCES). */
+  function zrtgCapacity(files, period, border) {
+    const key = `rc|${border.id}`;
+    if (period.cache.has(key)) return period.cache.get(key);
+    const Q = period.Q, ab = new Float64Array(Q).fill(NaN), ba = new Float64Array(Q).fill(NaN), src = new Uint8Array(Q);
+    const run = (name, quarter, hourly) => (quarter || hourly ? zmapRun(period, name, (date, T) => zmapDay(quarter, hourly, date, T)) : null);
+    // Fills the quarter-hours still without a capacity from a source's two ways.
+    const fill = (forward, back, code) => {
+      if (forward && back) for (let q = 0; q < Q; q += 1) {
+        if (!src[q] && Number.isFinite(forward[q]) && Number.isFinite(back[q])) { ab[q] = forward[q]; ba[q] = back[q]; src[q] = code; }
+      }
+    };
+    const spec = ZMAP_DA[border.id] || {}, transits = !PUBLIC_MODE && files.transits && files.transits.flows;
+    if (spec.pair && transits && !ZRTG_NO_GME.has(border.id)) {
+      const pick = name => run(`g|${name}|${spec.pair}`, ((transits.quarter_hourly || {})[spec.pair] || {})[name], ((transits.hourly || {})[spec.pair] || {})[name]);
+      const [forward, back] = [pick("limit_forward"), pick("limit_back")];
+      fill(spec.flip ? back : forward, spec.flip ? forward : back, 1);
+    }
+    const country = ZRTG_JAO[border.id], jao = files.capacity && files.capacity.series;
+    if (country && jao) {
+      const pick = name => jao[name] && run(`j|${name}`, jao[name].quarter_hourly, jao[name].hourly);
+      // The border's near side is North: out of Italy is a to b.
+      fill(pick(`ntc_da_out|${country}`), pick(`ntc_da|${country}`), 2);
+    }
+    const node = files.crossborder[border.a] && files.crossborder[border.a].capacity_day_ahead;
+    if (node) {
+      const pick = direction => run(`e|cap|${direction}|${border.id}`, ((node.quarter_hourly || {})[direction] || {})[border.b],
+        ((node.hourly || {})[direction] || {})[border.b]);
+      fill(pick("exports"), pick("imports"), 3);
+    }
+    const typical = ZRTG_TYPICAL[border.id];
+    if (typical) fill(new Float64Array(Q).fill(typical[0]), new Float64Array(Q).fill(typical[1]), 4);
+    const result = { ab, ba, src };
+    period.cache.set(key, result);
+    return result;
+  }
+
+  /* An area's demand over the period: its load plus storage charging, where the area publishes it. */
+  function zrtgDemand(files, period, area) {
+    const load = zmapSystemRun(files, period, area, "load");
+    if (!load) return { load, storage: null, demand: load };
+    const key = `rd|${area}`;
+    if (period.cache.has(key)) return period.cache.get(key);
+    let runs = [];
+    const file = ZMAP_ZONES.includes(area) && files.genLoad && files.genLoad[area];
+    if (file && file.consumption) {
+      const quarter = file.consumption.quarter_hourly || {}, hourly = file.consumption.hourly || {};
+      const node = series => series && (series.points || series);
+      runs = ["B10", "B25"].filter(code => quarter[code] || hourly[code])
+        .map(code => zmapRun(period, `rs|${code}|${area}`, (date, T) => zmapDay(node(quarter[code]), node(hourly[code]), date, T))).filter(Boolean);
+    } else if (!ZMAP_ZONES.includes(area)) {
+      runs = [zmapSystemRun(files, period, area, "storage")].filter(Boolean);
+    }
+    const storage = runs.length ? Float64Array.from(load, (value, q) => (Number.isFinite(value)
+      ? runs.reduce((sum, run) => sum + (Number.isFinite(run[q]) ? run[q] : 0), 0) : NaN)) : null;
+    const result = { load, storage, demand: storage ? Float64Array.from(load, (value, q) => value + storage[q]) : load };
+    period.cache.set(key, result);
+    return result;
+  }
+
+  function zrtgRender(top, body, files, period) {
+    if (!ZRTG_RESOLUTIONS.some(([key]) => key === zmapState.gridResolution)) zmapState.gridResolution = "quarter";
+    body.innerHTML = `<div class="zmap-time">` +
+      `<button type="button" class="zmap-play">▶ Play</button>` +
+      `<input type="range" class="zmap-slider" min="0" step="1" aria-label="Time">` +
+      `<b class="zmap-when"></b>` +
+      `<div class="market-period zmap-resolution" role="group" aria-label="Slider steps">${ZRTG_RESOLUTIONS.map(([key, text]) =>
+        `<button type="button" data-resolution="${key}">${text}</button>`).join("")}</div>` +
+      `<label class="zmap-speed">Speed <select>${ZMAP_SPEEDS.map(([value, text]) => `<option value="${value}">${text}</option>`).join("")}</select></label>` +
+      `</div>` +
+      `<div class="map-layout"><div class="map-wrap"><div class="map-canvas"></div>` +
+      `<div class="map-hint">Scroll to zoom, drag to move</div></div>` +
+      `<div class="map-side">` +
+      `<div class="map-box"><h3>Lines: capacity used</h3><div class="zrtg-lines"></div></div>` +
+      `<div class="map-box"><h3>Areas: generation ÷ demand</h3><div class="zrtg-areas"></div></div>` +
+      `<div class="map-box"><h3 class="zmap-glance-title">At a glance</h3><div class="zmap-glance"></div></div>` +
+      `</div></div><div class="queue-note zmap-note"></div>`;
+    const summary = document.createElement("section");
+    summary.className = "panel chart-panel zmap-summary";
+    summary.innerHTML = `<div class="chart-header"><div><div class="chart-title">Summary</div><div class="chart-subtitle zmap-summary-subtitle"></div></div></div>` +
+      `<h3 class="zmap-table-title zrtg-borders-title"></h3><div class="bess-table-wrap"><table class="bess-table zrtg-borders"></table></div>` +
+      `<h3 class="zmap-table-title zrtg-areas-title"></h3><div class="bess-table-wrap"><table class="bess-table zrtg-area-table"></table></div>` +
+      `<div class="queue-note zrtg-table-note"></div>${PUBLIC_MODE ? "" : `<div class="gme-source zmap-gme" hidden>${GME_CREDIT}</div>`}`;
+    mapsMount.appendChild(summary);
+
+    const chart = mapsChart = echarts.init(body.querySelector(".map-canvas"));
+    const slider = body.querySelector(".zmap-slider"), whenLabel = body.querySelector(".zmap-when"), play = body.querySelector(".zmap-play");
+    const speed = body.querySelector(".zmap-speed select");
+    speed.value = String(zmapState.speed);
+
+    /* What the map shows, worked out again when the files change. */
+    let view = null;
+    function compute() {
+      const borders = ZMAP_BORDERS.map(border => {
+        const flow = zmapFlowRun(files, period, "physical_flows", border), cap = zrtgCapacity(files, period, border);
+        // The share of the capacity used each quarter-hour, the way the flow goes (a closed way: full if anything flows).
+        const use = new Float64Array(period.Q).fill(NaN);
+        if (flow) for (let q = 0; q < period.Q; q += 1) {
+          const f = flow[q], c = f >= 0 ? cap.ab[q] : cap.ba[q];
+          if (!Number.isFinite(f) || !Number.isFinite(c)) continue;
+          use[q] = c > 0 ? Math.abs(f) / c : Math.abs(f) >= 1 ? 1 : NaN;
+        }
+        let sum = 0, n = 0, full = 0, max = NaN;
+        // Quarter-hours per capacity source (ZRTG_SOURCES).
+        const sources = new Array(ZRTG_SOURCES.length).fill(0);
+        for (let q = 0; q < period.Q; q += 1) {
+          sources[cap.src[q]] += 1;
+          if (!Number.isFinite(use[q])) continue;
+          sum += use[q]; n += 1;
+          if (use[q] >= ZRTG_FULL) full += 1;
+          if (!(use[q] <= max)) max = use[q];
+        }
+        return { border, flow, cap, use, mean: n ? sum / n : NaN, fullShare: n ? full / n : NaN, max, sources };
+      });
+      // The physical lines, each with the borders it is counted on (grid/ties.json).
+      const scale = files.ties && files.ties.scale;
+      const cables = files.ties ? files.ties.cables.map(cable => {
+        const coords = [];
+        let x = 0, y = 0;
+        for (let i = 0; i < cable.coords.length; i += 2) { x += cable.coords[i]; y += cable.coords[i + 1]; coords.push([x / scale, y / scale]); }
+        return { ...cable, coords, entries: borders.filter(entry => cable.borders.includes(entry.border.id)) };
+      }).filter(cable => cable.entries.length) : [];
+      borders.forEach(entry => { entry.lines = cables.filter(cable => cable.entries.includes(entry)).length; });
+      // The neighbours' zeros are gaps (Slovenia's load, Montenegro's both at times).
+      const gapless = (run, code) => (run && !ZMAP_ZONES.includes(code) ? run.map(value => (value > 0 ? value : NaN)) : run);
+      const areas = [...ZMAP_ZONES, ...Object.keys(ZMAP_COUNTRIES)].map(code => {
+        const generation = gapless(zmapSystemRun(files, period, code, "generation"), code), demand = zrtgDemand(files, period, code);
+        if (!ZMAP_ZONES.includes(code)) demand.demand = demand.load = gapless(demand.load, code);
+        const ratio = generation && demand.demand ? Float64Array.from(generation, (value, q) => (demand.demand[q] > 0 ? value / demand.demand[q] : NaN)) : null;
+        // Net physical export over the borders on the map (the countries: with Italy only).
+        const net = new Float64Array(period.Q).fill(NaN);
+        let any = false;
+        borders.forEach(entry => {
+          const sign = entry.border.a === code ? 1 : entry.border.to === code ? -1 : 0;
+          if (!sign || !entry.flow) return;
+          for (let q = 0; q < period.Q; q += 1) if (Number.isFinite(entry.flow[q])) { net[q] = (Number.isFinite(net[q]) ? net[q] : 0) + sign * entry.flow[q]; any = true; }
+        });
+        return { code, generation, ...demand, ratio, net: any ? net : null };
+      });
+      // The last quarter-hour with the physical flows of at least half the borders that have any.
+      const withFlow = borders.filter(entry => entry.flow);
+      let lastFlow = -1;
+      for (let q = period.Q - 1; q >= 0 && withFlow.length; q -= 1) {
+        if (withFlow.filter(entry => Number.isFinite(entry.flow[q])).length * 2 >= withFlow.length) { lastFlow = q; break; }
+      }
+      // And with every zone's generation and demand (they come in later than some borders' flows, or earlier).
+      const zones = areas.filter(area => ZMAP_ZONES.includes(area.code));
+      let lastRatio = -1;
+      for (let q = lastFlow; q >= 0 && zones.every(area => area.ratio); q -= 1) {
+        if (zones.every(area => Number.isFinite(area.ratio[q]))) { lastRatio = q; break; }
+      }
+      view = { borders, areas, cables, lastFlow, latest: lastRatio >= 0 ? lastRatio : lastFlow };
+    }
+
+    let steps = [], index = 0;
+    function setSteps() {
+      steps = zmapSteps(period, zmapState.gridResolution);
+      let quarter = zmapState.when;
+      if (quarter === null) {
+        quarter = zmapDefaultWhen(period);
+        if (view && view.latest >= 0 && quarter > view.latest) quarter = view.latest;
+      }
+      index = Math.max(0, steps.findIndex(step => quarter >= step.start && quarter < step.end));
+      slider.max = String(steps.length - 1);
+      slider.value = String(index);
+      body.querySelectorAll("[data-resolution]").forEach(button => button.classList.toggle("active", button.dataset.resolution === zmapState.gridResolution));
+    }
+
+    const mw = value => (Number.isFinite(value) ? `${formatNumber(Math.abs(value))} MW` : "n/a");
+    const flowAt = (entry, step) => zmapMean(entry.flow, step.start, step.end);
+    // Over a step: the mean flow against the mean capacity the way it goes.
+    const capAt = (entry, step, flow) => zmapMean(flow >= 0 ? entry.cap.ab : entry.cap.ba, step.start, step.end);
+    const useAt = (entry, step) => {
+      const flow = flowAt(entry, step), cap = capAt(entry, step, flow);
+      if (!Number.isFinite(flow) || !Number.isFinite(cap)) return NaN;
+      return cap > 0 ? Math.abs(flow) / cap : Math.abs(flow) >= 1 ? 1 : NaN;
+    };
+    const ratioAt = (area, step) => {
+      const generation = zmapMean(area.generation, step.start, step.end), demand = zmapMean(area.demand, step.start, step.end);
+      return Number.isFinite(generation) && demand > 0 ? generation / demand : NaN;
+    };
+    // The step's capacity source: the one of most of its quarter-hours.
+    const capSource = (entry, step) => {
+      const counts = new Array(ZRTG_SOURCES.length).fill(0);
+      for (let q = step.start; q < step.end; q += 1) counts[entry.cap.src[q]] += 1;
+      const code = counts.indexOf(Math.max(...counts.slice(1)), 1);
+      return counts[code] ? ZRTG_SOURCES[code] : "none on file";
+    };
+    // Over the period: the sources and their shares of the quarter-hours.
+    const capSources = entry => {
+      const total = entry.sources.slice(1).reduce((sum, count) => sum + count, 0);
+      if (!total) return "none on file";
+      return entry.sources.map((count, code) => ({ count, code })).filter(item => item.code && item.count)
+        .sort((x, y) => y.count - x.count)
+        .map(item => `${ZRTG_SOURCES[item.code]}${item.count === total ? "" : ` (${anaPct(item.count / total)})`}`).join(", ");
+    };
+    // A line's step: its border's, or of its borders the fullest.
+    const cableAt = (cable, step) => cable.entries.map(entry => ({ entry, flow: flowAt(entry, step), use: useAt(entry, step) }))
+      .reduce((best, item) => (!best || (Number.isFinite(item.use) && !(item.use <= best.use)) ? item : best), null);
+
+    function series(step) {
+      const text = cssVar("--text"), muted = cssVar("--muted"), panel = cssVar("--panel");
+      const casing = anaTheme() === "light" ? "rgba(25,35,50,0.55)" : "rgba(0,0,0,0.75)";
+      const lines = [], cases = [], marks = [];
+      // Every physical line in its border's colour, thicker when at capacity; dashed without a flow on file.
+      view.cables.forEach((cable, index) => {
+        const { flow, use } = cableAt(cable, step);
+        const known = Number.isFinite(flow), color = Number.isFinite(use) ? zrtgLineColor(use) : muted;
+        const width = zrtgWidth(cable.kv) * (Number.isFinite(use) && use >= ZRTG_FULL ? 1.4 : 1);
+        cases.push({ coords: cable.coords, lineStyle: { color: known ? casing : "transparent", width: width + 2 } });
+        lines.push({ coords: cable.coords, cable: index,
+          lineStyle: { color, width: known ? width : Math.min(width, 1.6), type: known ? "solid" : "dashed", opacity: known ? 1 : 0.75 } });
+      });
+      // At each border its flow's way and the share of its capacity used.
+      view.borders.forEach(entry => {
+        const border = entry.border, flow = flowAt(entry, step), use = useAt(entry, step);
+        const known = Number.isFinite(flow), color = Number.isFinite(use) ? zrtgLineColor(use) : muted;
+        const [ax, ay] = ZMAP_AREAS[border.a], [bx, by] = ZMAP_AREAS[border.to];
+        let angle = Math.atan2(by - ay, (bx - ax) * 0.78) * 180 / Math.PI;
+        if (flow < 0) angle += 180;
+        const moving = known && Math.abs(flow) >= 0.5;
+        marks.push({
+          value: [...border.pos, use], border: border.id, symbol: moving ? ZMAP_ARROW : "circle", symbolSize: moving ? [20, 12] : 7, symbolRotate: moving ? angle : 0,
+          itemStyle: { color: moving ? color : muted, borderColor: casing, borderWidth: 1 },
+          label: { formatter: known ? (Number.isFinite(use) ? anaPct(use) : mw(flow)) : "no data" }
+        });
+      });
+      const labels = view.areas.map(area => {
+        const ratio = ratioAt(area, step);
+        return { value: [...ZMAP_AREAS[area.code], ratio], area: area.code,
+          label: { formatter: `{n|${zmapName(area.code)}}\n{v|${Number.isFinite(ratio) ? anaPct(ratio) : "n/a"}}` } };
+      });
+      return [
+        { type: "lines", name: "casing", coordinateSystem: "geo", polyline: true, z: 3, silent: true, data: cases, lineStyle: { cap: "round", join: "round" } },
+        { type: "lines", name: "lines", coordinateSystem: "geo", polyline: true, z: 4, data: lines, lineStyle: { cap: "round", join: "round" },
+          emphasis: { focus: "none", lineStyle: { width: 5 } } },
+        { type: "scatter", name: "marks", coordinateSystem: "geo", z: 5, data: marks,
+          label: { show: true, position: "bottom", distance: 3, fontSize: 10, color: text, backgroundColor: panel, borderRadius: 3, padding: [1, 4], opacity: 0.92 },
+          emphasis: { scale: 1.15 } },
+        { type: "scatter", name: "areas", coordinateSystem: "geo", z: 6, symbol: "roundRect", symbolSize: [92, 36], itemStyle: { color: "transparent" }, data: labels,
+          label: { show: true, position: "inside", backgroundColor: panel, borderColor: cssVar("--border"), borderWidth: 1, borderRadius: 4, padding: [3, 6],
+            rich: { n: { fontSize: 10, color: muted, lineHeight: 13, align: "center" }, v: { fontSize: 12, fontWeight: 600, color: text, lineHeight: 15, align: "center" } } },
+          emphasis: { disabled: true } }
+      ];
+    }
+
+    function regions(step) {
+      const land = cssVar("--map-land"), neighbour = cssVar("--map-neighbour"), border = cssVar("--map-border");
+      const coloured = new Map(view.areas.map(area => {
+        const ratio = ratioAt(area, step);
+        return [area.code, Number.isFinite(ratio) ? zrtgAreaColor(ratio) : land];
+      }));
+      return files.geo.names.map(name => coloured.has(name)
+        ? { name, itemStyle: { areaColor: coloured.get(name), borderColor: ZMAP_ZONES.includes(name) ? cssVar("--panel") : border, borderWidth: ZMAP_ZONES.includes(name) ? 1.2 : 0.8 } }
+        : { name, itemStyle: { areaColor: neighbour, borderColor: border, borderWidth: 0.6 }, emphasis: { disabled: true } });
+    }
+
+    function tooltip(params) {
+      const step = steps[index], data = params.componentType === "geo" ? { area: ZMAP_AREAS[params.name] ? params.name : null } : params.data || {};
+      const muted = cssVar("--chart-tooltip-muted");
+      const line = (label, value) => `<div><span style="color:${muted}">${escapeHtml(label)}</span> ${value}</div>`;
+      const at = run => zmapMean(run, step.start, step.end);
+      if (data.area) {
+        const area = view.areas.find(entry => entry.code === data.area);
+        if (area.code === "CORS" || area.code === "MT") return `<div style="font-weight:600">${escapeHtml(zmapName(area.code))}</div>` +
+          (area.net ? line("Net physical export to Italy", zmapSignedMw(at(area.net))) : "");
+        return `<div style="font-weight:600;margin-bottom:3px">${escapeHtml(zmapName(area.code))}</div>` +
+          line("Generation", mw(at(area.generation))) + line("Load", mw(at(area.load))) +
+          (area.storage ? line("Storage charging", mw(at(area.storage))) : "") +
+          line("Generation ÷ demand", anaPct(ratioAt(area, step))) +
+          (area.net ? line(ZMAP_ZONES.includes(area.code) ? "Net physical export" : "Net physical export to Italy", zmapSignedMw(at(area.net))) : "");
+      }
+      if (data.border) {
+        const entry = view.borders.find(item => item.border.id === data.border), flow = flowAt(entry, step);
+        const [a, b] = flow < 0 ? [entry.border.to, entry.border.a] : [entry.border.a, entry.border.to];
+        return `<div style="font-weight:600;margin-bottom:3px">${escapeHtml(zmapBorderName(entry.border))}</div>` +
+          line("Physical flow", Number.isFinite(flow) ? `${mw(flow)}, ${escapeHtml(zmapName(a))} → ${escapeHtml(zmapName(b))}` : "none on file") +
+          line("Capacity that way", `${mw(capAt(entry, step, Number.isFinite(flow) ? flow : 1))} (${capSource(entry, step)})`) +
+          line("Capacity used", anaPct(useAt(entry, step))) +
+          line("Lines", `${formatNumber(entry.lines)} (Terna's Annex A.24)`);
+      }
+      if (data.cable !== undefined) {
+        const cable = view.cables[data.cable];
+        const route = { osm: "OpenStreetMap", partly: "OpenStreetMap, the rest straight", schematic: "straight between the stations" }[cable.route];
+        return `<div style="font-weight:600;margin-bottom:3px">${escapeHtml(cable.name)}</div>` +
+          line("Line", `${formatNumber(cable.kv)} kV ${cable.dc ? "direct current" : "alternating current"}`) +
+          cable.entries.map(entry => {
+            const flow = flowAt(entry, step), [a, b] = flow < 0 ? [entry.border.to, entry.border.a] : [entry.border.a, entry.border.to];
+            return line("Border", escapeHtml(zmapBorderName(entry.border))) +
+              line("Its physical flow", Number.isFinite(flow) ? `${mw(flow)}, ${escapeHtml(zmapName(a))} → ${escapeHtml(zmapName(b))}, ` +
+                `over its ${formatNumber(entry.lines)} line${entry.lines === 1 ? "" : "s"}` : "none on file") +
+              line("Capacity used", `${anaPct(useAt(entry, step))} of ${mw(capAt(entry, step, Number.isFinite(flow) ? flow : 1))} (${capSource(entry, step)})`);
+          }).join("") +
+          line("Route", route) + (cable.note ? `<div style="color:${muted}">${escapeHtml(cable.note)}</div>` : "") +
+          `<div style="color:${muted}">ENTSO-E publishes the flow per border, not per line.</div>`;
+      }
+      return "";
+    }
+
+    function drawSide(step) {
+      body.querySelector(".zrtg-lines").innerHTML =
+        `<div class="zmap-ramp" style="background:linear-gradient(90deg,${[0, 0.25, 0.5, 0.75, 1].map(zrtgLineColor).join(",")})"></div>` +
+        `<div class="zmap-ticks"><span>0%</span><span>50%</span><span>100%+</span></div>` +
+        `<div class="zrtg-key"><svg width="34" height="6" aria-hidden="true"><line x1="1" y1="3" x2="33" y2="3" stroke="${cssVar("--muted")}" stroke-width="2" stroke-dasharray="5 3"/></svg>no physical flow on file</div>` +
+        `<div class="zrtg-key">${[[380, "380–500 kV"], [220, "200–320 kV"], [150, "132–150 kV"]].map(([kv, text]) =>
+          `<svg width="22" height="6" aria-hidden="true"><line x1="1" y1="3" x2="21" y2="3" stroke="${cssVar("--muted")}" stroke-width="${zrtgWidth(kv)}"/></svg>${text}`).join(" ")}</div>` +
+        `<div class="queue-note">Every line between the zones and to the neighbours (Terna's list), in the colour of its border: ` +
+        `the border's physical flow (ENTSO-E, one netted value per border, none per line) against its capacity the way it goes. ` +
+        `The arrow points the way the energy goes. Capacity: ${PUBLIC_MODE ? "" : "GME's day-ahead limits (Terna's, deratings included) between the zones and on the links; "}` +
+        `JAO's day-ahead NTC on the northern borders; ENTSO-E's day-ahead NTC (11.1) elsewhere. Physical flows can pass it, as it is a market limit.</div>`;
+      const ticks = [0.25, 0.5, 1, 2, 4];
+      body.querySelector(".zrtg-areas").innerHTML =
+        `<div class="zmap-ramp" style="background:linear-gradient(90deg,${ticks.map(zrtgAreaColor).join(",")})"></div>` +
+        `<div class="zmap-ticks">${ticks.map(value => `<span>${anaPct(value)}</span>`).join("")}</div>` +
+        `<div class="queue-note">Generation as a share of demand: the load plus what pumped hydro and batteries take in, which ENTSO-E's total load leaves out. ` +
+        `Darker: the area produces more than it uses and exports; lighter: it imports. ` +
+        `<i class="zmap-swatch" style="background:${cssVar("--map-land")}"></i>none on file.</div>`;
+      // At a glance: Italy's balance and its fullest borders.
+      const zones = view.areas.filter(area => ZMAP_ZONES.includes(area.code));
+      const sum = pick => {
+        let total = 0, n = 0;
+        zones.forEach(area => { const value = zmapMean(pick(area), step.start, step.end); if (Number.isFinite(value)) { total += value; n += 1; } });
+        return n === zones.length ? total : NaN;
+      };
+      const generation = sum(area => area.generation), demand = sum(area => area.demand);
+      let italyNet = NaN;
+      view.borders.forEach(entry => {
+        if (ZMAP_ZONES.includes(entry.border.to)) return;
+        const flow = flowAt(entry, step);
+        if (Number.isFinite(flow)) italyNet = (Number.isFinite(italyNet) ? italyNet : 0) + flow;
+      });
+      const used = view.borders.map(entry => ({ entry, use: useAt(entry, step) })).filter(item => Number.isFinite(item.use)).sort((x, y) => y.use - x.use);
+      const full = used.filter(item => item.use >= ZRTG_FULL);
+      body.querySelector(".zmap-glance-title").textContent = `At ${step.label}`;
+      const latest = !used.length && view.lastFlow >= 0 && view.lastFlow < step.start
+        ? steps.findIndex(entry => view.lastFlow >= entry.start && view.lastFlow < entry.end) : -1;
+      body.querySelector(".zmap-glance").innerHTML = (latest >= 0 ? `<div class="zmap-latest">No physical flows on file yet at this time. ` +
+        `<button type="button" data-latest="${latest}">Go to the latest, ${escapeHtml(steps[latest].label)}</button></div>` : "") +
+        `<dl class="zmap-dl">` +
+        `<dt>Italy's generation</dt><dd>${mw(generation)}</dd>` +
+        `<dt>Italy's demand</dt><dd>${mw(demand)} <span>${Number.isFinite(generation) && demand > 0 ? anaPct(generation / demand) : ""}</span></dd>` +
+        `<dt>Net physical ${Number.isFinite(italyNet) && italyNet > 0 ? "export" : "import"}</dt><dd>${mw(italyNet)}</dd>` +
+        `<dt>Borders at ${anaPct(ZRTG_FULL)} or more</dt><dd>${formatNumber(full.length)} <span>of ${formatNumber(used.length)} on file</span></dd>` +
+        used.slice(0, 3).map((item, rank) => `<dt>${rank ? "" : "Fullest"}</dt><dd>${anaPct(item.use)} <span>${escapeHtml(zmapBorderName(item.entry.border))}</span></dd>`).join("") +
+        `</dl>`;
+    }
+
+    function drawTables(step) {
+      const range = `${bessDateText(period.from)}${period.to !== period.from ? ` – ${bessDateText(period.to)}` : ""}`;
+      top.querySelector(".zmap-subtitle").textContent = `${range} · physical flows against capacity · generation against demand`;
+      summary.querySelector(".zmap-summary-subtitle").textContent = `${range}, ${formatNumber(period.Q)} quarter-hours · the slider's ` +
+        `${{ quarter: "quarter-hour", hour: "hour", day: "day" }[zmapState.gridResolution]}: ${step.label}`;
+      summary.querySelector(".zrtg-borders-title").textContent = "Physical flows against capacity";
+      summary.querySelector(".zrtg-borders").innerHTML = `<thead><tr><th>Border (→ the way of a positive flow)</th><th>Physical flow at ${escapeHtml(step.label)}</th>` +
+        `<th>Capacity that way</th><th>Used at ${escapeHtml(step.label)}</th><th>Used, period average</th><th>Highest used</th>` +
+        `<th>Share of the time at ${anaPct(ZRTG_FULL)} or more</th><th>Lines</th><th>Capacity from, over the period</th></tr></thead><tbody>` +
+        view.borders.map(entry => {
+          const border = entry.border, flow = flowAt(entry, step);
+          return `<tr><td>${escapeHtml(zmapName(border.a))} → ${escapeHtml(zmapName(border.to))}${border.link ? ` <span class="zmap-link">${border.link}</span>` : ""}</td>` +
+            `<td>${zmapDirected(flow)}</td><td>${mw(capAt(entry, step, Number.isFinite(flow) ? flow : 1))}</td><td>${anaPct(useAt(entry, step))}</td>` +
+            `<td>${anaPct(entry.mean)}</td><td>${anaPct(entry.max)}</td><td>${anaPct(entry.fullShare)}</td>` +
+            `<td>${files.ties ? formatNumber(entry.lines) : "…"}</td><td>${capSources(entry)}</td></tr>`;
+        }).join("") + `</tbody>`;
+      summary.querySelector(".zrtg-areas-title").textContent = "Generation and demand";
+      const at = run => zmapMean(run, step.start, step.end);
+      summary.querySelector(".zrtg-area-table").innerHTML = `<thead><tr><th>Area</th><th>Generation at ${escapeHtml(step.label)}</th><th>Load</th>` +
+        `<th>Storage charging</th><th>Generation ÷ demand</th><th>Generation ÷ demand, period average</th><th>Net physical export</th></tr></thead><tbody>` +
+        view.areas.filter(area => area.code !== "CORS" && area.code !== "MT").map(area => {
+          let sum = 0, n = 0;
+          if (area.ratio) for (let q = 0; q < period.Q; q += 1) if (Number.isFinite(area.ratio[q])) { sum += area.ratio[q]; n += 1; }
+          return `<tr><td>${escapeHtml(zmapName(area.code))}</td><td>${mw(at(area.generation))}</td><td>${mw(at(area.load))}</td>` +
+            `<td>${area.storage ? mw(at(area.storage)) : ZMAP_ZONES.includes(area.code) ? "—" : "not on file"}</td><td>${anaPct(ratioAt(area, step))}</td>` +
+            `<td>${anaPct(n ? sum / n : NaN)}</td><td>${area.net ? zmapSignedMw(at(area.net)) : "—"}${ZMAP_ZONES.includes(area.code) ? "" : "*"}</td></tr>`;
+        }).join("") + `</tbody>`;
+      const credit = summary.querySelector(".zmap-gme");
+      if (credit) credit.hidden = !view.borders.some(entry => entry.sources[1] > 0);
+      summary.querySelector(".zrtg-table-note").innerHTML = `Physical flows: ENTSO-E (12.1.G), one netted value per border ("the measured real flow of energy ` +
+        `between neighbouring bidding zones"), none per line; published hourly on some borders, so their quarter-hours repeat the hour; none for Corsica's ` +
+        `direct-current link (SACOI). Capacity used: the flow against the capacity the way it goes; an hour or a day: its mean flow against its mean capacity. ` +
+        `Capacity, the first on file: ${PUBLIC_MODE ? "" : "GME's day-ahead limits (Terna's transit limits, deratings included) between the zones and on the links; "}` +
+        `on the northern borders JAO's day-ahead NTC of each border, each way (Italy North publication tool); ENTSO-E's day-ahead forecasted transfer capacity (11.1.A); ` +
+        `else a typical limit, rounded. Lines: Terna's Grid Code Annex A.24 (January 2025) and Glorenza – Nauders (Austria, since December 2023), ` +
+        `on OpenStreetMap's routes, straight where OpenStreetMap has none. ` +
+        `Generation and load: ENTSO-E (16.1.B&C, 6.1.A); storage charging: the consumption of pumped hydro and batteries (B10, B25), which the total load leaves out. ` +
+        `Net physical export: the physical flows out of the area over its borders on the map, less those in; * the countries: with Italy only.`;
+    }
+
+    function draw(full) {
+      const step = steps[index];
+      whenLabel.textContent = step.label;
+      if (full) {
+        chart.setOption({
+          animation: false, backgroundColor: cssVar("--map-sea"),
+          tooltip: { trigger: "item", confine: true, backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"),
+            borderWidth: 1, textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 }, formatter: tooltip },
+          geo: { map: "zmap", roam: true, scaleLimit: { min: 0.8, max: 12 }, aspectScale: 0.78, layoutCenter: ["50%", "50%"], layoutSize: "100%",
+            boundingCoords: [[4.6, 47.6], [22.2, 35.4]], itemStyle: { areaColor: cssVar("--map-land"), borderColor: cssVar("--map-border"), borderWidth: 0.8 },
+            emphasis: { disabled: true }, select: { disabled: true }, tooltip: { show: true, formatter: tooltip }, label: { show: false }, regions: regions(step) },
+          series: series(step)
+        }, true);
+      } else {
+        chart.setOption({ geo: { regions: regions(step) }, series: series(step) });
+      }
+      drawSide(step);
+      drawTables(step);
+    }
+
+    function redraw() {
+      compute();
+      setSteps();
+      draw(true);
+    }
+    zmapState.redraw = () => { if (mapsChart === chart) redraw(); };
+
+    body.querySelector(".zmap-note").innerHTML = `Physical flows: ENTSO-E, each zone's borders, Corsica's two links (SACOI, direct current; SARCO, alternating) and Malta's. ` +
+      `Generation and load: ENTSO-E, the zones' and the neighbours'. Outlines: ISTAT (CC BY 4.0) via openpolis, regions merged into Terna's zones since 2021; Natural Earth.`;
+
+    function move(next) {
+      index = Math.max(0, Math.min(steps.length - 1, next));
+      zmapState.when = steps[index].start;
+      slider.value = String(index);
+      draw(false);
+    }
+    function stopPlay() {
+      zmapStop();
+      play.textContent = "▶ Play";
+    }
+    play.addEventListener("click", () => {
+      if (zmapState.timer) { stopPlay(); return; }
+      if (index >= steps.length - 1) move(0);
+      play.textContent = "❚❚ Pause";
+      zmapState.timer = setInterval(() => {
+        if (index >= steps.length - 1) { stopPlay(); return; }
+        move(index + 1);
+      }, zmapState.speed);
+    });
+    slider.addEventListener("input", () => move(Number(slider.value)));
+    body.querySelector(".zmap-glance").addEventListener("click", event => {
+      const target = event.target.closest("[data-latest]");
+      if (target) move(Number(target.dataset.latest));
+    });
+    speed.addEventListener("change", () => {
+      zmapState.speed = Number(speed.value);
+      if (zmapState.timer) { stopPlay(); play.click(); }
+    });
+    body.querySelectorAll("[data-resolution]").forEach(button => button.addEventListener("click", () => {
+      zmapState.gridResolution = button.dataset.resolution;
+      setSteps();
+      draw(false);
+    }));
+    redraw();
+  }
+
   const zmapEuro = (value, digits = 2) => (Number.isFinite(value)
     ? `${value < 0 && Math.abs(value) >= 0.5 * 10 ** -digits ? "−" : ""}€${formatNumber(Math.abs(value), digits)}` : "—");
   const zmapSignedEuro = value => (Number.isFinite(value)
