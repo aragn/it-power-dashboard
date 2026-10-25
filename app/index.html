@@ -17728,7 +17728,10 @@ move the slider above to another one`,
       if (!total) return "none on file";
       return entry.sources.map((count, code) => ({ count, code })).filter(item => item.code && item.count)
         .sort((x, y) => y.count - x.count)
-        .map(item => `${ZRTG_SOURCES[item.code]}${item.count === total ? "" : ` (${anaPct(item.count / total)})`}`).join(", ") +
+        .map(item => {
+          const share = item.count / total;
+          return `${ZRTG_SOURCES[item.code]}${item.count === total ? "" : ` (${anaPct(share, share < 0.01 || share > 0.99 ? 1 : 0)})`}`;
+        }).join(", ") +
         (entry.uncapped ? `; none for ${formatNumber(entry.uncapped)} quarter-hours with a flow` : "");
     };
     // A line's step: its border's, or of its borders the fullest.
