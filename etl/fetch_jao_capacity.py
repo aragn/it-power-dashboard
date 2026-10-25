@@ -7,6 +7,8 @@ constraint on imports, and the network elements that limited the capacity.
 Series (Italian market time, MW unless noted):
   ntc_da|import          final day-ahead NTC into Italy, Austria + Switzerland
                          + France + Slovenia (Final TTC & NTC day-ahead)
+  ntc_da|<AT/CH/FR/SI>   the same per border: into Italy
+  ntc_da_out|<country>   and out of Italy
   atc_da|<AT/FR/SI>      day-ahead ATC into Italy (NTC minus long-term
                          nominations) of the coupled borders
   sched_da|<AT/FR/SI>    day-ahead scheduled exchange into Italy
@@ -109,7 +111,7 @@ def step_of(rows):
 
 
 def ntc_records(rows, prefix):
-    """Total northern import NTC (day-ahead only) and the "limited by" shares."""
+    """Northern NTC, total into Italy and per border each way (day-ahead only), and the "limited by" shares."""
     minutes = step_of(rows)
     records = []
     for row in rows:
@@ -117,6 +119,10 @@ def ntc_records(rows, prefix):
             values = [row.get(f"border_{country}_IT") for country in NORTHERN]
             if all(value is not None for value in values):
                 records.append(point("ntc_da|import", row, minutes(row), sum(values)))
+            for country in NORTHERN:
+                for group, field in ((f"ntc_da|{country}", f"border_{country}_IT"), (f"ntc_da_out|{country}", f"border_IT_{country}")):
+                    if row.get(field) is not None:
+                        records.append(point(group, row, minutes(row), row[field]))
         reason = row.get("ttc_LimitedBy")
         if reason:
             category = LIMIT_CATEGORIES.get(reason.strip(), "other")

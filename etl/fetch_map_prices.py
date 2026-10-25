@@ -25,6 +25,11 @@ flows) shows and no other script fetches, into app/data/map_prices.json:
                           reached that day, a type without a value there
                           counting as 0), and the same areas and Malta;
   <AREA>|load             Actual Total Load 6.1.A&B (A65), MW.
+  <AREA>|storage          what storage takes in, MW: the consumption of pumped
+                          hydro and batteries (B10, B25), which the total
+                          load leaves out, from the generation documents
+                          (published against outBiddingZone_Domain), summed
+                          the same way; absent where an area publishes none.
 
 ENTSO-E publishes the Italian zones' negative day-ahead prices without their
 sign: +0.01 where the auction cleared at -0.01 EUR/MWh (South, Calabria and
@@ -72,7 +77,7 @@ from entsoe_api import (
 )
 from fetch_balancing import expand_points, number, point_records
 from fetch_crossborder import BORDERS, ZONE_BORDERS
-from fetch_entsoe import is_generation, psr_type
+from fetch_entsoe import is_consumption, is_generation, psr_type
 from fetch_jao_spreads import OUTPUT_PATH as JAO_SPREADS_PATH
 from fetch_neighbour_prices import DEFAULT_HISTORY_START, PT15_START, finest_resolution, is_day_ahead
 from fetch_neighbour_prices import OUTPUT_PATH as NEIGHBOUR_PRICES_PATH
@@ -97,6 +102,9 @@ CHUNK_DAYS = {"day_ahead": 183, "imbalance": 31, "generation": 7, "load": 31}
 LOOKBACK_DAYS = 7
 
 RESOLUTIONS = ("quarter_hourly", "hourly", "daily")
+
+# The production types whose consumption is storage charging: pumped hydro, batteries.
+STORAGE_TYPES = ("B10", "B25")
 
 # The JAO borders (fetch_jao_spreads.COUNTRIES) and the Italian zone each
 # spread is against.
@@ -145,12 +153,19 @@ def imbalance_records(root, area):
 
 def generation_records(root, area):
     """
-    An area's generation per quarter-hour, its production types summed.
+    An area's generation per quarter-hour, its production types summed, and
+    its storage charging (the consumption of STORAGE_TYPES) the same way.
     Each day goes up to the last quarter-hour every type has reached (so a
     day still being published does not end in a dip); a type without a value
     before that counts as 0.
     """
-    by_type = to_quarter_hourly(parse_points(root, group_of=psr_type, keep=is_generation))
+    storage = lambda ts: is_consumption(ts) and psr_type(ts) in STORAGE_TYPES
+    return (summed_types(parse_points(root, group_of=psr_type, keep=is_generation), f"{area}|generation")
+            + summed_types(parse_points(root, group_of=psr_type, keep=storage), f"{area}|storage"))
+
+
+def summed_types(points, group):
+    by_type = to_quarter_hourly(points)
     days = defaultdict(dict)   # date -> type -> {quarter: MW}
     for kind, rows in by_type.items():
         for row in rows:
@@ -159,7 +174,7 @@ def generation_records(root, area):
     for day, kinds in sorted(days.items()):
         last = min(max(quarters) for quarters in kinds.values())
         for quarter in range(last + 1):
-            records.append({"group": f"{area}|generation", "date": day, "time": minutes_label(quarter * 15), "minutes": 15,
+            records.append({"group": group, "date": day, "time": minutes_label(quarter * 15), "minutes": 15,
                             "value": round(sum(quarters.get(quarter, 0) for quarters in kinds.values()), 1)})
     return records
 
@@ -346,7 +361,9 @@ def build_output(series, history_read, sign_restored=None):
             "an area publishes two), EUR/MWh; the neighbours' generation "
             "('AREA|generation': Actual Generation per Production Type 16.1.B&C, "
             "A75, the types summed) and load ('AREA|load': Actual Total Load "
-            "6.1.A&B, A65), MW. Hourly = average of the quarter-hours; daily = "
+            "6.1.A&B, A65) and storage charging ('AREA|storage': the consumption "
+            "of pumped hydro and batteries, B10 and B25, which the total load "
+            "leaves out), MW. Hourly = average of the quarter-hours; daily = "
             "average of the hours. Italian market time (Europe/Rome), labelled by "
             "elapsed time since local midnight like GME periods. Quarter-hourly "
             "series start at quarter_hourly_native_from; earlier quarter-hours "
