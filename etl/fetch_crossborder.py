@@ -10,6 +10,10 @@ Transparency Platform, per neighbouring control area and direction:
       * Total      (contract_MarketAgreement.Type A05): all allocations,
         i.e. day-ahead plus intraday.
     (ENTSO-E Detailed Data Descriptions v3r4, TR article 12.1.f.)
+  - Forecasted Transfer Capacities     [11.1.A]  documentType A61
+      * Day-ahead  (contract_MarketAgreement.Type A01): the capacity
+        offered each way (NTC), which the dashboard's real time grid sets
+        the physical flows against.
 
 "imports" are flows/schedules into the Italian control area, "exports"
 out of it.  Output: app/data/crossborder.json with 15-minute / hourly /
@@ -90,6 +94,7 @@ DATASETS = {
     "physical_flows": {"documentType": "A11"},
     "scheduled_day_ahead": {"documentType": "A09", "contract_MarketAgreement.Type": "A01"},
     "scheduled_total": {"documentType": "A09", "contract_MarketAgreement.Type": "A05"},
+    "capacity_day_ahead": {"documentType": "A61", "contract_MarketAgreement.Type": "A01"},
 }
 
 DIRECTIONS = ("imports", "exports")
@@ -216,9 +221,11 @@ def build_output(datasets, borders=BORDERS, area=f"IT ({IT_DOMAIN})"):
         "description": (
             f"Cross-border exchanges between {area} and "
             "each neighbouring area, per direction: physical flows "
-            "(12.1.G) and scheduled commercial exchanges (12.1.F), day-ahead "
+            "(12.1.G), scheduled commercial exchanges (12.1.F), day-ahead "
             "(long-term + day-ahead allocations) and total (all allocations "
-            "including intraday). Values in MW; hourly = average of the "
+            "including intraday), and the day-ahead forecasted transfer "
+            "capacity (11.1.A, imports: into the area, exports: out of it). "
+            "Values in MW; hourly = average of the "
             "quarter-hours; daily = sum of the hourly values (MWh/day). "
             "Italian market time (Europe/Rome), labelled by elapsed time "
             "since local midnight like GME periods. Quarter-hourly series "

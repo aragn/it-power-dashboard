@@ -109,6 +109,20 @@ def test_generation_sums_the_types_up_to_the_last_quarter_every_type_reached():
     )
     records = map_prices.generation_records(root, "FR")
     assert values(records, "FR|generation") == [("00:00", 1105.0), ("00:15", 1116.0)]
+    # It is storage charging, the load's missing part.
+    assert values(records, "FR|storage") == [("00:00", 999.0)]
+
+
+def test_storage_sums_pumping_and_batteries_and_leaves_other_consumption_out():
+    root = document(
+        generation_series("2025-10-14T22:00Z", "2025-10-14T22:30Z", "PT15M", "B10", [(1, 500), (2, 400)], consumption=True),
+        generation_series("2025-10-14T22:00Z", "2025-10-14T22:30Z", "PT15M", "B25", [(1, 20), (2, 30)], consumption=True),
+        # Some areas report other types' consumption (station supply): not storage.
+        generation_series("2025-10-14T22:00Z", "2025-10-14T22:30Z", "PT15M", "B16", [(1, 3), (2, 3)], consumption=True),
+    )
+    records = map_prices.generation_records(root, "AT")
+    assert values(records, "AT|storage") == [("00:00", 520.0), ("00:15", 430.0)]
+    assert values(records, "AT|generation") == []
 
 
 def test_a_type_missing_before_the_last_quarter_counts_as_zero():

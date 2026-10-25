@@ -45,5 +45,8 @@ jobs:
       - name: Read OpenStreetMap's power features and Terna's plans
         run: python -u etl/fetch_grid.py --work "$RUNNER_TEMP/grid"
 
+      - name: Route the lines between the zones and to the neighbours (real time grid)
+        run: python -u etl/build_grid_ties.py
+
       - name: Publish updated data to the data branch
         run: bash .github/scripts/data-branch.sh publish app/data/grid
