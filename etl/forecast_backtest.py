@@ -29,6 +29,10 @@ The models:
                (Open-Meteo, ECMWF IFS runs up to 00 UTC of X-1, etl/fetch_weather.py):
                the wind speed at the wind farms and the irradiance at the
                solar farms (and, for Timestral, the temperature in the cities)
+  *-wxz        Timestral -wx with each zone's irradiance in place of Italy's
+               solar-weighted average
+  *-wx-ss      Timestral -wx with each zone's expected solar output over its
+               load forecast (forecast_data.Data.solar_share)
 
 Only inputs out before the MGP's 12:00 gate on X-1: Terna's day-ahead load
 forecast for X is on ENTSO-E early on X-1 (by 07:15), its wind and solar forecasts only
@@ -107,6 +111,20 @@ MODELS = {
     "timestral-209m-wx": {"label": "Timestral 209M, with weather", "size": "209M", "covariates": True, "res_ahead": False,
                           "weather": True, "context": 4096,
                           "description": "Timestral-209M with wind, irradiance and temperature forecasts for the day, made before the auction"},
+    "timestral-28m-wxz": {"label": "Timestral 28M, with zonal weather", "size": "28M", "covariates": True,
+                          "res_ahead": False, "weather": True, "zonal_ghi": True, "context": 4096,
+                          "description": "Timestral-28M with the weather forecasts for the day and each zone's own irradiance, "
+                                         "made before the auction"},
+    "timestral-209m-wxz": {"label": "Timestral 209M, with zonal weather", "size": "209M", "covariates": True,
+                           "res_ahead": False, "weather": True, "zonal_ghi": True, "context": 4096,
+                           "description": "Timestral-209M with the weather forecasts for the day and each zone's own "
+                                          "irradiance, made before the auction"},
+    "timestral-28m-wx-ss": {"label": "Timestral 28M, with weather and solar share", "size": "28M", "covariates": True,
+                            "res_ahead": False, "weather": True, "solar_share": True, "context": 4096,
+                            "description": "Timestral-28M with weather and each zone's expected solar output over its load forecast"},
+    "timestral-209m-wx-ss": {"label": "Timestral 209M, with weather and solar share", "size": "209M", "covariates": True,
+                             "res_ahead": False, "weather": True, "solar_share": True, "context": 4096,
+                             "description": "Timestral-209M with weather and each zone's expected solar output over its load forecast"},
 }
 
 # Zones whose wind moves prices (the north's and the centre-north's is small).
@@ -291,11 +309,13 @@ def conformal(data, points, days):
 # ============================================================================
 
 
-def timestral_rows(data, res_ahead=False, weather=False):
+def timestral_rows(data, res_ahead=False, weather=False, zonal_ghi=False, solar_share=False):
     """(known, past) covariate rows over the whole axis: each zone's load
     forecast, the gas and EUA prices and the calendar known ahead; the
     neighbours' prices and Italy's wind and solar forecasts up to the day
-    before (known ahead too with res_ahead)."""
+    before (known ahead too with res_ahead).  With zonal_ghi the weather's
+    irradiance is each zone's, not Italy's; with solar_share each zone's
+    expected solar output over its load forecast is added."""
     wind = np.nansum([data.series[f"{zone}|wind_forecast"] for zone in ZONES], axis=0)
     solar = np.nansum([data.series[f"{zone}|solar_forecast"] for zone in ZONES], axis=0)
     known = [data.series[f"{zone}|load_forecast"] for zone in ZONES]
@@ -304,7 +324,14 @@ def timestral_rows(data, res_ahead=False, weather=False):
     if weather:
         solar_mw, people = weather_weights()
         known += [data.weather_ahead(zone, "wind_speed") for zone in WIND_ZONES]
-        known += [weighted_italy(data, "ghi", solar_mw), weighted_italy(data, "temperature", people)]
+        if zonal_ghi:
+            known += [data.weather_ahead(zone, "ghi") for zone in ZONES]
+        else:
+            known.append(weighted_italy(data, "ghi", solar_mw))
+        known.append(weighted_italy(data, "temperature", people))
+    if solar_share:
+        # Each zone's expected solar output over its load forecast (forecast_data.solar_share).
+        known += [data.solar_share(zone) for zone in ZONES]
     known += [data.gas, data.eua, data.calendar["holiday"], data.calendar["saturday"], data.calendar["sunday"]]
     return np.stack(known), np.stack(past)
 
@@ -343,7 +370,9 @@ def timestral_quantiles(data, days, spec, batch=4):
     forecaster = TimestralForecaster.from_pretrained(f"mistralai/Timestral-{spec['size']}")
     assert tuple(round(level, 2) for level in forecaster.quantile_levels) == LEVELS
     prices = data.prices()
-    rows = timestral_rows(data, spec["res_ahead"], spec.get("weather", False)) if spec["covariates"] else None
+    rows = (timestral_rows(data, spec["res_ahead"], spec.get("weather", False), spec.get("zonal_ghi", False),
+                           spec.get("solar_share", False))
+            if spec["covariates"] else None)
     out = {}
     started = time.time()
     for i in range(0, len(days), batch):
