@@ -41,3 +41,29 @@ def test_congestion_income_is_signed_like_the_spreads_in_eur_per_hour():
     records = {r["group"]: r["value"] for r in fj.income_records("DA", rows)}
     # Imports from France (Italy dearer) below zero, exports to Austria above.
     assert records == {"DA|FR|income": -70088.8, "DA|AT|income": 2004.2}
+
+
+def test_requests_reach_the_last_quarter_hour_of_the_last_day(monkeypatch):
+    # JAO's ToUtc is exclusive: the midnight after the last day, so 23:45 is not lost.
+    asked = {}
+
+    class Response:
+        status_code = 200
+
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"data": []}
+
+    class Session:
+        def get(self, url, params, timeout):
+            asked.update(params)
+            return Response()
+
+    monkeypatch.setattr(fj, "pace", lambda: None)
+    fj.jao_get(Session(), "CCR_finalTtcNtc", fj.parse_date("2026-10-22"), fj.parse_date("2026-10-23"))
+    assert (asked["FromUtc"], asked["ToUtc"]) == ("2026-10-21T22:00:00.000Z", "2026-10-23T22:00:00.000Z")
+    # The 25-hour day of the clock change ends at 23:00 UTC.
+    fj.jao_get(Session(), "CCR_finalTtcNtc", fj.parse_date("2026-10-25"), fj.parse_date("2026-10-25"))
+    assert (asked["FromUtc"], asked["ToUtc"]) == ("2026-10-24T22:00:00.000Z", "2026-10-25T23:00:00.000Z")

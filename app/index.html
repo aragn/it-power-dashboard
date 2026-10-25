@@ -17478,8 +17478,8 @@ move the slider above to another one`,
    * - exports + imports - absorbed energy", so it leaves out the pumping of
    * pumped hydro and the charging of batteries, published as those
    * production types' consumption, B10 and B25; the neighbours' in
-   * map_prices.json).  The capacity, the way the flow goes, each quarter-hour,
-   * the first on file of:
+   * map_prices.json).  The capacity, the way the flow goes, each quarter-hour:
+   * the day-ahead limit, the first on file of
    *   - full version: GME's MGP limits (transits.json), Terna's transit
    *     limits between the zones and on the links to Sardinia, Corsica,
    *     Malta and Greece, deratings included (on the northern borders GME's
@@ -17488,20 +17488,23 @@ move the slider above to another one`,
    *     (jao_capacity.json, ntc_da|<country> into Italy, ntc_da_out out);
    *   - ENTSO-E's day-ahead forecasted transfer capacity (11.1.A, A61) of
    *     the border (zones/<ZONE>/crossborder.json, capacity_day_ahead);
-   *   - off the northern borders, ZRTG_TYPICAL: the usual limit, rounded,
-   *     until ENTSO-E's is on file.
+   * else, on a border that is one cable, the cable's rated capacity
+   * (ZRTG_RATED).  A quarter-hour a source leaves out takes its hour's value.
    */
-  // MW, [a to b, b to a] of ZMAP_BORDERS.
-  const ZRTG_TYPICAL = {
-    "NORD-CNOR": [4050, 3800], "CNOR-CSUD": [3350, 3600], "CSUD-SUD": [3150, 5400], "SUD-CALA": [1650, 2550],
-    "CALA-SICI": [1650, 1500], "CSUD-SARD": [700, 850], "CNOR-CORS": [150, 150], "SARD-CORS": [150, 150], "SARD-COAC": [100, 20],
-    "CSUD-ME": [600, 600], "SUD-GR": [500, 500], "SICI-MT": [200, 200]
+  // MW each way: the rated capacity of the borders that are one link (SACOI's 300 MW on each of its legs).
+  const ZRTG_RATED = {
+    "CSUD-SARD": { mw: 1000, link: "SAPEI, 2 × 500 MW (Terna)" },
+    "CNOR-CORS": { mw: 300, link: "SACOI, 300 MW (Terna, EDF)" },
+    "SARD-CORS": { mw: 300, link: "SACOI, 300 MW (Terna, EDF)" },
+    "CSUD-ME": { mw: 600, link: "MONITA, first pole, 600 MW (Terna, CGES)" },
+    "SUD-GR": { mw: 500, link: "GRITA, 500 MW (Terna, IPTO)" },
+    "SICI-MT": { mw: 200, link: "Malta–Sicily cable, 200 MW (Enemalta)" }
   };
   // The northern borders' countries (JAO's NTC per border).
   const ZRTG_JAO = { "NORD-FR": "FR", "NORD-CH": "CH", "NORD-AT": "AT", "NORD-SI": "SI" };
   const ZRTG_NO_GME = new Set(["NORD-FR", "NORD-CH", "NORD-AT", "NORD-SI", "CSUD-ME"]);
   // Where a quarter-hour's capacity comes from (zrtgCapacity's src).
-  const ZRTG_SOURCES = [null, "Terna's limit via GME", "JAO's NTC", "ENTSO-E's NTC", "typical limit"];
+  const ZRTG_SOURCES = [null, "day-ahead limit (Terna, via GME)", "day-ahead NTC (JAO)", "day-ahead NTC (ENTSO-E)", "rated capacity of the cable"];
   const ZRTG_YELLOW = [255, 200, 0];
   // A border this full or more counts as at its capacity in the counts and the table.
   const ZRTG_FULL = 0.9;
@@ -17529,7 +17532,13 @@ move the slider above to another one`,
     const key = `rc|${border.id}`;
     if (period.cache.has(key)) return period.cache.get(key);
     const Q = period.Q, ab = new Float64Array(Q).fill(NaN), ba = new Float64Array(Q).fill(NaN), src = new Uint8Array(Q);
-    const run = (name, quarter, hourly) => (quarter || hourly ? zmapRun(period, name, (date, T) => zmapDay(quarter, hourly, date, T)) : null);
+    // A series over the period, a quarter-hour missing from the quarter-hourly one taking its hour's value.
+    const run = (name, quarter, hourly) => {
+      const fine = quarter ? zmapRun(period, `${name}|q`, (date, T) => zmapDay(quarter, null, date, T)) : null;
+      const coarse = hourly ? zmapRun(period, `${name}|h`, (date, T) => zmapDay(null, hourly, date, T)) : null;
+      if (!fine || !coarse) return fine || coarse;
+      return Float64Array.from(fine, (value, q) => (Number.isFinite(value) ? value : coarse[q]));
+    };
     // Fills the quarter-hours still without a capacity from a source's two ways.
     const fill = (forward, back, code) => {
       if (forward && back) for (let q = 0; q < Q; q += 1) {
@@ -17554,8 +17563,8 @@ move the slider above to another one`,
         ((node.hourly || {})[direction] || {})[border.b]);
       fill(pick("exports"), pick("imports"), 3);
     }
-    const typical = ZRTG_TYPICAL[border.id];
-    if (typical) fill(new Float64Array(Q).fill(typical[0]), new Float64Array(Q).fill(typical[1]), 4);
+    const rated = ZRTG_RATED[border.id];
+    if (rated) fill(new Float64Array(Q).fill(rated.mw), new Float64Array(Q).fill(rated.mw), 4);
     const result = { ab, ba, src };
     period.cache.set(key, result);
     return result;
@@ -17626,17 +17635,18 @@ move the slider above to another one`,
           if (!Number.isFinite(f) || !Number.isFinite(c)) continue;
           use[q] = c > 0 ? Math.abs(f) / c : Math.abs(f) >= 1 ? 1 : NaN;
         }
-        let sum = 0, n = 0, full = 0, max = NaN;
-        // Quarter-hours per capacity source (ZRTG_SOURCES).
+        let sum = 0, n = 0, full = 0, max = NaN, uncapped = 0;
+        // Quarter-hours per capacity source (ZRTG_SOURCES); uncapped: with a flow and no capacity.
         const sources = new Array(ZRTG_SOURCES.length).fill(0);
         for (let q = 0; q < period.Q; q += 1) {
           sources[cap.src[q]] += 1;
+          if (flow && Number.isFinite(flow[q]) && !cap.src[q]) uncapped += 1;
           if (!Number.isFinite(use[q])) continue;
           sum += use[q]; n += 1;
           if (use[q] >= ZRTG_FULL) full += 1;
           if (!(use[q] <= max)) max = use[q];
         }
-        return { border, flow, cap, use, mean: n ? sum / n : NaN, fullShare: n ? full / n : NaN, max, sources };
+        return { border, flow, cap, use, mean: n ? sum / n : NaN, fullShare: n ? full / n : NaN, max, sources, uncapped };
       });
       // The physical lines, each with the borders it is counted on (grid/ties.json).
       const scale = files.ties && files.ties.scale;
@@ -17718,7 +17728,8 @@ move the slider above to another one`,
       if (!total) return "none on file";
       return entry.sources.map((count, code) => ({ count, code })).filter(item => item.code && item.count)
         .sort((x, y) => y.count - x.count)
-        .map(item => `${ZRTG_SOURCES[item.code]}${item.count === total ? "" : ` (${anaPct(item.count / total)})`}`).join(", ");
+        .map(item => `${ZRTG_SOURCES[item.code]}${item.count === total ? "" : ` (${anaPct(item.count / total)})`}`).join(", ") +
+        (entry.uncapped ? `; none for ${formatNumber(entry.uncapped)} quarter-hours with a flow` : "");
     };
     // A line's step: its border's, or of its borders the fullest.
     const cableAt = (cable, step) => cable.entries.map(entry => ({ entry, flow: flowAt(entry, step), use: useAt(entry, step) }))
@@ -17833,7 +17844,7 @@ move the slider above to another one`,
         `<div class="queue-note">Every line between the zones and to the neighbours (Terna's list), in the colour of its border: ` +
         `the border's physical flow (ENTSO-E, one netted value per border, none per line) against its capacity the way it goes. ` +
         `The arrow points the way the energy goes. Capacity: ${PUBLIC_MODE ? "" : "GME's day-ahead limits (Terna's, deratings included) between the zones and on the links; "}` +
-        `JAO's day-ahead NTC on the northern borders; ENTSO-E's day-ahead NTC (11.1) elsewhere. Physical flows can pass it, as it is a market limit.</div>`;
+        `JAO's day-ahead NTC on the northern borders; ENTSO-E's day-ahead NTC (11.1) elsewhere; where no day-ahead limit is on file, a one-cable link's rated capacity. Physical flows can pass a day-ahead limit, a market limit with a security margin.</div>`;
       const ticks = [0.25, 0.5, 1, 2, 4];
       body.querySelector(".zrtg-areas").innerHTML =
         `<div class="zmap-ramp" style="background:linear-gradient(90deg,${ticks.map(zrtgAreaColor).join(",")})"></div>` +
@@ -17905,7 +17916,7 @@ move the slider above to another one`,
         `direct-current link (SACOI). Capacity used: the flow against the capacity the way it goes; an hour or a day: its mean flow against its mean capacity. ` +
         `Capacity, the first on file: ${PUBLIC_MODE ? "" : "GME's day-ahead limits (Terna's transit limits, deratings included) between the zones and on the links; "}` +
         `on the northern borders JAO's day-ahead NTC of each border, each way (Italy North publication tool); ENTSO-E's day-ahead forecasted transfer capacity (11.1.A); ` +
-        `else a typical limit, rounded. Lines: Terna's Grid Code Annex A.24 (January 2025) and Glorenza – Nauders (Austria, since December 2023), ` +
+        `where none is on file, the rated capacity of a border that is one cable (${Object.values(ZRTG_RATED).map(entry => entry.link).filter((link, i, all) => all.indexOf(link) === i).join('; ')}). Lines: Terna's Grid Code Annex A.24 (January 2025) and Glorenza – Nauders (Austria, since December 2023), ` +
         `on OpenStreetMap's routes, straight where OpenStreetMap has none. ` +
         `Generation and load: ENTSO-E (16.1.B&C, 6.1.A); storage charging: the consumption of pumped hydro and batteries (B10, B25), which the total load leaves out. ` +
         `Net physical export: the physical flows out of the area over its borders on the map, less those in; * the countries: with Italy only.`;
