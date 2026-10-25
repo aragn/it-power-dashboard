@@ -117,9 +117,9 @@ def jao_get(session, endpoint, first, last, extra=None):
     """Rows of a JAO IBWT endpoint for the market days first..last (Italian market time)."""
     params = {
         "FromUtc": local_midnight_utc(first).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-        # Inclusive upper bound: the last market time unit of the last day.
-        "ToUtc": (local_midnight_utc(last + timedelta(days=1)) - timedelta(minutes=15)).strftime(
-            "%Y-%m-%dT%H:%M:%S.000Z"),
+        # JAO's upper bound is exclusive (asking to 21:45Z returns up to 21:30Z):
+        # the midnight after the last day, so its 23:45 comes too.
+        "ToUtc": local_midnight_utc(last + timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
         "Skip": 0,
         "Take": 5000,
         **(extra or {}),
