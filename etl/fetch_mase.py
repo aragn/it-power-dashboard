@@ -278,7 +278,8 @@ def technology(typology_key, text):
         return typology_key
     if re.search(r"data\s*cent", text):
         return "data_centre"
-    if re.search(r"accumulo|bess|batteri", text) and not re.search(r"fotovoltaic|eolic|termoelettric", text):
+    # "accumulo termico" is heat storage at a thermal plant, not a battery.
+    if re.search(r"accumulo|bess|batteri", text) and not re.search(r"fotovoltaic|eolic|termoelettric|accumulo termico", text):
         return "storage"
     if "idroelettric" in text:
         return "hydro"

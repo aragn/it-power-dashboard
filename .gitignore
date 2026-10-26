@@ -34,6 +34,7 @@ app/data/available_capacity.json
 app/data/picasso.json
 app/data/gas.json
 app/data/mase_projects.json
+app/data/mase_storage.json
 app/data/connections.json
 app/data/gme_units.json
 app/data/gme_units_state.json
