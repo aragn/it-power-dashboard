@@ -15797,8 +15797,34 @@ move the slider above to another one`,
     window.scrollTo(0, 0);
   }
 
+  function openMaseBess(plant) {
+    stopMapPlay();
+    Object.values(maseBessState.filters).forEach(chosen => chosen.clear());
+    Object.assign(maseBessState, { search: String(plant.decree), open: String(plant.id), page: 0 });
+    queueTab = "storage";
+    currentSection = "queue";
+    updateView();
+    window.scrollTo(0, 0);
+  }
+
+  /*
+   * The batteries MASE authorised (Queue, Batteries tab) as projects of the
+   * map: battery storage, approved, in the year of their authorisation.
+   * They had no VIA, so they are not among the VIA projects.
+   */
+  function maseBessMapProjects() {
+    if (!queueData["mase_storage.json"]) return [];
+    return maseBessPlants().map(plant => ({
+      id: [...String(plant.id)].reduce((hash, char) => (hash * 31 + char.charCodeAt(0)) % 100003, 7), bess: plant,
+      label: maseBessLabel(plant), name: maseBessLabel(plant), municipalities: plant.municipalities,
+      regions: plant.region ? plant.region.split(" / ") : [], technology: "storage", stage: "approved",
+      mw: plant.mw, change: false, year: plant.year, start: plant.authorised, procedure: null, lat: plant.lat, lon: plant.lon
+    }));
+  }
+
   function renderProjectMap() {
     loadQueueFile("mase_projects.json");
+    loadQueueFile("mase_storage.json");
     loadItalyGeo();
     stopMapPlay();
     if (mapsChart) mapsChart.dispose();
@@ -15817,7 +15843,7 @@ move the slider above to another one`,
       return;
     }
 
-    const all = maseProjects();
+    const all = [...maseProjects(), ...maseBessMapProjects()];
     const projects = all.filter(project => !isEmpty(project.lat) && !isEmpty(project.lon)).map(project => {
       const [dx, dy] = mapJitter(project.id);
       // Sized by MW only where the MW is the project's (see summedMw).
@@ -15846,7 +15872,8 @@ move the slider above to another one`,
       `the MW in their descriptions is mostly an existing plant's.</div></div>` +
       `</div></div><div class="queue-note">Each dot is a project placed at the centre of the municipalities it lists, not at its exact site ` +
       `(MASE's own map service is switched off); offshore wind farms sit at their coastal municipalities, and projects of one municipality are ` +
-      `fanned out around it. Colours show each project's stage today. Click a region to see it on its own, a dot to open the project in Queue. ` +
+      `fanned out around it. Colours show each project's stage today. Battery storage includes the plants MASE authorised without a VIA ` +
+      `(Queue, Batteries tab), shown as approved in the year of their authorisation. Click a region to see it on its own, a dot to open the project in Queue. ` +
       `${formatNumber(all.length - projects.length)} projects list no municipality that could be placed and are not shown. ` +
       `Boundaries: ISTAT (CC BY 4.0) via openpolis; municipality positions: Wikidata.</div>`;
 
@@ -15913,8 +15940,12 @@ move the slider above to another one`,
               return `<div style="max-width:300px;white-space:normal"><div style="font-weight:600;margin-bottom:4px">${escapeHtml(project.label || project.name)}</div>` +
                 `<div style="color:${cssVar("--chart-tooltip-muted")};margin-bottom:6px">${escapeHtml(place)}${project.regions.length ? ` (${escapeHtml(project.regions.join(", "))})` : ""}</div>` +
                 tooltipRow(params.color, QUEUE_TECHNOLOGIES[project.technology] || project.technology, isEmpty(project.mw) ? "MW not stated" : `${formatQueueMw(project.mw)} MW`) +
-                tooltipRow("transparent", stage, project.procedure ? escapeHtml(translateStatus(project.procedure.status)) : "") +
-                tooltipRow("transparent", "Filed", formatQueueDate(project.start)) +
+                (project.bess
+                  ? tooltipRow("transparent", stage, "MASE single authorisation, no VIA") +
+                    tooltipRow("transparent", "Authorised", formatQueueDate(project.start)) +
+                    tooltipRow("transparent", "Holder", escapeHtml(project.bess.holder || "—"))
+                  : tooltipRow("transparent", stage, project.procedure ? escapeHtml(translateStatus(project.procedure.status)) : "") +
+                    tooltipRow("transparent", "Filed", formatQueueDate(project.start))) +
                 `<div style="margin-top:6px;color:${cssVar("--chart-tooltip-muted")}">Click to open it in Queue</div></div>`;
             }
           },
@@ -15962,7 +15993,10 @@ move the slider above to another one`,
     });
     back.addEventListener("click", () => { mapState.region = null; draw(true); });
     chart.on("click", params => {
-      if (params.data && params.data.entry) openProject(params.data.entry.project);
+      if (params.data && params.data.entry) {
+        const project = params.data.entry.project;
+        if (project.bess) openMaseBess(project.bess); else openProject(project);
+      }
       else if (params.componentType === "geo" && params.name) {
         mapState.region = params.name;
         draw(true);
