@@ -15640,7 +15640,7 @@ move the slider above to another one`,
         years.map(year => shown.filter(plant => plant.area === area && plant.year === year)
           .reduce((sum, plant) => sum + (plant.mw || 0), 0) / 1000)));
       chart.setOption({
-        animation: false, grid: { left: 44, right: 12, top: 30, bottom: 24 }, legend: queueLegend(areas),
+        animation: false, grid: { left: 44, right: 12, top: 48, bottom: 24 }, legend: queueLegend(areas),
         tooltip: queueTooltip(items => `<b>${items[0].axisValue}</b><br>` + items.filter(item => item.value)
           .map(item => `${item.marker}${item.seriesName}: ${formatNumber(item.value, 2)} GW`).join("<br>") +
           `<br>Total: ${formatNumber(items.reduce((sum, item) => sum + item.value, 0), 2)} GW`),
