@@ -1,3 +1,4 @@
 requests
 tzdata
 openpyxl
+pypdf

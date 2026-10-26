@@ -728,7 +728,7 @@
         <div id="gas-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Gas storage and LNG</p></div><nav id="gas-subnav" class="subnav"><button class="subnav-tab active" data-gas-tab="overview" type="button">Overview</button><button class="subnav-tab" data-gas-tab="storage" type="button">Storage</button><button class="subnav-tab" data-gas-tab="lng" type="button">LNG</button><button class="subnav-tab" data-gas-tab="outages" type="button">Outages</button><button class="subnav-tab" data-gas-tab="tariffs" type="button">Tariffs</button></nav><div id="gas-mount"></div></div>
         <div id="forecast-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Day-ahead price forecast</p></div><div id="forecast-home"></div><nav id="forecast-subnav" class="subnav"><button class="subnav-tab active" data-forecast-tab="tomorrow" type="button">Tomorrow</button><button class="subnav-tab" data-forecast-tab="week" type="button">Week</button><button class="subnav-tab" data-forecast-tab="backtest" type="button">Backtest</button></nav><div id="forecast-mount"></div></div>
         <div id="maps-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Maps</p></div><nav id="maps-subnav" class="subnav"><button class="subnav-tab active" data-maps-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-maps-tab="grid" type="button">Grid and power plants</button><button class="subnav-tab" data-maps-tab="zones" type="button">Prices and flows</button></nav><div id="maps-mount"></div></div>
-        <div id="queue-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Project pipeline, grid-connection queue and market units</p></div><nav id="queue-subnav" class="subnav"><button class="subnav-tab active" data-queue-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-queue-tab="connections" type="button">Grid connections (Terna, e-distribuzione)</button><button class="subnav-tab" data-queue-tab="units" type="button">Market connections (GME)</button></nav><div id="queue-mount"></div></div>
+        <div id="queue-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Project pipeline, grid-connection queue and market units</p></div><nav id="queue-subnav" class="subnav"><button class="subnav-tab active" data-queue-tab="projects" type="button">Projects (MASE)</button><button class="subnav-tab" data-queue-tab="storage" type="button">Batteries (MASE)</button><button class="subnav-tab" data-queue-tab="connections" type="button">Grid connections (Terna, e-distribuzione)</button><button class="subnav-tab" data-queue-tab="units" type="button">Market connections (GME)</button></nav><div id="queue-mount"></div></div>
         <div id="policy-page" style="display:none"><div class="zone-header"><h1>Italy</h1><p>Policy and market design</p></div><div id="policy-mount"></div></div>
         <div id="section-placeholder" class="section-placeholder"><h2 id="section-placeholder-title">Maps</h2><p>This section is under development.</p></div>
         <footer class="site-footer">Sources: Terna, GME, ENTSO-E, JAO, TransnetBW (PICASSO), GIE (AGSI+, ALSI, IIP), MASE, e-distribuzione.<p class="gme-notice"><strong>Notice on GME data.</strong> The data of Gestore dei Mercati Energetici S.p.A. (GME) shown on this site are re-elaborations and estimates made by the author, for information only; they are not GME's official data, which GME publishes on www.mercatoelettrico.org under its own terms. GME is not responsible for these elaborations nor for any use of them. They may not be extracted, downloaded, copied, reproduced or redistributed, in whole or in part, nor used for commercial purposes, without the prior written consent of the author and of GME.</p></footer>
@@ -15428,7 +15428,249 @@ move the slider above to another one`,
     update();
   }
 
-  const QUEUE_FILES = { projects: "mase_projects.json", connections: "connections.json", units: "gme_units.json" };
+  /* ---------- Batteries authorised by MASE ---------- */
+
+  const MASE_BESS_EVENTS = {
+    transfer: "Transferred", partial_transfer: "Grid works transferred", variant: "Variant authorised",
+    correction: "Corrected", extension: "Deadline extended", other: "Other decree"
+  };
+  const MASE_BESS_AREAS = {
+    North: { color: "--queue-step-1", regions: ["Piemonte", "Valle d'Aosta", "Lombardia", "Trentino-Alto Adige", "Veneto",
+      "Friuli-Venezia Giulia", "Liguria", "Emilia-Romagna"] },
+    Centre: { color: "--queue-step-2", regions: ["Toscana", "Umbria", "Marche", "Lazio"] },
+    South: { color: "--queue-step-4", regions: ["Abruzzo", "Molise", "Campania", "Puglia", "Basilicata", "Calabria"] },
+    Islands: { color: "--queue-step-5", regions: ["Sicilia", "Sardegna"] }
+  };
+  const maseBessArea = region => Object.keys(MASE_BESS_AREAS).find(area =>
+    MASE_BESS_AREAS[area].regions.includes(String(region || "").split(" / ")[0])) || "Not stated";
+
+  let maseBessCache = null;
+
+  function maseBessPlants() {
+    const data = queueData["mase_storage.json"];
+    if (maseBessCache && maseBessCache.data === data) return maseBessCache.plants;
+    const plants = queueRecords(data.columns, data.plants).map(plant => {
+      plant.events = queueRecords(data.event_columns, plant.events);
+      plant.municipalities = plant.municipalities || [];
+      plant.year = plant.authorised ? plant.authorised.slice(0, 4) : "Unknown";
+      plant.area = maseBessArea(plant.region);
+      plant.search = [plant.id, plant.name, plant.holder, plant.applicant, plant.region, plant.permit_code,
+        ...plant.municipalities, ...(plant.provinces || [])].join(" ").toLowerCase();
+      return plant;
+    });
+    maseBessCache = { data, plants };
+    return plants;
+  }
+
+  const MASE_BESS_FACETS = [
+    { key: "region", title: "Region", values: plant => [plant.region || "Not stated"], label: value => value },
+    { key: "year", title: "Year authorised", values: plant => [plant.year], label: value => value, descending: true },
+    { key: "site", title: "Site", values: plant => [plant.at_plant ? "plant" : "standalone"],
+      label: value => value === "plant" ? "At a power station" : "Standalone", order: ["standalone", "plant"] },
+    { key: "extra", title: "Details", every: true,
+      values: plant => [plant.holder !== plant.applicant ? "transferred" : null, plant.events.length ? "changed" : null,
+        isEmpty(plant.mwh) ? null : "mwh"].filter(Boolean),
+      label: value => ({ transferred: "Changed hands", changed: "Later decrees", mwh: "MWh stated" })[value],
+      order: ["transferred", "changed", "mwh"] }
+  ];
+  const MASE_BESS_SORTS = [["authorised|desc", "Newest authorised"], ["authorised|asc", "Oldest authorised"],
+    ["mw|desc", "Largest MW"], ["name|asc", "Name A–Z"]];
+  const maseBessState = {
+    filters: Object.fromEntries(MASE_BESS_FACETS.map(facet => [facet.key, new Set()])),
+    closed: new Set(["extra"]), search: "", sort: "authorised", direction: "desc", page: 0, open: null
+  };
+
+  function maseBessMatches(plant, skip) {
+    for (const facet of MASE_BESS_FACETS) {
+      const chosen = maseBessState.filters[facet.key];
+      if (facet.key === skip || !chosen.size) continue;
+      const values = facet.values(plant);
+      if (facet.every ? ![...chosen].every(value => values.includes(value)) : !values.some(value => chosen.has(value))) return false;
+    }
+    return matchesSearch(plant.search, maseBessState.search);
+  }
+
+  const maseBessLabel = plant => plant.name || (plant.municipalities[0] ? `BESS ${plant.municipalities[0]}` : `Decree ${plant.decree}`);
+
+  const MASE_BESS_COLUMNS = [
+    { key: "name", label: "Plant", value: maseBessLabel, className: "clip project",
+      cell: row => `<span title="${escapeHtml(row.subject)}">${escapeHtml(maseBessLabel(row))}` +
+        `${row.municipalities.length ? ` <span class="muted">· ${escapeHtml(row.municipalities.join(", "))}` +
+          `${row.region ? ` (${escapeHtml(row.region)})` : ""}</span>` : ""}</span>` +
+        `<br><span class="muted" title="Holder${row.holder !== row.applicant ? `; authorised to ${escapeHtml(row.applicant)}` : ""}">` +
+        `${escapeHtml(row.holder || "—")}${row.holder !== row.applicant ? " ↺" : ""}</span>` },
+    { key: "mw", label: "MW", num: true, value: row => row.mw, cell: row => formatQueueMw(row.mw), title: "Power in the decree" },
+    { key: "mwh", label: "MWh", num: true, value: row => row.mwh, cell: row => formatQueueMw(row.mwh),
+      title: "Energy, where the decree states it" },
+    { key: "site", label: "Site", value: row => row.at_plant ? "At a power station" : "Standalone", className: "nowrap" },
+    { key: "authorised", label: "Authorised", value: row => row.authorised, cell: row => formatQueueDate(row.authorised), className: "nowrap" },
+    { key: "decree", label: "Decree", value: row => row.decree, className: "nowrap",
+      cell: row => `<a href="${escapeHtml(row.pdf || row.url)}" target="_blank" rel="noopener">${escapeHtml(row.decree)} ↗</a>` },
+    { key: "events", label: "Later decrees", num: true, value: row => row.events.length,
+      cell: row => row.events.length ? formatNumber(row.events.length) : "—" }
+  ];
+
+  function maseBessDetail(row) {
+    const events = row.events.slice().reverse().map(event =>
+      `<tr><td class="nowrap">${formatQueueDate(event.date)}</td><td>${escapeHtml(MASE_BESS_EVENTS[event.kind] || event.kind)}</td>` +
+      `<td class="nowrap"><a href="${escapeHtml(event.url)}" target="_blank" rel="noopener">${escapeHtml(event.decree || "—")} ↗</a></td>` +
+      `<td>${escapeHtml(event.subject || "")}</td></tr>`).join("");
+    return `<p>${escapeHtml(row.subject)}</p><div class="queue-facts">` +
+      `<div><span>Holder</span>${escapeHtml(row.holder || "—")}</div>` +
+      `<div><span>Authorised to</span>${escapeHtml(row.applicant || "—")}</div>` +
+      `<div><span>Capacity</span>${isEmpty(row.mw) ? "Not stated" : `${formatQueueMw(row.mw)} MW`}` +
+        `${isEmpty(row.mwh) ? "" : ` · ${formatQueueMw(row.mwh)} MWh`}</div>` +
+      `<div><span>Municipalities</span>${escapeHtml(row.municipalities.join(", ") || "—")}` +
+        `${(row.provinces || []).length ? ` (${escapeHtml(row.provinces.join(", "))})` : ""}</div>` +
+      (row.permit_code ? `<div><span>Permitting code</span>${escapeHtml(row.permit_code)}</div>` : "") +
+      `<div><span>Decree</span><a href="${escapeHtml(row.url)}" target="_blank" rel="noopener">${escapeHtml(row.decree)} on mase.gov.it ↗</a></div></div>` +
+      (events ? `<table><thead><tr><th>Date</th><th>Later decree</th><th>No.</th><th>Subject</th></tr></thead><tbody>${events}</tbody></table>` : "");
+  }
+
+  function downloadMaseBessCsv(rows) {
+    const columns = [["Decree", row => row.decree], ["Plant", row => row.name], ["Holder", row => row.holder],
+      ["Authorised to", row => row.applicant], ["MW", row => row.mw], ["MWh", row => row.mwh],
+      ["Site", row => row.at_plant ? "At a power station" : "Standalone"], ["Municipalities", row => row.municipalities.join("; ")],
+      ["Provinces", row => (row.provinces || []).join("; ")], ["Region", row => row.region], ["Latitude", row => row.lat],
+      ["Longitude", row => row.lon], ["Authorised", row => row.authorised], ["Later decrees", row => row.events.length],
+      ["Permitting code", row => row.permit_code], ["Subject", row => row.subject], ["URL", row => row.url], ["PDF", row => row.pdf]];
+    const quote = value => isEmpty(value) ? "" : /[",\n;]/.test(String(value)) ? `"${String(value).replace(/"/g, '""')}"` : String(value);
+    const csv = [columns.map(([name]) => name).join(","), ...rows.map(row => columns.map(([, get]) => quote(get(row))).join(","))].join("\n");
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+    link.download = `mase-batteries-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }
+
+  function renderMaseBess() {
+    const data = queueData["mase_storage.json"];
+    const body = queuePanel("Battery storage authorised by MASE",
+      data ? `${formatNumber(data.plants.length)} plants from ${formatNumber(data.decrees.length)} decrees · read ${formatCheckDate(data.updated)}` : "");
+    if (!data) {
+      body.innerHTML = `<div class="queue-empty">${queueStatus["mase_storage.json"] === "missing"
+        ? "The list of authorised batteries is not available yet." : "Loading the authorised batteries…"}</div>`;
+      return;
+    }
+    const plants = maseBessPlants();
+    body.innerHTML = `<div class="queue-note" style="margin:0 0 4px">Battery storage plants (BESS) holding the Ministry of the ` +
+      `Environment's single authorisation: standalone plants of 10 MW and more outside industrial sites, and batteries inside ` +
+      `thermal power stations. They need no environmental impact assessment, so they are not in the Projects (MASE) tab. One row ` +
+      `per authorisation; later decrees (transfers to another company, variants, corrections) are attached to it and give the ` +
+      `current holder (↺: changed hands). MW, place and name are read from each decree's subject. Click a row for its decrees. ` +
+      `Source: <a href="https://www.mase.gov.it/portale/autorizzazioni-uniche" target="_blank" rel="noopener">mase.gov.it, Autorizzazioni uniche</a>.</div>` +
+      `<div class="queue-chart-host"></div>` +
+      `<div class="queue-layout"><aside class="queue-filters" aria-label="Filters"></aside><div class="queue-main">` +
+      `<div class="queue-toolbar"><div class="queue-count"></div></div><div class="queue-table-host"></div></div></div>`;
+    const chartHost = body.querySelector(".queue-chart-host");
+    const filters = body.querySelector(".queue-filters");
+    const toolbar = body.querySelector(".queue-toolbar");
+    const sortSelect = queueSelect(MASE_BESS_SORTS, `${maseBessState.sort}|${maseBessState.direction}`, value => {
+      [maseBessState.sort, maseBessState.direction] = value.split("|");
+      maseBessState.page = 0;
+      update();
+    }, "Sort plants");
+    toolbar.appendChild(sortSelect);
+    toolbar.appendChild(queueSearch("Search plant, company, municipality", maseBessState.search, value => {
+      maseBessState.search = value;
+      maseBessState.page = 0;
+      update();
+    }));
+    const download = document.createElement("button");
+    download.type = "button";
+    download.className = "queue-button";
+    download.textContent = "Download CSV";
+    download.title = "The plants matching the filters, as a CSV file";
+    toolbar.appendChild(download);
+    let shown = [];
+    download.addEventListener("click", () => downloadMaseBessCsv(shown));
+
+    const chart = queueChart(chartHost, 240, "GW authorised in each year, by area; the filters apply. The current year is to date.");
+    filters.addEventListener("change", event => {
+      const box = event.target.closest("input[data-facet]");
+      if (!box) return;
+      const chosen = maseBessState.filters[box.dataset.facet];
+      if (box.checked) chosen.add(box.value); else chosen.delete(box.value);
+      maseBessState.page = 0;
+      update();
+    });
+    filters.addEventListener("click", event => {
+      const head = event.target.closest(".queue-group-head");
+      if (head) {
+        const key = head.dataset.group;
+        if (maseBessState.closed.has(key)) maseBessState.closed.delete(key); else maseBessState.closed.add(key);
+        head.parentElement.classList.toggle("closed");
+        head.setAttribute("aria-expanded", String(!maseBessState.closed.has(key)));
+        return;
+      }
+      if (event.target.closest(".queue-clear")) {
+        Object.values(maseBessState.filters).forEach(chosen => chosen.clear());
+        maseBessState.page = 0;
+        update();
+      }
+    });
+
+    function drawFilters() {
+      const any = Object.values(maseBessState.filters).some(chosen => chosen.size);
+      filters.innerHTML = MASE_BESS_FACETS.map(facet => {
+        const counts = new Map();
+        plants.forEach(plant => {
+          if (!maseBessMatches(plant, facet.key)) return;
+          new Set(facet.values(plant)).forEach(value => counts.set(value, (counts.get(value) || 0) + 1));
+        });
+        const chosen = maseBessState.filters[facet.key];
+        let values = facet.order ? facet.order.slice() : [...new Set(plants.flatMap(facet.values))].sort();
+        if (facet.descending) values.reverse();
+        values = values.filter(value => counts.get(value) || chosen.has(value));
+        const closed = maseBessState.closed.has(facet.key);
+        return `<div class="queue-group${closed ? " closed" : ""}"><button type="button" class="queue-group-head" data-group="${facet.key}" aria-expanded="${!closed}">` +
+          `${facet.title} <span>${chosen.size ? `${chosen.size} selected` : values.length}</span></button><div class="queue-options">` +
+          values.map(value => `<label class="queue-option"><input type="checkbox" data-facet="${facet.key}" ` +
+            `value="${escapeHtml(value)}"${chosen.has(value) ? " checked" : ""}>${escapeHtml(facet.label(value))}` +
+            `<span class="count">${formatNumber(counts.get(value) || 0)}</span></label>`).join("") + `</div></div>`;
+      }).join("") + (any ? `<button type="button" class="queue-clear">Clear all filters</button>` : "");
+    }
+
+    function drawChart() {
+      const years = [...new Set(plants.map(plant => plant.year))].filter(year => year !== "Unknown").sort();
+      const areas = [...Object.keys(MASE_BESS_AREAS), "Not stated"].filter(area => shown.some(plant => plant.area === area));
+      const series = areas.map(area => stackedBar(area, (MASE_BESS_AREAS[area] || {}).color || "--muted",
+        years.map(year => shown.filter(plant => plant.area === area && plant.year === year)
+          .reduce((sum, plant) => sum + (plant.mw || 0), 0) / 1000)));
+      chart.setOption({
+        animation: false, grid: { left: 44, right: 12, top: 30, bottom: 24 }, legend: queueLegend(areas),
+        tooltip: queueTooltip(items => `<b>${items[0].axisValue}</b><br>` + items.filter(item => item.value)
+          .map(item => `${item.marker}${item.seriesName}: ${formatNumber(item.value, 2)} GW`).join("<br>") +
+          `<br>Total: ${formatNumber(items.reduce((sum, item) => sum + item.value, 0), 2)} GW`),
+        xAxis: { type: "category", data: years, axisLabel: queueAxisLabel(), axisTick: { show: false } },
+        yAxis: { type: "value", name: "GW", nameTextStyle: queueAxisLabel(), axisLabel: queueAxisLabel(),
+          splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+        series
+      }, true);
+    }
+
+    function update() {
+      shown = plants.filter(plant => maseBessMatches(plant));
+      const mw = shown.reduce((sum, plant) => sum + (plant.mw || 0), 0);
+      const transferred = shown.filter(plant => plant.holder !== plant.applicant).length;
+      body.querySelector(".queue-count").innerHTML = `<b>${formatNumber(shown.length)}</b> of ${formatNumber(plants.length)} plants ` +
+        `<small title="Sum of the MW in the decrees of the plants shown; ${formatNumber(transferred)} of them changed hands since">` +
+        `· ${formatGwValue(mw)}</small>`;
+      sortSelect.value = `${maseBessState.sort}|${maseBessState.direction}`;
+      drawFilters();
+      drawChart();
+      queueTable(body.querySelector(".queue-table-host"), {
+        columns: MASE_BESS_COLUMNS, rows: shown, state: maseBessState, pageSize: 25,
+        rowKey: row => row.id, detail: maseBessDetail, empty: "No plant matches the filters.",
+        onDraw: () => { sortSelect.value = `${maseBessState.sort}|${maseBessState.direction}`; }
+      });
+    }
+    update();
+  }
+
+  const QUEUE_FILES = { projects: "mase_projects.json", storage: "mase_storage.json", connections: "connections.json", units: "gme_units.json" };
 
   function renderQueue() {
     if (currentSection !== "queue") return;
@@ -15439,6 +15681,7 @@ move the slider above to another one`,
     queueCharts = [];
     queueMount.innerHTML = "";
     if (queueTab === "projects") renderProjects();
+    else if (queueTab === "storage") renderMaseBess();
     else if (queueTab === "connections") renderConnections();
     else renderUnits();
   }
