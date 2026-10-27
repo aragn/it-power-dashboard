@@ -55,6 +55,10 @@ REQUEST_PAUSE_SECONDS = 20
 MAX_RETRIES = 6
 INITIAL_RETRY_SECONDS = 30
 
+# Retry settings for timeouts, dropped connections and HTTP 5xx.
+SERVER_RETRY_SECONDS = [30, 90, 180]
+MAX_SERVER_RETRIES = len(SERVER_RETRY_SECONDS)
+
 # ============================================================================
 # AUTHENTICATION
 # ============================================================================
@@ -142,15 +146,38 @@ def request_chunk(token, start_date, end_date, granularity=None, segment="MGP",
     }
 
     retry_seconds = INITIAL_RETRY_SECONDS
+    rate_limits = 0
+    server_failures = 0
 
-    for attempt in range(MAX_RETRIES + 1):
+    while True:
 
-        response = requests.post(
-            DATA_URL,
-            headers=headers,
-            json=body,
-            timeout=180,
-        )
+        # ------------------------------------------------------------
+        # Server trouble: a timeout, a dropped connection or a 5xx.
+        # GME has these for a few minutes at a time, so a short
+        # backoff usually gets through.
+        # ------------------------------------------------------------
+
+        try:
+            response = requests.post(
+                DATA_URL,
+                headers=headers,
+                json=body,
+                timeout=180,
+            )
+            if response.status_code >= 500:
+                response.raise_for_status()
+        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as error:
+            server_failures += 1
+            if server_failures > MAX_SERVER_RETRIES:
+                raise
+            wait_seconds = SERVER_RETRY_SECONDS[server_failures - 1]
+            print(
+                f"  GME request, attempt {server_failures} of "
+                f"{MAX_SERVER_RETRIES + 1}: {type(error).__name__}; "
+                f"trying again in {wait_seconds}s"
+            )
+            time.sleep(wait_seconds)
+            continue
 
         # ------------------------------------------------------------
         # Rate limit
@@ -158,8 +185,10 @@ def request_chunk(token, start_date, end_date, granularity=None, segment="MGP",
 
         if response.status_code == 429:
 
-            if attempt >= MAX_RETRIES:
+            if rate_limits >= MAX_RETRIES:
                 response.raise_for_status()
+
+            rate_limits += 1
 
             retry_after = response.headers.get("Retry-After")
 
