@@ -20776,7 +20776,7 @@ move the slider above to another one`,
    * of etl/imbalance_estimate.py (unit_imbalance/, full version only: GME's
    * offers per unit).  The imbalance (metered minus schedule) is valued at
    * the zone's imbalance price against its MGP price.  Storage is metered
-   * discharging only, so its charging quarter-hours are left out.
+   * charging too (below zero): its metered energy is charge plus discharge.
    */
   const UNITIMB_MARKETS = [["mgp", "MGP"], ["mia", "MI-A"], ["xbid", "MI-XBID"], ["msd", "MSD"], ["mb", "MB"]];
   const UNITIMB_COLORS = ["--border-1", "--border-2", "--border-3", "--border-4", "--border-5"];
@@ -20814,7 +20814,7 @@ move the slider above to another one`,
     const upto = Math.max(1, UNITIMB_MARKETS.findIndex(([key]) => key === state.upto) + 1);
     const units = file.units.map(([code, source, operator, zone, psr, mw], index) => ({ index, code, source, operator, zone, psr, mw }));
     const levels = UNITIMB_MARKETS.map(() => ({ abs: 0, net: 0 }));
-    const total = { metered: 0, schedule: 0, long: 0, short: 0, abs: 0, value: 0, charging: 0 };
+    const total = { metered: 0, schedule: 0, long: 0, short: 0, abs: 0, value: 0 };
     const groups = {};
     const rows = [];
     units.forEach(unit => {
@@ -20822,7 +20822,7 @@ move the slider above to another one`,
       const group = unitImbGroup(unit);
       if (state.group !== "all" && group !== state.group) return;
       const storage = unitImbStorage(unit);
-      const row = { ...unit, group, storage, metered: 0, schedule: 0, long: 0, short: 0, abs: 0, value: 0, charging: 0, peak: 0, worstDay: null, worstAbs: -1 };
+      const row = { ...unit, group, storage, metered: 0, schedule: 0, long: 0, short: 0, abs: 0, value: 0, peak: 0, worstDay: null, worstAbs: -1 };
       (file.data[unit.index] || []).forEach((day, d) => {
         if (!day) return;
         const date = file.days[d];
@@ -20835,14 +20835,13 @@ move the slider above to another one`,
           const partial = [];
           let schedule = 0;
           for (let k = 1; k <= UNITIMB_MARKETS.length; k += 1) { schedule += day[k][q] || 0; partial.push(schedule); }
-          // Storage: ENTSO-E has its output only; a quarter-hour it was scheduled to charge is not measured.
-          if (storage && partial[partial.length - 1] < 0) { row.charging += 0.25; continue; }
           partial.forEach((value, level) => { levels[level].abs += Math.abs(m - value) * 0.25; levels[level].net += (m - value) * 0.25; });
           const final = partial[upto - 1];
           const e = (m - final) * 0.25;
-          row.metered += m * 0.25; row.schedule += final * 0.25; row.abs += Math.abs(e); dayAbs += Math.abs(e);
+          // Energy both ways: storage's charging (below zero) counts like its discharge.
+          row.metered += Math.abs(m) * 0.25; row.schedule += Math.abs(final) * 0.25; row.abs += Math.abs(e); dayAbs += Math.abs(e);
           if (e > 0) row.long += e; else row.short -= e;
-          row.peak = Math.max(row.peak, m);
+          row.peak = Math.max(row.peak, Math.abs(m));
           const pI = price.imbalance ? price.imbalance[q] : null, pD = price.da ? price.da[q] : null;
           if (Number.isFinite(pI) && Number.isFinite(pD)) row.value += e * (pI - pD);
         }
@@ -20881,7 +20880,8 @@ move the slider above to another one`,
           "<p><b>Metered:</b> ENTSO-E's actual generation per generation unit (16.1.A), matched to GME's unit by its code (ENTSO-E names the units UP_…); several generation units of one GME unit are added up.</p>" +
           "<p><b>Schedule:</b> per quarter-hour, the unit's accepted sales minus purchases in the MGP and the three MI-A auctions, its MI-XBID fills (an hourly product in each of its four quarter-hours), its accepted MSD energy offers (GR1–GR4 and other services, up minus down; the secondary reserve band and start-ups left out) and its accepted MB offers (secondary regulation energy included).</p>" +
           "<p><b>Valued:</b> imbalance MWh × (the zone's imbalance price, ENTSO-E 17.1.G − its MGP price): what producing more or less than scheduled earned or cost against trading it day-ahead. Terna's own settlement of relevant units (its corrections and non-arbitrage rules) is not modelled.</p>" +
-          "<p><b>Not seen:</b> ENTSO-E gives storage output only, never its charging, so batteries and pumped hydro are measured on the quarter-hours they were scheduled to discharge. ENTSO-E's figures may be gross of the plant's own consumption where GME's schedules are net: a unit always a little long may be that, not an imbalance.</p>") + `</div>`, false);
+          "<p><b>Storage:</b> ENTSO-E gives batteries and pumped hydro their charging as a series of its own, shown below zero; their metered energy and schedule count charge plus discharge.</p>" +
+          "<p><b>Not seen:</b> ENTSO-E's figures may be gross of the plant's own consumption where GME's schedules are net: a unit always a little long may be that, not an imbalance.</p>") + `</div>`, false);
     },
     results: () =>
       `<section id="unitimb-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Results</div>` +
@@ -20938,8 +20938,7 @@ move the slider above to another one`,
       anaTile("Metered output", bessMwh(t.metered), `${results.rows.length} units · schedule ${bessMwh(t.schedule)}`) +
       anaTile("Absolute imbalance", anaPct(t.metered ? t.abs / t.metered : NaN, 1), `of the metered energy · ${bessMwh(t.abs)}`) +
       anaTile("Long / short", `${bessMwh(t.long)} / ${bessMwh(t.short)}`, `net ${t.long >= t.short ? "long" : "short"} ${bessMwh(Math.abs(t.long - t.short))}`) +
-      anaTile("Against day-ahead", bessMoney(t.value), `${anaSigned(t.metered ? t.value / t.metered : NaN, 2)} per MWh metered · below zero a cost`) +
-      (t.charging ? anaTile("Storage charging", `${formatNumber(t.charging, 0)} h`, "unit-hours scheduled to charge: not measured") : "");
+      anaTile("Against day-ahead", bessMoney(t.value), `${anaSigned(t.metered ? t.value / t.metered : NaN, 2)} per MWh metered · below zero a cost`);
     const first = results.levels[0], last = results.levels[results.levels.length - 1];
     reading.innerHTML = `<b>Reading:</b> against the MGP schedule alone the units missed by ${anaPct(t.metered ? first.abs / t.metered : NaN, 1)} of their metered energy; ` +
       `with every market's changes, by ${anaPct(t.metered ? last.abs / t.metered : NaN, 1)}. ` +
@@ -20988,7 +20987,7 @@ move the slider above to another one`,
     // Table.
     document.getElementById("unitimb-table").innerHTML = `<table class="bess-table"><thead><tr><th>Unit</th><th>Technology</th><th>Zone</th><th>Operator</th><th>MW</th>` +
       `<th>Metered</th><th>Schedule</th><th>Long</th><th>Short</th><th>Absolute, % of metered</th><th>Against day-ahead</th><th>€/MWh metered</th></tr></thead><tbody>` +
-      results.rows.map(row => `<tr data-unit="${row.code}" class="unitimb-row"><td>${row.code}${row.storage ? '<span class="unitimb-note">discharging only</span>' : ""}</td>` +
+      results.rows.map(row => `<tr data-unit="${row.code}" class="unitimb-row"><td>${row.code}${row.storage ? '<span class="unitimb-note">charge + discharge</span>' : ""}</td>` +
         `<td>${groupLabel(row.group)}</td><td>${row.zone || "—"}</td><td>${row.operator || "—"}</td>` +
         `<td>${row.mw ? formatNumber(row.mw, 0) : "—"}</td><td>${bessMwh(row.metered)}</td><td>${bessMwh(row.schedule)}</td><td>${bessMwh(row.long)}</td><td>${bessMwh(row.short)}</td>` +
         `<td>${anaPct(row.metered ? row.abs / row.metered : NaN, 1)}</td><td>${bessMoney(row.value)}</td><td>${anaSigned(row.metered ? row.value / row.metered : NaN, 2)}</td></tr>`).join("") +

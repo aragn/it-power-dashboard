@@ -24,10 +24,9 @@ the page to value the imbalance.
 
 Units are matched by name: ENTSO-E names its generation units by their GME
 code (UP_...), or a production unit name holding it (IM_<n>UP_...); a GME
-unit with several ENTSO-E generation units gets their sum.  ENTSO-E
-publishes storage (batteries, pumped hydro) as output only, never their
-charging: the page measures those on the quarter-hours they were scheduled
-to discharge.
+unit with several ENTSO-E generation units gets their sum.  Storage
+(batteries, pumped hydro) is metered charging too, below zero
+(fetch_unit_generation.py).
 
   imbalance_estimate.py --month 2026-07
 """
