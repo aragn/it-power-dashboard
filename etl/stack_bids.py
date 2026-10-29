@@ -44,7 +44,9 @@ real days with their own bids).
 Used by the backtest (forecast_backtest.py, model "stack-bids"):
 point_forecasts(data, days, horizon), days in parallel; by the daily forecast
 (forecast_daily.py): forecast_day(data, day), in the process, with what is on
-file at the time (stack_classic.LIVE_CUTOFF_HOUR).  On its own:
+file at the time (stack_classic.LIVE_CUTOFF_HOUR), and with merit the
+composite day's merit order (merit_order) for the Stack model card.  On its
+own:
 
   stack_bids.py --date 2026-10-15 [--date ...]
 """
@@ -414,6 +416,121 @@ class BidInputs:
         return offers, transits
 
 
+def merit_order(offers, network, neighbours, sources):
+    """A cleared day's merit order per Italian zone and hour, for the Stack
+    model card: the sale offers summed by price step (PRICE_ROUNDING) and
+    source, the purchase bids by price step, the coupled neighbours' import
+    offers and export bids around their price, each with the MW the clearing
+    accepted (a block order is accepted across its hours, so at a price above
+    the zone's in some); each zone's price and its net import over the links
+    (from the other zones and the borders' virtual zones; positive into the
+    zone).  Per zone and hour, supply as flat [price, MW, source index, MW
+    accepted, ...] and demand as [price, MW, MW accepted, ...], prices rising."""
+    hours = offers["periods"]
+    units = offers["units"]
+    meta = network.meta.get("steps", {})
+    dispatch = network.generators_t.p
+
+    def step(price):
+        return round(round(price / PRICE_ROUNDING) * PRICE_ROUNDING, 2)
+
+    def series(name):
+        return dispatch[name].to_numpy() if name in dispatch else np.zeros(hours)
+
+    supply = {zone: [defaultdict(lambda: [0.0, 0.0]) for _ in range(hours)] for zone in ZONES}
+    demand = {zone: [defaultdict(lambda: [0.0, 0.0]) for _ in range(hours)] for zone in ZONES}
+    # The simple orders are one generator per zone and price (stack_clear.build): its dispatch is
+    # shared among the sources at that price by their MW.
+    simple = {"supply": defaultdict(lambda: np.zeros(hours)), "demand": defaultdict(lambda: np.zeros(hours))}
+    rows = []
+    for table, side in (("offers", "supply"), ("bids", "demand")):
+        steps = offers[table]
+        for unit, hour, price, flags, mw in zip(steps["unit"], steps["period"], steps["price"], steps["flags"], steps["mw"]):
+            zone = units[unit][2]
+            if zone not in supply or mw <= 0:
+                continue
+            source = sources.get(units[unit][0]) or "unknown"
+            key = (step(price), source) if side == "supply" else step(price)
+            (supply if side == "supply" else demand)[zone][hour][key][0] += mw
+            if not flags & stack_clear.BLOCK:
+                simple[side][(zone, price)][hour] += mw
+                rows.append((side, zone, hour, price, key, mw))
+    steps = offers["demand"]
+    for zone, hour, price, mw in zip(steps["zone"], steps["period"], steps["price"], steps["mw"]):
+        if zone in demand and mw > 0:
+            demand[zone][hour][step(price)][0] += mw
+            simple["demand"][(zone, price)][hour] += mw
+            rows.append(("demand", zone, hour, price, step(price), mw))
+
+    accepted = {}
+    for name, info in meta.items():
+        if info[0] in ("supply", "demand"):
+            accepted[(info[0], info[1], info[2])] = np.abs(series(name))
+        elif info[0] == "linked":
+            _, zone, unit, price = info
+            if zone not in supply:
+                continue
+            got = series(name)
+            for hour in range(hours):
+                if got[hour] > 0:
+                    supply[zone][hour][(step(price), sources.get(units[unit][0]) or "unknown")][1] += got[hour]
+                elif got[hour] < 0:
+                    demand[zone][hour][step(price)][1] -= got[hour]
+    for side, zone, hour, price, key, mw in rows:
+        total = simple[side][(zone, price)][hour]
+        got = accepted.get((side, zone, price))
+        if got is not None and total > 0:
+            (supply if side == "supply" else demand)[zone][hour][key][1] += mw * min(1.0, got[hour] / total)
+
+    borders = {border["name"]: border for border in neighbours or ()}
+    share = 1.0 / len(stack_clear.NEIGHBOUR_STEPS)
+    for name, info in meta.items():
+        if info[0] != "neighbour" or info[4] not in borders or info[1] not in supply:
+            continue
+        _, zone, direction, spread, country = info
+        border, got = borders[country], series(name)
+        for hour in range(hours):
+            price = float(border["price"][hour])
+            if not np.isfinite(price):
+                continue
+            if direction == "import" and border["import"][hour] > 0:
+                cell = supply[zone][hour][(step(price + spread), "interconnection")]
+                cell[0] += border["import"][hour] * share
+                cell[1] += max(got[hour], 0.0)
+            elif direction == "export" and border["export"][hour] > 0:
+                cell = demand[zone][hour][step(price - spread)]
+                cell[0] += border["export"][hour] * share
+                cell[1] += max(-got[hour], 0.0)
+
+    net = {zone: np.zeros(hours) for zone in ZONES}
+    flows = network.links_t.p0
+    for name, link in network.links.iterrows():
+        if name in flows:
+            if link.bus1 in net:
+                net[link.bus1] += flows[name].to_numpy()
+            if link.bus0 in net:
+                net[link.bus0] -= flows[name].to_numpy()
+    for name in network.loads.index:
+        zone = name.split(" ", 1)[1] if name.startswith("coupled ") else None
+        if zone in net and name in network.loads_t.p_set:
+            net[zone] -= network.loads_t.p_set[name].to_numpy()       # a coupled border's flow in: a negative load
+    prices = network.buses_t.marginal_price
+
+    names = sorted({source for zone in ZONES for table in supply[zone] for _, source in table})
+    index = {source: i for i, source in enumerate(names)}
+    out = {}
+    for zone in ZONES:
+        out[zone] = {
+            "price": [round(float(value), 2) for value in prices[zone].to_numpy()],
+            "net_import": [round(float(value), 1) for value in net[zone]],
+            "supply": [[value for (price, source), (mw, got) in sorted(table.items()) if mw >= 0.05
+                        for value in (price, round(mw, 1), index[source], round(min(got, mw), 1))] for table in supply[zone]],
+            "demand": [[value for price, (mw, got) in sorted(table.items()) if mw >= 0.05
+                        for value in (price, round(mw, 1), round(min(got, mw), 1))] for table in demand[zone]],
+        }
+    return {"hours": hours, "price_step": PRICE_ROUNDING, "sources": names, "zones": out}
+
+
 def drop_zone(offers, zone):
     """An offers file without the offers and bids of a zone's units and its demand bids."""
     units = offers["units"]
@@ -506,9 +623,11 @@ def _forecast(day):
         neighbours = inputs.neighbours(day) if inputs.elastic else None
         if _STATE.get("composite") and len(references) > 1:
             moved = [inputs.day(day, reference, references if _STATE.get("replace") else ()) for reference in references]
+            merged = composite([offers for offers, _ in moved])
             with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-                prices, _ = stack_clear.clear(day, composite([offers for offers, _ in moved]), moved[0][1],
-                                              neighbours=neighbours)
+                prices, network = stack_clear.clear(day, merged, moved[0][1], neighbours=neighbours)
+            if _STATE.get("merit"):
+                _STATE["merit_order"] = merit_order(merged, network, neighbours, inputs.sources)
             return day, np.stack([prices[zone] for zone in ZONES])
         for reference in references:
             offers, transits = inputs.day(day, reference, references if _STATE.get("replace") else ())
@@ -546,14 +665,16 @@ def point_forecasts(data, days, horizon=25, workers=WORKERS, analogs=1, pool="we
 
 
 def forecast_day(data, day, horizon=25, analogs=1, pool="weekday", combine="median", elastic=False, replace=False,
-                 swiss=False, composite_days=False, cutoff_hour=stack_classic.LIVE_CUTOFF_HOUR):
+                 swiss=False, composite_days=False, cutoff_hour=stack_classic.LIVE_CUTOFF_HOUR, merit=False):
     """(prices, what it was made from) of one day, made in this process with
     data as it is (the live forecast's: its weather run, the outages on
     file): (zones, horizon) hourly prices, and the reference days, the day
-    of GME's limits and the thermal capacity out; prices None when it cannot
-    be made (no reference day on file, the clearing failing: the reason is
-    printed)."""
+    of GME's limits and the thermal capacity out (with merit and
+    composite_days, also the day's merit order, merit_order); prices None
+    when it cannot be made (no reference day on file, the clearing failing:
+    the reason is printed)."""
     _setup(data, [day], analogs, pool, combine, elastic, replace, swiss, composite_days, cutoff_hour)
+    _STATE["merit"] = merit
     try:
         _, prices = _forecast(day)
         inputs = _STATE["inputs"]
@@ -562,6 +683,8 @@ def forecast_day(data, day, horizon=25, analogs=1, pool="weekday", combine="medi
                 "limits_day": inputs.limits_day(day).isoformat(),
                 "thermal_out_mw": round(float(sum(mw.mean() for mw in out.values()))),
                 "thermal_out_units": sum(1 for mw in out.values() if mw.max() > 0)}
+        if merit:
+            info["merit"] = _STATE.get("merit_order")
     finally:
         _STATE.clear()
     if prices is None:

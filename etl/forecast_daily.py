@@ -49,8 +49,12 @@ from zones import DATA_DIR, ZONE_NAMES  # noqa: E402
 LATEST_PATH = os.path.join(DATA_DIR, "forecast", "latest.json")
 HISTORY_PATH = os.path.join(DATA_DIR, "forecast", "history.json")
 STACK_HISTORY_PATH = os.path.join(DATA_DIR, "forecast", "stack_history.json")
+STACK_MERIT_PATH = os.path.join(DATA_DIR, "forecast", "stack_merit.json")
 
 MODEL = "hybrid"
+# The stack whose merit order the Stack model card shows (one clearing, so one
+# merit order; the blend's stack is the median of five clearings).
+COMPOSITE = "stack-bids-v3"
 WEEK_MODEL = "timestral-209m-week"
 # Quantiles in latest.json's week.
 WEEK_LEVELS = (0.05, 0.25, 0.5, 0.75, 0.95)
@@ -134,14 +138,51 @@ def forecast(data, day, model, stack_points):
     return quantiles, model, parts, stack_made
 
 
-def stack_latest(stack_made):
+def composite_merit(data, day, made_at):
+    """The composite stack's forecast for the day (zones, HORIZON) and its
+    merit order, written to stack_merit.json (the Stack model card: the
+    forecast day's only, replaced each run), with the day's prices when they
+    are out; None, the file left as it was, when it cannot be made."""
+    import stack_bids
+    spec = backtest.MODELS[COMPOSITE]
+    print(f"Forecasting {day} with {COMPOSITE} (its merit order)", flush=True)
+    try:
+        point, info = stack_bids.forecast_day(data, day, backtest.HORIZON, merit=True, **backtest.stack_options(spec))
+        merit = info.pop("merit", None)
+        if point is None or merit is None:
+            raise RuntimeError("no reference day on file, or the clearing failed")
+    except Exception as error:   # the forecast goes out without it
+        message = f"The composite stack's merit order could not be made ({type(error).__name__}: {error})."
+        print(f"  {message}", flush=True)
+        if os.environ.get("GITHUB_STEP_SUMMARY"):
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+                handle.write(message + "\n")
+        return None
+    span = data.day_slice(day)
+    for zone in ZONES:
+        actual = data.series[f"{zone}|price"][span]
+        merit["zones"][zone]["actual"] = rounded(actual) if np.isfinite(actual).all() else None
+    out = {"day": day.isoformat(), "made_at": made_at, "model": COMPOSITE, "label": spec["label"], **info, **merit,
+           "description": "The composite stack's simulated MGP for the day: per zone and hour, the sale offers summed "
+                          "by price step and source (the moved real bids of the reference days, each at 1/5 of its MW, "
+                          "and the coupled neighbours' import offers), the purchase bids by price step, the cleared "
+                          "price and the net import over the links; the actual price once out (ENTSO-E)."}
+    with open(STACK_MERIT_PATH, "w", encoding="utf-8") as handle:
+        json.dump(out, handle, separators=(",", ":"))
+    return point
+
+
+def stack_latest(stack_made, composite, hours):
     """latest.json's "stack", for the Stack model card: the stack's own
     forecast (STACK_LEVELS per zone and hour) and what it was made from, or
-    why it could not be made."""
+    why it could not be made; and the composite stack's forecast."""
     if not stack_made:
         return None
     model = stack_made["model"]
     out = {"model": model, "label": backtest.MODELS[model]["label"]}
+    if composite is not None:
+        out["composite"] = {"model": COMPOSITE, "label": backtest.MODELS[COMPOSITE]["label"],
+                            "median": {zone: rounded(composite[z, :hours]) for z, zone in enumerate(ZONES)}}
     if "error" in stack_made:
         return dict(out, error=stack_made["error"])
     quantiles = stack_made["quantiles"]
@@ -161,6 +202,8 @@ def stack_points(history):
     """{day: (zones, HORIZON)} of the stack's forecasts kept."""
     out = {}
     for key, entry in history["forecasts"].items():
+        if "point" not in entry:
+            continue
         point = np.full((len(ZONES), backtest.HORIZON), np.nan)
         for z, zone in enumerate(ZONES):
             values = np.array([np.nan if v is None else v for v in entry["point"][zone]], dtype=float)
@@ -231,37 +274,48 @@ def week(data, decision_day):
     }
 
 
-def keep_stack(stack_history, day, stack_made, made_at, before_gate, data, last_prices):
-    """The stack's forecast for the day into stack_history.json, kept as
-    history.json's are (one made after the gate never replaces one before),
-    and the days whose prices are now out scored (MAE per zone and all)."""
+def keep_stack(stack_history, day, stack_made, made_at, before_gate, data, last_prices, composite=None):
+    """The stack's forecast for the day (and the composite stack's, the merit
+    order's) into stack_history.json, kept as history.json's are (one made
+    after the gate never replaces one before), and the days whose prices are
+    now out scored (MAE per zone and all: scores, composite_scores)."""
     entries = stack_history.setdefault("forecasts", {})
     previous = entries.get(day.isoformat())
-    if stack_made and "point" in stack_made and not (previous and previous.get("before_gate") and not before_gate):
-        point, hours = stack_made["point"], data.hours[day]
-        entries[day.isoformat()] = {"made_at": made_at, "before_gate": before_gate, "model": stack_made["model"],
-                                    "reference_days": stack_made["info"]["reference_days"],
-                                    "point": {zone: rounded(point[z, :hours]) for z, zone in enumerate(ZONES)}}
+    hours = data.hours[day]
+    made = stack_made and "point" in stack_made
+    if (made or composite is not None) and not (previous and previous.get("before_gate") and not before_gate):
+        entry = {"made_at": made_at, "before_gate": before_gate}
+        if made:
+            entry.update(model=stack_made["model"], reference_days=stack_made["info"]["reference_days"],
+                         point={zone: rounded(stack_made["point"][z, :hours]) for z, zone in enumerate(ZONES)})
+        if composite is not None:
+            entry["composite"] = {zone: rounded(composite[z, :hours]) for z, zone in enumerate(ZONES)}
+        entries[day.isoformat()] = entry
     for key, entry in entries.items():
         past = date.fromisoformat(key)
-        if "scores" in entry or past not in data.day_start or past > last_prices:
+        if past not in data.day_start or past > last_prices:
             continue
-        errors = []
-        for zone in ZONES:
-            actual = data.series[f"{zone}|price"][data.day_slice(past)]
-            point = np.array([np.nan if v is None else v for v in entry["point"][zone]], dtype=float)
-            if len(point) != len(actual) or not np.isfinite(actual).all():
-                break
-            errors.append(np.abs(point - actual))
-        else:
-            entry["scores"] = {zone: round(float(np.nanmean(e)), 2) for zone, e in zip(ZONES, errors)}
-            entry["scores"]["ALL"] = round(float(np.nanmean(np.concatenate(errors))), 2)
+        for field, scores in (("point", "scores"), ("composite", "composite_scores")):
+            if field not in entry or scores in entry:
+                continue
+            errors = []
+            for zone in ZONES:
+                actual = data.series[f"{zone}|price"][data.day_slice(past)]
+                point = np.array([np.nan if v is None else v for v in entry[field][zone]], dtype=float)
+                if len(point) != len(actual) or not np.isfinite(actual).all():
+                    break
+                errors.append(np.abs(point - actual))
+            else:
+                entry[scores] = {zone: round(float(np.nanmean(e)), 2) for zone, e in zip(ZONES, errors)}
+                entry[scores]["ALL"] = round(float(np.nanmean(np.concatenate(errors))), 2)
     stack_history["forecasts"] = dict(sorted(entries.items()))
     stack_history["description"] = (
         "The stack model's price forecast kept for each day (the last made before the 12:00 gate), EUR/MWh per zone "
-        "and hour, with the reference days it was cleared from and, once the day's prices are out, its mean absolute "
-        "error per zone and all zones (scores): its band in the daily forecast comes from its errors over the "
-        "previous days.  Entries marked backtest were made as the backtest's (inputs as of the morning before).")
+        "and hour, with the reference days it was cleared from, the composite stack's forecast (composite: the "
+        "Stack model card's merit order) and, once the day's prices are out, their mean absolute errors per zone "
+        "and all zones (scores, composite_scores): the stack's band in the daily forecast comes from its errors "
+        "over the previous days.  Entries marked backtest were made as the backtest's (inputs as of the morning "
+        "before).")
     with open(STACK_HISTORY_PATH, "w", encoding="utf-8") as handle:
         json.dump(stack_history, handle, separators=(",", ":"))
 
@@ -287,6 +341,8 @@ def main():
     print(f"Forecasting {day} with {args.model}", flush=True)
     stack_history = load_stack_history()
     quantiles, model, parts, stack_made = forecast(data, day, args.model, stack_points(stack_history))
+    # The composite stack's merit order, with a blend that has the stack in it.
+    composite = composite_merit(data, day, made_at.strftime("%Y-%m-%dT%H:%MZ")) if stack_made else None
     status = inputs_status(data, day)
     before_gate = made_at < gate(day)
     today = day - timedelta(days=1)
@@ -307,7 +363,7 @@ def main():
         # A blend's models: each one's weight and median per zone.
         "parts": parts,
         # The stack's own forecast and inputs (the Stack model card).
-        "stack": stack_latest(stack_made),
+        "stack": stack_latest(stack_made, composite, data.hours[day]),
         # Today's prices (ENTSO-E), to draw the forecast after them.
         "today": {"day": today.isoformat(),
                   "prices": {zone: rounded(data.series[f"{zone}|price"][data.day_slice(today)]) for zone in ZONES}},
@@ -350,7 +406,7 @@ def main():
     with open(HISTORY_PATH, "w", encoding="utf-8") as handle:
         json.dump(history, handle, separators=(",", ":"))
     if stack_made or stack_history.get("forecasts"):
-        keep_stack(stack_history, day, stack_made, latest["made_at"], before_gate, data, last_prices)
+        keep_stack(stack_history, day, stack_made, latest["made_at"], before_gate, data, last_prices, composite)
 
     medians = {zone: float(np.mean(quantiles[z, :, backtest.MEDIAN])) for z, zone in enumerate(ZONES)}
     print(f"  Made {latest['made_at']} ({'before' if before_gate else 'after'} the gate {latest['gate']})")

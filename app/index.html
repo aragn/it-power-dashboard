@@ -26,7 +26,7 @@
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
       --chart-pun:#d9dde2; --chart-eua:#e7a84b; --chart-igi:#4fc3c9; --chart-srmc:#ef6b5b; --res-actual:#d9dde2; --res-day-ahead:#5b9cff; --res-intraday:#d55181; --chart-generation:#5ecb8a; --chart-load:#5b9cff; --chart-residual:#e0e3e7;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
-      --fc-actual:#e0e3e7; --fc-naive:#8c949e; --fc-lear:#e7a84b; --fc-ts-ar:#7fd1c5; --fc-ts28:#5b9cff; --fc-ts28-long:#c783ff; --fc-ts209:#5ecb8a; --fc-ensemble:#ef6fae; --fc-lear-res:#f2cf8f; --fc-ts28-res:#a8c8ff; --fc-lear-wx:#ff9f5a; --fc-ts28-wx:#4fc3c9; --fc-ts209-wx:#b5d65a; --fc-ts209-ar:#ff7b72; --fc-hybrid:#ffd54f; --fc-stack-classic:#a1887f; --fc-stack-bids:#c9a27e; --fc-stack-analogs:#e8a25c; --fc-stack-v2:#d98c8c; --fc-stack-v3:#f2b880;
+      --fc-actual:#e0e3e7; --fc-naive:#8c949e; --fc-lear:#e7a84b; --fc-ts-ar:#7fd1c5; --fc-ts28:#5b9cff; --fc-ts28-long:#c783ff; --fc-ts209:#5ecb8a; --fc-ensemble:#ef6fae; --fc-lear-res:#f2cf8f; --fc-ts28-res:#a8c8ff; --fc-lear-wx:#ff9f5a; --fc-ts28-wx:#4fc3c9; --fc-ts209-wx:#b5d65a; --fc-ts209-ar:#ff7b72; --fc-hybrid:#ffd54f; --fc-stack-classic:#a1887f; --fc-stack-bids:#c9a27e; --fc-stack-analogs:#e8a25c; --fc-stack-v2:#d98c8c; --fc-stack-v3:#64b5f6;
       --mix-coal:#b8c2d0; --mix-geothermal:#b5651d; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
       --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
       --border-1:#3987e5; --border-2:#d95926; --border-3:#199e70; --border-4:#c98500; --border-5:#d55181; --border-6:#008300; --border-7:#9085e9;
@@ -57,7 +57,7 @@
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
       --chart-pun:#1f2429; --chart-eua:#b36b00; --chart-igi:#0f8a91; --chart-srmc:#c8392b; --res-actual:#1f2429; --res-day-ahead:#2f6fdb; --res-intraday:#c93d74; --chart-generation:#1f9d57; --chart-load:#2f6fdb; --chart-residual:#3d434b;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
-      --fc-actual:#1f2429; --fc-naive:#6b7480; --fc-lear:#c27a0e; --fc-ts-ar:#15998a; --fc-ts28:#2f6fdb; --fc-ts28-long:#8a4fd6; --fc-ts209:#1f9d57; --fc-ensemble:#d23f84; --fc-lear-res:#e0a643; --fc-ts28-res:#7aa5ec; --fc-lear-wx:#d9822b; --fc-ts28-wx:#0f8a91; --fc-ts209-wx:#66900f; --fc-ts209-ar:#cf3f35; --fc-hybrid:#b8860b; --fc-stack-classic:#6d4c41; --fc-stack-bids:#8d6e4a; --fc-stack-analogs:#b0601c; --fc-stack-v2:#a04848; --fc-stack-v3:#c47a2c;
+      --fc-actual:#1f2429; --fc-naive:#6b7480; --fc-lear:#c27a0e; --fc-ts-ar:#15998a; --fc-ts28:#2f6fdb; --fc-ts28-long:#8a4fd6; --fc-ts209:#1f9d57; --fc-ensemble:#d23f84; --fc-lear-res:#e0a643; --fc-ts28-res:#7aa5ec; --fc-lear-wx:#d9822b; --fc-ts28-wx:#0f8a91; --fc-ts209-wx:#66900f; --fc-ts209-ar:#cf3f35; --fc-hybrid:#b8860b; --fc-stack-classic:#6d4c41; --fc-stack-bids:#8d6e4a; --fc-stack-analogs:#b0601c; --fc-stack-v2:#a04848; --fc-stack-v3:#1565c0;
       --mix-coal:#4b5563; --mix-geothermal:#9c5a3c; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
       --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
       --border-1:#2a78d6; --border-2:#eb6834; --border-3:#1baf7a; --border-4:#eda100; --border-5:#e87ba4; --border-6:#008300; --border-7:#4a3aa7;
@@ -23931,9 +23931,12 @@ move the slider above to another one`,
    * whose bids it was cleared from, the day of GME's limits and the thermal
    * capacity out; data/forecast/stack_history.json: its forecast kept for
    * each day, with its mean absolute error once the prices are out (up to 29
-   * October 2026 the backtest's, made the same way).
+   * October 2026 the backtest's, made the same way); and
+   * data/forecast/stack_merit.json: the composite stack's simulated merit
+   * order of the forecast day, per zone and hour (replaced every day).
    */
-  const stackState = { history: null, status: null, zone: "NORD", charts: {} };
+  const stackState = { history: null, status: null, zone: "NORD", charts: {},
+    merit: null, meritStatus: null, meritZone: "NORD", meritHour: null };
   const STACK_RECORD_DAYS = 90;
   const stackDay = date => new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB",
     { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
@@ -23945,6 +23948,15 @@ move the slider above to another one`,
       .then(history => { stackState.history = history; stackState.status = "ready"; })
       .catch(error => { console.warn("The stack's history is unavailable:", error); stackState.status = "missing"; })
       .finally(() => { if (currentSection === "forecast" && forecastView === "stack" && forecastTab === "tomorrow") drawStackRecord(); });
+  }
+
+  function loadStackMerit() {
+    if (stackState.meritStatus) return;
+    stackState.meritStatus = "loading";
+    anaFetch("forecast/stack_merit.json")
+      .then(merit => { stackState.merit = merit; stackState.meritStatus = "ready"; })
+      .catch(error => { console.warn("The stack's merit order is unavailable:", error); stackState.meritStatus = "missing"; })
+      .finally(() => { if (currentSection === "forecast" && forecastView === "stack" && forecastTab === "tomorrow") drawStackMerit(); });
   }
 
   function renderStackTomorrow() {
@@ -23961,6 +23973,8 @@ move the slider above to another one`,
     drawStackTomorrow();
     loadStackHistory();
     drawStackRecord();
+    loadStackMerit();
+    drawStackMerit();
   }
 
   function buildStackTomorrow() {
@@ -23976,20 +23990,43 @@ move the slider above to another one`,
         "(GME publishes a day's offers about 8 days after the auction: these are the most like tomorrow among those out), moved " +
         "to tomorrow by the weather, Terna's load forecast, the gas and EUA prices and the outages, and cleared zone by zone " +
         "within GME's limits. Stack: the median's mean over the day; 5–95%: the mean of the hours' 5% and 95% quantiles, from the " +
-        "stack's own errors over the previous 182 days. Peak: 08:00–20:00. Timestral: Timestral 209M with weather; published: " +
-        "the forecast of the Time series model card, 0.9 Timestral + 0.1 stack.", true) +
+        "stack's own errors over the previous 182 days. Peak: 08:00–20:00. Composite: the five days' bids averaged into one day " +
+        "and cleared once (the merit order below; the best stack on its own in the backtest). Timestral: Timestral 209M with " +
+        "weather; published: the forecast of the Time series model card, 0.9 Timestral + 0.1 stack.", true) +
       forecastSection("stack-day", "Hourly: the Stack against Timestral", chart("stack-day"),
         "€/MWh. Today's prices, then tomorrow: the stack's median with its 25–75% (darker) and 5–95% bands, Timestral's median " +
         "and the published forecast's.", true,
         `<div class="merit-filters"><label class="mgp-source-filter">Zone <select id="forecast-stack-zone" aria-label="Bidding zone">${zoneOptions}</select></label></div>`) +
+      forecastSection("stack-merit", "Merit Order", chart("stack-merit"),
+        "The composite stack's simulated auction for the zone and hour: the sale offers as columns, each as wide as its MW and " +
+        "as tall as its price, coloured by source (the real bids of the reference days moved to the day, each day at a fifth " +
+        "of its MW, and the coupled neighbours' import offers around their price): first the MW the clearing accepted (solid), " +
+        "in price order, then the rest (faded); a block order is accepted across its hours, so some can stand above the " +
+        "zone's price. The purchase bids as a line, the accepted first. The zone's net import over the links comes first, " +
+        "at any price (a net export goes in front of the bids), so the accepted offers and bids end at the same volume. " +
+        "Prices on a log scale (linear between −10 and 10 €/MWh), steps of 0.5 €/MWh. Only the forecast day's: it is replaced " +
+        "every morning.", true,
+        `<div class="merit-filters"><label class="mgp-source-filter">Hour <select id="forecast-stack-hour" aria-label="Hour"></select></label>` +
+        `<label class="mgp-source-filter">Zone <select id="forecast-stack-merit-zone" aria-label="Bidding zone">${latest.zones.map(zone =>
+          `<option value="${zone.code}"${zone.code === stackState.meritZone ? " selected" : ""}>${escapeHtml(zone.name)}</option>`).join("")}</select></label></div>`) +
       forecastSection("stack-record", "Track Record", chart("stack-record"),
-        `The stack's mean absolute error each day, the last ${STACK_RECORD_DAYS} days with prices out, €/MWh: all zones and the ` +
-        "zone chosen above. Shaded: the forecasts made each morning before the gate; before them, the backtest's, made the same " +
-        "way with the inputs out the morning before.", true);
+        `The stacks' mean absolute error each day, the last ${STACK_RECORD_DAYS} days with prices out, €/MWh: all zones (solid) and the ` +
+        "zone chosen above (dashed), the stack in the published forecast (5 similar days) and the composite (the merit order's). " +
+        "Shaded: the forecasts made each morning before the gate; before them, the backtest's, made the same way with the inputs " +
+        "out the morning before.", true);
     stackState.charts = {
       day: echarts.init(document.getElementById("forecast-stack-day-chart")),
+      merit: echarts.init(document.getElementById("forecast-stack-merit-chart")),
       record: echarts.init(document.getElementById("forecast-stack-record-chart"))
     };
+    document.getElementById("forecast-stack-merit-zone").addEventListener("change", event => {
+      stackState.meritZone = event.target.value;
+      drawStackMerit();
+    });
+    document.getElementById("forecast-stack-hour").addEventListener("change", event => {
+      stackState.meritHour = Number(event.target.value);
+      drawStackMerit();
+    });
     document.getElementById("forecast-stack-zone").addEventListener("change", event => {
       stackState.zone = event.target.value;
       drawStackDay();
@@ -24035,16 +24072,18 @@ move the slider above to another one`,
       return { zone, base, low: forecastMean(quantiles[at(0.05)]), high: forecastMean(quantiles[at(0.95)]),
         peak: forecastMean(median.filter((value, hour) => hour >= 8 && hour < 20)),
         offPeak: forecastMean(median.filter((value, hour) => hour < 8 || hour >= 20)),
-        ts, published: forecastMean(latest.forecast[zone.code][publishedAt]), gap: base - ts };
+        ts, published: forecastMean(latest.forecast[zone.code][publishedAt]), gap: base - ts,
+        composite: stack.composite ? forecastMean(stack.composite.median[zone.code]) : NaN };
     });
     table.innerHTML =
       `<table class="gas-table forecast-table"><thead><tr><th>Zone</th><th class="num">Stack</th><th class="num">5–95%</th>` +
-      `<th class="num">Peak</th><th class="num">Off-peak</th><th class="num">Timestral</th><th class="num">Published</th>` +
-      `<th class="num">Stack − Timestral</th></tr></thead><tbody>` +
+      `<th class="num">Peak</th><th class="num">Off-peak</th><th class="num">Composite</th><th class="num">Timestral</th>` +
+      `<th class="num">Published</th><th class="num">Stack − Timestral</th></tr></thead><tbody>` +
       rows.map(row => `<tr><td><span class="forecast-swatch" style="background:${cssVar(anaZoneColor(row.zone.code))}"></span>${escapeHtml(row.zone.name)}</td>` +
         `<td class="num best">${forecastEuro(row.base, 1)}</td>` +
         `<td class="num muted">${forecastEuro(row.low, 0)} – ${forecastEuro(row.high, 0)}</td>` +
         `<td class="num">${forecastEuro(row.peak, 1)}</td><td class="num">${forecastEuro(row.offPeak, 1)}</td>` +
+        `<td class="num">${forecastEuro(row.composite, 1)}</td>` +
         `<td class="num">${forecastEuro(row.ts, 1)}</td><td class="num">${forecastEuro(row.published, 1)}</td>` +
         `<td class="num">${anaSigned(row.gap, 1)}</td></tr>`).join("") +
       `</tbody></table>`;
@@ -24116,6 +24155,149 @@ move the slider above to another one`,
     }, true);
   }
 
+  function drawStackMerit() {
+    const chart = stackState.charts.merit;
+    if (!chart) return;
+    if (stackState.meritStatus !== "ready") {
+      setText("forecast-stack-merit-subtitle", "");
+      anaEmpty(chart, stackState.meritStatus === "missing"
+        ? "The stack's merit order is not on file here (data/forecast/stack_merit.json)." : "Loading…");
+      return;
+    }
+    const merit = stackState.merit;
+    const zone = stackState.meritZone;
+    const data = merit.zones[zone];
+    const hours = merit.hours;
+    // At first, the zone's most expensive hour.
+    if (stackState.meritHour === null || stackState.meritHour >= hours) {
+      stackState.meritHour = data.price.reduce((best, price, hour) => (price > data.price[best] ? hour : best), 0);
+    }
+    const hour = stackState.meritHour;
+    const select = document.getElementById("forecast-stack-hour");
+    select.innerHTML = Array.from({ length: hours }, (_, h) =>
+      `<option value="${h}"${h === hour ? " selected" : ""}>${String(h).padStart(2, "0")}:00</option>`).join("");
+
+    const price = data.price[hour];
+    const actual = data.actual ? data.actual[hour] : null;
+    const net = data.net_import[hour] || 0;
+    const supplyStart = Math.max(0, net), demandStart = Math.max(0, -net);
+    // Supply after the net import: the MW the clearing accepted first, in
+    // price order, then the rest (as on the real merit order: a block order
+    // is accepted across its hours, so at a price above the zone's in some).
+    const flat = data.supply[hour] || [];
+    const steps = [];
+    for (let index = 0; index < flat.length; index += 4) {
+      steps.push({ price: flat[index], mw: flat[index + 1], source: merit.sources[flat[index + 2]], accepted: flat[index + 3] });
+    }
+    const pieces = steps.filter(step => step.accepted > 0).map(step => ({ ...step, part: step.accepted, taken: true }))
+      .sort((a, b) => a.price - b.price)
+      .concat(steps.filter(step => step.mw - step.accepted > 0.05)
+        .map(step => ({ ...step, part: step.mw - step.accepted, taken: false })).sort((a, b) => a.price - b.price));
+    const byGroup = new Map();
+    let total = supplyStart;
+    pieces.forEach(piece => {
+      const group = mgpGroup(piece.source);
+      if (!byGroup.has(group)) byGroup.set(group, []);
+      byGroup.get(group).push([total / 1000, (total + piece.part) / 1000, symlog(piece.price), piece.price, piece.part, piece.taken ? 1 : 0]);
+      total += piece.part;
+    });
+    // Demand: the accepted bids from the highest price down, then the rest.
+    const bids = [];
+    const demandFlat = data.demand[hour] || [];
+    for (let index = 0; index < demandFlat.length; index += 3) {
+      bids.push({ price: demandFlat[index], mw: demandFlat[index + 1], accepted: demandFlat[index + 2] });
+    }
+    const bidPieces = bids.filter(bid => bid.accepted > 0).map(bid => ({ price: bid.price, part: bid.accepted }))
+      .sort((a, b) => b.price - a.price)
+      .concat(bids.filter(bid => bid.mw - bid.accepted > 0.05).map(bid => ({ price: bid.price, part: bid.mw - bid.accepted }))
+        .sort((a, b) => b.price - a.price));
+    const demandLine = [];
+    let cumulative = demandStart;
+    bidPieces.forEach(bid => {
+      demandLine.push([cumulative / 1000, symlog(bid.price), bid.price]);
+      cumulative += bid.part;
+      demandLine.push([cumulative / 1000, symlog(bid.price), bid.price]);
+    });
+    const cleared = demandStart + bids.reduce((sum, bid) => sum + bid.accepted, 0);
+    // The margin: an offer or a bid at the price accepted in part; else the zones with the same price (the
+    // margin is somewhere in that area), else the price sits on a step's edge.
+    const atPrice = step => Math.abs(step.price - price) <= merit.price_step / 2 + 1e-6;
+    const inPart = step => step.accepted > 0.05 && step.mw - step.accepted > 0.05;
+    const partial = steps.filter(step => atPrice(step) && inPart(step));
+    const zoneLabel = code => (tomorrowState.latest.zones.find(item => item.code === code) || { name: code }).name;
+    const area = Object.keys(merit.zones).filter(code => code !== zone && Math.abs(merit.zones[code].price[hour] - price) < 0.01);
+    const margin = partial.length
+      ? `margin: ${mgpGroup(partial.reduce((best, step) => (step.mw > best.mw ? step : best)).source).label.toLowerCase()} offers`
+      : bids.some(bid => atPrice(bid) && inPart(bid)) ? "margin: purchase bids"
+        : area.length ? `one price with ${area.length === 6 ? "all the other zones" : area.map(zoneLabel).join(", ")}`
+          : "on a step's edge";
+
+    const allPrices = steps.map(step => step.price).concat(bids.map(bid => bid.price), [price], actual !== null ? [actual] : []);
+    const low = Math.floor(Math.min(0, ...allPrices.map(symlog)));
+    const high = Math.max(low + 1, Math.ceil(Math.max(0, ...allPrices.map(symlog))));
+    const zoneName = (tomorrowState.latest.zones.find(item => item.code === zone) || { name: zone }).name;
+    const ink = cssVar("--chart-pun");
+    const stackColor = forecastColor(merit.model);
+    setText("forecast-stack-merit-subtitle", `${stackDay(merit.day)} ${String(hour).padStart(2, "0")}:00 · ${zoneName}: ` +
+      `simulated ${formatPrice(price)}${actual !== null ? `, actual ${formatPrice(actual)}` : ""} · ${margin}` +
+      (Math.abs(net) >= 50 ? ` · net ${net > 0 ? "import" : "export"} ${formatGw(Math.abs(net))}` : ""));
+    const markLines = [{ yAxis: symlog(price), name: "Simulated", lineStyle: { color: stackColor, type: "dashed", width: 1.6 },
+      label: { formatter: `Simulated ${formatPrice(price)}`, position: "insideStartTop", color: stackColor } }];
+    if (actual !== null) {
+      markLines.push({ yAxis: symlog(actual), name: "Actual", lineStyle: { color: cssVar("--fc-actual"), type: "solid", width: 1.4 },
+        label: { formatter: `Actual ${formatPrice(actual)}`, position: "insideEndTop", color: cssVar("--fc-actual") } });
+    }
+    markLines.push({ xAxis: cleared / 1000, lineStyle: { color: cssVar("--bal-reference"), type: "dashed", width: 1 },
+      label: { formatter: `${formatGw(cleared)} cleared`, position: "end", color: cssVar("--chart-legend") } });
+    const band = Math.abs(net) >= 50 ? [[{ xAxis: 0, name: `Net ${net > 0 ? "import" : "export"} ${formatGw(Math.abs(net))}` },
+      { xAxis: Math.abs(net) / 1000 }]] : [];
+    const groups = MGP_GROUPS.filter(group => byGroup.has(group));
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: { top: 0, left: 60, right: 20, type: "scroll", itemWidth: 10, itemHeight: 10,
+        textStyle: { color: cssVar("--chart-legend"), fontSize: 11 }, pageTextStyle: { color: cssVar("--chart-legend") },
+        data: groups.map(group => ({ name: group.label, icon: "rect" })).concat([{ name: "Purchase bids", icon: "path://M0,4 L16,4 L16,6 L0,6 Z" }]) },
+      tooltip: { trigger: "item", confine: true, backgroundColor: cssVar("--chart-tooltip-bg"), borderColor: cssVar("--chart-tooltip-border"),
+        borderWidth: 1, textStyle: { color: cssVar("--chart-tooltip-text"), fontSize: 11 },
+        formatter: params => {
+          if (params.seriesType === "line") {
+            return tooltipRow(ink, "Purchase bids up to here", formatGw(params.data[0] * 1000), "line") +
+              tooltipRow(ink, "Bid price", formatPrice(params.data[2]), "line");
+          }
+          const [from, , , stepPrice, mw, taken] = params.data;
+          const group = groups.find(item => item.label === params.seriesName);
+          const color = cssVar(group ? group.color : "--muted");
+          return `<div style="font-weight:600;margin-bottom:4px">${escapeHtml(params.seriesName)}</div>` +
+            tooltipRow(color, taken ? "MW accepted" : "MW not accepted", formatChartNumber(mw)) +
+            tooltipRow(color, "Offer price", formatPrice(stepPrice)) +
+            tooltipRow(color, "Offers up to here", formatGw(from * 1000 + mw));
+        } },
+      grid: { left: 60, right: 24, top: 40, bottom: 44, containLabel: false },
+      xAxis: { type: "value", min: 0, max: value => Math.ceil(value.max), name: "GW", nameLocation: "middle", nameGap: 26,
+        nameTextStyle: timelineAxisTextStyle(), axisLabel: timelineAxisTextStyle(),
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, splitLine: { show: false } },
+      yAxis: timelineYAxis("€/MWh", { min: low, max: high, interval: 1, nameGap: 44,
+        axisLabel: { ...timelineAxisTextStyle(), formatter: formatSymlogTick } }),
+      series: groups.map(group => ({
+        name: group.label, type: "custom", data: byGroup.get(group), encode: { x: [0, 1], y: 2 }, z: 1,
+        itemStyle: { color: cssVar(group.color) },
+        // A column from 0 €/MWh up (or down) to the offer's price.
+        renderItem: (params, api) => {
+          const top = api.coord([api.value(0), api.value(2)]);
+          const base = api.coord([api.value(1), 0]);
+          return { type: "rect", shape: { x: top[0], y: Math.min(top[1], base[1]), width: Math.max(0.6, base[0] - top[0]),
+            height: Math.max(0.6, Math.abs(base[1] - top[1])) }, style: { fill: cssVar(group.color), opacity: api.value(5) ? 0.75 : 0.22 } };
+        }
+      })).concat([{
+        name: "Purchase bids", type: "line", data: demandLine, showSymbol: false, z: 5,
+        lineStyle: { color: ink, width: 2 }, itemStyle: { color: ink },
+        markLine: { silent: true, symbol: "none", data: markLines, label: { fontSize: 10 } },
+        markArea: band.length ? { silent: true, itemStyle: { color: cssVar("--chart-zoom-filler") },
+          label: { color: cssVar("--chart-legend"), fontSize: 10, position: "insideTop" }, data: band } : undefined
+      }])
+    }, true);
+  }
+
   function drawStackRecord() {
     const chart = stackState.charts.record;
     if (!chart) return;
@@ -24123,18 +24305,24 @@ move the slider above to another one`,
       anaEmpty(chart, stackState.status === "missing" ? "The stack's track record is not on file here (data/forecast/stack_history.json)." : "Loading…");
       return;
     }
-    const entries = Object.entries(stackState.history.forecasts || {}).filter(([, entry]) => entry.scores).slice(-STACK_RECORD_DAYS);
+    const entries = Object.entries(stackState.history.forecasts || {})
+      .filter(([, entry]) => entry.scores || entry.composite_scores).slice(-STACK_RECORD_DAYS);
     if (!entries.length) { anaEmpty(chart, "No day scored yet."); return; }
     const zone = stackState.zone;
     const zoneName = tomorrowState.latest.zones.find(item => item.code === zone).name;
     const labels = entries.map(([day]) => new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }));
-    const all = entries.map(([, entry]) => entry.scores.ALL ?? null);
-    const one = entries.map(([, entry]) => entry.scores[zone] ?? null);
+    const value = (entry, key, at) => ((entry[key] || {})[at] ?? null);
+    const all = entries.map(([, entry]) => value(entry, "scores", "ALL"));
+    const one = entries.map(([, entry]) => value(entry, "scores", zone));
+    const compositeAll = entries.map(([, entry]) => value(entry, "composite_scores", "ALL"));
+    const compositeOne = entries.map(([, entry]) => value(entry, "composite_scores", zone));
     const live = entries.findIndex(([, entry]) => !entry.backtest);
-    const model = (stackState.history.forecasts[entries[entries.length - 1][0]] || {}).model || "stack-bids-analogs";
-    setText("forecast-stack-record-subtitle", `${zoneName} and all zones · mean of these ${entries.length} days: ` +
-      `${forecastEuro(forecastMean(all), 2)} all zones, ${forecastEuro(forecastMean(one), 2)} ${zoneName}`);
-    const allSeries = anaLineSeries("All zones", FORECAST_MODEL_COLORS[model] || "--muted", all, { showSymbol: true, symbolSize: 3 });
+    const names = ["5 similar days, all zones", `5 similar days, ${zoneName}`, "Composite, all zones", `Composite, ${zoneName}`];
+    setText("forecast-stack-record-subtitle", `Mean of these ${entries.length} days, all zones: 5 similar days ` +
+      `${forecastEuro(forecastMean(all), 2)}, composite ${forecastEuro(forecastMean(compositeAll), 2)} · ${zoneName}: ` +
+      `${forecastEuro(forecastMean(one), 2)} and ${forecastEuro(forecastMean(compositeOne), 2)}`);
+    const dots = { showSymbol: true, symbolSize: 3 };
+    const allSeries = anaLineSeries(names[0], FORECAST_MODEL_COLORS["stack-bids-analogs"], all, dots);
     if (live >= 0) {
       allSeries.markArea = { silent: true, itemStyle: { color: cssVar("--fc-hybrid"), opacity: 0.1 },
         label: { show: true, position: "insideTop", color: cssVar("--muted"), fontSize: 10 },
@@ -24145,12 +24333,15 @@ move the slider above to another one`,
       tooltip: bessTooltip(items => bessTipHead(`${stackDay(entries[items[0].dataIndex][0])}${entries[items[0].dataIndex][1].backtest ? " (backtest)" : ""}`) +
         items.filter(item => Number.isFinite(item.value))
           .map(item => `<div>${item.marker} ${escapeHtml(item.seriesName)}: <b>${forecastEuro(item.value, 2)}</b></div>`).join("")),
-      legend: bessLegend(["All zones", zoneName], { right: 8 }),
+      legend: bessLegend(names, { type: "scroll", right: 8 }),
       grid: { left: 52, right: 16, top: 40, bottom: 28 },
       xAxis: { type: "category", data: labels, axisTick: { show: false },
         axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
       yAxis: timelineYAxis("€/MWh", { nameGap: 36, min: 0 }),
-      series: [allSeries, anaLineSeries(zoneName, anaZoneColor(zone), one, { showSymbol: true, symbolSize: 3, lineStyle: { width: 1.2 } })]
+      series: [allSeries,
+        anaLineSeries(names[1], FORECAST_MODEL_COLORS["stack-bids-analogs"], one, { ...dots, lineStyle: { width: 1.1, type: "dashed" } }),
+        anaLineSeries(names[2], FORECAST_MODEL_COLORS["stack-bids-v3"], compositeAll, dots),
+        anaLineSeries(names[3], FORECAST_MODEL_COLORS["stack-bids-v3"], compositeOne, { ...dots, lineStyle: { width: 1.1, type: "dashed" } })]
     }, true);
   }
 
