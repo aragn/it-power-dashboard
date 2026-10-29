@@ -26,7 +26,7 @@
       --chart-zoom-border:#252a30; --chart-zoom-bg:#15191e; --chart-zoom-filler:rgba(150,157,166,0.16); --chart-zoom-handle:#8b939d; --chart-zoom-move:#555d67; --chart-zoom-text:#6f7781;
       --chart-pun:#d9dde2; --chart-eua:#e7a84b; --chart-igi:#4fc3c9; --chart-srmc:#ef6b5b; --res-actual:#d9dde2; --res-day-ahead:#5b9cff; --res-intraday:#d55181; --chart-generation:#5ecb8a; --chart-load:#5b9cff; --chart-residual:#e0e3e7;
       --zone-1:#5b9cff; --zone-2:#d9dde2; --zone-3:#5ecb8a; --zone-4:#e7a84b; --zone-5:#c783ff; --zone-6:#ef6fae; --zone-7:#7fd1c5;
-      --fc-actual:#e0e3e7; --fc-naive:#8c949e; --fc-lear:#e7a84b; --fc-ts-ar:#7fd1c5; --fc-ts28:#5b9cff; --fc-ts28-long:#c783ff; --fc-ts209:#5ecb8a; --fc-ensemble:#ef6fae; --fc-lear-res:#f2cf8f; --fc-ts28-res:#a8c8ff; --fc-lear-wx:#ff9f5a; --fc-ts28-wx:#4fc3c9; --fc-ts209-wx:#b5d65a; --fc-ts209-ar:#ff7b72;
+      --fc-actual:#e0e3e7; --fc-naive:#8c949e; --fc-lear:#e7a84b; --fc-ts-ar:#7fd1c5; --fc-ts28:#5b9cff; --fc-ts28-long:#c783ff; --fc-ts209:#5ecb8a; --fc-ensemble:#ef6fae; --fc-lear-res:#f2cf8f; --fc-ts28-res:#a8c8ff; --fc-lear-wx:#ff9f5a; --fc-ts28-wx:#4fc3c9; --fc-ts209-wx:#b5d65a; --fc-ts209-ar:#ff7b72; --fc-hybrid:#ffd54f; --fc-stack-classic:#a1887f; --fc-stack-bids:#c9a27e; --fc-stack-analogs:#e8a25c; --fc-stack-v2:#d98c8c; --fc-stack-v3:#f2b880;
       --mix-coal:#b8c2d0; --mix-geothermal:#b5651d; --mix-pumped:#d55181; --mix-battery:#9085e9; --mix-renewables:#199e70; --mix-hydro:#3987e5;
       --mix-gas:#d95926; --mix-wind:#008300; --mix-solar:#c98500; --mix-other:#5f656d; --mix-net-imports:#e66767;
       --border-1:#3987e5; --border-2:#d95926; --border-3:#199e70; --border-4:#c98500; --border-5:#d55181; --border-6:#008300; --border-7:#9085e9;
@@ -57,7 +57,7 @@
       --chart-zoom-border:#d5dae0; --chart-zoom-bg:#f0f2f5; --chart-zoom-filler:rgba(90,98,108,0.14); --chart-zoom-handle:#7a838e; --chart-zoom-move:#b9bfc6; --chart-zoom-text:#66707b;
       --chart-pun:#1f2429; --chart-eua:#b36b00; --chart-igi:#0f8a91; --chart-srmc:#c8392b; --res-actual:#1f2429; --res-day-ahead:#2f6fdb; --res-intraday:#c93d74; --chart-generation:#1f9d57; --chart-load:#2f6fdb; --chart-residual:#3d434b;
       --zone-1:#2f6fdb; --zone-2:#3d4650; --zone-3:#1f9d57; --zone-4:#c27a0e; --zone-5:#8a4fd6; --zone-6:#d23f84; --zone-7:#15998a;
-      --fc-actual:#1f2429; --fc-naive:#6b7480; --fc-lear:#c27a0e; --fc-ts-ar:#15998a; --fc-ts28:#2f6fdb; --fc-ts28-long:#8a4fd6; --fc-ts209:#1f9d57; --fc-ensemble:#d23f84; --fc-lear-res:#e0a643; --fc-ts28-res:#7aa5ec; --fc-lear-wx:#d9822b; --fc-ts28-wx:#0f8a91; --fc-ts209-wx:#66900f; --fc-ts209-ar:#cf3f35;
+      --fc-actual:#1f2429; --fc-naive:#6b7480; --fc-lear:#c27a0e; --fc-ts-ar:#15998a; --fc-ts28:#2f6fdb; --fc-ts28-long:#8a4fd6; --fc-ts209:#1f9d57; --fc-ensemble:#d23f84; --fc-lear-res:#e0a643; --fc-ts28-res:#7aa5ec; --fc-lear-wx:#d9822b; --fc-ts28-wx:#0f8a91; --fc-ts209-wx:#66900f; --fc-ts209-ar:#cf3f35; --fc-hybrid:#b8860b; --fc-stack-classic:#6d4c41; --fc-stack-bids:#8d6e4a; --fc-stack-analogs:#b0601c; --fc-stack-v2:#a04848; --fc-stack-v3:#c47a2c;
       --mix-coal:#4b5563; --mix-geothermal:#9c5a3c; --mix-pumped:#e87ba4; --mix-battery:#4a3aa7; --mix-renewables:#1baf7a; --mix-hydro:#2a78d6;
       --mix-gas:#eb6834; --mix-wind:#008300; --mix-solar:#eda100; --mix-other:#8b9097; --mix-net-imports:#e34948;
       --border-1:#2a78d6; --border-2:#eb6834; --border-3:#1baf7a; --border-4:#eda100; --border-5:#e87ba4; --border-6:#008300; --border-7:#4a3aa7;
@@ -22995,12 +22995,14 @@ move the slider above to another one`,
     naive: "--fc-naive", lear: "--fc-lear", "timestral-28m-ar": "--fc-ts-ar", "timestral-28m": "--fc-ts28",
     "timestral-28m-long": "--fc-ts28-long", "timestral-209m": "--fc-ts209", ensemble: "--fc-ensemble",
     "lear-res": "--fc-lear-res", "timestral-28m-res": "--fc-ts28-res", "lear-wx": "--fc-lear-wx",
-    "timestral-28m-wx": "--fc-ts28-wx", "timestral-209m-wx": "--fc-ts209-wx"
+    "timestral-28m-wx": "--fc-ts28-wx", "timestral-209m-wx": "--fc-ts209-wx", hybrid: "--fc-hybrid",
+    "stack-classic": "--fc-stack-classic", "stack-bids": "--fc-stack-bids", "stack-bids-analogs": "--fc-stack-analogs",
+    "stack-bids-v2": "--fc-stack-v2", "stack-bids-v3": "--fc-stack-v3"
   };
   // Models with the day's wind and solar forecasts, out only after the auction: dashed.
   const forecastAfterGate = model => model.endsWith("-res");
   // Shown on the hourly chart at first; the legend shows or hides the others.
-  const FORECAST_FIRST_SHOWN = ["naive", "lear", "timestral-209m", "timestral-28m"];
+  const FORECAST_FIRST_SHOWN = ["naive", "lear", "timestral-209m", "timestral-28m", "hybrid"];
   const forecastMount = document.getElementById("forecast-mount");
   let forecastTab = "tomorrow";
   const forecastState = { zone: "NORD", band: null, summary: null, error: null, zones: {}, charts: {} };
@@ -23018,7 +23020,9 @@ move the slider above to another one`,
       .then(summary => {
         forecastState.summary = summary;
         const banded = summary.models.filter(model => model.id !== "naive" && model.id !== "lear");
-        forecastState.band = (banded.find(model => model.id === "timestral-209m") || banded[0] || summary.models[0]).id;
+        // The band of the live forecast's model (Timestral + stack since 29 October 2026).
+        forecastState.band = (banded.find(model => model.id === "hybrid") || banded.find(model => model.id === "timestral-209m") ||
+          banded[0] || summary.models[0]).id;
       })
       .catch(error => { console.warn("Forecast backtest unavailable:", error); forecastState.error = error; })
       .finally(() => { if (currentSection === "forecast") renderForecast(); });
@@ -23162,8 +23166,11 @@ move the slider above to another one`,
         : "Terna's load forecast for the day: not out yet, forecast without it";
     const made = `Made at ${forecastItalianTime(latest.made_at)} Italian time, ` +
       (latest.before_gate ? "before the auction's 12:00 gate" : "after the auction's 12:00 gate");
+    // A blend's models and their shares (Timestral and the stack model).
+    const blend = (latest.parts || []).map(part =>
+      `${Math.round(part.weight * 100)}% ${part.id.startsWith("stack") ? "stack model" : "Timestral"}`).join(" + ");
     document.getElementById("forecast-tomorrow-status").innerHTML = [
-      made, loadText,
+      made, blend, loadText,
       inputs.weather_hours ? "weather: Open-Meteo's latest ECMWF run" : "no weather forecast for the day",
       inputs.gas_day ? `gas: PSV of ${forecastShortDay(inputs.gas_day)}` : "",
       inputs.eua_day ? `EUA: auction of ${forecastShortDay(inputs.eua_day)}` : "",
@@ -23516,8 +23523,10 @@ move the slider above to another one`,
   /*
    * The section opens on its forecasting methods.  The time series model
    * (Timestral) has the Tomorrow, Week and Backtest views above; the stack
-   * model, the MGP's merit order rebuilt from the plants' costs and the grid,
-   * is in preparation and will be scored on the same backtest.
+   * model, the MGP's merit order rebuilt from the plants' bids and the grid,
+   * is scored on the same backtest, and a tenth of it is blended into
+   * tomorrow's forecast (forecast_daily.py's MODEL, "hybrid"); its own card
+   * is in preparation.
    */
   const forecastHome = document.getElementById("forecast-home");
   const forecastSubnav = document.getElementById("forecast-subnav");
@@ -23528,7 +23537,7 @@ move the slider above to another one`,
   const FORECAST_CARDS = [
     { id: "timeseries", live: true, icon: "series", tag: "Machine learning · Timestral",
       title: "Time series model",
-      text: "Mistral's Timestral, a pretrained time series model, reads the seven zones' past prices with the inputs known before the gate (load forecasts, weather, gas, carbon, the neighbours' prices): tomorrow's hourly prices as quantiles, the week ahead, and a year's backtest against LEAR and a naive forecast, scored on the error and on what a battery earns trading on it." },
+      text: "Mistral's Timestral, a pretrained time series model, reads the seven zones' past prices with the inputs known before the gate (load forecasts, weather, gas, carbon, the neighbours' prices): tomorrow's hourly prices as quantiles (blended with a tenth of the stack model's since 29 October 2026), the week ahead, and a year's backtest against LEAR, the stack model and a naive forecast, scored on the error and on what a battery earns trading on it." },
     { id: "stack", live: false, icon: "stack", tag: "Fundamental · merit order",
       title: "Stack model",
       text: "The MGP auction rebuilt bottom-up: each plant's offer from its efficiency, fuel and carbon costs and its past bids, net of the plants out of service; the merit order cleared against the demand, wind and solar forecast from the weather, with imports and storage; and the zones split where the transmission limits bind." }
@@ -23649,6 +23658,22 @@ move the slider above to another one`,
         "forecasts up to the day before. Its band is its own (21 quantiles). <i>Prices only</i>: the history alone, no other " +
         "inputs. 28M and 209M: the model's size in parameters.</li>" +
         "<li><b>LEAR + Timestral</b>: the average of the two models' quantiles.</li>" +
+        "<li><b>Stack model</b>: the MGP auction rebuilt and cleared zone by zone (PyPSA with HiGHS, GME's limits between the " +
+        "zones of the day before). <i>Classic merit order</i>: each gas, coal and oil unit offered at its fuel and carbon cost " +
+        "over its efficiency, less the outages ENTSO-E had published by 10:00 the day before; wind and solar from the weather " +
+        "forecasts; the rest (hydro, storage, imports, must-run) at its profile of the week before. <i>Real bids</i>: GME's " +
+        "public offers, out about 8 days after the auction, so on the day before only those of 9 days back and earlier: a " +
+        "recent day's offers and bids of the same kind (working day, Saturday, Sunday or holiday) moved to the day, wind and " +
+        "solar by the weather forecasts, demand by Terna's load forecast, thermal offers by the gas and EUA prices and the " +
+        "outages. <i>5 similar days</i>: the five days of the last six weeks with the residual load (load less wind and " +
+        "solar) most like the day's, each cleared, the median of their prices. <i>Improved</i>: also the coupled neighbours " +
+        "(France, Austria, Slovenia, Greece) as offers and bids around their price up to JAO's capacity, units replacing those " +
+        "out, wind, solar and demand moved part of the way. <i>Composite</i>: the five days' offers averaged, cleared once. " +
+        "Its band, like LEAR's, from its errors over the previous 182 days.</li>" +
+        "<li><b>Timestral + stack</b> (the forecast on the Tomorrow tab since 29 October 2026): 0.9 times the quantiles of " +
+        "Timestral 209M with weather plus 0.1 times the stack's (real bids, 5 similar days). The two err differently (their " +
+        "errors correlate 0.4–0.5), so the blend beats Timestral in every zone; the weights were chosen on this test year " +
+        "(chosen each week from the past days only, the gain is 0.19 €/MWh instead of 0.22).</li>" +
         "<li><b>With weather</b>: the same models also given weather forecasts for the day made before the gate (Open-Meteo, " +
         "ECMWF IFS 0.25° runs up to 00 UTC of the day before, from March 2024): the 100 m wind speed at each zone's wind farms " +
         "and the irradiance at its solar farms (weighted by the farms' MW) and, for Timestral, the temperature in the main cities. Points: etl/weather_points.json, from the grid map's " +

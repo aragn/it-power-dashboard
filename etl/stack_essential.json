@@ -1,0 +1,27 @@
+{
+  "description": "Plants and dispatching users that ARERA's decisions name as essential for the security of the electricity system (deliberazione 111/06 regimes), for the stack model's unit table (etl/build_stack_units.py). Terna's own yearly list is not public in full; this is what the decisions say.",
+  "sources": {
+    "ARERA 454/2025/R/eel (2026)": "https://www.arera.it/fileadmin/allegati/docs/25/454-2025-R-eel.pdf",
+    "ARERA 374/2026/R/eel (2027)": "https://www.arera.it/fileadmin/allegati/docs/26/374-2026-R-eel.pdf",
+    "ARERA 337/2026/R/eel (San Filippo del Mela 150 and 220 kV, reintegration advance for 2026)": "deliberation of 29 September 2026",
+    "ARERA 61/2025/R/eel (Trapani Turbogas)": "https://arera.it/fileadmin/allegati/docs/25/61-2025-R-eel.pdf"
+  },
+  "units": {
+    "UP_S.F._DEL_1": "cost reintegration (San Filippo del Mela, 2026)",
+    "UP_S.F._DEL_2": "cost reintegration (San Filippo del Mela, 2026)",
+    "UP_S.F._DEL_6": "cost reintegration (San Filippo del Mela, 2026)",
+    "UP_TRAPANI_C_1": "essential (Trapani Turbogas)",
+    "UP_TRAPANI_C_2": "essential (Trapani Turbogas)",
+    "UP_SARLUX_1": "singly essential, not enabled (Sarlux, 2026-2027)",
+    "UP_IGES_1": "singly essential, not enabled (Iges, 2026-2027)",
+    "UP_IGES_2": "singly essential, not enabled (Iges, 2026-2027)",
+    "UP_IGES_3": "singly essential, not enabled (Iges, 2026-2027)",
+    "UP_IGES_4": "singly essential, not enabled (Iges, 2026-2027)",
+    "UP_BPWRSRDGNA_1": "singly essential, not enabled (Biopower Sardegna, 2026-2027)"
+  },
+  "operators": {
+    "2026": ["A2A ENERGIEFUTURE", "C.V.A. ENERGIE", "ENEL PRODUZIONE"],
+    "2027": ["A2A ENERGIEFUTURE", "ACEA ENERGY MANAGEMENT", "C.V.A. ENERGIE", "ENEL PRODUZIONE", "FIUME SANTO", "TTEP ITALIA"]
+  },
+  "operators_note": "Dispatching users with essential groups of plants under the alternative regime (art. 65bis): minimum capacity they must commit up and down in the MSD per zone, at capped prices."
+}

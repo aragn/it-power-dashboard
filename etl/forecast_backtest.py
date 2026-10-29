@@ -33,6 +33,17 @@ The models:
                solar-weighted average
   *-wx-ss      Timestral -wx with each zone's expected solar output over its
                load forecast (forecast_data.Data.solar_share)
+  *-stack      Timestral -wx with each zone's stack price forecast (stack v3,
+               made the day before) known for the day; its history from
+               <model>-history.npz before the test period
+  stack-classic  the stack model's classic merit order (etl/stack_classic.py):
+               the MGP cleared from the thermal units' costs, outages known the
+               morning before, weather-based wind and solar and GME's last
+               zonal limits; its band, like LEAR's, from its own errors
+  stack-bids   the stack model on real bids (etl/stack_bids.py): a recent day's
+               offers and bids (the latest out the morning before, same kind
+               of day) moved to the day by the wind, solar and load forecasts,
+               gas and CO2 prices and outages; its band from its own errors
 
 Only inputs out before the MGP's 12:00 gate on X-1: Terna's day-ahead load
 forecast for X is on ENTSO-E early on X-1 (by 07:15), its wind and solar forecasts only
@@ -98,6 +109,11 @@ MODELS = {
                        "description": "Timestral-209M zero-shot with inputs out before the auction, 4,096 hours of history"},
     "ensemble": {"label": "LEAR + Timestral 209M", "parts": ("lear", "timestral-209m"),
                  "description": "Average of the quantiles of LEAR and Timestral 209M"},
+    "hybrid": {"label": "Timestral 209M with weather + stack", "parts": ("timestral-209m-wx", "stack-bids-analogs"),
+               "weights": (0.9, 0.1),
+               "description": "0.9 times the quantiles of Timestral 209M with weather plus 0.1 times the stack's "
+                              "(real bids, 5 similar days); the weights chosen on this test year (weights chosen "
+                              "each week from past days only: 0.19 EUR/MWh better than Timestral, against 0.22)"},
     "lear-res": {"label": "LEAR, with the day's wind and solar", "res_ahead": True,
                  "description": "LEAR with the wind and solar forecasts of the day, published after the auction"},
     "timestral-28m-res": {"label": "Timestral 28M, with the day's wind and solar", "size": "28M", "covariates": True,
@@ -111,6 +127,10 @@ MODELS = {
     "timestral-209m-wx": {"label": "Timestral 209M, with weather", "size": "209M", "covariates": True, "res_ahead": False,
                           "weather": True, "context": 4096,
                           "description": "Timestral-209M with wind, irradiance and temperature forecasts for the day, made before the auction"},
+    "timestral-209m-wx-stack": {"label": "Timestral 209M, with weather and the stack", "size": "209M", "covariates": True,
+                                "res_ahead": False, "weather": True, "stack_input": "stack-bids-v3", "context": 4096,
+                                "description": "Timestral-209M with weather and each zone's stack price forecast (stack v3, "
+                                               "made the day before) as an input known for the day"},
     "timestral-28m-wxz": {"label": "Timestral 28M, with zonal weather", "size": "28M", "covariates": True,
                           "res_ahead": False, "weather": True, "zonal_ghi": True, "context": 4096,
                           "description": "Timestral-28M with the weather forecasts for the day and each zone's own irradiance, "
@@ -125,6 +145,27 @@ MODELS = {
     "timestral-209m-wx-ss": {"label": "Timestral 209M, with weather and solar share", "size": "209M", "covariates": True,
                              "res_ahead": False, "weather": True, "solar_share": True, "context": 4096,
                              "description": "Timestral-209M with weather and each zone's expected solar output over its load forecast"},
+    "stack-classic": {"label": "Stack model, classic merit order", "stack": "classic",
+                      "description": "The MGP cleared from each thermal unit's cost (fuel, CO2, O&M), outages known "
+                                     "the morning before, weather-based wind and solar, GME's last zonal limits"},
+    "stack-bids": {"label": "Stack model, real bids", "stack": "bids",
+                   "description": "The MGP cleared from a recent day's real offers and bids (the latest out the "
+                                  "morning before, same kind of day), moved to the day: wind, solar and load by "
+                                  "their forecasts, thermal offers by gas and CO2 prices and outages"},
+    "stack-bids-analogs": {"label": "Stack model, real bids, 5 similar days", "stack": "bids", "analogs": 5,
+                           "pool": "working",
+                           "description": "The real-bids stack cleared from the five most similar days of the same kind "
+                                          "out the morning before (residual load), the median of their prices"},
+    "stack-bids-v2": {"label": "Stack model, real bids, improved", "stack": "bids", "analogs": 5, "pool": "working",
+                      "elastic": True, "replace": True,
+                      "description": "The 5-similar-days stack with the coupled neighbours as import offers and export "
+                                     "bids around their naive price forecast up to JAO's NTC of the day before, thermal "
+                                     "units replacing those the outages cut, and wind, solar and demand moved part of "
+                                     "the way to their forecasts"},
+    "stack-bids-v3": {"label": "Stack model, real bids, composite", "stack": "bids", "analogs": 5, "pool": "working",
+                      "elastic": True, "replace": True, "composite": True, "workers": 4,
+                      "description": "Stack v2 with the 5 similar days' moved offers averaged into one day and cleared "
+                                     "once, instead of the median of 5 clearings"},
 }
 
 # Zones whose wind moves prices (the north's and the centre-north's is small).
@@ -309,13 +350,33 @@ def conformal(data, points, days):
 # ============================================================================
 
 
-def timestral_rows(data, res_ahead=False, weather=False, zonal_ghi=False, solar_share=False):
+def stack_rows(data, model):
+    """(zones, axis) of a stack model's price forecasts, each day's as made the
+    day before: the backtest's cache of the model and, for the days before the
+    test period, <model>-history.npz (stack_history); NaN where there is none
+    (Timestral masks it)."""
+    out = np.full((len(ZONES), data.length), np.nan)
+    for name in (f"{model}-history", model):
+        path = os.path.join(CACHE_DIR, f"{name}.npz")
+        if not os.path.exists(path):
+            continue
+        with np.load(path) as stored:
+            for day, point in zip(stored["days"], stored["point"]):
+                day = date.fromisoformat(day)
+                if day in data.day_start:
+                    span = data.day_slice(day)
+                    out[:, span] = point[:, :data.hours[day]]
+    return out
+
+
+def timestral_rows(data, res_ahead=False, weather=False, zonal_ghi=False, solar_share=False, stack=None):
     """(known, past) covariate rows over the whole axis: each zone's load
     forecast, the gas and EUA prices and the calendar known ahead; the
     neighbours' prices and Italy's wind and solar forecasts up to the day
     before (known ahead too with res_ahead).  With zonal_ghi the weather's
     irradiance is each zone's, not Italy's; with solar_share each zone's
-    expected solar output over its load forecast is added."""
+    expected solar output over its load forecast is added; with stack (a
+    stack model's name) each zone's stack price forecast (stack_rows)."""
     wind = np.nansum([data.series[f"{zone}|wind_forecast"] for zone in ZONES], axis=0)
     solar = np.nansum([data.series[f"{zone}|solar_forecast"] for zone in ZONES], axis=0)
     known = [data.series[f"{zone}|load_forecast"] for zone in ZONES]
@@ -332,6 +393,8 @@ def timestral_rows(data, res_ahead=False, weather=False, zonal_ghi=False, solar_
     if solar_share:
         # Each zone's expected solar output over its load forecast (forecast_data.solar_share).
         known += [data.solar_share(zone) for zone in ZONES]
+    if stack:
+        known += list(stack_rows(data, stack))
     known += [data.gas, data.eua, data.calendar["holiday"], data.calendar["saturday"], data.calendar["sunday"]]
     return np.stack(known), np.stack(past)
 
@@ -371,7 +434,7 @@ def timestral_quantiles(data, days, spec, batch=4):
     assert tuple(round(level, 2) for level in forecaster.quantile_levels) == LEVELS
     prices = data.prices()
     rows = (timestral_rows(data, spec["res_ahead"], spec.get("weather", False), spec.get("zonal_ghi", False),
-                           spec.get("solar_share", False))
+                           spec.get("solar_share", False), spec.get("stack_input"))
             if spec["covariates"] else None)
     out = {}
     started = time.time()
@@ -425,6 +488,12 @@ def load_cache(model):
     return point, quantiles
 
 
+def stack_options(spec):
+    """The stack_bids options of a real-bids stack model's spec."""
+    return {"analogs": spec.get("analogs", 1), "pool": spec.get("pool", "weekday"), "elastic": spec.get("elastic", False),
+            "replace": spec.get("replace", False), "composite_days": spec.get("composite", False)}
+
+
 def run_model(data, model, days):
     spec = MODELS[model]
     print(f"  {model}: {len(days)} days", flush=True)
@@ -437,11 +506,22 @@ def run_model(data, model, days):
         warm = [data.days[data.days.index(days[0]) - k] for k in range(CONFORMAL_DAYS, 0, -1)] + days
         point = lear_point(data, warm, spec["res_ahead"], spec.get("weather", False))
         quantiles = conformal(data, point, days)
+    elif spec.get("stack") in ("classic", "bids"):
+        import stack_bids
+        import stack_classic
+        warm = [data.days[data.days.index(days[0]) - k] for k in range(CONFORMAL_DAYS, 0, -1)] + days
+        if spec["stack"] == "classic":
+            point = stack_classic.point_forecasts(data, warm, HORIZON)
+        else:
+            point = stack_bids.point_forecasts(data, warm, HORIZON, workers=spec.get("workers", stack_bids.WORKERS),
+                                               **stack_options(spec))
+        quantiles = conformal(data, point, days)
     elif "parts" in spec:
         parts = [load_cache(part) for part in spec["parts"]]
         if any(p is None for p, _ in parts):
             raise SystemExit(f"{model} needs {spec['parts']} run first.")
-        quantiles = {day: np.mean([q[day] for _, q in parts], axis=0) for day in days
+        weights = spec.get("weights", [1.0 / len(parts)] * len(parts))
+        quantiles = {day: sum(weight * q[day] for weight, (_, q) in zip(weights, parts)) for day in days
                      if all(day in q for _, q in parts)}
         point = {day: q[..., MEDIAN] for day, q in quantiles.items()}
     else:

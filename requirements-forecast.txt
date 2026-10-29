@@ -5,3 +5,6 @@ scipy
 scikit-learn
 torch>=2.4
 timestral @ git+https://github.com/mistralai/timestral.git@a534bdbd244d64f3d9d743f46c7bf6fc330ed4ff
+# The stack model (etl/stack_clear.py), blended into tomorrow's forecast.
+pypsa==1.4.0
+highspy==1.15.1
