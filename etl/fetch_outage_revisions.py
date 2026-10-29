@@ -180,14 +180,21 @@ def store(data, mrid, found):
 def add_latest(token, first, last, data):
     """Each outage overlapping first..last at its latest revision, as
     ENTSO-E has it now, added after the revisions on file (none read in
-    between): what the live stack needs.  The number of outages."""
-    count = 0
-    for zone, eic in ZONES.items():
+    between): what the live stack needs.  The zones are asked at the same
+    time.  The number of outages."""
+    def zone_latest(item):
+        zone, eic = item
         latest = {}
         for start, end in windows(first, last):
             for outage in window_outages(token, eic, start, end):
                 if outage["revision"] > latest.get(outage["mrid"], {"revision": -1})["revision"]:
                     latest[outage["mrid"]] = outage
+        return zone, latest
+
+    count = 0
+    with ThreadPoolExecutor(max_workers=len(ZONES)) as pool:
+        found = list(pool.map(zone_latest, ZONES.items()))
+    for zone, latest in found:
         for mrid, outage in latest.items():
             item = data["outages"].get(mrid)
             if item is None:
