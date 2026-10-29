@@ -501,6 +501,7 @@ def _forecast(day):
         references = inputs.analogs(day, _STATE["analogs"], _STATE["pool"]) if _STATE["analogs"] > 1 else [None]
         if not references:
             return day, None
+        _STATE["references"] = [reference or reference_day(day, offers_on_file) for reference in references]
         cleared = []
         neighbours = inputs.neighbours(day) if inputs.elastic else None
         if _STATE.get("composite") and len(references) > 1:
@@ -546,20 +547,28 @@ def point_forecasts(data, days, horizon=25, workers=WORKERS, analogs=1, pool="we
 
 def forecast_day(data, day, horizon=25, analogs=1, pool="weekday", combine="median", elastic=False, replace=False,
                  swiss=False, composite_days=False, cutoff_hour=stack_classic.LIVE_CUTOFF_HOUR):
-    """(zones, horizon) hourly prices of one day, made in this process with
+    """(prices, what it was made from) of one day, made in this process with
     data as it is (the live forecast's: its weather run, the outages on
-    file); None when it cannot be made (no reference day on file, the
-    clearing failing: the reason is printed)."""
+    file): (zones, horizon) hourly prices, and the reference days, the day
+    of GME's limits and the thermal capacity out; prices None when it cannot
+    be made (no reference day on file, the clearing failing: the reason is
+    printed)."""
     _setup(data, [day], analogs, pool, combine, elastic, replace, swiss, composite_days, cutoff_hour)
     try:
         _, prices = _forecast(day)
+        inputs = _STATE["inputs"]
+        out = {code: inputs.classic.unavailable(code, day) for code in inputs.units}
+        info = {"reference_days": [reference.isoformat() for reference in _STATE.get("references", [])],
+                "limits_day": inputs.limits_day(day).isoformat(),
+                "thermal_out_mw": round(float(sum(mw.mean() for mw in out.values()))),
+                "thermal_out_units": sum(1 for mw in out.values() if mw.max() > 0)}
     finally:
         _STATE.clear()
     if prices is None:
-        return None
+        return None, info
     padded = np.full((len(ZONES), horizon), np.nan)
     padded[:, :prices.shape[1]] = prices
-    return padded
+    return padded, info
 
 
 def main():
