@@ -56,6 +56,8 @@ WEEK_MODEL = "timestral-209m-week"
 WEEK_LEVELS = (0.05, 0.25, 0.5, 0.75, 0.95)
 # Quantiles kept in the history (latest.json has all 21).
 HISTORY_LEVELS = (0.05, 0.5, 0.95)
+# The stack's own quantiles in latest.json's "stack" (the Stack model card).
+STACK_LEVELS = (0.05, 0.25, 0.5, 0.75, 0.95)
 GATE_HOUR = 12
 
 
@@ -75,12 +77,12 @@ def timestral(data, day, model):
 
 
 def stack(data, day, model, points):
-    """The stack's quantiles for the day (zones, hours, levels) and its point
-    forecast (zones, HORIZON): stack_bids with what is on file now, the band
-    the backtest's (conformal: its errors over the previous days, from its
-    point forecasts kept, `points`)."""
+    """The stack's quantiles for the day (zones, hours, levels), its point
+    forecast (zones, HORIZON) and what it was made from (stack_bids.forecast_day):
+    stack_bids with what is on file now, the band the backtest's (conformal:
+    its errors over the previous days, from its point forecasts kept, `points`)."""
     import stack_bids
-    point = stack_bids.forecast_day(data, day, backtest.HORIZON, **backtest.stack_options(backtest.MODELS[model]))
+    point, info = stack_bids.forecast_day(data, day, backtest.HORIZON, **backtest.stack_options(backtest.MODELS[model]))
     if point is None:
         raise RuntimeError("no reference day on file, or the clearing failed")
     if not np.isfinite(point[:, :data.hours[day]]).all():
@@ -89,13 +91,14 @@ def stack(data, day, model, points):
     if quantiles is None:
         raise RuntimeError(f"fewer than {backtest.CONFORMAL_DAYS // 2} of its forecasts of the last "
                            f"{backtest.CONFORMAL_DAYS} days kept, for its band")
-    return quantiles[:, :data.hours[day], :], point
+    return quantiles[:, :data.hours[day], :], point, info
 
 
 def forecast(data, day, model, stack_points):
     """The day's quantiles (zones, hours, levels), the model they are from,
     a blend's parts (each one's weight and median, for latest.json) and the
-    stack's (model, point forecast) (None without it).  A blend of Timestral
+    stack's {model, quantiles, point, info}, or {model, error} when it could
+    not be made (None for a model without the stack).  A blend of Timestral
     and the stack (the backtest's "parts" and "weights") whose stack cannot
     be made (an input missing, the clearing failing) is Timestral's alone."""
     spec = backtest.MODELS[model]
@@ -110,24 +113,41 @@ def forecast(data, day, model, stack_points):
             continue
         print(f"Forecasting {day} with {part}", flush=True)
         try:
-            made[part], point = stack(data, day, part, stack_points)
-            stack_made = (part, point)
+            made[part], point, info = stack(data, day, part, stack_points)
+            stack_made = {"model": part, "quantiles": made[part], "point": point, "info": info}
         except Exception as error:   # the forecast goes out without it
-            failed = f"{part}: {type(error).__name__}: {error}"
+            failed = f"{type(error).__name__}: {error}"
+            stack_made = {"model": part, "error": failed}
     if failed:
         alone = next(part for part in spec["parts"] if "size" in backtest.MODELS[part])
-        message = f"The stack could not be made ({failed}); the forecast is {alone}'s alone."
+        message = f"The stack could not be made ({stack_made['model']}: {failed}); the forecast is {alone}'s alone."
         print(f"  {message}", flush=True)
         if os.environ.get("GITHUB_STEP_SUMMARY"):
             with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
                 handle.write(message + "\n")
-        return made[alone], alone, [], None
+        return made[alone], alone, [], stack_made
     weights = spec.get("weights", [1.0 / len(spec["parts"])] * len(spec["parts"]))
     quantiles = sum(weight * made[part] for part, weight in zip(spec["parts"], weights))
     parts = [{"id": part, "label": backtest.MODELS[part]["label"], "weight": weight,
               "median": {zone: rounded(made[part][z, :, backtest.MEDIAN]) for z, zone in enumerate(ZONES)}}
              for part, weight in zip(spec["parts"], weights)]
     return quantiles, model, parts, stack_made
+
+
+def stack_latest(stack_made):
+    """latest.json's "stack", for the Stack model card: the stack's own
+    forecast (STACK_LEVELS per zone and hour) and what it was made from, or
+    why it could not be made."""
+    if not stack_made:
+        return None
+    model = stack_made["model"]
+    out = {"model": model, "label": backtest.MODELS[model]["label"]}
+    if "error" in stack_made:
+        return dict(out, error=stack_made["error"])
+    quantiles = stack_made["quantiles"]
+    return dict(out, **stack_made["info"], levels=list(STACK_LEVELS),
+                forecast={zone: [rounded(quantiles[z, :, backtest.LEVELS.index(level)]) for level in STACK_LEVELS]
+                          for z, zone in enumerate(ZONES)})
 
 
 def load_stack_history():
@@ -211,19 +231,37 @@ def week(data, decision_day):
     }
 
 
-def keep_stack(stack_history, day, model, point, made_at, before_gate, hours):
+def keep_stack(stack_history, day, stack_made, made_at, before_gate, data, last_prices):
     """The stack's forecast for the day into stack_history.json, kept as
-    history.json's are (one made after the gate never replaces one before)."""
+    history.json's are (one made after the gate never replaces one before),
+    and the days whose prices are now out scored (MAE per zone and all)."""
     entries = stack_history.setdefault("forecasts", {})
     previous = entries.get(day.isoformat())
-    if previous and previous.get("before_gate") and not before_gate:
-        return
-    entries[day.isoformat()] = {"made_at": made_at, "before_gate": before_gate, "model": model,
-                                "point": {zone: rounded(point[z, :hours]) for z, zone in enumerate(ZONES)}}
+    if stack_made and "point" in stack_made and not (previous and previous.get("before_gate") and not before_gate):
+        point, hours = stack_made["point"], data.hours[day]
+        entries[day.isoformat()] = {"made_at": made_at, "before_gate": before_gate, "model": stack_made["model"],
+                                    "reference_days": stack_made["info"]["reference_days"],
+                                    "point": {zone: rounded(point[z, :hours]) for z, zone in enumerate(ZONES)}}
+    for key, entry in entries.items():
+        past = date.fromisoformat(key)
+        if "scores" in entry or past not in data.day_start or past > last_prices:
+            continue
+        errors = []
+        for zone in ZONES:
+            actual = data.series[f"{zone}|price"][data.day_slice(past)]
+            point = np.array([np.nan if v is None else v for v in entry["point"][zone]], dtype=float)
+            if len(point) != len(actual) or not np.isfinite(actual).all():
+                break
+            errors.append(np.abs(point - actual))
+        else:
+            entry["scores"] = {zone: round(float(np.nanmean(e)), 2) for zone, e in zip(ZONES, errors)}
+            entry["scores"]["ALL"] = round(float(np.nanmean(np.concatenate(errors))), 2)
     stack_history["forecasts"] = dict(sorted(entries.items()))
-    stack_history.setdefault("description", "The stack model's price forecast kept for each day (the last made "
-                             "before the 12:00 gate), EUR/MWh per zone and hour: its band in the daily forecast "
-                             "comes from its errors over the previous days.")
+    stack_history["description"] = (
+        "The stack model's price forecast kept for each day (the last made before the 12:00 gate), EUR/MWh per zone "
+        "and hour, with the reference days it was cleared from and, once the day's prices are out, its mean absolute "
+        "error per zone and all zones (scores): its band in the daily forecast comes from its errors over the "
+        "previous days.  Entries marked backtest were made as the backtest's (inputs as of the morning before).")
     with open(STACK_HISTORY_PATH, "w", encoding="utf-8") as handle:
         json.dump(stack_history, handle, separators=(",", ":"))
 
@@ -268,6 +306,8 @@ def main():
                      for z, zone in enumerate(ZONES)},
         # A blend's models: each one's weight and median per zone.
         "parts": parts,
+        # The stack's own forecast and inputs (the Stack model card).
+        "stack": stack_latest(stack_made),
         # Today's prices (ENTSO-E), to draw the forecast after them.
         "today": {"day": today.isoformat(),
                   "prices": {zone: rounded(data.series[f"{zone}|price"][data.day_slice(today)]) for zone in ZONES}},
@@ -309,8 +349,8 @@ def main():
         json.dump(latest, handle, separators=(",", ":"))
     with open(HISTORY_PATH, "w", encoding="utf-8") as handle:
         json.dump(history, handle, separators=(",", ":"))
-    if stack_made:
-        keep_stack(stack_history, day, *stack_made, latest["made_at"], before_gate, data.hours[day])
+    if stack_made or stack_history.get("forecasts"):
+        keep_stack(stack_history, day, stack_made, latest["made_at"], before_gate, data, last_prices)
 
     medians = {zone: float(np.mean(quantiles[z, :, backtest.MEDIAN])) for z, zone in enumerate(ZONES)}
     print(f"  Made {latest['made_at']} ({'before' if before_gate else 'after'} the gate {latest['gate']})")

@@ -23003,12 +23003,25 @@ move the slider above to another one`,
   const forecastAfterGate = model => model.endsWith("-res");
   // Shown on the hourly chart at first; the legend shows or hides the others.
   const FORECAST_FIRST_SHOWN = ["naive", "lear", "timestral-209m", "timestral-28m", "hybrid"];
+  // The stack card's backtest: the stack's versions, set against these.
+  const STACK_REFERENCES = ["naive", "lear-wx", "timestral-209m-wx", "hybrid"];
+  const STACK_FIRST_SHOWN = ["stack-bids-v3", "stack-bids-analogs", "timestral-209m-wx"];
+  const forecastIsStack = model => model.startsWith("stack-");
   const forecastMount = document.getElementById("forecast-mount");
   let forecastTab = "tomorrow";
-  const forecastState = { zone: "NORD", band: null, summary: null, error: null, zones: {}, charts: {} };
+  const forecastState = { zone: "NORD", band: null, stackBand: "stack-bids-v3", summary: null, error: null, zones: {}, charts: {} };
 
   const forecastColor = model => cssVar(FORECAST_MODEL_COLORS[model] || "--muted");
   const forecastModels = () => (forecastState.summary ? forecastState.summary.models : []);
+  // The models of the card open: the time series card all but the stack's versions; the stack card those,
+  // then its references.
+  const forecastShown = () => {
+    const models = forecastModels();
+    if (forecastView !== "stack") return models.filter(model => !forecastIsStack(model.id));
+    return models.filter(model => forecastIsStack(model.id))
+      .concat(STACK_REFERENCES.map(id => models.find(model => model.id === id)).filter(Boolean));
+  };
+  const forecastBandKey = () => (forecastView === "stack" ? "stackBand" : "band");
   const forecastLabel = model => (forecastModels().find(item => item.id === model) || { label: model }).label;
   const forecastEuro = (value, digits = 1) => (Number.isFinite(value) ? `€${formatNumber(value, digits)}` : "—");
   const forecastDay = date => new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
@@ -23079,10 +23092,12 @@ move the slider above to another one`,
   let forecastBuilt = null; // the view built in forecastMount: "tomorrow" | "week" | "backtest" | null
 
   function forecastDispose() {
-    [forecastState.charts, tomorrowState.charts, weekState.charts].forEach(charts => Object.values(charts).forEach(chart => chart.dispose()));
+    [forecastState.charts, tomorrowState.charts, weekState.charts, stackState.charts].forEach(charts =>
+      Object.values(charts).forEach(chart => chart.dispose()));
     forecastState.charts = {};
     tomorrowState.charts = {};
     weekState.charts = {};
+    stackState.charts = {};
   }
   const forecastSection = (id, title, body, help, wide = false, extra = "") =>
     `<section id="forecast-${id}-section" class="panel chart-panel${wide ? " forecast-wide" : ""}"><div class="chart-header"><div>` +
@@ -23523,10 +23538,10 @@ move the slider above to another one`,
   /*
    * The section opens on its forecasting methods.  The time series model
    * (Timestral) has the Tomorrow, Week and Backtest views above; the stack
-   * model, the MGP's merit order rebuilt from the plants' bids and the grid,
-   * is scored on the same backtest, and a tenth of it is blended into
-   * tomorrow's forecast (forecast_daily.py's MODEL, "hybrid"); its own card
-   * is in preparation.
+   * model, the MGP rebuilt from the plants' real bids and the grid, has
+   * Tomorrow (its own forecast, the days it was built from, its track record)
+   * and Backtest (its versions against Timestral); a tenth of it is blended
+   * into the published forecast (forecast_daily.py's MODEL, "hybrid").
    */
   const forecastHome = document.getElementById("forecast-home");
   const forecastSubnav = document.getElementById("forecast-subnav");
@@ -23538,16 +23553,16 @@ move the slider above to another one`,
     { id: "timeseries", live: true, icon: "series", tag: "Machine learning · Timestral",
       title: "Time series model",
       text: "Mistral's Timestral, a pretrained time series model, reads the seven zones' past prices with the inputs known before the gate (load forecasts, weather, gas, carbon, the neighbours' prices): tomorrow's hourly prices as quantiles (blended with a tenth of the stack model's since 29 October 2026), the week ahead, and a year's backtest against LEAR, the stack model and a naive forecast, scored on the error and on what a battery earns trading on it." },
-    { id: "stack", live: false, icon: "stack", tag: "Fundamental · merit order",
+    { id: "stack", live: true, icon: "stack", tag: "Fundamental · real bids",
       title: "Stack model",
-      text: "The MGP auction rebuilt bottom-up: each plant's offer from its efficiency, fuel and carbon costs and its past bids, net of the plants out of service; the merit order cleared against the demand, wind and solar forecast from the weather, with imports and storage; and the zones split where the transmission limits bind." }
+      text: "The MGP auction rebuilt from GME's real bids: the offers of the five most similar recent days, moved to tomorrow by the weather, the load forecast, gas, carbon and the plants out of service, and cleared zone by zone within the transmission limits: tomorrow's hourly prices, the days it was built from, its track record, and a year's backtest of its versions against Timestral. A tenth of it goes into the published forecast." }
   ];
   let forecastView = "home";
 
   function forecastCardsHtml() {
     const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${FORECAST_ICONS[name]}</svg>`;
     return `<p class="analysis-lede">Two ways to forecast the day-ahead prices, a card each: a model that learns from the prices' own history, ` +
-      `and one that rebuilds the auction from the plants' costs and the grid. Both are scored on the same test year, zone by zone. Choose one to open it.</p>` +
+      `and one that rebuilds the auction from the plants' bids and the grid. Both are scored on the same test year, zone by zone. Choose one to open it.</p>` +
       `<div class="analysis-cards">${FORECAST_CARDS.map(item =>
         `<button type="button" class="analysis-card${item.live ? " live" : ""}" data-forecast-view="${item.id}">` +
         `<span class="analysis-card-top"><span class="analysis-card-icon">${icon(item.icon)}</span>` +
@@ -23586,10 +23601,14 @@ move the slider above to another one`,
       forecastMount.innerHTML = "";
       return;
     }
+    // The stack forecasts tomorrow only: no Week tab.
+    if (forecastView === "stack" && forecastTab === "week") forecastTab = "tomorrow";
+    forecastSubnav.querySelector('[data-forecast-tab="week"]').style.display = forecastView === "stack" ? "none" : "";
     document.querySelectorAll("#forecast-subnav .subnav-tab").forEach(button =>
       button.classList.toggle("active", button.dataset.forecastTab === forecastTab));
     if (forecastTab === "tomorrow") {
-      renderForecastTomorrow();
+      if (forecastView === "stack") renderStackTomorrow();
+      else renderForecastTomorrow();
       return;
     }
     if (forecastTab === "week") {
@@ -23608,7 +23627,7 @@ move the slider above to another one`,
       loadForecastSummary();
       return;
     }
-    if (forecastBuilt !== "backtest") buildForecastBacktest();
+    if (forecastBuilt !== `${forecastView}-backtest`) buildForecastBacktest();
     drawForecastBacktest();
   }
 
@@ -23617,16 +23636,20 @@ move the slider above to another one`,
     const summary = forecastState.summary;
     const zoneOptions = summary.zones.map(zone =>
       `<option value="${zone.code}"${zone.code === forecastState.zone ? " selected" : ""}>${escapeHtml(zone.name)}</option>`).join("");
-    const bandOptions = summary.models.map(model =>
-      `<option value="${model.id}"${model.id === forecastState.band ? " selected" : ""}>${escapeHtml(model.label)}</option>`).join("");
+    const shown = forecastShown();
+    if (!shown.some(model => model.id === forecastState[forecastBandKey()])) forecastState[forecastBandKey()] = shown[0].id;
+    const bandOptions = shown.map(model =>
+      `<option value="${model.id}"${model.id === forecastState[forecastBandKey()] ? " selected" : ""}>${escapeHtml(model.label)}</option>`).join("");
+    const stackCard = forecastView === "stack";
     const section = forecastSection;
     const chart = id => `<div class="forecast-chart-wrap"><div id="forecast-${id}-chart" class="timeline-chart"></div></div>`;
     const table = id => `<div id="forecast-${id}-table" class="gas-table-wrap forecast-table-wrap"></div>`;
     forecastMount.innerHTML =
-      section("summary", "Day-ahead Price Forecast: Backtest",
+      section("summary", stackCard ? "Stack Model: Backtest" : "Day-ahead Price Forecast: Backtest",
         `<div id="forecast-kpis" class="gas-kpis"></div>`,
         "Each day's 24 hourly MGP prices of the seven zones, forecast as on the day before the auction and scored against the " +
-        "actual prices over the test period. The models and their inputs are described at the bottom of the page.",
+        "actual prices over the test period. The models and their inputs are described at the bottom of the page." +
+        (stackCard ? " The tiles: the best of the stack's versions." : ""),
         true,
         `<div class="merit-filters"><label class="mgp-source-filter">Zone <select id="forecast-zone" aria-label="Bidding zone">${zoneOptions}</select></label></div>`) +
       section("scores", "Scores by Model", table("scores"),
@@ -23643,7 +23666,23 @@ move the slider above to another one`,
         `<div class="merit-filters"><label class="mgp-source-filter">Bands <select id="forecast-band" aria-label="Model whose bands are shown">${bandOptions}</select></label></div>`) +
       section("monthly", "Mean Absolute Error by Month", chart("monthly"), "€/MWh, the zone chosen above.") +
       section("zones", "Mean Absolute Error by Zone", table("zones"), "€/MWh. Best in each row in bold.") +
-      section("method", "How the Forecasts Are Made", `<ul class="forecast-method">` +
+      section("method", stackCard ? "How the Stack Is Made" : "How the Forecasts Are Made",
+        `<ul class="forecast-method">${stackCard ? STACK_METHOD : FORECAST_METHOD}</ul>`, "", true);
+    forecastState.charts = { hourly: echarts.init(document.getElementById("forecast-hourly-chart")),
+      monthly: echarts.init(document.getElementById("forecast-monthly-chart")) };
+    document.getElementById("forecast-zone").addEventListener("change", event => {
+      forecastState.zone = event.target.value;
+      drawForecastBacktest();
+    });
+    document.getElementById("forecast-band").addEventListener("change", event => {
+      forecastState[forecastBandKey()] = event.target.value;
+      drawForecastHourly();
+    });
+    forecastBuilt = `${forecastView}-backtest`;
+  }
+
+  // The time series card's method notes.
+  const FORECAST_METHOD =
         "<li><b>Naive</b>: last week's prices on Monday, Saturday and Sunday, the day before's on the other days. Its band comes " +
         "from its own errors over the previous 182 days, hour by hour.</li>" +
         "<li><b>LEAR</b> (Lago et al., 2021, the usual benchmark of price forecasting): a lasso regression per zone and hour on the " +
@@ -23658,18 +23697,8 @@ move the slider above to another one`,
         "forecasts up to the day before. Its band is its own (21 quantiles). <i>Prices only</i>: the history alone, no other " +
         "inputs. 28M and 209M: the model's size in parameters.</li>" +
         "<li><b>LEAR + Timestral</b>: the average of the two models' quantiles.</li>" +
-        "<li><b>Stack model</b>: the MGP auction rebuilt and cleared zone by zone (PyPSA with HiGHS, GME's limits between the " +
-        "zones of the day before). <i>Classic merit order</i>: each gas, coal and oil unit offered at its fuel and carbon cost " +
-        "over its efficiency, less the outages ENTSO-E had published by 10:00 the day before; wind and solar from the weather " +
-        "forecasts; the rest (hydro, storage, imports, must-run) at its profile of the week before. <i>Real bids</i>: GME's " +
-        "public offers, out about 8 days after the auction, so on the day before only those of 9 days back and earlier: a " +
-        "recent day's offers and bids of the same kind (working day, Saturday, Sunday or holiday) moved to the day, wind and " +
-        "solar by the weather forecasts, demand by Terna's load forecast, thermal offers by the gas and EUA prices and the " +
-        "outages. <i>5 similar days</i>: the five days of the last six weeks with the residual load (load less wind and " +
-        "solar) most like the day's, each cleared, the median of their prices. <i>Improved</i>: also the coupled neighbours " +
-        "(France, Austria, Slovenia, Greece) as offers and bids around their price up to JAO's capacity, units replacing those " +
-        "out, wind, solar and demand moved part of the way. <i>Composite</i>: the five days' offers averaged, cleared once. " +
-        "Its band, like LEAR's, from its errors over the previous 182 days.</li>" +
+        "<li><b>Stack model</b>: the MGP auction rebuilt from GME's real bids and cleared zone by zone; its versions, its own " +
+        "forecast and how it is made: the Stack model card.</li>" +
         "<li><b>Timestral + stack</b> (the forecast on the Tomorrow tab since 29 October 2026): 0.9 times the quantiles of " +
         "Timestral 209M with weather plus 0.1 times the stack's (real bids, 5 similar days). The two err differently (their " +
         "errors correlate 0.4–0.5), so the blend beats Timestral in every zone; the weights were chosen on this test year " +
@@ -23687,31 +23716,51 @@ move the slider above to another one`,
         "(CC BY 4.0) for the weather. Gas and EUA enter two days late, the last surely known " +
         "before the auction.</li>" +
         "<li><b>Caveat</b>: the files hold the forecasts' latest revision, which may be slightly better than the first one a " +
-        "trader saw before the auction.</li></ul>", "", true);
-    forecastState.charts = { hourly: echarts.init(document.getElementById("forecast-hourly-chart")),
-      monthly: echarts.init(document.getElementById("forecast-monthly-chart")) };
-    document.getElementById("forecast-zone").addEventListener("change", event => {
-      forecastState.zone = event.target.value;
-      drawForecastBacktest();
-    });
-    document.getElementById("forecast-band").addEventListener("change", event => {
-      forecastState.band = event.target.value;
-      drawForecastHourly();
-    });
-    forecastBuilt = "backtest";
-  }
+        "trader saw before the auction.</li>";
+
+  // The stack card's method notes.
+  const STACK_METHOD =
+        "<li><b>Clearing</b>: the MGP as a linear programme (PyPSA, solved by HiGHS), a day at a time, hour by hour: welfare " +
+        "maximised over the zones' sale offers and purchase bids, the flows between the zones within GME's limits of the day " +
+        "before (the last surely out before the gate), each zone's price the dual of its balance. Block orders are one variable " +
+        "across their hours (relaxed: GME's algorithm can reject a block in the money, this one cannot). The borders coupled " +
+        "with Europe come in as the net flow of the week before. Replaying a day from its own bids gives the clearing's own " +
+        "error: about 1–2.5 €/MWh on the mainland, more in Sicily.</li>" +
+        "<li><b>Classic merit order</b>: each gas, coal and oil unit offered at its fuel and carbon cost over its efficiency " +
+        "(the efficiency range of its technology, the largest units the most efficient), less the outages ENTSO-E had " +
+        "published by 10:00 the day before; wind and solar from the weather forecasts; hydro, storage, imports and must-run at " +
+        "their profile of the week before. The baseline the real bids had to beat.</li>" +
+        "<li><b>Real bids</b>: GME's public offers, unit by unit, out about 8 days after the auction, so the day before only " +
+        "those of 9 days back and earlier: a recent day of the same kind (working day, Saturday, Sunday or holiday) moved to " +
+        "the day: wind and solar offers by the weather forecasts, the demand bids by Terna's load forecast, the thermal offers " +
+        "by the change in gas and EUA prices at the unit's efficiency and cut to what the outages leave.</li>" +
+        "<li><b>5 similar days</b>: the five days of the last six weeks whose residual load (load less wind and solar) is most " +
+        "like the day's, each cleared on its own, the median of their prices. The version in the published forecast: its " +
+        "errors are the least like Timestral's.</li>" +
+        "<li><b>Improved</b>: also France, Austria, Slovenia and Greece as import offers and export bids around their price " +
+        "(the naive rule) up to JAO's capacity of the day before, units replacing the thermal capacity the outages cut, and " +
+        "wind, solar and demand moved part of the way to their forecasts. <i>Composite</i>: the five days' moved offers " +
+        "averaged into one day and cleared once, the best of the versions and about five times cheaper.</li>" +
+        "<li><b>Bands</b>: from each version's errors over the previous 182 days, hour by hour, as LEAR's.</li>" +
+        "<li><b>References</b>: the naive forecast, LEAR with weather, Timestral 209M with weather and the published blend " +
+        "(0.9 Timestral + 0.1 the 5-similar-days stack), described on the Time series model card.</li>" +
+        "<li><b>Data</b>: GME's public offers of the MGP (Offers_PublicDomain) and its limits between the zones; ENTSO-E's " +
+        "outages of the generation units (15.1.A/B, each revision with the time it was published), generation per zone " +
+        "(16.1.B&amp;C) and load forecast (6.1.B); JAO's day-ahead capacities; the PSV gas (GME's IG Index) and EUA prices; " +
+        "Open-Meteo's ECMWF weather forecasts. GME's data stay private.</li>";
 
   function drawForecastBacktest() {
     const summary = forecastState.summary;
     const zone = forecastState.zone;
     const zoneName = summary.zones.find(item => item.code === zone).name;
-    const models = summary.models.map(model => model.id);
+    const models = forecastShown().map(model => model.id);
     const scores = model => (summary.metrics[model] || {})[zone] || {};
     const period = `${forecastDay(summary.test_start)} – ${forecastDay(summary.test_end)}, ${formatNumber(summary.days)} days`;
     setText("forecast-summary-subtitle", `${zoneName} · ${period}`);
 
     // Tiles: the best model by MAE against the naive one, CRPS and the battery.
-    const best = key => models.filter(model => !forecastAfterGate(model) && Number.isFinite(scores(model)[key]))
+    const best = key => models.filter(model => !forecastAfterGate(model) && Number.isFinite(scores(model)[key])
+      && (forecastView !== "stack" || forecastIsStack(model)))
       .sort((a, b) => (key === "battery_capture" ? scores(b)[key] - scores(a)[key] : scores(a)[key] - scores(b)[key]))[0];
     const bestMae = best("mae");
     const bestCrps = best("crps");
@@ -23784,12 +23833,12 @@ move the slider above to another one`,
         .filter(item => Number.isFinite(item.value))
         .sort((a, b) => a.value - b.value)
         .map(item => `<div>${item.marker} ${escapeHtml(item.seriesName)}: <b>${forecastEuro(item.value, 2)}</b></div>`).join("")),
-      legend: bessLegend(summary.models.map(model => model.label), { type: "scroll", right: 8 }),
+      legend: bessLegend(forecastShown().map(model => model.label), { type: "scroll", right: 8 }),
       grid: { left: 52, right: 16, top: 40, bottom: 28 },
       xAxis: { type: "category", data: months.map(label), axisTick: { show: false },
         axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: bessAxisLabel() },
       yAxis: timelineYAxis("€/MWh", { nameGap: 36 }),
-      series: summary.models.map(model => anaLineSeries(model.label, FORECAST_MODEL_COLORS[model.id] || "--muted",
+      series: forecastShown().map(model => anaLineSeries(model.label, FORECAST_MODEL_COLORS[model.id] || "--muted",
         months.map(month => (((summary.monthly_mae[model.id] || {})[month] || {})[forecastState.zone] ?? null)),
         { showSymbol: true, symbolSize: 4, lineStyle: forecastAfterGate(model.id) ? { type: "dashed" } : {} }))
     }, true);
@@ -23805,8 +23854,9 @@ move the slider above to another one`,
     if (file === "loading") { anaEmpty(chart, "Loading…"); return; }
     if (file === "missing") { anaEmpty(chart, `No hourly forecasts on file for ${zoneName}.`); return; }
 
-    const band = forecastState.band;
+    const band = forecastState[forecastBandKey()];
     const bandColor = forecastColor(band);
+    const firstShown = forecastView === "stack" ? STACK_FIRST_SHOWN : FORECAST_FIRST_SHOWN;
     const series = [];
     const q = level => file.series[`${band}|q${level}`];
     if (q("05") && q("95")) {
@@ -23823,7 +23873,7 @@ move the slider above to another one`,
     const actualName = "Actual";
     series.push({ name: actualName, type: "line", data: file.series.actual, symbol: "none", z: 5,
       lineStyle: { color: cssVar("--fc-actual"), width: 1.6 }, itemStyle: { color: cssVar("--fc-actual") } });
-    forecastModels().forEach(model => {
+    forecastShown().forEach(model => {
       const values = file.series[`${model.id}|q50`];
       if (!values) return;
       series.push({ name: model.label, type: "line", data: values, symbol: "none", z: 4,
@@ -23831,9 +23881,9 @@ move the slider above to another one`,
           type: model.id === "naive" ? "dotted" : forecastAfterGate(model.id) ? "dashed" : "solid" },
         itemStyle: { color: forecastColor(model.id) } });
     });
-    const selected = Object.fromEntries(forecastModels().map(model =>
-      [model.label, FORECAST_FIRST_SHOWN.includes(model.id) || model.id === band]));
-    const names = [actualName, ...forecastModels().map(model => model.label)];
+    const selected = Object.fromEntries(forecastShown().map(model =>
+      [model.label, firstShown.includes(model.id) || model.id === band]));
+    const names = [actualName, ...forecastShown().map(model => model.label)];
     const total = file.labels.length;
     const keep = previous => {
       const zoom = previous && previous.dataZoom && previous.dataZoom[0];
@@ -23874,6 +23924,236 @@ move the slider above to another one`,
     }, true);
   }
 
+  /* ---------- Stack model: tomorrow's stack and its track record ---------- */
+  /*
+   * latest.json's "stack" (etl/forecast_daily.py): the stack model's own
+   * forecast for tomorrow (5, 25, 50, 75 and 95% per zone and hour), the days
+   * whose bids it was cleared from, the day of GME's limits and the thermal
+   * capacity out; data/forecast/stack_history.json: its forecast kept for
+   * each day, with its mean absolute error once the prices are out (up to 29
+   * October 2026 the backtest's, made the same way).
+   */
+  const stackState = { history: null, status: null, zone: "NORD", charts: {} };
+  const STACK_RECORD_DAYS = 90;
+  const stackDay = date => new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB",
+    { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+
+  function loadStackHistory() {
+    if (stackState.status) return;
+    stackState.status = "loading";
+    anaFetch("forecast/stack_history.json")
+      .then(history => { stackState.history = history; stackState.status = "ready"; })
+      .catch(error => { console.warn("The stack's history is unavailable:", error); stackState.status = "missing"; })
+      .finally(() => { if (currentSection === "forecast" && forecastView === "stack" && forecastTab === "tomorrow") drawStackRecord(); });
+  }
+
+  function renderStackTomorrow() {
+    if (!tomorrowState.latest) {
+      forecastDispose();
+      forecastBuilt = null;
+      forecastMount.innerHTML = `<section class="panel chart-panel forecast-wide"><div class="forecast-message">${tomorrowState.error
+        ? "Tomorrow's forecast is not on file here (data/forecast/latest.json): run etl/forecast_daily.py."
+        : "Loading tomorrow's forecast…"}</div></section>`;
+      if (!tomorrowState.error) loadForecastLatest();
+      return;
+    }
+    if (forecastBuilt !== "stack-tomorrow") buildStackTomorrow();
+    drawStackTomorrow();
+    loadStackHistory();
+    drawStackRecord();
+  }
+
+  function buildStackTomorrow() {
+    forecastDispose();
+    const latest = tomorrowState.latest;
+    const zoneOptions = latest.zones.map(zone =>
+      `<option value="${zone.code}"${zone.code === stackState.zone ? " selected" : ""}>${escapeHtml(zone.name)}</option>`).join("");
+    const chart = id => `<div class="forecast-chart-wrap"><div id="forecast-${id}-chart" class="timeline-chart"></div></div>`;
+    forecastMount.innerHTML =
+      forecastSection("stack-tomorrow", "Tomorrow's Stack Forecast",
+        `<div id="forecast-stack-status" class="forecast-status"></div><div id="forecast-stack-table" class="gas-table-wrap forecast-table-wrap"></div>`,
+        "MGP prices for tomorrow from the stack model alone, €/MWh: the auction rebuilt from GME's real bids of the days above " +
+        "(GME publishes a day's offers about 8 days after the auction: these are the most like tomorrow among those out), moved " +
+        "to tomorrow by the weather, Terna's load forecast, the gas and EUA prices and the outages, and cleared zone by zone " +
+        "within GME's limits. Stack: the median's mean over the day; 5–95%: the mean of the hours' 5% and 95% quantiles, from the " +
+        "stack's own errors over the previous 182 days. Peak: 08:00–20:00. Timestral: Timestral 209M with weather; published: " +
+        "the forecast of the Time series model card, 0.9 Timestral + 0.1 stack.", true) +
+      forecastSection("stack-day", "Hourly: the Stack against Timestral", chart("stack-day"),
+        "€/MWh. Today's prices, then tomorrow: the stack's median with its 25–75% (darker) and 5–95% bands, Timestral's median " +
+        "and the published forecast's.", true,
+        `<div class="merit-filters"><label class="mgp-source-filter">Zone <select id="forecast-stack-zone" aria-label="Bidding zone">${zoneOptions}</select></label></div>`) +
+      forecastSection("stack-record", "Track Record", chart("stack-record"),
+        `The stack's mean absolute error each day, the last ${STACK_RECORD_DAYS} days with prices out, €/MWh: all zones and the ` +
+        "zone chosen above. Shaded: the forecasts made each morning before the gate; before them, the backtest's, made the same " +
+        "way with the inputs out the morning before.", true);
+    stackState.charts = {
+      day: echarts.init(document.getElementById("forecast-stack-day-chart")),
+      record: echarts.init(document.getElementById("forecast-stack-record-chart"))
+    };
+    document.getElementById("forecast-stack-zone").addEventListener("change", event => {
+      stackState.zone = event.target.value;
+      drawStackDay();
+      drawStackRecord();
+    });
+    forecastBuilt = "stack-tomorrow";
+  }
+
+  function drawStackTomorrow() {
+    const latest = tomorrowState.latest;
+    const stack = latest.stack;
+    const status = document.getElementById("forecast-stack-status");
+    const table = document.getElementById("forecast-stack-table");
+    const blended = (latest.parts || []).find(part => forecastIsStack(part.id));
+    setText("forecast-stack-tomorrow-subtitle", `${forecastLongDay(latest.day)} · ${stack ? stack.label : blended ? blended.label : "no stack"}`);
+    if (!stack || stack.error) {
+      status.innerHTML = "";
+      table.innerHTML = `<div class="forecast-message">${stack
+        ? `The stack could not be made for this forecast (${escapeHtml(stack.error)}): the published forecast is Timestral's alone.`
+        : blended ? "The published forecast has the stack in it, but this file has not its own forecast and the days it was " +
+          "built from yet: they come with the next morning's run."
+          : "This forecast was made without the stack model."}</div>`;
+      anaEmpty(stackState.charts.day, "No stack forecast for tomorrow.");
+      return;
+    }
+    const at = level => stack.levels.findIndex(value => Math.abs(value - level) < 1e-9);
+    const publishedAt = latest.levels.findIndex(value => Math.abs(value - 0.5) < 1e-9);
+    const timestral = (latest.parts || []).find(part => !forecastIsStack(part.id));
+    const share = (latest.parts || []).find(part => part.id === stack.model);
+    status.innerHTML = [
+      `Made at ${forecastItalianTime(latest.made_at)} Italian time, ${latest.before_gate ? "before" : "after"} the auction's 12:00 gate`,
+      `from the bids of ${[...stack.reference_days].sort().map(stackDay).join(", ")}`,
+      `GME's limits of ${stackDay(stack.limits_day)}`,
+      `thermal capacity out: ${formatNumber(stack.thermal_out_mw)} MW (${formatNumber(stack.thermal_out_units)} units)`,
+      share ? `${Math.round(share.weight * 100)}% of the published forecast` : ""
+    ].filter(Boolean).map(text => `<span>${escapeHtml(text)}</span>`).join("");
+
+    const rows = latest.zones.map(zone => {
+      const quantiles = stack.forecast[zone.code];
+      const median = quantiles[at(0.5)];
+      const base = forecastMean(median);
+      const ts = timestral ? forecastMean(timestral.median[zone.code]) : NaN;
+      return { zone, base, low: forecastMean(quantiles[at(0.05)]), high: forecastMean(quantiles[at(0.95)]),
+        peak: forecastMean(median.filter((value, hour) => hour >= 8 && hour < 20)),
+        offPeak: forecastMean(median.filter((value, hour) => hour < 8 || hour >= 20)),
+        ts, published: forecastMean(latest.forecast[zone.code][publishedAt]), gap: base - ts };
+    });
+    table.innerHTML =
+      `<table class="gas-table forecast-table"><thead><tr><th>Zone</th><th class="num">Stack</th><th class="num">5–95%</th>` +
+      `<th class="num">Peak</th><th class="num">Off-peak</th><th class="num">Timestral</th><th class="num">Published</th>` +
+      `<th class="num">Stack − Timestral</th></tr></thead><tbody>` +
+      rows.map(row => `<tr><td><span class="forecast-swatch" style="background:${cssVar(anaZoneColor(row.zone.code))}"></span>${escapeHtml(row.zone.name)}</td>` +
+        `<td class="num best">${forecastEuro(row.base, 1)}</td>` +
+        `<td class="num muted">${forecastEuro(row.low, 0)} – ${forecastEuro(row.high, 0)}</td>` +
+        `<td class="num">${forecastEuro(row.peak, 1)}</td><td class="num">${forecastEuro(row.offPeak, 1)}</td>` +
+        `<td class="num">${forecastEuro(row.ts, 1)}</td><td class="num">${forecastEuro(row.published, 1)}</td>` +
+        `<td class="num">${anaSigned(row.gap, 1)}</td></tr>`).join("") +
+      `</tbody></table>`;
+    drawStackDay();
+  }
+
+  function drawStackDay() {
+    const latest = tomorrowState.latest;
+    const stack = latest.stack;
+    const chart = stackState.charts.day;
+    if (!chart || !stack || stack.error) return;
+    const zone = stackState.zone;
+    const zoneName = latest.zones.find(item => item.code === zone).name;
+    const at = level => stack.levels.findIndex(value => Math.abs(value - level) < 1e-9);
+    const publishedAt = latest.levels.findIndex(value => Math.abs(value - 0.5) < 1e-9);
+    const today = (latest.today.prices || {})[zone] || [];
+    const quantiles = stack.forecast[zone];
+    const hour = h => String(h).padStart(2, "0");
+    const labels = today.map((value, h) => `${forecastShortDay(latest.today.day)} ${hour(h)}:00`)
+      .concat(quantiles[0].map((value, h) => `${forecastShortDay(latest.day)} ${hour(h)}:00`));
+    const pad = values => new Array(today.length).fill(null).concat(values);
+    const color = forecastColor(stack.model);
+    const series = [];
+    [[0.05, 0.95, "5–95%", 0.14], [0.25, 0.75, "25–75%", 0.26]].forEach(([low, high, name, opacity]) => {
+      const lower = quantiles[at(low)], upper = quantiles[at(high)];
+      series.push({ name: `band-${low}`, type: "line", stack: `band-${low}`, data: pad(lower), symbol: "none", lineStyle: { opacity: 0 },
+        silent: true, tooltip: { show: false } });
+      series.push({ name, type: "line", stack: `band-${low}`, symbol: "none", lineStyle: { opacity: 0 },
+        areaStyle: { color, opacity }, silent: true,
+        data: pad(upper.map((value, index) => (value === null || lower[index] === null ? null : value - lower[index]))) });
+    });
+    series.push({ name: "Today", type: "line", symbol: "none", z: 5, data: today.concat(new Array(quantiles[0].length).fill(null)),
+      lineStyle: { color: cssVar("--fc-actual"), width: 1.8 }, itemStyle: { color: cssVar("--fc-actual") } });
+    // The stack's median starts from today's last price, so the two lines join.
+    series.push({ name: "Stack", type: "line", symbol: "none", z: 6,
+      data: new Array(Math.max(0, today.length - 1)).fill(null).concat(today.length ? [today[today.length - 1]] : [], quantiles[at(0.5)]),
+      lineStyle: { color, width: 1.8 }, itemStyle: { color } });
+    const timestral = (latest.parts || []).find(part => !forecastIsStack(part.id));
+    const names = ["Today", "Stack"];
+    if (timestral) {
+      names.push("Timestral");
+      series.push({ name: "Timestral", type: "line", symbol: "none", z: 5, data: pad(timestral.median[zone]),
+        lineStyle: { color: forecastColor(timestral.id), width: 1.4 }, itemStyle: { color: forecastColor(timestral.id) } });
+    }
+    names.push("Published");
+    series.push({ name: "Published", type: "line", symbol: "none", z: 5, data: pad(latest.forecast[zone][publishedAt]),
+      lineStyle: { color: forecastColor(latest.model.id), width: 1.4, type: "dashed" }, itemStyle: { color: forecastColor(latest.model.id) } });
+    setText("forecast-stack-day-subtitle", `${zoneName} · ${forecastShortDay(latest.today.day)} actual, ${forecastShortDay(latest.day)} forecast`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: bessTooltip(items => {
+        const index = items[0].dataIndex;
+        const h = index - today.length;
+        const lines = items.filter(item => names.includes(item.seriesName) && Number.isFinite(item.value)
+          && (item.seriesName === "Today" ? h < 0 : h >= 0))
+          .map(item => `<div>${item.marker} ${escapeHtml(item.seriesName)}: <b>${forecastEuro(item.value, 1)}</b></div>`);
+        if (h >= 0) {
+          lines.push(`<div style="color:${cssVar("--chart-tooltip-muted")}">Stack 5–95%: ${forecastEuro(quantiles[at(0.05)][h], 1)} – ` +
+            `${forecastEuro(quantiles[at(0.95)][h], 1)}</div>`);
+        }
+        return bessTipHead(labels[index]) + lines.join("");
+      }),
+      legend: bessLegend(names, { right: 8 }),
+      grid: { left: 52, right: 16, top: 40, bottom: 28 },
+      xAxis: { type: "category", data: labels, boundaryGap: false, axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), interval: 5 } },
+      yAxis: timelineYAxis("€/MWh", { nameGap: 36, scale: true }),
+      series
+    }, true);
+  }
+
+  function drawStackRecord() {
+    const chart = stackState.charts.record;
+    if (!chart) return;
+    if (stackState.status !== "ready") {
+      anaEmpty(chart, stackState.status === "missing" ? "The stack's track record is not on file here (data/forecast/stack_history.json)." : "Loading…");
+      return;
+    }
+    const entries = Object.entries(stackState.history.forecasts || {}).filter(([, entry]) => entry.scores).slice(-STACK_RECORD_DAYS);
+    if (!entries.length) { anaEmpty(chart, "No day scored yet."); return; }
+    const zone = stackState.zone;
+    const zoneName = tomorrowState.latest.zones.find(item => item.code === zone).name;
+    const labels = entries.map(([day]) => new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }));
+    const all = entries.map(([, entry]) => entry.scores.ALL ?? null);
+    const one = entries.map(([, entry]) => entry.scores[zone] ?? null);
+    const live = entries.findIndex(([, entry]) => !entry.backtest);
+    const model = (stackState.history.forecasts[entries[entries.length - 1][0]] || {}).model || "stack-bids-analogs";
+    setText("forecast-stack-record-subtitle", `${zoneName} and all zones · mean of these ${entries.length} days: ` +
+      `${forecastEuro(forecastMean(all), 2)} all zones, ${forecastEuro(forecastMean(one), 2)} ${zoneName}`);
+    const allSeries = anaLineSeries("All zones", FORECAST_MODEL_COLORS[model] || "--muted", all, { showSymbol: true, symbolSize: 3 });
+    if (live >= 0) {
+      allSeries.markArea = { silent: true, itemStyle: { color: cssVar("--fc-hybrid"), opacity: 0.1 },
+        label: { show: true, position: "insideTop", color: cssVar("--muted"), fontSize: 10 },
+        data: [[{ name: "Live", xAxis: labels[live] }, { xAxis: labels[labels.length - 1] }]] };
+    }
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: bessTooltip(items => bessTipHead(`${stackDay(entries[items[0].dataIndex][0])}${entries[items[0].dataIndex][1].backtest ? " (backtest)" : ""}`) +
+        items.filter(item => Number.isFinite(item.value))
+          .map(item => `<div>${item.marker} ${escapeHtml(item.seriesName)}: <b>${forecastEuro(item.value, 2)}</b></div>`).join("")),
+      legend: bessLegend(["All zones", zoneName], { right: 8 }),
+      grid: { left: 52, right: 16, top: 40, bottom: 28 },
+      xAxis: { type: "category", data: labels, axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), hideOverlap: true } },
+      yAxis: timelineYAxis("€/MWh", { nameGap: 36, min: 0 }),
+      series: [allSeries, anaLineSeries(zoneName, anaZoneColor(zone), one, { showSymbol: true, symbolSize: 3, lineStyle: { width: 1.2 } })]
+    }, true);
+  }
+
   document.querySelectorAll("#forecast-subnav .subnav-tab").forEach(button => {
     button.addEventListener("click", () => {
       forecastTab = button.dataset.forecastTab;
@@ -23883,7 +24163,8 @@ move the slider above to another one`,
 
   window.addEventListener("resize", () => {
     if (currentSection !== "forecast") return;
-    [forecastState.charts, tomorrowState.charts, weekState.charts].forEach(charts => Object.values(charts).forEach(chart => chart.resize()));
+    [forecastState.charts, tomorrowState.charts, weekState.charts, stackState.charts].forEach(charts =>
+      Object.values(charts).forEach(chart => chart.resize()));
   });
 
   // The public version has no forecast.
