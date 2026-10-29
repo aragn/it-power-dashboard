@@ -49,6 +49,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import compact  # noqa: E402
 import stack_res  # noqa: E402
 from entsoe_api import local_midnight_utc  # noqa: E402
+from fetch_outages import MAX_UNIT_MW  # noqa: E402
 from forecast_data import ZONES, Data  # noqa: E402
 from zones import DATA_DIR  # noqa: E402
 
@@ -158,13 +159,18 @@ class Inputs:
         return units
 
     def read_outages(self):
-        """unit code -> [(nominal, [(created, status, runs)] oldest first)]."""
+        """unit code -> [(nominal, [(created, status, runs)] oldest first)].
+        Some documents from September 2026 give the nominal power in kW, the
+        available capacity in MW (fetch_outages.repair): rescaled here."""
         stored = load(OUTAGES_PATH)
-        nominal = {name: info["nominal"] for name, info in stored["units"].items()}
+        nominal = {name: info["nominal"] / 1000 if info["nominal"] and MAX_UNIT_MW < info["nominal"] <= MAX_UNIT_MW * 1000
+                   else info["nominal"] for name, info in stored["units"].items()}
         out = defaultdict(list)
         for item in stored["outages"].values():
+            cap = nominal.get(item["unit"])
             revisions = [(datetime.fromisoformat(created.replace("Z", "+00:00")), status,
-                          [(utc(start), utc(end), mw) for start, end, mw in runs])
+                          [(utc(start), utc(end), mw / 1000 if cap and mw > cap and mw / 1000 <= cap else mw)
+                           for start, end, mw in runs])
                          for created, _revision, status, runs in item["revisions"] if created]
             revisions.sort(key=lambda revision: revision[0])
             out[item["unit"]].append((nominal.get(item["unit"]), revisions))

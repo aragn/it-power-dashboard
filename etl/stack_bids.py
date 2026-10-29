@@ -24,7 +24,9 @@ CUTOFF_HOUR on X-1:
   the rest    as offered on R: storage, hydro, imports and exports on the
               borders not coupled with Europe, blocks with their ids
   grid        GME's limits of X-1 (else of the latest day before with
-              limits on file); the coupled borders' net flow at its
+              limits on file), except a link out of service on X or back
+              in: there X's day-ahead capacities as ENTSO-E has them
+              before the gate (11.1.A, Terna's); the coupled borders' net flow at its
               profile of the 7 days to X-2 (as stack_classic), or, with
               elastic, the coupled neighbours as import offers and export
               bids around their price (BidInputs.neighbours)
@@ -65,6 +67,7 @@ import stack_classic  # noqa: E402
 import stack_clear  # noqa: E402
 from fetch_mgp_merit import unit_sources  # noqa: E402
 from forecast_data import ZONES, Data, is_holiday  # noqa: E402
+from zones import zone_path  # noqa: E402
 
 PUBLISHED_LAG = 9           # on X-1 the latest offers GME has out are X-9's
 REFERENCE_WEEKS = 6         # how far back the reference day is looked for
@@ -95,6 +98,9 @@ NEIGHBOURS = {"FR": "NORD", "AT": "NORD", "SI": "NORD", "GR": "SUD"}
 # neighbour around its price, up to JAO's NTC.
 SWISS_ZONE = "SVIZ"
 JAO_PATH = os.path.join(stack_classic.DATA_DIR, "jao_capacity.json")
+# GME's virtual zones of the borders not coupled with Europe, as the zones'
+# cross-border files name them (etl/fetch_crossborder.py ZONE_BORDERS).
+ENTSOE_BORDERS = {"XGRE": "GR", "GREC": "GR", "MONT": "ME", "MALT": "MT"}
 WORKERS = 6
 
 
@@ -163,6 +169,7 @@ class BidInputs:
         self.units = {unit["code"]: unit for unit in self.classic.units}
         self.coupled, self.pair_limits = self.read_transits()
         self.ntc = self.read_ntc() if elastic else {}
+        self.capacities = self.read_capacities()
 
     def read_ntc(self):
         """country -> (into Italy, out of Italy) MW on the axis: JAO's
@@ -181,7 +188,9 @@ class BidInputs:
         """The coupled neighbours for clearing day X as of X-1: each one's price
         forecast (Lago's naive rule: last week's on Monday, Saturday and Sunday,
         the day before's otherwise; both out by X-1) and its capacity each way
-        on X-1 (the last surely out), hour by hour."""
+        on X-1 (the last surely out), hour by hour.  Not X's where a border is
+        out or back in, as for the zones' links: on 2025-26 that was worse on
+        all four (an hour at 0 MW is routine on these borders)."""
         data = self.data
         hours = data.hours[day]
         back = 7 if day.weekday() in (0, 5, 6) else 1
@@ -215,6 +224,66 @@ class BidInputs:
             limits[pair] = (self.classic.axis(series.get("limit_forward", [])),
                             self.classic.axis(series.get("limit_back", [])))
         return coupled, limits
+
+    def read_capacities(self):
+        """ENTSO-E's day-ahead capacities (11.1.A) on the axis, from the zones'
+        cross-border files (etl/fetch_crossborder.py --zone; NaN where none on
+        file): pair -> (forward, back) for each pair GME sets limits for.  The
+        files hold them as revised after the auction (GME's limits of the day
+        in 99% of the hours of 2025-26); Malta has none."""
+        files = {}
+
+        def capacity(zone, border):
+            if zone not in files:
+                path = zone_path(zone, "crossborder.json")
+                files[zone] = (stack_classic.compact.load(path).get("capacity_day_ahead", {}).get("hourly", {})
+                               if os.path.exists(path) else {})
+            return tuple(self.classic.axis(files[zone].get(direction, {}).get(border, []))
+                         for direction in ("imports", "exports"))
+
+        pairs = {}
+        for pair, (forward, back) in self.pair_limits.items():
+            first, second = pair.split("|")
+            home = first if first in ZONES else second if second in ZONES else None
+            if home is None or not (np.isfinite(forward).any() or np.isfinite(back).any()):
+                continue            # GME sets no limit there
+            other = second if home == first else first
+            imports, exports = capacity(home, ENTSOE_BORDERS.get(other, other))
+            pairs[pair] = (exports, imports) if home == first else (imports, exports)
+        return pairs
+
+    def day_or_before(self, own, before, day, previous, fit):
+        """A link's capacity on X, hour by hour: its value on previous, except
+        where X's own day-ahead capacity on file is 0 (the link out of
+        service) or previous's was 0 (back in): there X's own.  What ENTSO-E
+        has before the gate is cautious (flat, a few hundred MW under the
+        limits GME clears with, which replace it after the auction: the files
+        hold those), so only whether a link is out is taken from it."""
+        values = fit(self.hours_series(before, previous))
+        own = fit(self.hours_series(own, day))
+        return np.where(np.isfinite(own) & ((own < 1) | (values < 1)), own, values)
+
+    def capacities_of(self, day):
+        """The links that took X's own day-ahead capacity in some hour (out of
+        service, or back in), and those without X's on file (not out yet)."""
+        hours = self.data.hours[day]
+
+        def fit(values):
+            values = np.asarray(values, float)
+            return np.concatenate([values, np.repeat(values[-1:], max(0, hours - len(values)))])[:hours]
+
+        limits_day = self.limits_day(day)
+        links = [(pair, self.capacities[pair], self.pair_limits[pair], limits_day) for pair in self.capacities]
+        own, missing = [], []
+        for name, published, before, previous in sorted(links, key=lambda link: link[0]):
+            if (any(np.isfinite(series).any() for series in published)       # ENTSO-E publishes it (not Malta)
+                    and not all(np.isfinite(self.hours_series(series, day)).all() for series in published)):
+                missing.append(name)
+            if any(not np.array_equal(self.day_or_before(mine, theirs, day, previous, fit),
+                                      fit(self.hours_series(theirs, previous)), equal_nan=True)
+                   for mine, theirs in zip(published, before)):
+                own.append(name)
+        return own, missing
 
     def hours_series(self, series, day):
         return series[self.data.day_slice(day)]
@@ -406,10 +475,13 @@ class BidInputs:
         transits = {}
         limits_day = self.limits_day(day)
         for pair, (forward, back) in self.pair_limits.items():
-            # NaN (no limit set by GME) is left out: stack_clear sets no limit there.
-            transits[pair] = {name: {hour: value for hour, value in enumerate(fit(self.hours_series(series, limits_day)))
-                                     if np.isfinite(value)}
-                              for name, series in (("limit_forward", forward), ("limit_back", back))}
+            published = self.capacities.get(pair)
+            transits[pair] = {}
+            for index, (name, series) in enumerate((("limit_forward", forward), ("limit_back", back))):
+                values = (self.day_or_before(published[index], series, day, limits_day, fit) if published
+                          else fit(self.hours_series(series, limits_day)))
+                # NaN (no limit set by GME) is left out: stack_clear sets no limit there.
+                transits[pair][name] = {hour: value for hour, value in enumerate(values) if np.isfinite(value)}
         if not self.elastic:
             for pair, flow in self.coupled.items():
                 transits[pair] = {"flow": dict(enumerate(self.classic.profile(flow, day)))}
@@ -669,7 +741,9 @@ def forecast_day(data, day, horizon=25, analogs=1, pool="weekday", combine="medi
     """(prices, what it was made from) of one day, made in this process with
     data as it is (the live forecast's: its weather run, the outages on
     file): (zones, horizon) hourly prices, and the reference days, the day
-    of GME's limits and the thermal capacity out (with merit and
+    of GME's limits, the links that took X's own day-ahead capacities
+    (limits_own: out of service or back in) and those without X's on file
+    (limits_missing), and the thermal capacity out (with merit and
     composite_days, also the day's merit order, merit_order); prices None
     when it cannot be made (no reference day on file, the clearing failing:
     the reason is printed)."""
@@ -679,8 +753,10 @@ def forecast_day(data, day, horizon=25, analogs=1, pool="weekday", combine="medi
         _, prices = _forecast(day)
         inputs = _STATE["inputs"]
         out = {code: inputs.classic.unavailable(code, day) for code in inputs.units}
+        own, missing = inputs.capacities_of(day)
         info = {"reference_days": [reference.isoformat() for reference in _STATE.get("references", [])],
                 "limits_day": inputs.limits_day(day).isoformat(),
+                "limits_own": own, "limits_missing": missing,
                 "thermal_out_mw": round(float(sum(mw.mean() for mw in out.values()))),
                 "thermal_out_units": sum(1 for mw in out.values() if mw.max() > 0)}
         if merit:

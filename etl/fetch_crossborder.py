@@ -256,7 +256,11 @@ def main():
     )
     parser.add_argument("--zone", default=None,
                         help="A bidding zone (NORD, CNOR, CSUD, SUD, CALA, SICI, SARD) or 'all'; default Italy")
+    parser.add_argument("--datasets", nargs="+", choices=list(DATASETS), default=list(DATASETS),
+                        help="Only these datasets (the others are kept as on file); default all")
     args = parser.parse_args()
+    if args.full_history and set(args.datasets) != set(DATASETS):
+        raise ValueError("--full-history rebuilds every dataset: leave out --datasets.")
 
     end_date = parse_date(args.end) if args.end else market_today()
 
@@ -282,10 +286,10 @@ def main():
               lambda label, domain, path: fetch_area(
                   token, label, domain, path,
                   start_date if explicit or os.path.exists(path) else DEFAULT_HISTORY_START,
-                  end_date, args.full_history))
+                  end_date, args.full_history, args.datasets))
 
 
-def fetch_area(token, label, domain, path, start_date, end_date, full_history):
+def fetch_area(token, label, domain, path, start_date, end_date, full_history, wanted=tuple(DATASETS)):
     area = area_label(label, domain)
     borders = BORDERS if label == "IT" else ZONE_BORDERS[label]
     print()
@@ -303,6 +307,9 @@ def fetch_area(token, label, domain, path, start_date, end_date, full_history):
 
     datasets = {}
     for name in DATASETS:
+        if name not in wanted:
+            datasets[name] = existing[name]
+            continue
         print(f"Downloading {name}...")
         records = download_dataset(token, name, start_date, end_date, borders, domain)
         print(f"  {len(records):,} points")
@@ -310,7 +317,7 @@ def fetch_area(token, label, domain, path, start_date, end_date, full_history):
         datasets[name] = merge_resolutions(existing[name], records, RESOLUTIONS)
         print()
 
-    if not any(datasets["physical_flows"]["daily"].values()):
+    if "physical_flows" in wanted and not any(datasets["physical_flows"]["daily"].values()):
         raise RuntimeError(f"No physical flow data downloaded for {area}; not writing output.")
 
     compact.dump(build_output(datasets, borders, area), path)
