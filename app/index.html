@@ -568,6 +568,12 @@
     .bess-table td { padding:7px 10px; border-bottom:1px solid var(--border); color:var(--text); text-align:right; white-space:nowrap; }
     .bess-table th:first-child, .bess-table td:first-child { text-align:left; }
     .bess-table tr.bess-total td { font-weight:600; border-bottom:0; }
+    .unitimb-pickers { display:flex; gap:8px; flex-wrap:wrap; }
+    .unitimb-pickers select { max-width:220px; }
+    .unitimb-table { max-height:560px; overflow-y:auto; }
+    .unitimb-table tr.unitimb-row { cursor:pointer; }
+    .unitimb-table tr.unitimb-row:hover td, .unitimb-table tr.unitimb-row.active td { background:var(--panel-2); }
+    .unitimb-note { color:var(--muted-2); font-size:10.5px; margin-left:6px; }
     .bess-note { margin:10px 0 0; color:var(--muted-2); font-size:11px; line-height:1.45; }
     .bess-method > .bess-help > summary { color:var(--text); font-size:13px; font-weight:600; }
     .bess-method .bess-help > div { border-left:0; padding:6px 0 0; font-size:12px; color:var(--muted); }
@@ -18561,10 +18567,15 @@ move the slider above to another one`,
     { id: "imbalance", live: true, icon: "scale", tag: "Balancing",
       title: "Imbalance cost of a solar or wind plant",
       text: "What forecast errors cost at Terna's imbalance prices: ENTSO-E's day-ahead and intraday forecasts against the actual output, zone by zone." },
+    { id: "unitimb", live: true, icon: "scale", tag: "Balancing · units", fullOnly: true,
+      title: "Imbalance estimate of the large units",
+      text: "Each plant of 100 MW or more: its metered output (ENTSO-E, unit by unit) against the schedule it got from the MGP, MI-A, MI-XBID, MSD and MB, quarter-hour by quarter-hour. How far each technology and unit strays, and what it earned or cost at the imbalance price." },
     { id: "macse", live: true, icon: "shield", tag: "Storage · policy",
       title: "MACSE and the capacity market",
       text: "The same battery three ways over the days on file: merchant, merchant with a capacity contract (premium against the price above the strike), and MACSE's 15-year fixed premium; what each earns, what each gives up, and the MACSE premium that would match merchant." }
   ];
+  // GME's offers per unit stay off the public version: the cards marked fullOnly are left out of it.
+  const analysisCards = () => ANALYSIS_CARDS.filter(card => !(card.fullOnly && PUBLIC_MODE));
   let analysisView = "home";
 
   function buildAnalysis() {
@@ -18572,7 +18583,7 @@ move the slider above to another one`,
     const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ANALYSIS_ICONS[name]}</svg>`;
     analysisMount.innerHTML =
       `<div id="analysis-home"><p class="analysis-lede">Analyses built on the data of this dashboard. Choose one to open it.</p>` +
-      `<div class="analysis-cards">${ANALYSIS_CARDS.map(item =>
+      `<div class="analysis-cards">${analysisCards().map(item =>
         `<button type="button" class="analysis-card${item.live ? " live" : ""}" data-analysis="${item.id}">` +
         `<span class="analysis-card-top"><span class="analysis-card-icon">${icon(item.icon)}</span>` +
         `<span class="analysis-badge${item.live ? " live" : ""}">${item.live ? "Ready" : "In preparation"}</span></span>` +
@@ -18598,7 +18609,7 @@ move the slider above to another one`,
 
   function renderAnalysis() {
     if (!analysisMount.dataset.built) buildAnalysis();
-    const known = ANALYSIS_CARDS.some(card => card.id === analysisView);
+    const known = analysisCards().some(card => card.id === analysisView);
     if (!known) analysisView = "home";
     document.getElementById("analysis-home").style.display = analysisView === "home" ? "" : "none";
     const built = id => id === "bess" || Boolean(ANALYSIS_VIEWS[id]);
@@ -20757,6 +20768,276 @@ move the slider above to another one`,
     setText("imbalance-table-subtitle", "Month by month, the plant");
   }
 
+  /* ---------- Imbalance estimate of the large units ---------- */
+  /*
+   * Each unit ENTSO-E publishes the output of (16.1.A, 100 MW or more): its
+   * metered output against its final schedule in GME's markets (MGP, MI-A,
+   * MI-XBID, MSD, MB), quarter-hour by quarter-hour, from the monthly files
+   * of etl/imbalance_estimate.py (unit_imbalance/, full version only: GME's
+   * offers per unit).  The imbalance (metered minus schedule) is valued at
+   * the zone's imbalance price against its MGP price.  Storage is metered
+   * discharging only, so its charging quarter-hours are left out.
+   */
+  const UNITIMB_MARKETS = [["mgp", "MGP"], ["mia", "MI-A"], ["xbid", "MI-XBID"], ["msd", "MSD"], ["mb", "MB"]];
+  const UNITIMB_COLORS = ["--border-1", "--border-2", "--border-3", "--border-4", "--border-5"];
+  const UNITIMB_GROUPS = [["all", "All technologies"], ["gas", "Gas"], ["coal", "Coal"], ["hydro", "Hydro (reservoir and run-of-river)"],
+    ["pumped", "Pumped hydro"], ["battery", "Battery storage"], ["other", "Other (oil, geothermal, solar, wind)"]];
+  const UNITIMB_SHORT = { gas: "Gas", coal: "Coal", hydro: "Hydro", pumped: "Pumped", battery: "Battery", other: "Other" };
+  const unitImbState = { month: "", zone: "", group: "all", upto: "mb", unit: "", day: "" };
+  const unitImbFiles = {};
+  const unitImbStorage = unit => unit.psr === "B10" || unit.psr === "B25" || unit.source === "pumped_hydro" || unit.source === "battery";
+  function unitImbGroup(unit) {
+    const key = mgpGroup(unit.source || "").key;
+    if (["gas", "coal", "pumped", "battery", "hydro"].includes(key)) return key;
+    if (unit.psr === "B10") return "pumped";
+    if (unit.psr === "B25") return "battery";
+    if (unit.psr === "B04") return "gas";
+    if (unit.psr === "B05") return "coal";
+    if (unit.psr === "B11" || unit.psr === "B12") return "hydro";
+    return "other";
+  }
+  const unitImbTime = q => `${String(Math.floor(q / 4)).padStart(2, "0")}:${String((q % 4) * 15).padStart(2, "0")}`;
+  async function unitImbLoad(month) {
+    if (!unitImbFiles.index) unitImbFiles.index = bessFetch("unit_imbalance/index.json").catch(error => { delete unitImbFiles.index; throw error; });
+    const index = await unitImbFiles.index;
+    const months = Object.keys(index.months || {}).sort();
+    if (!months.length) throw anaUserError("No month of the imbalance estimate is on file (etl/imbalance_estimate.py).");
+    const chosen = months.includes(month) ? month : months[months.length - 1];
+    if (!unitImbFiles[chosen]) {
+      unitImbFiles[chosen] = fetchMarketFile(`./data/unit_imbalance/${index.months[chosen].file}`, false)
+        .then(file => { if (!file) throw new Error(`unit_imbalance/${chosen}: not found`); return file; })
+        .catch(error => { delete unitImbFiles[chosen]; throw error; });
+    }
+    return { months, month: chosen, file: await unitImbFiles[chosen] };
+  }
+  function unitImbCompute(file, state) {
+    const upto = Math.max(1, UNITIMB_MARKETS.findIndex(([key]) => key === state.upto) + 1);
+    const units = file.units.map(([code, source, operator, zone, psr, mw], index) => ({ index, code, source, operator, zone, psr, mw }));
+    const levels = UNITIMB_MARKETS.map(() => ({ abs: 0, net: 0 }));
+    const total = { metered: 0, schedule: 0, long: 0, short: 0, abs: 0, value: 0, charging: 0 };
+    const groups = {};
+    const rows = [];
+    units.forEach(unit => {
+      if (state.zone && unit.zone !== state.zone) return;
+      const group = unitImbGroup(unit);
+      if (state.group !== "all" && group !== state.group) return;
+      const storage = unitImbStorage(unit);
+      const row = { ...unit, group, storage, metered: 0, schedule: 0, long: 0, short: 0, abs: 0, value: 0, charging: 0, peak: 0, worstDay: null, worstAbs: -1 };
+      (file.data[unit.index] || []).forEach((day, d) => {
+        if (!day) return;
+        const date = file.days[d];
+        const price = ((file.prices || {})[unit.zone] || {})[date] || {};
+        const metered = day[0];
+        let dayAbs = 0;
+        for (let q = 0; q < metered.length; q += 1) {
+          const m = metered[q];
+          if (m === null || m === undefined) continue;
+          const partial = [];
+          let schedule = 0;
+          for (let k = 1; k <= UNITIMB_MARKETS.length; k += 1) { schedule += day[k][q] || 0; partial.push(schedule); }
+          // Storage: ENTSO-E has its output only; a quarter-hour it was scheduled to charge is not measured.
+          if (storage && partial[partial.length - 1] < 0) { row.charging += 0.25; continue; }
+          partial.forEach((value, level) => { levels[level].abs += Math.abs(m - value) * 0.25; levels[level].net += (m - value) * 0.25; });
+          const final = partial[upto - 1];
+          const e = (m - final) * 0.25;
+          row.metered += m * 0.25; row.schedule += final * 0.25; row.abs += Math.abs(e); dayAbs += Math.abs(e);
+          if (e > 0) row.long += e; else row.short -= e;
+          row.peak = Math.max(row.peak, m);
+          const pI = price.imbalance ? price.imbalance[q] : null, pD = price.da ? price.da[q] : null;
+          if (Number.isFinite(pI) && Number.isFinite(pD)) row.value += e * (pI - pD);
+        }
+        if (dayAbs > row.worstAbs) { row.worstAbs = dayAbs; row.worstDay = date; }
+      });
+      if (row.metered <= 0 && row.abs <= 0) return;
+      row.mw = row.mw || row.peak || null;
+      rows.push(row);
+      Object.keys(total).forEach(key => { total[key] += row[key]; });
+      const g = groups[group] || (groups[group] = { metered: 0, long: 0, short: 0, abs: 0, value: 0, units: 0 });
+      g.metered += row.metered; g.long += row.long; g.short += row.short; g.abs += row.abs; g.value += row.value; g.units += 1;
+    });
+    rows.sort((a, b) => b.abs - a.abs);
+    return { rows, total, groups, levels, upto, days: file.days };
+  }
+  function unitImbDayQuarters(file, unit, date) {
+    const d = file.days.indexOf(date);
+    const day = d >= 0 ? (file.data[unit.index] || [])[d] : null;
+    if (!day) return null;
+    const price = ((file.prices || {})[unit.zone] || {})[date] || {};
+    return { metered: day[0], markets: day.slice(1), imbalance: price.imbalance || [], da: price.da || [] };
+  }
+
+  const unitImbView = anaView("unitimb", {
+    title: "Imbalance estimate of the large units",
+    lede: "Each unit ENTSO-E publishes the metered output of (16.1.A: 100 MW or more, about 165 units), against the final schedule it got from GME's markets: what it sold in the MGP, traded in the MI-A auctions and MI-XBID, and was moved by Terna in MSD and MB. The difference is the unit's estimated imbalance, valued at the zone's imbalance price against its day-ahead price.",
+    form: () => {
+      const s = unitImbState;
+      return bessGroup("What to look at",
+        `<div class="bess-field"><label class="ana-label">Month<select data-field="month"><option value="">Latest on file</option></select></label><div class="bess-hint" data-hint="month"></div></div>` +
+        anaSelect(s, "zone", "Bidding zone", [["", "All zones"], ...BESS_ZONES.map(code => [code, ZONE_NAMES[code]])]) +
+        anaSelect(s, "group", "Technology", UNITIMB_GROUPS) +
+        anaSelect(s, "upto", "Schedule made of", [["mgp", "MGP only"], ["mia", "MGP + MI-A"], ["xbid", "MGP + MI-A + MI-XBID"], ["msd", "… + MSD"], ["mb", "All markets (+ MB)"]], {
+          help: bessHelp("Why a choice", "<p>The final schedule is the sum of every market's accepted MW. Leaving the later markets out shows how much of the gap between the MGP schedule and the metered output each market closes: what stays with all of them is the estimated imbalance.</p>") })) +
+        bessGroup("How it is estimated", `<div class="bess-field">` + bessHelp("The method",
+          "<p><b>Metered:</b> ENTSO-E's actual generation per generation unit (16.1.A), matched to GME's unit by its code (ENTSO-E names the units UP_…); several generation units of one GME unit are added up.</p>" +
+          "<p><b>Schedule:</b> per quarter-hour, the unit's accepted sales minus purchases in the MGP and the three MI-A auctions, its MI-XBID fills (an hourly product in each of its four quarter-hours), its accepted MSD energy offers (GR1–GR4 and other services, up minus down; the secondary reserve band and start-ups left out) and its accepted MB offers (secondary regulation energy included).</p>" +
+          "<p><b>Valued:</b> imbalance MWh × (the zone's imbalance price, ENTSO-E 17.1.G − its MGP price): what producing more or less than scheduled earned or cost against trading it day-ahead. Terna's own settlement of relevant units (its corrections and non-arbitrage rules) is not modelled.</p>" +
+          "<p><b>Not seen:</b> ENTSO-E gives storage output only, never its charging, so batteries and pumped hydro are measured on the quarter-hours they were scheduled to discharge. ENTSO-E's figures may be gross of the plant's own consumption where GME's schedules are net: a unit always a little long may be that, not an imbalance.</p>") + `</div>`, false);
+    },
+    results: () =>
+      `<section id="unitimb-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Results</div>` +
+      `<div id="unitimb-summary-subtitle" class="chart-subtitle"></div></div><div id="unitimb-status" class="bess-status"></div></div>` +
+      `<div id="unitimb-kpis" class="gas-kpis bess-kpis"></div><p id="unitimb-reading" class="bess-reading"></p></section>` +
+      anaSection("unitimb", "levels", "How Each Market Closes the Gap", {
+        help: "The units' absolute gap between metered output and schedule, % of the metered energy, as the markets are added to the schedule one by one. What is left with all markets is the estimated imbalance." }) +
+      anaSection("unitimb", "groups", "Imbalance by Technology", {
+        help: "MWh produced above the schedule (long, above zero) and below it (short), with the markets chosen; the label: the absolute imbalance as % of the metered energy." }) +
+      anaSection("unitimb", "day", "One Unit, One Day", { wide: true,
+        extra: `<div class="unitimb-pickers"><select data-field="unit" aria-label="Unit"></select><select data-field="day" aria-label="Day"></select></div>`,
+        help: "The unit's schedule market by market (bars: MW accepted, above zero selling), its final schedule (line) and ENTSO-E's metered output (line). Opens on the unit with the largest imbalance and its worst day; a row of the table below picks a unit." }) +
+      anaSection("unitimb", "table", "Units", { wide: true, body: '<div id="unitimb-table" class="bess-table-wrap unitimb-table"></div>' }),
+    charts: ["levels", "groups", "day"],
+    compute: async self => {
+      const { months, month, file } = await unitImbLoad(unitImbState.month);
+      const select = document.querySelector('#unitimb-view [data-field="month"]');
+      if (select && select.options.length !== months.length + 1) {
+        select.innerHTML = `<option value="">Latest on file</option>` + months.map(key => `<option value="${key}">${anaBucketLabel(key)}</option>`).join("");
+        select.value = unitImbState.month;
+      }
+      const markets = Object.values(file.markets || {});
+      const missing = UNITIMB_MARKETS.filter(([key]) => markets.some(list => !list.includes(key))).map(([, label]) => label);
+      self.hint("month", `${anaBucketLabel(month)}: ${file.days.length} days with ENTSO-E's metered output` + (missing.length ? ` · not on file every day: ${missing.join(", ")}` : " · all markets on file"));
+      return { month, file, ...unitImbCompute(file, unitImbState) };
+    },
+    render: self => unitImbRender(self),
+    onClick: (event, self) => {
+      const row = event.target.closest("[data-unit]");
+      if (!row || !self.results) return;
+      unitImbState.unit = row.dataset.unit;
+      unitImbState.day = "";
+      unitImbDrawDay(self);
+      document.getElementById("unitimb-day-section").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  });
+  unitImbView.state = unitImbState;
+
+  function unitImbRender(self) {
+    const results = self.results;
+    const kpis = document.getElementById("unitimb-kpis"), reading = document.getElementById("unitimb-reading");
+    if (!results) {
+      kpis.innerHTML = "";
+      reading.innerHTML = self.message ? `<span class="bess-error">${self.message}</span>` : "";
+      Object.values(self.charts).forEach(chart => anaEmpty(chart, self.busy ? "Working…" : ""));
+      document.getElementById("unitimb-table").innerHTML = "";
+      return;
+    }
+    const t = results.total, upto = UNITIMB_MARKETS[results.upto - 1][1];
+    const groupLabel = key => (UNITIMB_GROUPS.find(([item]) => item === key) || ["", ""])[1].split(" (")[0];
+    const scope = `${unitImbState.zone ? ZONE_NAMES[unitImbState.zone] : "Italy"} · ${groupLabel(unitImbState.group).toLowerCase()}`;
+    setText("unitimb-summary-subtitle", `${anaBucketLabel(results.month)} · ${scope} · ${results.rows.length} units · schedule up to ${upto}`);
+    kpis.innerHTML =
+      anaTile("Metered output", bessMwh(t.metered), `${results.rows.length} units · schedule ${bessMwh(t.schedule)}`) +
+      anaTile("Absolute imbalance", anaPct(t.metered ? t.abs / t.metered : NaN, 1), `of the metered energy · ${bessMwh(t.abs)}`) +
+      anaTile("Long / short", `${bessMwh(t.long)} / ${bessMwh(t.short)}`, `net ${t.long >= t.short ? "long" : "short"} ${bessMwh(Math.abs(t.long - t.short))}`) +
+      anaTile("Against day-ahead", bessMoney(t.value), `${anaSigned(t.metered ? t.value / t.metered : NaN, 2)} per MWh metered · below zero a cost`) +
+      (t.charging ? anaTile("Storage charging", `${formatNumber(t.charging, 0)} h`, "unit-hours scheduled to charge: not measured") : "");
+    const first = results.levels[0], last = results.levels[results.levels.length - 1];
+    reading.innerHTML = `<b>Reading:</b> against the MGP schedule alone the units missed by ${anaPct(t.metered ? first.abs / t.metered : NaN, 1)} of their metered energy; ` +
+      `with every market's changes, by ${anaPct(t.metered ? last.abs / t.metered : NaN, 1)}. ` +
+      `The imbalance left ${t.value >= 0 ? "earned" : "cost"} ${bessMoney(Math.abs(t.value))} against day-ahead prices` +
+      (results.upto < UNITIMB_MARKETS.length ? ` (schedule up to ${upto} only).` : ".");
+    // How each market closes the gap.
+    setText("unitimb-levels-subtitle", "% of the metered energy, cumulative");
+    self.charts.levels.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: bessTooltip(params => bessTipHead(params[0].name) + params.map(entry =>
+        tooltipRow(entry.color, "Absolute gap", `${formatNumber(entry.value, 1)}% · ${bessMwh(results.levels[entry.dataIndex].abs)}`)).join(""), { axisPointer: { type: "shadow" } }),
+      grid: { left: 56, right: 16, top: 24, bottom: 30 },
+      xAxis: { type: "category", data: UNITIMB_MARKETS.map(([, label], index) => (index ? `+ ${label}` : label)), axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), interval: 0 } },
+      yAxis: timelineYAxis("% of metered", { nameGap: 40 }),
+      series: [{ type: "bar", barMaxWidth: 40, data: results.levels.map((level, index) => ({ value: t.metered ? Math.round(level.abs / t.metered * 1000) / 10 : null,
+        itemStyle: { color: cssVar(UNITIMB_COLORS[index]), opacity: index < results.upto ? 1 : 0.35 } })),
+        label: { show: true, position: "top", color: cssVar("--chart-axis-label"), fontSize: 10, formatter: entry => `${formatNumber(entry.value, 1)}%` } }]
+    }, true);
+    self.charts.levels.resize();
+    // By technology.
+    const groups = UNITIMB_GROUPS.slice(1).filter(([key]) => results.groups[key]);
+    setText("unitimb-groups-subtitle", "MWh, long above zero, short below");
+    self.charts.groups.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Long (produced more)", "Short (produced less)"]),
+      tooltip: bessTooltip(params => {
+        const [key, label] = groups[params[0].dataIndex], g = results.groups[key];
+        return bessTipHead(`${label.split(" (")[0]} · ${g.units} units · ${bessMwh(g.metered)} metered`) +
+          tooltipRow(cssVar("--border-3"), "Long", bessMwh(g.long)) + tooltipRow(cssVar("--border-5"), "Short", bessMwh(g.short)) +
+          tooltipRow(cssVar("--chart-pun"), "Absolute, % of metered", anaPct(g.abs / g.metered, 1), "line") +
+          tooltipRow(cssVar("--chart-pun"), "Against day-ahead", bessMoney(g.value), "line");
+      }, { axisPointer: { type: "shadow" } }),
+      grid: { left: 64, right: 16, top: 40, bottom: 30 },
+      xAxis: { type: "category", data: groups.map(([key]) => UNITIMB_SHORT[key]), axisTick: { show: false },
+        axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), interval: 0 } },
+      yAxis: timelineYAxis("MWh", { nameGap: 48 }),
+      series: [{ name: "Long (produced more)", type: "bar", stack: "imb", barMaxWidth: 34, itemStyle: { color: cssVar("--border-3") },
+        data: groups.map(([key]) => Math.round(results.groups[key].long)),
+        label: { show: true, position: "top", color: cssVar("--chart-axis-label"), fontSize: 10,
+          formatter: entry => { const g = results.groups[groups[entry.dataIndex][0]]; return anaPct(g.abs / g.metered, 1); } } },
+      { name: "Short (produced less)", type: "bar", stack: "imb", barMaxWidth: 34, itemStyle: { color: cssVar("--border-5") },
+        data: groups.map(([key]) => -Math.round(results.groups[key].short)) }]
+    }, true);
+    self.charts.groups.resize();
+    // Table.
+    document.getElementById("unitimb-table").innerHTML = `<table class="bess-table"><thead><tr><th>Unit</th><th>Technology</th><th>Zone</th><th>Operator</th><th>MW</th>` +
+      `<th>Metered</th><th>Schedule</th><th>Long</th><th>Short</th><th>Absolute, % of metered</th><th>Against day-ahead</th><th>€/MWh metered</th></tr></thead><tbody>` +
+      results.rows.map(row => `<tr data-unit="${row.code}" class="unitimb-row"><td>${row.code}${row.storage ? '<span class="unitimb-note">discharging only</span>' : ""}</td>` +
+        `<td>${groupLabel(row.group)}</td><td>${row.zone || "—"}</td><td>${row.operator || "—"}</td>` +
+        `<td>${row.mw ? formatNumber(row.mw, 0) : "—"}</td><td>${bessMwh(row.metered)}</td><td>${bessMwh(row.schedule)}</td><td>${bessMwh(row.long)}</td><td>${bessMwh(row.short)}</td>` +
+        `<td>${anaPct(row.metered ? row.abs / row.metered : NaN, 1)}</td><td>${bessMoney(row.value)}</td><td>${anaSigned(row.metered ? row.value / row.metered : NaN, 2)}</td></tr>`).join("") +
+      `</tbody></table>`;
+    setText("unitimb-table-subtitle", "Sorted by absolute imbalance; click a unit to draw it above");
+    unitImbDrawDay(self);
+  }
+
+  function unitImbDrawDay(self) {
+    const results = self.results;
+    const chart = self.charts.day;
+    if (!results || !results.rows.length) { anaEmpty(chart, "No unit"); return; }
+    const unit = results.rows.find(row => row.code === unitImbState.unit) || results.rows[0];
+    const days = results.days.filter(date => unitImbDayQuarters(results.file, unit, date));
+    const date = days.includes(unitImbState.day) ? unitImbState.day : unit.worstDay || days[0];
+    const unitSelect = document.querySelector('#unitimb-view [data-field="unit"]'), daySelect = document.querySelector('#unitimb-view [data-field="day"]');
+    unitSelect.innerHTML = results.rows.map(row => `<option value="${row.code}"${row.code === unit.code ? " selected" : ""}>${row.code}</option>`).join("");
+    daySelect.innerHTML = days.map(day => `<option value="${day}"${day === date ? " selected" : ""}>${bessDateText(day)}${day === unit.worstDay ? " (worst)" : ""}</option>`).join("");
+    document.querySelectorAll("#unitimb-table tr[data-unit]").forEach(tr => tr.classList.toggle("active", tr.dataset.unit === unit.code));
+    const day = unitImbDayQuarters(results.file, unit, date);
+    if (!day) { anaEmpty(chart, "No data for this day"); return; }
+    const n = day.metered.length, x = Array.from({ length: n }, (_, q) => unitImbTime(q));
+    const upto = results.upto;
+    const schedule = x.map((_, q) => { let s = 0; for (let k = 0; k < upto; k += 1) s += day.markets[k][q] || 0; return Math.round(s * 10) / 10; });
+    setText("unitimb-day-subtitle", `${unit.code} · ${unit.zone || ""} · ${unit.operator || ""} · ${bessDateText(date)} · MW per quarter-hour`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend([...UNITIMB_MARKETS.slice(0, upto).map(([, label]) => label), "Final schedule", "Metered (ENTSO-E)"]),
+      tooltip: bessTooltip(params => {
+        const q = params[0].dataIndex, m = day.metered[q], e = m === null ? null : m - schedule[q];
+        const pI = day.imbalance[q], pD = day.da[q];
+        return bessTipHead(`${x[q]}${Number.isFinite(pI) ? ` · imbalance price €${formatNumber(pI, 2)}` : ""}${Number.isFinite(pD) ? ` · MGP €${formatNumber(pD, 2)}` : ""}`) +
+          params.map(entry => tooltipRow(entry.color, entry.seriesName, entry.value === null ? "—" : `${formatNumber(entry.value, 1)} MW`, entry.seriesType === "line" ? "line" : "area")).join("") +
+          (e === null ? "" : tooltipRow(cssVar("--chart-pun"), "Imbalance", `${e >= 0 ? "+" : "−"}${formatNumber(Math.abs(e), 1)} MW`, "line"));
+      }, { axisPointer: { type: "shadow" } }),
+      grid: { left: 60, right: 16, top: 48, bottom: 30 },
+      xAxis: { type: "category", data: x, axisTick: { show: false }, axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: { ...bessAxisLabel(), interval: 7 } },
+      yAxis: timelineYAxis("MW", { nameGap: 44 }),
+      series: [
+        ...UNITIMB_MARKETS.slice(0, upto).map(([, label], k) => ({ name: label, type: "bar", stack: "markets", barCategoryGap: "10%",
+          itemStyle: { color: cssVar(UNITIMB_COLORS[k]) }, data: day.markets[k].map(value => Math.round((value || 0) * 10) / 10) })),
+        anaLineSeries("Final schedule", "--text", schedule, { showSymbol: false, step: "middle", lineStyle: { type: "dashed", width: 1.6 } }),
+        anaLineSeries("Metered (ENTSO-E)", "--blue", day.metered.map(value => (value === null ? null : Math.round(value * 10) / 10)), { showSymbol: false, step: "middle", lineStyle: { width: 2.2 } })
+      ]
+    }, true);
+    chart.resize();
+  }
+
   /* ---------- Zonal spreads and congestion ---------- */
   /*
    * Each zone's MGP price against a reference zone's, quarter-hour by
@@ -22442,7 +22723,7 @@ move the slider above to another one`,
     setText("macse-table-subtitle", "Month by month, € for the whole battery");
   }
 
-  const ANALYSIS_VIEWS = { capture: captureView, imbalance: imbalanceView, congestion: congestionView, spikes: spikesView, binding: bindingView,
+  const ANALYSIS_VIEWS = { capture: captureView, imbalance: imbalanceView, unitimb: unitImbView, congestion: congestionView, spikes: spikesView, binding: bindingView,
     spark: sparkView, macse: macseView };
 
   /*
