@@ -2,6 +2,7 @@
 
 import os
 import sys
+from datetime import date
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "etl"))
 
@@ -42,6 +43,20 @@ def test_one_zone_failing_does_not_stop_the_others():
 def test_a_forecast_is_asked_for_the_zone():
     params = forecasts.area_params(forecasts.FORECASTS["load_forecast"]["params"], zones.ZONE_DOMAINS["SUD"])
     assert params["outBiddingZone_Domain"] == "10Y1001A1001A788" and params["documentType"] == "A65"
+
+
+def test_only_the_datasets_asked_for_are_downloaded(monkeypatch):
+    # The forecast job fetches tomorrow's day-ahead capacities alone; the other datasets stay as on file.
+    existing = {name: crossborder.empty_dataset() for name in crossborder.DATASETS}
+    existing["physical_flows"]["hourly"]["imports|CSUD"] = [{"date": "2026-10-29", "time": "00:00", "value": 120.0}]
+    asked, written = [], {}
+    monkeypatch.setattr(crossborder, "load_existing", lambda path: existing)
+    monkeypatch.setattr(crossborder, "download_dataset", lambda token, name, *args: asked.append(name) or [])
+    monkeypatch.setattr(crossborder.compact, "dump", lambda payload, path: written.update(payload))
+    crossborder.fetch_area("token", "SARD", zones.ZONE_DOMAINS["SARD"], "x.json", date(2026, 10, 30), date(2026, 10, 30),
+                           False, ["capacity_day_ahead"])
+    assert asked == ["capacity_day_ahead"]
+    assert written["physical_flows"]["hourly"]["imports"]["CSUD"]["start"] == "2026-10-29"
 
 
 def test_zone_borders_include_the_other_zones_and_corsica():

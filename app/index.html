@@ -24002,7 +24002,9 @@ move the slider above to another one`,
   const STACK_METHOD =
         "<li><b>Clearing</b>: the MGP as a linear programme (PyPSA, solved by HiGHS), a day at a time, hour by hour: welfare " +
         "maximised over the zones' sale offers and purchase bids, the flows between the zones within GME's limits of the day " +
-        "before (the last surely out before the gate), each zone's price the dual of its balance. Block orders are one variable " +
+        "before (the last surely out before the gate), except a link out of service on the day or back in: there the day's own " +
+        "capacity, which ENTSO-E has before the gate (its other values are cautious until GME's replace them after the " +
+        "auction). Each zone's price is the dual of its balance. Block orders are one variable " +
         "across their hours (relaxed: GME's algorithm can reject a block in the money, this one cannot). The borders coupled " +
         "with Europe come in as the net flow of the week before. Replaying a day from its own bids gives the clearing's own " +
         "error: about 1–2.5 €/MWh on the mainland, more in Sicily.</li>" +
@@ -24221,6 +24223,15 @@ move the slider above to another one`,
   const stackDay = date => new Date(`${date}T12:00:00Z`).toLocaleDateString("en-GB",
     { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 
+  // The limits the stack cleared with: an earlier day's (GME's, JAO's NTC
+  // to the neighbours), except the links out of service tomorrow or back in,
+  // which take tomorrow's from ENTSO-E (limits_own).
+  function stackLimits(stack) {
+    const earlier = `the limits of ${stackDay(stack.limits_day)}`;
+    const own = (stack.limits_own || []).map(link => link.replace("|", "–"));
+    return own.length ? `${earlier}; tomorrow's (ENTSO-E) on ${own.join(", ")}, out of service or back in` : earlier;
+  }
+
   function loadStackHistory() {
     if (stackState.status) return;
     stackState.status = "loading";
@@ -24269,7 +24280,7 @@ move the slider above to another one`,
         "MGP prices for tomorrow from the stack model alone, €/MWh: the auction rebuilt from GME's real bids of the days above " +
         "(GME publishes a day's offers about 8 days after the auction: these are the most like tomorrow among those out), moved " +
         "to tomorrow by the weather, Terna's load forecast, the gas and EUA prices and the outages, and cleared zone by zone " +
-        "within GME's limits. Stack: the median's mean over the day; 5–95%: the mean of the hours' 5% and 95% quantiles, from the " +
+        "within the limits above. Stack: the median's mean over the day; 5–95%: the mean of the hours' 5% and 95% quantiles, from the " +
         "stack's own errors over the previous 182 days. Peak: 08:00–20:00. Composite: the five days' bids averaged into one day " +
         "and cleared once (the merit order below; the best stack on its own in the backtest). Timestral: Timestral 209M with " +
         "weather; published: the forecast of the Time series model card, 0.9 Timestral + 0.1 stack.", true) +
@@ -24339,7 +24350,7 @@ move the slider above to another one`,
     status.innerHTML = [
       `Made at ${forecastItalianTime(latest.made_at)} Italian time, ${latest.before_gate ? "before" : "after"} the auction's 12:00 gate`,
       `from the bids of ${[...stack.reference_days].sort().map(stackDay).join(", ")}`,
-      `GME's limits of ${stackDay(stack.limits_day)}`,
+      stackLimits(stack),
       `thermal capacity out: ${formatNumber(stack.thermal_out_mw)} MW (${formatNumber(stack.thermal_out_units)} units)`,
       share ? `${Math.round(share.weight * 100)}% of the published forecast` : ""
     ].filter(Boolean).map(text => `<span>${escapeHtml(text)}</span>`).join("");

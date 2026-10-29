@@ -19,8 +19,11 @@ rebuilt from the real bids of similar recent days, GME's offers being out
 about 8 days late), 0.9 and 0.1 of their quantiles.  The stack also needs
 its offer files (app/data/stack/offers, from update_gme_offers.py), the units
 table (app/data/stack/units.json), the outages ENTSO-E has out now
-(fetch_outage_revisions.py --latest), GME's limits (transits.json) and the
-zones' generation (zones/*/generation_load.json, the public data branch).
+(fetch_outage_revisions.py --latest), GME's limits of the day before
+(transits.json) and, for the links out of service tomorrow or back in,
+tomorrow's day-ahead capacities (zones/*/crossborder.json, fetched by the
+job: fetch_crossborder.py --datasets capacity_day_ahead), and the zones'
+generation (zones/*/generation_load.json, the public data branch).
 Its band is its errors over the previous days (as in the backtest), from its
 forecasts kept in stack_history.json.  When the stack cannot be made, the
 forecast is Timestral's alone, and latest.json says so.
