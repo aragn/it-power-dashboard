@@ -111,7 +111,11 @@ def runs(profile):
 
 
 def build(day, offers, transits, fixed_flows=True, neighbours=None):
-    """The day's PyPSA network (not solved)."""
+    """The day's PyPSA network (not solved).  network.meta["steps"]: what each
+    generator stands for, name -> ("supply" | "demand", zone, price) for the
+    simple orders summed per zone and price, ("linked", zone, unit, price)
+    for a block or hourly order, ("neighbour", zone, "import" | "export",
+    spread, country) for a coupled neighbour's step."""
     import pypsa
 
     periods, minutes, column = layout(offers)
@@ -143,6 +147,7 @@ def build(day, offers, transits, fixed_flows=True, neighbours=None):
     buses = [bus for bus in buses if bus and bus not in COUPLED_HUBS]
     network.add("Carrier", "AC")
     network.add("Bus", buses, carrier="AC")
+    steps_meta = network.meta.setdefault("steps", {})
 
     def add_steps(table, kind):
         names, bus, p_nom, cost, profile = [], [], [], [], {}
@@ -155,6 +160,7 @@ def build(day, offers, transits, fixed_flows=True, neighbours=None):
             p_nom.append(mw.max())
             cost.append(price)
             profile[name] = mw / mw.max()
+            steps_meta[name] = (kind, zone, price)
         frame = pd.DataFrame(profile, index=network.snapshots)
         if kind == "supply":
             network.add("Generator", names, bus=bus, p_nom=p_nom, marginal_cost=cost, p_max_pu=frame, p_min_pu=0.0)
@@ -167,7 +173,7 @@ def build(day, offers, transits, fixed_flows=True, neighbours=None):
 
     names, bus, p_nom, cost, profile, ratios = [], [], [], [], {}, {}
     for key, mw in linked.items():
-        sign, zone, _unit, price, kind = key[:5]
+        sign, zone, unit, price, kind = key[:5]
         if zone not in buses:
             continue
         # A block's minimum acceptance ratio (format 3; GME's 1 = whole or not
@@ -178,6 +184,7 @@ def build(day, offers, transits, fixed_flows=True, neighbours=None):
         for run in (runs(mw) if kind == "block" and not has_ids else [mw]):
             name = f"{kind} {zone} {len(names)}"
             names.append(name)
+            steps_meta[name] = ("linked", zone, unit, price)
             bus.append(zone)
             p_nom.append(run.max())
             cost.append(price)
@@ -224,6 +231,7 @@ def build(day, offers, transits, fixed_flows=True, neighbours=None):
                 profile = pd.Series(np.nan_to_num(capacity) / top, index=network.snapshots)
                 cost = pd.Series(np.nan_to_num(price + sign * spread, nan=0.0), index=network.snapshots)
                 name = f"{border['name']} {direction} {step}"
+                steps_meta[name] = ("neighbour", zone, direction, spread, border["name"])
                 if sign > 0:
                     network.add("Generator", name, bus=zone, p_nom=top, marginal_cost=cost, p_max_pu=profile,
                                 p_min_pu=0.0)
