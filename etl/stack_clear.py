@@ -11,7 +11,9 @@ afterwards), so there is no PUN constraint.
               coupled with Europe (SVIZ, AUST, FRAN, SLOV, GREC, MONT, MALT,
               CORS, COAC), where the explicit imports and exports are offered
   links       GME's pairs of zones, limits each way period by period
-              (transits.json); no limit where GME sets none
+              (transits.json); no limit where GME sets none (a limit of 0
+              MW holds: the link is out); a zone of a pair with no offers
+              (Corsica) is a bus all the same, so power can cross it
   coupled     the borders coupled with Europe (Italia Coupling's hub on the
               North, Greece's XGRE on the South) clear inside the European
               coupling, so their net flow comes in as a fixed exchange
@@ -143,7 +145,10 @@ def build(day, offers, transits, fixed_flows=True, neighbours=None):
                                        offers["demand"]["mw"]):
         demand[(zone, price)][period] += mw
 
-    buses = sorted({zone for zone, _ in supply} | {zone for zone, _ in demand} | set(ITALY))
+    # Every zone of GME's pairs is a bus too, with offers or not: Corsica's
+    # (CORS) carry the Sardinia-Corsica-Centre-North link across it.
+    paired = {zone for pair in transits for zone in pair.split("|")}
+    buses = sorted({zone for zone, _ in supply} | {zone for zone, _ in demand} | set(ITALY) | paired)
     buses = [bus for bus in buses if bus and bus not in COUPLED_HUBS]
     network.add("Carrier", "AC")
     network.add("Bus", buses, carrier="AC")
@@ -211,8 +216,11 @@ def build(day, offers, transits, fixed_flows=True, neighbours=None):
             continue
         if first not in buses or second not in buses:
             continue
-        forward = np.array([series.get("limit_forward", {}).get(p, NO_LIMIT) or NO_LIMIT for p in range(periods)], float)
-        back = np.array([series.get("limit_back", {}).get(p, NO_LIMIT) or NO_LIMIT for p in range(periods)], float)
+        # No limit only where GME sets none: a limit of 0 MW (a link out) holds.
+        forward = np.array([NO_LIMIT if (value := series.get("limit_forward", {}).get(p)) is None else value
+                            for p in range(periods)], float)
+        back = np.array([NO_LIMIT if (value := series.get("limit_back", {}).get(p)) is None else value
+                         for p in range(periods)], float)
         top = max(forward.max(), back.max(), 1.0)
         network.add("Link", f"{first}-{second}", bus0=first, bus1=second, p_nom=top, efficiency=1.0, carrier="AC",
                     p_max_pu=pd.Series(forward / top, index=network.snapshots),

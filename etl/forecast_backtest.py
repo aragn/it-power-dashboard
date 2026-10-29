@@ -112,8 +112,8 @@ MODELS = {
     "hybrid": {"label": "Timestral 209M with weather + stack", "parts": ("timestral-209m-wx", "stack-bids-analogs"),
                "weights": (0.9, 0.1),
                "description": "0.9 times the quantiles of Timestral 209M with weather plus 0.1 times the stack's "
-                              "(real bids, 5 similar days); the weights chosen on this test year (weights chosen "
-                              "each week from past days only: 0.19 EUR/MWh better than Timestral, against 0.22)"},
+                              "(real bids, 5 similar days); the weights chosen on this test year (chosen each week "
+                              "from past days only, the gain over Timestral is the same, 0.18 EUR/MWh)"},
     "lear-res": {"label": "LEAR, with the day's wind and solar", "res_ahead": True,
                  "description": "LEAR with the wind and solar forecasts of the day, published after the auction"},
     "timestral-28m-res": {"label": "Timestral 28M, with the day's wind and solar", "size": "28M", "covariates": True,
