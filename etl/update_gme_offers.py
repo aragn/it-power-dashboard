@@ -6,6 +6,10 @@ GME MGP public offers, each day downloaded once for both products:
       LOOKBACK_DAYS it has not read
   the merit order             (fetch_mgp_merit.py)
       the full days from BACKFILL_FROM not on file yet
+  the stack model's offers    (fetch_stack_offers.py, with --stack-keep N)
+      the days of the last N not on file yet, for the live stack (the
+      reference days it rebuilds tomorrow's auction from); older ones are
+      deleted
 
 A day file is 500-650 MB, so: at most MAX_DAYS downloads a run, one request
 at a time with a pause between, newest first, and only days GME may have
@@ -31,10 +35,11 @@ from datetime import date, timedelta
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fetch_gme_units as units_etl  # noqa: E402
 import fetch_mgp_merit as merit_etl  # noqa: E402
+import fetch_stack_offers as stack_etl  # noqa: E402
 
 
-def days_to_read(state, today, merit_from, merit_dir):
-    """(days newest first, the merit order's days, the database's days)."""
+def days_to_read(state, today, merit_from, merit_dir, stack_keep=0):
+    """(days newest first, the merit order's days, the database's days, the stack's days)."""
     last = today - timedelta(days=merit_etl.PUBLISHED_AFTER)
     merit = set(merit_etl.missing_days(merit_from, last, merit_dir))
     window = [today - timedelta(days=n) for n in range(merit_etl.PUBLISHED_AFTER, units_etl.LOOKBACK_DAYS + 1)]
@@ -42,10 +47,11 @@ def days_to_read(state, today, merit_from, merit_dir):
     units = {day for day in window if day.isoformat() not in processed}
     # A day read for the merit order goes into the database too.
     units |= {day for day in merit if day.isoformat() not in processed}
-    return sorted(merit | units, reverse=True), merit, units
+    stack = set(stack_etl.recent_missing(today, stack_keep)) if stack_keep else set()
+    return sorted(merit | units | stack, reverse=True), merit, units, stack
 
 
-def read_days(days, merit_days, unit_days, state, merit_dir, max_days):
+def read_days(days, merit_days, unit_days, state, merit_dir, max_days, stack_days=()):
     login, password = os.environ["GME_API_LOGIN"], os.environ["GME_API_PASSWORD"]
     token = units_etl.get_token(login, password)
     sources = merit_etl.unit_sources()
@@ -74,6 +80,10 @@ def read_days(days, merit_days, unit_days, state, merit_dir, max_days):
             units_etl.merge_units(state["units"], day, summary)
             state["processed"].append(day.isoformat())
             parts.append(f"units {len(summary['units']):,}")
+        if day in stack_days:
+            curves = stack_etl.day_curves(day, units_etl.rows_of(name, content), sources)
+            stack_etl.write_day(stack_etl.OUT_DIR, curves)
+            parts.append(f"stack offers {len(curves['offers']['mw']):,} steps")
         del content
         print(f"  {day}: {name}, " + ", ".join(parts))
         done.append(day)
@@ -85,6 +95,8 @@ def main():
     parser.add_argument("--max-days", type=int, default=merit_etl.MAX_DAYS)
     parser.add_argument("--from", dest="first", default=merit_etl.BACKFILL_FROM,
                         help="first day of the merit order")
+    parser.add_argument("--stack-keep", type=int, default=0,
+                        help="the stack model's offers of the last N days (0: none); older day files are deleted")
     args = parser.parse_args()
     today = date.today()
 
@@ -96,10 +108,15 @@ def main():
         state = units_etl.load_state()
         before = set(state["units"])
 
-    days, merit_days, unit_days = days_to_read(state, today, date.fromisoformat(args.first), merit_etl.OUT_DIR)
+    days, merit_days, unit_days, stack_days = days_to_read(state, today, date.fromisoformat(args.first),
+                                                           merit_etl.OUT_DIR, args.stack_keep)
     print(f"{len(days)} day(s) to read ({len(merit_days)} for the merit order, {len(unit_days)} for the unit "
-          f"database), at most {args.max_days} this run")
-    done = read_days(days, merit_days, unit_days, state, merit_etl.OUT_DIR, args.max_days) if days else []
+          f"database, {len(stack_days)} for the stack model), at most {args.max_days} this run")
+    done = read_days(days, merit_days, unit_days, state, merit_etl.OUT_DIR, args.max_days, stack_days) if days else []
+    if args.stack_keep:
+        gone = stack_etl.prune(today, args.stack_keep)
+        if gone:
+            print(f"  stack offers: {len(gone)} day file(s) older than {args.stack_keep} days deleted")
     if not state.get("daily_from") and any(day in unit_days for day in done):
         state["daily_from"] = min(day for day in done if day in unit_days).isoformat()
 

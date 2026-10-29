@@ -3,7 +3,8 @@
 # not on main, so hourly updates don't grow the repository history: the
 # branch always holds a single commit, replaced on every update.
 #
-#   data-branch.sh restore             copy the data files into app/data/
+#   data-branch.sh restore [PATH...]   copy the data files into app/data/
+#                                      (only those under PATH(s), if given)
 #   data-branch.sh publish FILE...     replace FILE(s) on the data branch;
 #                                      a directory replaces everything under
 #                                      it (files deleted locally go too), and
@@ -37,9 +38,9 @@ restore() {
   head=$(fetch_branch)
   # Only the files on the branch, so the other repository's files restored
   # before are left alone.
-  git ls-tree -r --name-only "$head" -- app/data |
-    xargs git restore --source="$head" --worktree --
-  echo "Restored app/data from $BRANCH ($head)."
+  git ls-tree -r --name-only "$head" -- "${@:-app/data}" |
+    xargs -r git restore --source="$head" --worktree --
+  echo "Restored ${*:-app/data} from $BRANCH ($head)."
 }
 
 publish() {
@@ -110,7 +111,7 @@ publish() {
 }
 
 case "${1:-}" in
-  restore) restore ;;
+  restore) shift; restore "$@" ;;
   publish) shift; publish "$@" ;;
-  *) echo "usage: $0 restore | publish FILE..." >&2; exit 2 ;;
+  *) echo "usage: $0 restore [PATH...] | publish FILE..." >&2; exit 2 ;;
 esac

@@ -14,6 +14,17 @@ neighbours' prices and the calendar; the model is the backtest's
 fetch_weather.py; a later run the same morning replaces the forecast, but one
 made after the gate never replaces one made before it.
 
+MODEL blends Timestral with the stack model (etl/stack_bids.py: the MGP
+rebuilt from the real bids of similar recent days, GME's offers being out
+about 8 days late), 0.9 and 0.1 of their quantiles.  The stack also needs
+its offer files (app/data/stack/offers, from update_gme_offers.py), the units
+table (app/data/stack/units.json), the outages ENTSO-E has out now
+(fetch_outage_revisions.py --latest), GME's limits (transits.json) and the
+zones' generation (zones/*/generation_load.json, the public data branch).
+Its band is its errors over the previous days (as in the backtest), from its
+forecasts kept in stack_history.json.  When the stack cannot be made, the
+forecast is Timestral's alone, and latest.json says so.
+
   forecast_daily.py                      tomorrow, with MODEL
   forecast_daily.py --day 2026-10-22 --model timestral-28m
 
@@ -37,8 +48,9 @@ from zones import DATA_DIR, ZONE_NAMES  # noqa: E402
 
 LATEST_PATH = os.path.join(DATA_DIR, "forecast", "latest.json")
 HISTORY_PATH = os.path.join(DATA_DIR, "forecast", "history.json")
+STACK_HISTORY_PATH = os.path.join(DATA_DIR, "forecast", "stack_history.json")
 
-MODEL = "timestral-209m-wx"
+MODEL = "hybrid"
 WEEK_MODEL = "timestral-209m-week"
 # Quantiles in latest.json's week.
 WEEK_LEVELS = (0.05, 0.25, 0.5, 0.75, 0.95)
@@ -57,12 +69,84 @@ def rounded(values, digits=2):
     return [None if not np.isfinite(v) else round(float(v), digits) for v in values]
 
 
-def forecast(data, day, model):
-    spec = backtest.MODELS[model]
-    if "size" not in spec:
-        raise SystemExit(f"{model} is not a Timestral model; the daily forecast runs Timestral.")
-    quantiles = backtest.timestral_quantiles(data, [day], spec, batch=1)[day]
+def timestral(data, day, model):
+    quantiles = backtest.timestral_quantiles(data, [day], backtest.MODELS[model], batch=1)[day]
     return quantiles[:, :data.hours[day], :]  # (zones, hours, levels)
+
+
+def stack(data, day, model, points):
+    """The stack's quantiles for the day (zones, hours, levels) and its point
+    forecast (zones, HORIZON): stack_bids with what is on file now, the band
+    the backtest's (conformal: its errors over the previous days, from its
+    point forecasts kept, `points`)."""
+    import stack_bids
+    point = stack_bids.forecast_day(data, day, backtest.HORIZON, **backtest.stack_options(backtest.MODELS[model]))
+    if point is None:
+        raise RuntimeError("no reference day on file, or the clearing failed")
+    if not np.isfinite(point[:, :data.hours[day]]).all():
+        raise RuntimeError("the clearing left hours without a price")
+    quantiles = backtest.conformal(data, {**points, day: point}, [day]).get(day)
+    if quantiles is None:
+        raise RuntimeError(f"fewer than {backtest.CONFORMAL_DAYS // 2} of its forecasts of the last "
+                           f"{backtest.CONFORMAL_DAYS} days kept, for its band")
+    return quantiles[:, :data.hours[day], :], point
+
+
+def forecast(data, day, model, stack_points):
+    """The day's quantiles (zones, hours, levels), the model they are from,
+    a blend's parts (each one's weight and median, for latest.json) and the
+    stack's (model, point forecast) (None without it).  A blend of Timestral
+    and the stack (the backtest's "parts" and "weights") whose stack cannot
+    be made (an input missing, the clearing failing) is Timestral's alone."""
+    spec = backtest.MODELS[model]
+    if "size" in spec:
+        return timestral(data, day, model), model, [], None
+    if "parts" not in spec or not any("size" in backtest.MODELS[part] for part in spec["parts"]):
+        raise SystemExit(f"{model} is neither a Timestral model nor a blend with one.")
+    made, stack_made, failed = {}, None, None
+    for part in spec["parts"]:
+        if "size" in backtest.MODELS[part]:
+            made[part] = timestral(data, day, part)
+            continue
+        print(f"Forecasting {day} with {part}", flush=True)
+        try:
+            made[part], point = stack(data, day, part, stack_points)
+            stack_made = (part, point)
+        except Exception as error:   # the forecast goes out without it
+            failed = f"{part}: {type(error).__name__}: {error}"
+    if failed:
+        alone = next(part for part in spec["parts"] if "size" in backtest.MODELS[part])
+        message = f"The stack could not be made ({failed}); the forecast is {alone}'s alone."
+        print(f"  {message}", flush=True)
+        if os.environ.get("GITHUB_STEP_SUMMARY"):
+            with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+                handle.write(message + "\n")
+        return made[alone], alone, [], None
+    weights = spec.get("weights", [1.0 / len(spec["parts"])] * len(spec["parts"]))
+    quantiles = sum(weight * made[part] for part, weight in zip(spec["parts"], weights))
+    parts = [{"id": part, "label": backtest.MODELS[part]["label"], "weight": weight,
+              "median": {zone: rounded(made[part][z, :, backtest.MEDIAN]) for z, zone in enumerate(ZONES)}}
+             for part, weight in zip(spec["parts"], weights)]
+    return quantiles, model, parts, stack_made
+
+
+def load_stack_history():
+    if not os.path.exists(STACK_HISTORY_PATH):
+        return {"forecasts": {}}
+    with open(STACK_HISTORY_PATH, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def stack_points(history):
+    """{day: (zones, HORIZON)} of the stack's forecasts kept."""
+    out = {}
+    for key, entry in history["forecasts"].items():
+        point = np.full((len(ZONES), backtest.HORIZON), np.nan)
+        for z, zone in enumerate(ZONES):
+            values = np.array([np.nan if v is None else v for v in entry["point"][zone]], dtype=float)
+            point[z, :len(values)] = values
+        out[date.fromisoformat(key)] = point
+    return out
 
 
 def inputs_status(data, day):
@@ -127,10 +211,28 @@ def week(data, decision_day):
     }
 
 
+def keep_stack(stack_history, day, model, point, made_at, before_gate, hours):
+    """The stack's forecast for the day into stack_history.json, kept as
+    history.json's are (one made after the gate never replaces one before)."""
+    entries = stack_history.setdefault("forecasts", {})
+    previous = entries.get(day.isoformat())
+    if previous and previous.get("before_gate") and not before_gate:
+        return
+    entries[day.isoformat()] = {"made_at": made_at, "before_gate": before_gate, "model": model,
+                                "point": {zone: rounded(point[z, :hours]) for z, zone in enumerate(ZONES)}}
+    stack_history["forecasts"] = dict(sorted(entries.items()))
+    stack_history.setdefault("description", "The stack model's price forecast kept for each day (the last made "
+                             "before the 12:00 gate), EUR/MWh per zone and hour: its band in the daily forecast "
+                             "comes from its errors over the previous days.")
+    with open(STACK_HISTORY_PATH, "w", encoding="utf-8") as handle:
+        json.dump(stack_history, handle, separators=(",", ":"))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--day", help="day to forecast YYYY-MM-DD (default: tomorrow)")
-    parser.add_argument("--model", default=MODEL, help=f"one of the backtest's Timestral models (default {MODEL})")
+    parser.add_argument("--model", default=MODEL,
+                        help=f"one of the backtest's Timestral models, or a blend with one (default {MODEL})")
     parser.add_argument("--no-week", action="store_true", help="tomorrow only, not the week ahead")
     args = parser.parse_args()
 
@@ -144,9 +246,9 @@ def main():
     # The day's own weather: the latest run's, as at the time of the forecast.
     data.latest_from = data.day_start[day]
 
-    model = args.model
-    print(f"Forecasting {day} with {model}", flush=True)
-    quantiles = forecast(data, day, model)
+    print(f"Forecasting {day} with {args.model}", flush=True)
+    stack_history = load_stack_history()
+    quantiles, model, parts, stack_made = forecast(data, day, args.model, stack_points(stack_history))
     status = inputs_status(data, day)
     before_gate = made_at < gate(day)
     today = day - timedelta(days=1)
@@ -164,6 +266,8 @@ def main():
         # Per zone: one list of hourly values per level.
         "forecast": {zone: [rounded(quantiles[z, :, i]) for i in range(len(backtest.LEVELS))]
                      for z, zone in enumerate(ZONES)},
+        # A blend's models: each one's weight and median per zone.
+        "parts": parts,
         # Today's prices (ENTSO-E), to draw the forecast after them.
         "today": {"day": today.isoformat(),
                   "prices": {zone: rounded(data.series[f"{zone}|price"][data.day_slice(today)]) for zone in ZONES}},
@@ -205,6 +309,8 @@ def main():
         json.dump(latest, handle, separators=(",", ":"))
     with open(HISTORY_PATH, "w", encoding="utf-8") as handle:
         json.dump(history, handle, separators=(",", ":"))
+    if stack_made:
+        keep_stack(stack_history, day, *stack_made, latest["made_at"], before_gate, data.hours[day])
 
     medians = {zone: float(np.mean(quantiles[z, :, backtest.MEDIAN])) for z, zone in enumerate(ZONES)}
     print(f"  Made {latest['made_at']} ({'before' if before_gate else 'after'} the gate {latest['gate']})")
