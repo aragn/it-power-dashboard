@@ -9,6 +9,10 @@ app/data/unit_generation/<date>.json.gz:
    "units": [[generating unit EIC, name, psrType], ...],
    "values": [[MW per quarter-hour or null], ...]}   (one row per unit)
 
+Storage (batteries, pumped hydro) comes as two series per unit: its output
+(inBiddingZone_Domain) and its charging (outBiddingZone_Domain), in periods
+that never overlap; the charging is written below zero in the unit's row.
+
 Quarter-hours are numbered by the time elapsed since local midnight, like
 the GME periods (entsoe_api.point_label); an hourly point fills its hour's
 four quarter-hours.  ENTSO-E publishes these weeks after the day, so a day
@@ -43,12 +47,14 @@ def day_quarters(day):
 
 
 def unit_key(ts):
+    """mRID|name|psrType, and |consumption for a storage unit's charging (an out-domain series)."""
     def text(path):
         node = ts.find(path)
         return node.text.strip() if node is not None and node.text else ""
-    return "|".join([text(".//{*}MktPSRType/{*}PowerSystemResources/{*}mRID"),
-                     text(".//{*}MktPSRType/{*}PowerSystemResources/{*}name"),
-                     text(".//{*}MktPSRType/{*}psrType")])
+    key = "|".join([text(".//{*}MktPSRType/{*}PowerSystemResources/{*}mRID"),
+                    text(".//{*}MktPSRType/{*}PowerSystemResources/{*}name"),
+                    text(".//{*}MktPSRType/{*}psrType")])
+    return key + "|consumption" if ts.find("{*}outBiddingZone_Domain.mRID") is not None else key
 
 
 def read_day(token, day):
@@ -61,11 +67,13 @@ def read_day(token, day):
     for record in parse_points(root, group_of=unit_key):
         if record["date"] != day.isoformat():
             continue
-        row = rows.setdefault(record["group"], [None] * quarters)
+        unit, consumption = record["group"].removesuffix("|consumption"), record["group"].endswith("|consumption")
+        row = rows.setdefault(unit, [None] * quarters)
+        value = -record["value"] if consumption else record["value"]
         # "minutes" is the point's resolution: an hourly point covers its hour's four quarter-hours.
         first, span = label_minutes(record["time"]) // 15, max(1, record["minutes"] // 15)
         for index in range(first, min(first + span, quarters)):
-            row[index] = round(record["value"], 3)
+            row[index] = round((row[index] or 0.0) + value, 3)
     units = [key.split("|") for key in sorted(rows)]
     return {"date": day.isoformat(), "source": SOURCE, "quarters": quarters, "units": units,
             "values": [rows[key] for key in sorted(rows)]}
