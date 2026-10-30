@@ -18783,7 +18783,10 @@ move the slider above to another one`,
   const ANALYSIS_CARDS = [
     { id: "bess", icon: "battery", tag: "Storage · optimisation", live: true,
       title: "Merchant revenues battery calculator",
-      text: "Describe a battery and a bidding zone: an optimiser (HiGHS) runs it through the MGP, the MI-A auctions, MI-XBID, MSD and MB on every day on file since 2025, and shows what it would have earned against what it cost, by day, month and year." },
+      text: "Describe a battery and a bidding zone: an optimiser (HiGHS) runs it through the MGP, the MI-A auctions, MI-XBID, MSD and MB on every day on file since 2025, and shows what it would have earned against what it cost, by day, month and year, with or without a capacity market contract." },
+    { id: "cmstorage", live: true, icon: "shield", tag: "Storage · policy", fullOnly: true,
+      title: "The capacity market for storage",
+      text: "How Italy's capacity market works (premium, derating, strike, reliability option), and what it changed for the batteries and pumped hydro plants holding a contract: the premium against what they paid back above the strike, plant by plant and month by month, on their actual trading." },
     { id: "capture", live: true, icon: "sun", tag: "Renewables",
       title: "Solar and wind capture prices",
       text: "What a solar or a wind plant in each zone earned against the baseload price, month by month: capture rates and how far the midday hours have fallen." },
@@ -18879,6 +18882,40 @@ move the slider above to another one`,
     { key: "MB", label: "MB", color: "--border-7" }
   ];
   const BESS_OTHER_COLOR = "--mix-other";
+  const BESS_CM_COLORS = { premium: "--mix-battery", clawback: "--mix-solar" };
+
+  /*
+   * The capacity market's strike price (prezzo di esercizio) as ARERA
+   * 199/2024/R/eel article 3 sets it for the delivery years 2025-2028
+   * (263/2026: 303 Smc/MWh from 2028), as etl/build_capacity_market_storage.py
+   * does: the gas day's System Average Price (GME's average of its trades;
+   * the IG Index where missing), the EUA price of the day before (EEX's last
+   * auction), the gas charges besides the SAP estimated.
+   */
+  const CM_STRIKE = { heatRate: 320, laterHeatRate: 303, gasCharges: 0.066, iGn: 0.05, emission: 0.7162, disposal: 0.006,
+    dispatchMin: 3, dispatchShare: 0.02, other: 5 };
+  const CM_MWH_PER_SMC = 0.0381 / 3.6;
+  function cmStrikePrice(gas, eua, year) {
+    const rate = year >= 2028 ? CM_STRIKE.laterHeatRate : CM_STRIKE.heatRate;
+    const base = rate * (gas * CM_MWH_PER_SMC + CM_STRIKE.gasCharges + CM_STRIKE.iGn) + CM_STRIKE.emission * eua + CM_STRIKE.disposal;
+    return base + Math.max(CM_STRIKE.dispatchMin, CM_STRIKE.dispatchShare * base) + CM_STRIKE.other;
+  }
+  // A day's strike, [before 06:00, from 06:00] (the gas day starts at 06:00), from anaGasCarbon()'s prices; null without them.
+  function cmStrikeDay(fuel, date) {
+    const gas = day => { const sap = fuel.gasOn("imbalance", day); return Number.isFinite(sap) ? sap : fuel.gasOn("igi", day); };
+    const before = bessAddDays(date, -1), eua = fuel.carbon(before);
+    const early = gas(before), late = gas(date), year = Number(date.slice(0, 4));
+    if (!Number.isFinite(eua) || !Number.isFinite(late)) return null;
+    return [cmStrikePrice(Number.isFinite(early) ? early : late, eua, year), cmStrikePrice(late, eua, year)];
+  }
+  // The 2025-2027 auctions' derating of a new battery by its hours (Terna, 1 to 8 h, Italy), in proportion in between.
+  const CM_BATTERY_DERATING = [0.24, 0.44, 0.56, 0.67, 0.74, 0.81, 0.86, 0.90];
+  function cmBatteryDerating(hours) {
+    if (hours <= 1) return CM_BATTERY_DERATING[0] * Math.max(0, hours);
+    if (hours >= 8) return CM_BATTERY_DERATING[7];
+    const low = Math.floor(hours);
+    return CM_BATTERY_DERATING[low - 1] + (CM_BATTERY_DERATING[low] - CM_BATTERY_DERATING[low - 1]) * (hours - low);
+  }
   const BESS_ZONES = ["NORD", "CNOR", "CSUD", "SUD", "CALA", "SICI", "SARD"];
   const BESS_FIRST_DAY = "2025-01-01";
   const BESS_DEFAULTS = {
@@ -18887,7 +18924,8 @@ move the slider above to another one`,
     strategy: "sequential",
     MGP: true, MIA1: true, MIA2: true, MIA3: true, XBID: true, MSD: true, MB: true,
     xbidShare: 25, volumeShare: 10, msdUp: "", msdDown: "", mbUp: "", mbDown: "",
-    throughputCost: 5, fixedOpex: 10, chargeCost: 0, fee: 0.04
+    throughputCost: 5, fixedOpex: 10, chargeCost: 0, fee: 0.04,
+    cm: "on", cmPremium: 47000, cmDerating: ""
   };
   const BESS_STRATEGIES = {
     sequential: "Sequential, gate by gate",
@@ -19200,8 +19238,17 @@ move the slider above to another one`,
       bessNumber("fee", "Market fees (€/MWh traded)", { placeholder: "e.g. 0.04", min: 0, step: 0.01,
         help: bessHelp("GME's fee", "<p>GME's variable fee on the spot market, MGP and MI: 0.04 €/MWh traded on monthly volumes between 0.02 and 1 TWh (the first 0.02 TWh free); its fixed fees are left out.</p>") });
 
+    const capacity =
+      bessSelect("cm", "Capacity market contract", [["on", "Yes: premium, clawback above the strike"], ["off", "No: merchant only"]], {
+        help: bessHelp("How it works", "<p>Terna's capacity market pays a premium a year on the battery's committed capacity (CDP: its power × the derating). In return the contract is a reliability option: in every quarter-hour the price passes the strike, the holder pays Terna the difference on its CDP, whether it sold or not, at the MGP price; on the MW it sold upward in MSD and MB, at the larger of the MGP price and its own (Terna's DTF n. 1). The strike is a peaking gas turbine's daily variable cost (ARERA 199/2024/R/eel), estimated from GME's gas price and the EUA auctions, the same as the Storage tab's.</p><p>The clawback is worked out on the schedule the optimiser chose without the contract: the payback on the CDP does not depend on what the battery does, and the battery's offers are taken as they are. See the analysis <i>The capacity market for storage</i> for how Italy's contracted batteries fared.</p>") }) +
+      bessNumber("cmPremium", "Premium (€/MW of CDP a year)", { placeholder: "e.g. 47000", min: 0, step: 1000,
+        help: bessHelp("Which premium", "<p>The 2027 main auction (February 2025) cleared at €47,000/MW a year for new and existing capacity alike; new capacity got €67,500 for 2025 and €56,160 for 2026, existing €45,000 and €46,000. New capacity holds it for 15 years, existing for its delivery year.</p>") }) +
+      bessNumber("cmDerating", "Derating (% of power)", { placeholder: "2025–27 table", min: 0, max: 100, step: 1, hint: true,
+        help: bessHelp("Terna's table", "<p>For the 2025–2027 auctions Terna rates a new battery by its hours, nationally: 1 h 24%, 2 h 44%, 3 h 56%, 4 h 67%, 5 h 74%, 6 h 81%, 7 h 86%, 8 h 90%; in between in proportion. Left blank: that table. The 2028 auction rates by zone and lower (4 h: 51% North, 54% Centre-South, 40% South, 31% islands).</p>") });
+
     return bessGroup("The battery", battery) + bessGroup("Period", period) +
       bessGroup("Markets and strategy", markets, true, `<span class="analysis-badge">${zone}</span>`) +
+      bessGroup("Capacity market", capacity) +
       bessGroup("Costs", costs) +
       `<div class="bess-form-foot"><button type="button" id="bess-reset" class="bess-button">Reset to defaults</button></div>`;
   }
@@ -19228,7 +19275,7 @@ move the slider above to another one`,
       `<h2>Merchant revenues battery calculator</h2>` +
       `<p class="analysis-lede">What a battery would have earned trading Italy's markets on its own account, day by day since 2025, from the assumptions you enter. ` +
       `An optimiser (HiGHS, an open-source linear and mixed-integer solver) schedules the battery in the MGP, the MI-A auctions, MI-XBID, MSD and MB on each day's actual prices, ` +
-      `and the result is set against its costs. A backtest with hindsight on each market's prices at its gate, not a forecast, a valuation or investment advice; no CAPEX or financing.</p></div>` +
+      `and the result is set against its costs, with a capacity market contract (premium and clawback above the strike) unless you switch it off. A backtest with hindsight on each market's prices at its gate, not a forecast, a valuation or investment advice; no CAPEX or financing.</p></div>` +
       `<div class="bess-layout"><form id="bess-form" class="panel bess-inputs" autocomplete="off" onsubmit="return false">${bessFormHtml()}</form>` +
       `<div class="bess-results">` +
       `<section id="bess-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Results</div>` +
@@ -19305,7 +19352,8 @@ move the slider above to another one`,
       `<p><b>Prices.</b> MGP: the zonal price (hourly before 1 October 2025, when the battery holds one position per hour; quarter-hourly since). MI-A1, MI-A2, MI-A3: the auctions' zonal prices (MI-A3 covers 12:00–24:00). MI-XBID: each 15-minute product's reference price, the average of its trades weighted by volume, where there were trades. MSD (ex-ante) and MB (other services): the zone's average accepted prices upward and downward and the volumes accepted, quarter-hour by quarter-hour (GME). The battery is a price-taker: its trades do not move the prices, and it takes at most a share of each market's volume: in MSD and MB the share of the accepted volume set above, in the MI-A auctions and MI-XBID a share of the zone's volume sold (its sales) and bought (its purchases) in the quarter-hour. The MGP has no such cap.</p>` +
       `<p><b>Sequential versus joint.</b> Revenue-stacking models that let a battery plan all markets together with known prices overstate what it earns; the recent literature models each market at its gate closure on the capacity left by the earlier ones, with what is known then (e.g. Kortmann, Sanders and Ulbig, <a href="https://arxiv.org/abs/2607.24075" target="_blank" rel="noopener">arXiv 2607.24075</a>). The sequential strategy here does that, with each market's own prices known at its gate: still an upper bound for that market, as real bids rest on forecasts. Backtests of day-ahead trading on forecasts typically keep 80–90% of what hindsight earns (e.g. Hornek et al., <a href="https://arxiv.org/abs/2501.07121" target="_blank" rel="noopener">arXiv 2501.07121</a>, for intraday). Italy's batteries' actual results, below the charts, are the check.</p>` +
       `<p><b>Fixed shares.</b> Splitting a battery into fixed shares per market is the usual approach where a service reserves capacity ahead of delivery (FCR or aFRR capacity auctions); Italy's MSD and MB buy energy, pay-as-bid, with no capacity held, so the battery's whole power can move between markets quarter-hour by quarter-hour. The model therefore does not split it.</p>` +
-      `<p><b>Left out.</b> Capacity payments (the capacity market, MACSE), imbalance charges, the secondary reserve's band, start-up and mode-change payments in MSD, the effect of the battery's own bids on prices, taxes, CAPEX and financing.</p>` +
+      `<p><b>Capacity market.</b> With a contract (the default), the premium on the committed capacity (CDP: power × derating) is added day by day, and the reliability option's payback taken off: in each quarter-hour the zone's MGP price passes the strike, the CDP times the difference; on the MW the battery sold upward in MSD and MB, the larger of the MGP price and their price over the strike (Terna's DTF n. 1). The strike: ARERA 199/2024/R/eel article 3, an open-cycle gas turbine's cost on the gas day's System Average Price (GME) and the day before's EUA price (EEX), the gas charges besides it estimated (0.066 €/Smc). Worked out on the schedule chosen without the contract; left out: Terna's monthly nominations, offers not accepted above the strike, the storage energy limit, penalties.</p>` +
+      `<p><b>Left out.</b> MACSE, imbalance charges, the secondary reserve's band, start-up and mode-change payments in MSD, the effect of the battery's own bids on prices, taxes, CAPEX and financing.</p>` +
       `<p><b>Sources.</b> GME (prices, MSD and MB results, market offers of Italy's batteries; elaborated, not reproduced); ARERA 574/2014/R/eel and 109/2021/R/eel (storage withdrawals); GME's fees.</p></div>`;
   }
 
@@ -19372,9 +19420,15 @@ move the slider above to another one`,
       MSD: { up: share("msdUp", "MSD", "up"), down: share("msdDown", "MSD", "down") },
       MB: { up: share("mbUp", "MB", "up"), down: share("mbDown", "MB", "down") }
     };
+    // The capacity market: the premium on the CDP, the power times the derating entered or Terna's table.
+    const cmPremium = nonNegative("cmPremium", 47000, "The capacity premium");
+    const deratingEntered = bessNum(i.cmDerating, null);
+    if (deratingEntered !== null && (deratingEntered < 0 || deratingEntered > 100)) errors.push("The derating must be between 0 and 100%.");
+    const derating = deratingEntered === null ? cmBatteryDerating(energy / power) : deratingEntered / 100;
     return {
       errors,
       fixedOpex, fade: fade / 100,
+      cm: i.cm === "off" ? null : { premium: cmPremium, derating, cdp: power * derating, entered: deratingEntered !== null },
       worker: {
         power, energy, rte: rte / 100, socMin: socMin / 100, socMax: socMax / 100, soc0: soc0 / 100, cycles,
         availability: availability / 100, throughputCost, chargeCost, fee, strategy: i.strategy in BESS_STRATEGIES ? i.strategy : "sequential",
@@ -19449,6 +19503,11 @@ move the slider above to another one`,
     const [from, to] = bessPeriod(lastDay);
     bessHint("period", `${bessDateText(from)} – ${bessDateText(to)}, ${formatNumber(bessDaysBetween(from, to) + 1)} days · on file from ${bessDateText(BESS_FIRST_DAY)} to ${bessDateText(lastDay)}. The MGP traded hours until 30 Sep 2025, quarter-hours since.`);
     bessHint("energy", `Duration ${formatNumber(bessNum(bessInputs.energy, 100) / bessNum(bessInputs.power, 50), 1)} h`);
+    bessHint("cmDerating", params.cm ? `${params.cm.entered ? "Entered" : "Terna's 2025–27 table"}: ${formatNumber(params.cm.derating * 100, 1)}% → ` +
+      `${formatNumber(params.cm.cdp, 1)} MW of CDP, ${bessMoney(params.cm.cdp * params.cm.premium)} a year of premium.` : "No contract: merchant only.");
+    // The strike needs GME's gas prices and the EUA auctions; without them the contract keeps its premium only.
+    const cmFuel = params.cm ? await anaGasCarbon().catch(() => null) : null;
+    if (token !== bessState.runToken) return;
     bessShowVolumes(files, zone, from, to, params);
     if (params.errors.length) {
       bessState.running = false;
@@ -19492,7 +19551,8 @@ move the slider above to another one`,
     if (token !== bessState.runToken) return;
     bessState.running = false;
     bessState.results = bessAggregate(results, params, { zone, from, to, lastDay, lastMb: bessLastMbDay(zoneFile, zone),
-      seconds: (performance.now() - started) / 1000, observed });
+      seconds: (performance.now() - started) / 1000, observed,
+      cm: params.cm ? { ...params.cm, fuel: cmFuel, inputs: bessState.dayInputs } : null });
     if (!bessState.day || !bessState.results.byDate.has(bessState.day)) bessState.day = bessState.results.best;
     bessStatus("");
     bessRenderAll();
@@ -19505,7 +19565,9 @@ move the slider above to another one`,
     const fixedPerDay = params.fixedOpex * 1000 * params.worker.power / 365;
     const empty = () => ({ sold: 0, bought: 0, income: 0, spend: 0 });
     const totals = { markets: Object.fromEntries(BESS_MARKETS.map(market => [market.key, empty()])),
-      income: 0, spend: 0, cashIn: 0, cashOut: 0, other: 0, margin: 0, charged: 0, discharged: 0, throughput: 0, network: 0, fees: 0, fixed: 0 };
+      income: 0, spend: 0, cashIn: 0, cashOut: 0, other: 0, margin: 0, charged: 0, discharged: 0, throughput: 0, network: 0, fees: 0, fixed: 0,
+      cmPremium: 0, cmMgp: 0, cmBalancing: 0, cmAbove: 0 };
+    const cm = meta.cm || null;
     days.forEach(day => {
       day.income = 0; day.spend = 0;
       Object.entries(day.markets).forEach(([key, [sold, bought, income, spend]]) => {
@@ -19516,6 +19578,11 @@ move the slider above to another one`,
       day.fixed = fixedPerDay;
       day.other = day.throughputCost + day.chargeCost + day.fees + fixedPerDay;
       day.margin = day.income - day.spend - day.other;
+      if (cm) {
+        day.cm = bessCmDay(day, cm.inputs.get(day.date), cm);
+        day.margin += day.cm.premium - day.cm.mgp - day.cm.balancing;
+        totals.cmPremium += day.cm.premium; totals.cmMgp += day.cm.mgp; totals.cmBalancing += day.cm.balancing; totals.cmAbove += day.cm.above;
+      }
       totals.income += day.income; totals.spend += day.spend; totals.other += day.other; totals.margin += day.margin;
       totals.cashIn += day.cashIn; totals.cashOut += day.cashOut;
       totals.charged += day.charged; totals.discharged += day.discharged;
@@ -19527,6 +19594,37 @@ move the slider above to another one`,
       best: ranked.length ? ranked[0].date : null, worst: ranked.length ? ranked[ranked.length - 1].date : null,
       strategy: params.worker.strategy, power: params.worker.power, energy: params.worker.energy
     };
+  }
+
+  /*
+   * The capacity market on a solved day: the premium on the CDP, and what
+   * goes back to Terna in each quarter-hour the price passes the strike
+   * (Terna's DTF n. 1): the CDP at the MGP price; the MW sold upward in MSD
+   * and MB (up to the CDP), at the larger of the MGP price and their own
+   * (the extra over the MGP's, apart).  On the schedule chosen without the
+   * contract.  Strike: the gas day's from 06:00, the day before's earlier.
+   */
+  function bessCmDay(day, input, cm) {
+    const year = Number(day.date.slice(0, 4));
+    const out = { premium: cm.cdp * cm.premium / (year % 4 === 0 ? 366 : 365), mgp: 0, balancing: 0, above: 0, strike: null };
+    const strike = cm.fuel ? cmStrikeDay(cm.fuel, day.date) : null;
+    if (!strike || !input) return out;
+    out.strike = strike[1];
+    const T = day.T, early = 24 + T - 96;
+    const msd = (day.net || {}).MSD, mb = (day.net || {}).MB;
+    for (let t = 0; t < T; t += 1) {
+      const price = input.prices.MGP[t], level = strike[t < early ? 0 : 1];
+      if (!Number.isFinite(price)) continue;
+      const overMgp = Math.max(price - level, 0);
+      out.mgp += cm.cdp * overMgp / 4;
+      if (overMgp > 0) out.above += 0.25;
+      const msdUp = msd ? Math.max(msd[t], 0) : 0, mbUp = mb ? Math.max(mb[t], 0) : 0;
+      if (msdUp + mbUp > 0) {
+        const own = (msdUp * (input.balancing.MSD.upP[t] || 0) + mbUp * (input.balancing.MB.upP[t] || 0)) / (msdUp + mbUp);
+        out.balancing += Math.min(msdUp + mbUp, cm.cdp) * (Math.max(Math.max(price, own) - level, 0) - overMgp) / 4;
+      }
+    }
+    return out;
   }
 
   /* ----- Status, hints ----- */
@@ -19672,7 +19770,10 @@ move the slider above to another one`,
       tile("Revenues", bessMoney(t.cashIn), `paid to the battery, markets netted per quarter-hour · ${bessMoney(bessPerMwYear(t.cashIn, results))}/MW/yr`) +
       tile("Costs", bessMoney(t.cashOut + t.other), `energy ${bessMoney(t.cashOut)} · O&amp;M ${bessMoney(t.throughput + t.fixed)} · fees and charges ${bessMoney(t.fees + t.network)}`) +
       tile("Cycles per day", formatNumber(cycles, 2), `${bessMwh(t.discharged)} discharged, ${bessMwh(t.charged)} charged`) +
-      tile("Spread captured", spread === null ? "—" : `€${formatNumber(spread, 1)}`, "per MWh discharged: sales minus purchases, before O&amp;M");
+      tile("Spread captured", spread === null ? "—" : `€${formatNumber(spread, 1)}`, "per MWh discharged: sales minus purchases, before O&amp;M") +
+      (results.cm ? tile("Capacity market", bessMoney(t.cmPremium - t.cmMgp - t.cmBalancing),
+        `${bessMoney(bessPerMwYear(t.cmPremium - t.cmMgp - t.cmBalancing, results))}/MW/yr · premium ${bessMoney(t.cmPremium)} on ${formatNumber(results.cm.cdp, 1)} MW CDP, ` +
+        (results.cm.fuel ? `clawback ${bessMoney(t.cmMgp + t.cmBalancing)} (${formatNumber(t.cmAbove, 1)} h above the strike)` : "no clawback: gas prices not on file")) : "");
     const byMarket = BESS_MARKETS.map(market => ({ ...market, net: t.markets[market.key].income - t.markets[market.key].spend }))
       .filter(market => Math.abs(market.net) > 1);
     const gross = byMarket.filter(market => market.net > 0).reduce((sum, market) => sum + market.net, 0);
@@ -19681,6 +19782,13 @@ move the slider above to another one`,
     const notes = [];
     if (results.failed.length) notes.push(`${formatNumber(results.failed.length)} day${results.failed.length === 1 ? "" : "s"} could not be solved and are left out.`);
     if (results.lastMb && results.lastMb < results.to && results.params.worker.markets.MB) notes.push(`MB results are on file to ${bessDateText(results.lastMb)}: the days after it have no MB.`);
+    if (results.cm) {
+      const claw = t.cmMgp + t.cmBalancing;
+      notes.push(`With the capacity market: ${bessMoney(bessPerMwYear(t.cmPremium, results))}/MW/yr of premium` +
+        (results.cm.fuel ? ` against ${bessMoney(bessPerMwYear(claw, results))}/MW/yr paid back above the strike (${t.cmPremium > 0 ? formatNumber(claw / t.cmPremium * 100, 1) : "—"}% of it; ` +
+          `${bessMoney(t.cmMgp)} on the MGP price, ${bessMoney(t.cmBalancing)} more on MSD and MB sales above it); merchant alone ${bessMoney(bessPerMwYear(t.margin - t.cmPremium + claw, results))}/MW/yr.`
+          : "; GME's gas prices are not on file here, so no strike and no clawback."));
+    }
     reading.innerHTML = `<b>Reading:</b> the battery would have netted ${bessMoney(t.margin)} over the period, ${bessMoney(bessPerMwYear(t.margin, results))} per MW and year` +
       (lead ? `; of the markets that paid, ${lead} of the net` : "") +
       `. ${t.margin >= 0 ? "Its sales covered its purchases and costs" : "Its costs exceeded what it earned"} on ${formatNumber(results.days.filter(day => day.margin >= 0).length)} of ${formatNumber(n)} days. ` +
@@ -19705,7 +19813,7 @@ move the slider above to another one`,
       try {
         const raw = await bessSolve(days, params.worker, share => bessStatus(`Comparing: ${BESS_STRATEGIES[strategy].toLowerCase()}…`, share));
         if (token !== bessState.runToken) return;
-        compare[strategy] = bessAggregate(raw, params, {}).totals.margin;
+        compare[strategy] = bessAggregate(raw, params, { cm: results.cm }).totals.margin;
       } catch (error) {
         compare[strategy] = null;
       }
@@ -19751,6 +19859,10 @@ move the slider above to another one`,
       bucket.days += 1; bucket.other += day.other; bucket.margin += day.margin;
       bucket.cashIn += day.cashIn; bucket.cashOut += day.cashOut;
       bucket.om += day.throughputCost + day.fixed; bucket.charges += day.fees + day.chargeCost;
+      if (day.cm) {
+        bucket.cmPremium = (bucket.cmPremium || 0) + day.cm.premium;
+        bucket.cmClaw = (bucket.cmClaw || 0) + day.cm.mgp + day.cm.balancing;
+      }
       Object.entries(day.markets).forEach(([market, [, , income, spend]]) => {
         bucket.net[market] = (bucket.net[market] || 0) + income - spend;
       });
@@ -19762,17 +19874,25 @@ move the slider above to another one`,
     const bar = (name, color, data) => ({ name, type: "bar", stack: "money", data, barMaxWidth: 34, itemStyle: { color: cssVar(color) },
       emphasis: { focus: "series" } });
     let series, rowsOf;
+    // With a capacity contract: its premium above zero, its clawback below, in both views.
+    const cmParts = results.cm ? [
+      { name: "CM premium", color: BESS_CM_COLORS.premium, value: bucket => bucket.cmPremium || 0 },
+      { name: "CM clawback", color: BESS_CM_COLORS.clawback, value: bucket => -(bucket.cmClaw || 0) }] : [];
     if (byMarket) {
       const used = BESS_MARKETS.filter(market => list.some(bucket => Math.abs(bucket.net[market.key] || 0) > 0.5));
       series = [...used.map(market => bar(market.label, market.color, list.map(bucket => bucket.net[market.key] || 0))),
+        ...cmParts.map(part => bar(part.name, part.color, list.map(part.value))),
         bar("Other costs", BESS_OTHER_COLOR, list.map(bucket => -bucket.other))];
       rowsOf = bucket => used.map(market => tooltipRow(cssVar(market.color), market.label, bessMoney(bucket.net[market.key] || 0))).join("") +
+        cmParts.map(part => tooltipRow(cssVar(part.color), part.name, bessMoney(part.value(bucket)))).join("") +
         tooltipRow(cssVar(BESS_OTHER_COLOR), "Other costs", bessMoney(-bucket.other));
-      setText("bess-money-subtitle", `€ per ${per} · each market's sales minus purchases, and the other costs · right axis: the net margin per MW and year`);
+      setText("bess-money-subtitle", `€ per ${per} · each market's sales minus purchases, ${results.cm ? "the capacity market, " : ""}and the other costs · right axis: the net margin per MW and year`);
     } else {
       const parts = [
         { name: "Revenues", color: "--border-3", value: bucket => bucket.cashIn },
+        ...cmParts.slice(0, 1),
         { name: "Energy bought", color: "--border-2", value: bucket => -bucket.cashOut },
+        ...cmParts.slice(1),
         { name: "O&M", color: "--border-7", value: bucket => -bucket.om },
         { name: "Fees and charges", color: "--border-4", value: bucket => -bucket.charges }
       ];
@@ -19836,6 +19956,10 @@ move the slider above to another one`,
     const t = results.totals;
     const rows = BESS_MARKETS.filter(market => results.params.worker.markets[market.key])
       .map(market => ({ label: market.label, color: market.color, value: bessPerMwYear(t.markets[market.key].income - t.markets[market.key].spend, results) }));
+    if (results.cm) {
+      rows.push({ label: "CM premium", color: BESS_CM_COLORS.premium, value: bessPerMwYear(t.cmPremium, results) });
+      rows.push({ label: "CM clawback", color: BESS_CM_COLORS.clawback, value: -bessPerMwYear(t.cmMgp + t.cmBalancing, results) });
+    }
     rows.push({ label: "O&M, fees, charges", color: BESS_OTHER_COLOR, value: -bessPerMwYear(t.other, results) });
     rows.push({ label: "Net margin", color: "--chart-pun", value: bessPerMwYear(t.margin, results) });
     setText("bess-markets-subtitle", "€ per MW of power and year");
@@ -20127,6 +20251,9 @@ move the slider above to another one`,
         `<tr><td>Variable O&amp;M</td><td colspan="6"></td><td>${bessMoney(-t.throughput)}</td><td>${bessMoney(-bessPerMwYear(t.throughput, results))}</td></tr>` +
         `<tr><td>Fixed O&amp;M</td><td colspan="6"></td><td>${bessMoney(-t.fixed)}</td><td>${bessMoney(-bessPerMwYear(t.fixed, results))}</td></tr>` +
         `<tr><td>Fees and network charges</td><td colspan="6"></td><td>${bessMoney(-(t.fees + t.network))}</td><td>${bessMoney(-bessPerMwYear(t.fees + t.network, results))}</td></tr>` +
+        (results.cm ? `<tr><td>Capacity market premium (${formatNumber(results.cm.cdp, 1)} MW CDP)</td><td colspan="6"></td><td>${bessMoney(t.cmPremium)}</td><td>${bessMoney(bessPerMwYear(t.cmPremium, results))}</td></tr>` +
+          `<tr><td>Capacity market clawback, MGP</td><td colspan="6"></td><td>${bessMoney(-t.cmMgp)}</td><td>${bessMoney(-bessPerMwYear(t.cmMgp, results))}</td></tr>` +
+          `<tr><td>Capacity market clawback, MSD and MB</td><td colspan="6"></td><td>${bessMoney(-t.cmBalancing)}</td><td>${bessMoney(-bessPerMwYear(t.cmBalancing, results))}</td></tr>` : "") +
         `<tr class="bess-total"><td>Net margin</td><td colspan="4"></td><td>${bessMoney(t.income)}</td><td>${bessMoney(t.spend)}</td>` +
         `<td>${bessMoney(t.margin)}</td><td>${bessMoney(bessPerMwYear(t.margin, results))}</td></tr></tbody></table>`;
       return;
@@ -20135,15 +20262,16 @@ move the slider above to another one`,
     const months = new Map();
     results.days.forEach(day => {
       const key = day.date.slice(0, 7);
-      if (!months.has(key)) months.set(key, { days: 0, income: 0, spend: 0, other: 0, margin: 0, discharged: 0 });
+      if (!months.has(key)) months.set(key, { days: 0, income: 0, spend: 0, other: 0, margin: 0, discharged: 0, cm: 0 });
       const month = months.get(key);
       month.days += 1; month.income += day.cashIn; month.spend += day.cashOut; month.other += day.other; month.margin += day.margin; month.discharged += day.discharged;
+      if (day.cm) month.cm += day.cm.premium - day.cm.mgp - day.cm.balancing;
     });
     const usable = results.energy * (results.params.worker.socMax - results.params.worker.socMin);
-    element.innerHTML = `<table class="bess-table"><thead><tr><th>Month</th><th>Days</th><th>Revenues</th><th>Energy bought</th><th>O&amp;M, fees, charges</th><th>Net margin</th>` +
-      `<th>€/MW/yr</th><th>Cycles/day</th></tr></thead><tbody>` +
+    element.innerHTML = `<table class="bess-table"><thead><tr><th>Month</th><th>Days</th><th>Revenues</th><th>Energy bought</th><th>O&amp;M, fees, charges</th>` +
+      `${results.cm ? "<th>Capacity market</th>" : ""}<th>Net margin</th><th>€/MW/yr</th><th>Cycles/day</th></tr></thead><tbody>` +
       [...months.entries()].map(([key, month]) => `<tr><td>${bessBucketLabel(key)}</td><td>${month.days}</td><td>${bessMoney(month.income)}</td>` +
-        `<td>${bessMoney(month.spend)}</td><td>${bessMoney(month.other)}</td><td>${bessMoney(month.margin)}</td>` +
+        `<td>${bessMoney(month.spend)}</td><td>${bessMoney(month.other)}</td>${results.cm ? `<td>${bessMoney(month.cm)}</td>` : ""}<td>${bessMoney(month.margin)}</td>` +
         `<td>${bessMoney(month.margin / results.power * 365 / month.days)}</td><td>${usable > 0 ? formatNumber(month.discharged / usable / month.days, 2) : "—"}</td></tr>`).join("") +
       `</tbody></table>`;
   }
@@ -20153,12 +20281,14 @@ move the slider above to another one`,
     if (!results) return;
     const head = ["date", ...BESS_MARKETS.flatMap(market => [`${market.label} sold MWh`, `${market.label} bought MWh`, `${market.label} revenue EUR`, `${market.label} purchases EUR`]),
       "charged MWh", "discharged MWh", "revenues EUR (netted per quarter-hour)", "energy bought EUR (netted per quarter-hour)",
-      "variable O&M EUR", "network charges EUR", "fees EUR", "fixed O&M EUR", "net margin EUR"];
+      "variable O&M EUR", "network charges EUR", "fees EUR", "fixed O&M EUR",
+      "CM premium EUR", "CM clawback MGP EUR", "CM clawback MSD MB EUR", "strike from 06:00 EUR/MWh", "net margin EUR"];
     const lines = [head.join(",")].concat(results.days.map(day => [day.date,
       ...BESS_MARKETS.flatMap(market => (day.markets[market.key] || [0, 0, 0, 0]).map(value => value.toFixed(2))),
       day.charged.toFixed(2), day.discharged.toFixed(2), day.cashIn.toFixed(2), day.cashOut.toFixed(2),
-      day.throughputCost.toFixed(2), day.chargeCost.toFixed(2), day.fees.toFixed(2),
-      day.fixed.toFixed(2), day.margin.toFixed(2)].join(",")));
+      day.throughputCost.toFixed(2), day.chargeCost.toFixed(2), day.fees.toFixed(2), day.fixed.toFixed(2),
+      ...(day.cm ? [day.cm.premium.toFixed(2), day.cm.mgp.toFixed(2), day.cm.balancing.toFixed(2), day.cm.strike === null ? "" : day.cm.strike.toFixed(2)] : ["", "", "", ""]),
+      day.margin.toFixed(2)].join(",")));
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
@@ -22957,8 +23087,262 @@ move the slider above to another one`,
     setText("macse-table-subtitle", "Month by month, € for the whole battery");
   }
 
+  /* ---------- The capacity market for storage ---------- */
+  /*
+   * What the capacity market changed for Italy's storage units holding a
+   * contract, on their actual trading (the Storage tab's files): each
+   * unit's premium and its estimated variable payments above the strike
+   * (data/capacity_market_storage.json, etl/build_capacity_market_storage.py;
+   * private: GME codes), against its merchant net revenue in all markets
+   * (storage/index.json daily totals).  How the mechanism works, with
+   * Terna's auction results (policy/capacity_market.json), above the charts.
+   */
+  const cmStorageState = { tech: "all", zone: "", period: "all", from: "", to: "", bucket: "month" };
+  const cmStorageZone = () => cmStorageState.zone || zoneCode() || "IT";
+  const CM_STORAGE_TECHS = { battery: "Batteries", pumped_hydro: "Pumped hydro" };
+  let cmPolicyFile = null;
+  const cmPolicy = () => (cmPolicyFile = cmPolicyFile || fetch("./policy/capacity_market.json", { cache: "no-cache" })
+    .then(response => (response.ok ? response.json() : null)).catch(() => null));
+
+  function cmStorageExplainer(policy, file) {
+    const auctions = ((policy || {}).auctions || []).filter(item => item.year >= 2022);
+    const premium = value => (typeof value === "number" ? `€${formatNumber(value, 0)}` : value && typeof value === "object"
+      ? `€${formatNumber(Math.min(...Object.values(value)), 0)}–${formatNumber(Math.max(...Object.values(value)), 0)}` : "—");
+    const table = auctions.length ? `<table class="bess-table"><thead><tr><th>Delivery year</th><th>Auction</th><th>Existing capacity</th><th>€/MW/yr</th>` +
+      `<th>New capacity</th><th>€/MW/yr</th><th>Not yet authorised</th><th>€/MW/yr</th></tr></thead><tbody>` +
+      auctions.map(item => `<tr><td>${item.year}</td><td>${bessDateText(item.date)}</td><td>${formatNumber(item.mw.existing, 0)} MW</td><td>${premium(item.premium.existing)}</td>` +
+        `<td>${formatNumber(item.mw.new, 0)} MW</td><td>${premium(item.premium.new)}</td><td>${item.mw.new_not_authorised ? `${formatNumber(item.mw.new_not_authorised, 0)} MW` : "—"}</td>` +
+        `<td>${item.mw.new_not_authorised ? premium(item.premium.new_not_authorised) : "—"}</td></tr>`).join("") + `</tbody></table>` : "";
+    const summary = (file || {}).summary || {};
+    return `<div class="bess-method-body">` +
+      `<p><b>What Terna buys.</b> In each main auction (asta madre, held two or three years ahead; DM 28 June 2019 and later) Terna buys firm capacity for a delivery year, the CDP (capacità disponibile in probabilità): a plant's power times a derating for how reliably it is there at peak. Existing capacity sells it for one year, new capacity for 15. Each MW of CDP earns a premium a year, the auction's clearing price by area, paid month by month.</p>` +
+      `<p><b>Derating.</b> For the 2025–2027 auctions a new battery counts, nationally, 24% of its power for 1 hour of storage, 44% for 2, 56% for 3, 67% for 4, up to 90% for 8; pumped hydro about 39–40%. The 2028 auction rates batteries by zone and lower (4 hours: 51% North, 54% Centre-South, 40% South, 31% Sicily and Sardinia).</p>` +
+      `<p><b>The reliability option.</b> In return, the holder must offer its CDP in the energy and balancing markets, and it has sold Terna a call option: in every hour (quarter-hour since October 2025) the reference price passes the strike, it pays back the difference on its CDP (corrispettivo variabile, the clawback), whether it produced or not. The reference is the MGP price for what goes to the energy markets; for MW accepted in Terna's balancing (the ISP: MSD and MB) at a price above the strike, that price; for mFRR, the platform's marginal price; for CDP not offered, a high reference (Terna's DTF n. 1). The premium buys adequacy; the option takes back scarcity rents above the strike.</p>` +
+      `<p><b>The strike.</b> The standard variable cost of an open-cycle gas turbine (ARERA 199/2024/R/eel, article 3): ${CM_STRIKE.heatRate} Smc/MWh of gas (${CM_STRIKE.laterHeatRate} from 2028, 263/2026/R/eel) at the gas day's System Average Price plus charges, 0.7162 t/MWh of CO₂ at the day before's EUA price, dispatching (at least 3 €/MWh) and 5 €/MWh of other costs: the same for every contract and technology, not a battery's own cost. Terna tells each holder the values it used a month later and does not publish them; here they are estimated (on the 2023–2024 rules the method gives ARERA's averages, 265 and 231 €/MWh, within 2). About 210–230 €/MWh in 2025; 400–450 €/MWh in October 2026, with gas at 95–100 €/MWh.</p>` +
+      `<p><b>For storage.</b> A battery or a pumped hydro plant sells in the most expensive hours, so it would gain from scarcity; with a contract that gain is capped at the strike on its CDP. Day-ahead prices rarely pass a peaker's cost (MGP prices are mostly set by combined cycles), so the clawback on the MGP is small; it bites in MSD and MB, where storage sells upward at its own, higher prices. Storage counts at most a quarter of its daily energy as offered in the ISP. The capacity market is not MACSE: MACSE pays per MWh of storage for 15 years, takes the time-shifting capacity for the market and 80% of the balancing margin.</p>` +
+      `<p><b>The units here.</b> Terna names only new units, so the contracts are matched to GME codes by name, zone, owner and size: ${formatNumber(summary.listed_matched || 0)} of the ${formatNumber(summary.listed_due || 0)} battery contracts due by now (${formatNumber(summary.listed_matched_mw || 0, 0)} of ${formatNumber(summary.listed_due_mw || 0, 0)} MW of CDP); the rest are not on GME's markets yet or were never built. Pumped hydro is existing capacity, never named: it is taken as committed at its power × 39% when its owner held that much existing capacity in its area. Enel's 2024 batteries in the North: the average premium Terna's totals imply (authorised €70,000, not yet authorised €48,110). The clawback is an estimate (no monthly nominations, no offers not accepted, no energy limit); the merchant revenue is the Storage tab's (all markets, before fees and imbalance).</p>` +
+      (table ? `<p><b>Terna's main auctions.</b> Capacity bought and the premium, by delivery year (Policy › Capacity market for more):</p>${table}` : "") +
+      `<p><b>Sources.</b> Terna, Rendiconto degli esiti (asta madre) 2022–2027 and DTF n. 1; ARERA 199/2024/R/eel, 263/2026/R/eel, 302/2025 (strike averages); GME (prices, offers, gas); EEX (EUA auctions).</p></div>`;
+  }
+
+  const cmStorageView = anaView("cmstorage", {
+    title: "The capacity market for storage",
+    lede: "Italy's capacity market pays a yearly premium on a plant's derated capacity and, in exchange, takes back what prices earn above a strike, a peaking gas turbine's cost. How it works, and what it changed for the batteries and pumped hydro plants holding a contract: their premium against what they paid back, on what they actually traded, month by month and plant by plant. Estimated from GME's results and Terna's auction reports; the full version only (GME's codes).",
+    form: () => {
+      const s = cmStorageState;
+      return bessGroup("Units",
+        anaSelect(s, "tech", "Technology", [["all", "Batteries and pumped hydro"], ["battery", "Batteries"], ["pumped_hydro", "Pumped hydro"]]) +
+        anaSelect(s, "zone", "Bidding zone", [["", `As the page (${zoneCode() ? ZONE_NAMES[zoneCode()] : "Italy"})`], ["IT", "Italy"], ...BESS_ZONES.map(code => [code, ZONE_NAMES[code]])])) +
+        bessGroup("Period", anaPeriodFields(s));
+    },
+    results: () =>
+      `<section id="cmstorage-summary-section" class="panel chart-panel bess-wide"><div class="chart-header"><div><div class="chart-title">Results</div>` +
+      `<div id="cmstorage-summary-subtitle" class="chart-subtitle"></div></div><div id="cmstorage-status" class="bess-status"></div></div>` +
+      `<div id="cmstorage-kpis" class="gas-kpis bess-kpis"></div><p id="cmstorage-reading" class="bess-reading"></p></section>` +
+      anaSection("cmstorage", "how", "How the Capacity Market Works in Italy", { wide: true, gme: false, body: '<div id="cmstorage-how"></div>' }) +
+      anaSection("cmstorage", "months", "Revenue per MW: Merchant and with the Capacity Market", { wide: true,
+        extra: anaBuckets(cmStorageState.bucket, [["month", "Month"], ["year", "Year"]]),
+        help: "The units with a contract together: their net revenue in all markets (the Storage tab's estimate) per MW of their power and year, merchant and with the capacity market's premium less its clawback; each period scaled by its own days." }) +
+      anaSection("cmstorage", "flows", "Premium against Clawback",
+        { help: "€ per period: the premium on the units' CDP above zero; below, what they paid back where the MGP price passed the strike (on their whole CDP) and the extra on what they sold upward in MSD and MB at prices above it." }) +
+      anaSection("cmstorage", "hours", "When the Clawback Falls",
+        { help: "The clawback over the period by hour of the day (elapsed from midnight): the MGP part follows the evening peaks, the MSD and MB part the hours the units were called upward at high prices." }) +
+      anaSection("cmstorage", "plants", "Plant by Plant", { wide: true, height: " tall",
+        help: "The 20 units with the most CDP: their net revenue per MW of power and year over the days each was on file, merchant and with the capacity market. GME codes (the full version only)." }) +
+      anaSection("cmstorage", "table", "Results Table", { wide: true, body: '<div id="cmstorage-table" class="bess-table-wrap"></div>' }),
+    charts: ["months", "flows", "hours", "plants"],
+    compute: async self => {
+      const [file, index, policy] = await Promise.all([anaFetch("capacity_market_storage.json").catch(() => null),
+        anaFetch("storage/index.json").catch(() => null), cmPolicy()]);
+      self.policy = policy;
+      self.file = file;
+      if (!file || !file.daily) throw anaUserError("The capacity market's file (capacity_market_storage.json) is not on file here: etl/build_capacity_market_storage.py writes it, in the full version only.");
+      if (!index || !index.units) throw anaUserError("The Storage tab's files are not on file here.");
+      const allDays = Object.keys(file.daily).sort();
+      const lastDay = allDays[allDays.length - 1];
+      const [start, to] = anaPeriod(cmStorageState, lastDay);
+      const from = start < allDays[0] ? allDays[0] : start;
+      self.hint("period", `${bessDateText(from)} – ${bessDateText(to)} · on file ${bessDateText(allDays[0])} – ${bessDateText(lastDay)}.`);
+      const zone = cmStorageZone(), tech = cmStorageState.tech;
+      const pick = code => {
+        const unit = index.units[code];
+        return Boolean(unit) && (tech === "all" || unit[0] === tech) && (zone === "IT" || unit[2] === zone);
+      };
+      const units = new Map(), records = [], hours = Array.from({ length: 24 }, () => [0, 0]);
+      const clawQuarters = new Set();
+      const strikeStart = file.strike ? utcDay(file.strike.start) : null;
+      let strikeSum = 0, strikeDays = 0;
+      allDays.filter(day => day >= from && day <= to).forEach(day => {
+        const record = { date: day, premium: 0, mgp: 0, balancing: 0, merchant: 0, mwDays: 0 };
+        const year = Number(day.slice(0, 4));
+        Object.entries(file.daily[day]).forEach(([code, [premium, mgp, balancing, quarters]]) => {
+          if (!pick(code)) return;
+          const unit = index.units[code], contract = (file.units[code] || {}).contracts || [];
+          const merchant = (((index.daily || {})[day] || {})[code] || [0])[0];
+          if (!units.has(code)) units.set(code, { code, tech: unit[0], zone: unit[2], mw: unit[3], cdp: 0, premium: 0, mgp: 0, balancing: 0, merchant: 0, days: 0,
+            terna: (file.units[code] || {}).terna || [], rate: 0 });
+          const item = units.get(code);
+          const running = contract.filter(c => c[0] <= year && year <= c[1]);
+          const cdp = running.reduce((sum, c) => sum + c[2], 0);
+          item.cdp = Math.max(item.cdp, cdp);
+          item.rate = cdp ? running.reduce((sum, c) => sum + c[2] * c[3], 0) / cdp : item.rate;
+          item.premium += premium; item.mgp += mgp; item.balancing += balancing; item.merchant += merchant; item.days += 1;
+          record.premium += premium; record.mgp += mgp; record.balancing += balancing; record.merchant += merchant; record.mwDays += unit[3];
+          quarters.forEach(([period, onMgp, onBalancing]) => {
+            const hour = Math.min(23, Math.floor((period - 1) / 4));
+            hours[hour][0] += onMgp; hours[hour][1] += onBalancing;
+            clawQuarters.add(`${day}|${period}`);
+          });
+        });
+        if (strikeStart !== null) {
+          const value = file.strike.values[Math.round((utcDay(day) - strikeStart) / 864e5)];
+          if (value) { strikeSum += value[1]; strikeDays += 1; }
+        }
+        if (record.mwDays) records.push(record);
+      });
+      if (!records.length) throw anaUserError("No unit with a capacity contract on file for these choices.");
+      return { zone, tech, from, to, units: [...units.values()], records, hours, clawQuarters: clawQuarters.size,
+        strike: strikeDays ? strikeSum / strikeDays : null };
+    },
+    render: self => cmStorageRender(self)
+  });
+  cmStorageView.state = cmStorageState;
+  cmStorageView.followsPage = cmStorageZone;
+
+  function cmStorageRender(self) {
+    const results = self.results;
+    const kpis = document.getElementById("cmstorage-kpis"), reading = document.getElementById("cmstorage-reading");
+    document.getElementById("cmstorage-how").innerHTML = cmStorageExplainer(self.policy, self.file);
+    if (!results) {
+      kpis.innerHTML = "";
+      reading.innerHTML = self.message ? `<span class="bess-error">${self.message}</span>` : "";
+      Object.values(self.charts).forEach(chart => anaEmpty(chart, self.busy ? "Working…" : ""));
+      document.getElementById("cmstorage-table").innerHTML = "";
+      return;
+    }
+    const { records, units } = results;
+    const sum = (list, get) => list.reduce((total, item) => total + get(item), 0);
+    const premium = sum(records, r => r.premium), mgp = sum(records, r => r.mgp), balancing = sum(records, r => r.balancing);
+    const claw = mgp + balancing, merchant = sum(records, r => r.merchant), mwDays = sum(records, r => r.mwDays);
+    const perMwYear = value => (mwDays ? value / mwDays * 365 : 0);
+    const cdpDays = sum(units, u => u.cdp * u.days);
+    const withCm = merchant + premium - claw;
+    const count = key => units.filter(u => u.tech === key).length;
+    const where = results.zone === "IT" ? "Italy" : ZONE_NAMES[results.zone];
+    setText("cmstorage-summary-subtitle", `${results.tech === "all" ? "Batteries and pumped hydro" : CM_STORAGE_TECHS[results.tech]} with a contract · ${where} · ` +
+      `${bessDateText(results.from)} – ${bessDateText(results.to)} (${formatNumber(records.length)} days)`);
+    kpis.innerHTML =
+      anaTile("Units with a contract", formatNumber(units.length), `${formatNumber(sum(units, u => u.cdp), 0)} MW of CDP on ${formatNumber(sum(units, u => u.mw), 0)} MW · ` +
+        `${formatNumber(count("battery"))} batteries, ${formatNumber(count("pumped_hydro"))} pumped hydro`) +
+      anaTile("Premium", bessMoney(premium), `${bessMoney(perMwYear(premium))}/MW of power/yr · ${bessMoney(cdpDays ? premium / cdpDays * 365 : 0)}/MW of CDP/yr`) +
+      anaTile("Clawback", bessMoney(claw), `${anaPct(premium ? claw / premium : NaN, 1)} of the premium · MGP ${bessMoney(mgp)}, MSD and MB ${bessMoney(balancing)}`) +
+      anaTile("Per MW of power a year", `${bessMoney(perMwYear(merchant))} → ${bessMoney(perMwYear(withCm))}`,
+        `merchant → with the capacity market (${merchant > 0 ? `${withCm >= merchant ? "+" : ""}${formatNumber((withCm / merchant - 1) * 100, 0)}%` : "—"})`) +
+      anaTile("Strike", results.strike === null ? "—" : anaPrice(results.strike, 0), `average from 06:00, €/MWh · ${formatNumber(results.clawQuarters)} quarter-hours with a clawback`);
+    const top = [...units].sort((a, b) => (b.mgp + b.balancing) - (a.mgp + a.balancing))[0];
+    reading.innerHTML = `<b>Reading:</b> over these days the ${formatNumber(units.length)} units with a contract earned ${bessMoney(perMwYear(merchant))} per MW of power a year in the markets; ` +
+      `the capacity market added ${bessMoney(perMwYear(premium))} per MW a year of premium and took back ${bessMoney(perMwYear(claw))} per MW a year (${anaPct(premium ? claw / premium : NaN, 1)} of the premium; ${bessMoney(claw)} in all), ` +
+      `${balancing > mgp ? "most of it on MSD and MB sales above the strike rather than on the MGP price" : "most of it where the MGP price passed the strike"}. ` +
+      `The premium is close to a fixed income: prices passed the strike in ${formatNumber(results.clawQuarters)} quarter-hours` +
+      (top && top.mgp + top.balancing > 0 ? `; ${top.code} paid back the most, ${bessMoney(top.mgp + top.balancing)}.` : ".") +
+      ` An estimate on what the units traded, not their settlement.`;
+
+    // By month or year: merchant and with CM per MW of power and year.
+    const bucketMap = new Map();
+    records.forEach(record => { const key = anaBucketOf(cmStorageState.bucket, record.date); if (!bucketMap.has(key)) bucketMap.set(key, []); bucketMap.get(key).push(record); });
+    const keys = [...bucketMap.keys()];
+    const perBucket = (key, get) => { const list = bucketMap.get(key); const days = sum(list, r => r.mwDays); return days ? sum(list, get) / days * 365 : null; };
+    setText("cmstorage-months-subtitle", `€ per MW of power a year, per ${cmStorageState.bucket}`);
+    const axisCategory = data => ({ type: "category", data, axisTick: { show: false }, axisLine: { onZero: true, lineStyle: { color: cssVar("--chart-axis-line") } },
+      axisLabel: { ...bessAxisLabel(), hideOverlap: true } });
+    self.charts.months.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Merchant", "With the capacity market"]),
+      tooltip: bessTooltip(params => bessTipHead(anaBucketLabel(keys[params[0].dataIndex])) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, `${bessMoney(entry.value)}/MW/yr`)).join(""), { axisPointer: { type: "shadow" } }),
+      grid: { left: 64, right: 16, top: 40, bottom: 34 },
+      xAxis: axisCategory(keys.map(anaBucketLabel)),
+      yAxis: bessEuroAxis("€/MW/yr"),
+      series: [
+        { name: "Merchant", type: "bar", barMaxWidth: 22, barGap: "10%", data: keys.map(key => Math.round(perBucket(key, r => r.merchant))), itemStyle: { color: cssVar("--border-1") } },
+        { name: "With the capacity market", type: "bar", barMaxWidth: 22, data: keys.map(key => Math.round(perBucket(key, r => r.merchant + r.premium - r.mgp - r.balancing))),
+          itemStyle: { color: cssVar(BESS_CM_COLORS.premium) } }]
+    }, true);
+    self.charts.months.resize();
+
+    // Premium against clawback, € per period.
+    const flows = [["Premium", BESS_CM_COLORS.premium, r => r.premium], ["Clawback, MGP", BESS_CM_COLORS.clawback, r => -r.mgp],
+      ["Clawback, MSD and MB", "--mix-coal", r => -r.balancing]];
+    setText("cmstorage-flows-subtitle", `€ per ${cmStorageState.bucket}, all the units with a contract`);
+    self.charts.flows.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(flows.map(item => item[0])),
+      tooltip: bessTooltip(params => bessTipHead(anaBucketLabel(keys[params[0].dataIndex])) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, bessMoney(entry.value))).join(""), { axisPointer: { type: "shadow" } }),
+      grid: { left: 64, right: 16, top: 40, bottom: 34 },
+      xAxis: axisCategory(keys.map(anaBucketLabel)),
+      yAxis: bessEuroAxis("€"),
+      series: flows.map(([name, color, get]) => ({ name, type: "bar", stack: "cm", barMaxWidth: 28,
+        data: keys.map(key => Math.round(sum(bucketMap.get(key), get))), itemStyle: { color: cssVar(color) } }))
+    }, true);
+    self.charts.flows.resize();
+
+    // By hour of the day.
+    setText("cmstorage-hours-subtitle", `€ over the period · ${bessMoney(claw)} in all`);
+    self.charts.hours.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Clawback, MGP", "Clawback, MSD and MB"]),
+      tooltip: bessTooltip(params => bessTipHead(`${anaHours[params[0].dataIndex]}–${String(params[0].dataIndex + 1).padStart(2, "0")}:00`) + params.map(entry =>
+        tooltipRow(entry.color, entry.seriesName, bessMoney(entry.value))).join(""), { axisPointer: { type: "shadow" } }),
+      grid: { left: 64, right: 16, top: 40, bottom: 34 },
+      xAxis: { ...axisCategory(anaHours), axisLabel: { ...bessAxisLabel(), interval: 2 } },
+      yAxis: bessEuroAxis("€"),
+      series: [["Clawback, MGP", BESS_CM_COLORS.clawback, 0], ["Clawback, MSD and MB", "--mix-coal", 1]].map(([name, color, column]) => ({
+        name, type: "bar", stack: "hours", barMaxWidth: 18, data: results.hours.map(hour => Math.round(hour[column])), itemStyle: { color: cssVar(color) } }))
+    }, true);
+    self.charts.hours.resize();
+
+    // Plant by plant: the 20 with the most CDP.
+    const plants = [...units].sort((a, b) => b.cdp - a.cdp).slice(0, 20);
+    const plantYear = (unit, value) => (unit.mw && unit.days ? value / unit.mw / unit.days * 365 : 0);
+    setText("cmstorage-plants-subtitle", "€ per MW of power a year over each unit's days on file");
+    self.charts.plants.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: bessLegend(["Merchant", "With the capacity market"]),
+      tooltip: bessTooltip(params => {
+        const unit = plants[params[0].dataIndex];
+        return bessTipHead(`${unit.code} · ${CM_STORAGE_TECHS[unit.tech]}, ${ZONE_NAMES[unit.zone] || unit.zone} · ${formatNumber(unit.cdp, 1)} MW CDP on ${formatNumber(unit.mw, 0)} MW`) +
+          params.map(entry => tooltipRow(entry.color, entry.seriesName, `${bessMoney(entry.value)}/MW/yr`)).join("") +
+          tooltipRow(cssVar(BESS_CM_COLORS.clawback), "Clawback", bessMoney(unit.mgp + unit.balancing));
+      }, { axisPointer: { type: "shadow" } }),
+      grid: { left: 150, right: 24, top: 40, bottom: 30 },
+      yAxis: { type: "category", inverse: true, data: plants.map(unit => unit.code), axisTick: { show: false },
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: { ...bessAxisLabel(), fontSize: 10, color: cssVar("--chart-legend") } },
+      xAxis: { type: "value", axisLabel: { ...bessAxisLabel(), formatter: number => (Math.abs(number) >= 1000 ? `${formatNumber(number / 1000, 0)}k` : formatNumber(number, 0)) },
+        splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      series: [
+        { name: "Merchant", type: "bar", barMaxWidth: 9, barGap: "10%", data: plants.map(unit => Math.round(plantYear(unit, unit.merchant))), itemStyle: { color: cssVar("--border-1") } },
+        { name: "With the capacity market", type: "bar", barMaxWidth: 9,
+          data: plants.map(unit => Math.round(plantYear(unit, unit.merchant + unit.premium - unit.mgp - unit.balancing))), itemStyle: { color: cssVar(BESS_CM_COLORS.premium) } }]
+    }, true);
+    self.charts.plants.resize();
+
+    // Table.
+    const rows = [...units].sort((a, b) => b.cdp - a.cdp);
+    setText("cmstorage-table-subtitle", "Each unit over its days on file in the period, € (the change: with the capacity market against merchant)");
+    document.getElementById("cmstorage-table").innerHTML = `<table class="bess-table"><thead><tr><th>Unit</th><th>Terna's name</th><th>Zone</th><th>MW</th><th>CDP</th>` +
+      `<th>€/MW CDP/yr</th><th>Days</th><th>Merchant</th><th>Premium</th><th>Clawback MGP</th><th>Clawback MSD/MB</th><th>Change</th></tr></thead><tbody>` +
+      rows.map(unit => `<tr><td>${unit.code}</td><td>${unit.terna.length ? unit.terna.join(", ") : `<i>existing (assumed)</i>`}</td><td>${unit.zone}</td>` +
+        `<td>${formatNumber(unit.mw, 0)}</td><td>${formatNumber(unit.cdp, 1)}</td><td>${formatNumber(unit.rate, 0)}</td><td>${unit.days}</td>` +
+        `<td>${bessMoney(unit.merchant)}</td><td>${bessMoney(unit.premium)}</td><td>${bessMoney(-unit.mgp)}</td><td>${bessMoney(-unit.balancing)}</td>` +
+        `<td>${unit.merchant > 0 ? `+${formatNumber((unit.premium - unit.mgp - unit.balancing) / unit.merchant * 100, 0)}%` : "—"}</td></tr>`).join("") +
+      `<tr class="bess-total"><td>All</td><td colspan="2"></td><td>${formatNumber(sum(units, u => u.mw), 0)}</td><td>${formatNumber(sum(units, u => u.cdp), 1)}</td><td></td><td></td>` +
+      `<td>${bessMoney(merchant)}</td><td>${bessMoney(premium)}</td><td>${bessMoney(-mgp)}</td><td>${bessMoney(-balancing)}</td>` +
+      `<td>${merchant > 0 ? `${withCm >= merchant ? "+" : ""}${formatNumber((withCm / merchant - 1) * 100, 0)}%` : "—"}</td></tr></tbody></table>`;
+  }
+
   const ANALYSIS_VIEWS = { capture: captureView, imbalance: imbalanceView, unitimb: unitImbView, congestion: congestionView, spikes: spikesView, binding: bindingView,
-    spark: sparkView, macse: macseView };
+    spark: sparkView, macse: macseView, cmstorage: cmStorageView };
 
   /*
    * A tab is made of blocks: some sections, the files they need, how they
