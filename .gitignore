@@ -38,6 +38,9 @@ app/data/mase_storage.json
 app/data/connections.json
 app/data/gme_units.json
 app/data/gme_units_state.json
+app/data/capacity_market_storage.json
+# Private unit research (kept in aragn/it-power-dashboard-private).
+etl/capacity_market_units.json
 app/data/mgp_merit/
 app/data/mi_merit/
 app/data/market_offers/
