@@ -35,11 +35,12 @@ BRANCH=data
 REMOTE="${DATA_REMOTE:-origin}"
 LOCAL="${DATA_LOCAL:-}"
 
-# "path<TAB>time<TAB>size" for each file under the PATHs in ROOT.
+# "path<TAB>time<TAB>size" for each file under the PATHs in ROOT (not the
+# temporary copies of a publish under way).
 listing() {
   local root=$1
   shift
-  (cd "$root" 2>/dev/null && find "$@" -type f -printf '%p\t%T@\t%s\n' 2>/dev/null) || true
+  (cd "$root" 2>/dev/null && find "$@" -type f ! -name '*.tmp-[0-9]*' -printf '%p\t%T@\t%s\n' 2>/dev/null) || true
 }
 
 # sync FROM TO PATH...: make the PATHs under TO match those under FROM.
