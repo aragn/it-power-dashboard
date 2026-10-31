@@ -24,6 +24,8 @@ it-power-dashboard/
 
 ## 2. Runtime model
 
+**Since 31 October 2026** no data is published, only this code: the fetch workflows live in the private repository (aragn/it-power-dashboard-private) and run on the owner's laptop (self-hosted GitHub Actions runners), with the data kept in a folder there (`DATA_LOCAL`, `.github/scripts/data-branch.sh`); only the price forecast runs on GitHub's machines, from the private repository's data branch. GitHub Pages is off. What follows is the original design.
+
 No server, no live agent. GitHub Actions runs the ETL on a schedule (e.g. daily after MGP closes ~13:00 CET), publishes refreshed JSON to the `data` branch (a single commit, replaced on every update, so the history doesn't grow), and GitHub Pages serves the static `app/` folder with those files restored into `app/data/`. The browser never talks to GME/ENTSO-E/Terna directly — it only reads your pre-built JSON. This keeps your API credentials server-side (in GitHub Actions secrets) and never exposed in client code.
 
 ## 3. GitHub setup checklist

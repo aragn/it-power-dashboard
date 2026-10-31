@@ -102,6 +102,10 @@ Three more analyses are worked out on the page from files it already reads (no s
   - on the northern border, the elements JAO names as limiting the NTC in those hours (`jao_capacity.json`).
 - **Zonal spreads and congestion:** each zone's MGP price against a reference zone (North by default): how often they split, average spread, spread by hour, duration curves, and what a 1 MW plant running all the time gains or loses for being in the zone; per border between zones (GME's MGP flows and limits, `transits.json`), the share of the time at the limit each way and the congestion rent (flow times price gap).
 
+## Where the data lives
+
+Since 31 October 2026 only the code is public. The workflows named here (`update-*.yml`) are in the private repository and run on the owner's laptop (self-hosted runners) with the data in a local folder (`DATA_LOCAL` in `.github/scripts/data-branch.sh`); the price forecast runs on GitHub's machines from the private repository's data branch. This repository keeps `update-reference.yml` (a yearly pull request to the code). The site is offline.
+
 ## Full and public versions
 
 GME's terms allow its data to be shown publicly only as re-elaborations, without the exact values. The page is the same for both versions:
