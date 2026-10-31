@@ -81,6 +81,7 @@ from fetch_entsoe import is_consumption, is_generation, psr_type
 from fetch_jao_spreads import OUTPUT_PATH as JAO_SPREADS_PATH
 from fetch_neighbour_prices import DEFAULT_HISTORY_START, PT15_START, finest_resolution, is_day_ahead
 from fetch_neighbour_prices import OUTPUT_PATH as NEIGHBOUR_PRICES_PATH
+import catch_up
 from zones import ZONE_DOMAINS, ZONE_NAMES
 
 # ============================================================================
@@ -411,7 +412,7 @@ def main():
     end_date = parse_date(args.end) if args.end else market_today() + timedelta(days=1)
     existing, history_read, sign_restored = (({resolution: {} for resolution in RESOLUTIONS}, set(), {})
                                              if args.full_history else load_existing())
-    recent = market_today() - timedelta(days=LOOKBACK_DAYS)
+    recent = catch_up.start(OUTPUT_PATH, market_today() - timedelta(days=LOOKBACK_DAYS))
     first_reads = set()
 
     def start_of(area, kind):

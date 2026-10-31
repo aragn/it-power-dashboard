@@ -39,6 +39,7 @@ from datetime import timedelta
 import compact
 from entsoe_api import merge_resolutions
 from fetch_coupling import LOOKBACK_DAYS, RESOLUTIONS, default_end, slot
+import catch_up
 from fetch_zonal import DEFAULT_HISTORY_START, PT15_START, REQUEST_PAUSE_SECONDS, parse_date, request_data
 
 OUTPUT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app", "data", "transits.json")
@@ -231,7 +232,7 @@ def main():
         # The first run (no file yet) reads the whole history.
         start_date = DEFAULT_HISTORY_START
     else:
-        start_date = end_date - timedelta(days=LOOKBACK_DAYS)
+        start_date = catch_up.start(OUTPUT_PATH, end_date - timedelta(days=LOOKBACK_DAYS))
     start_date = max(start_date, DEFAULT_HISTORY_START)
     if end_date < start_date:
         raise ValueError("End date must not be before start date.")

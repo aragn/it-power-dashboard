@@ -37,6 +37,7 @@ from entsoe_api import (
     request_entsoe,
     to_api_datetime,
 )
+import catch_up
 from zones import IT_DOMAIN, area_label, run_areas, targets
 
 # ============================================================================
@@ -188,7 +189,7 @@ def main():
     elif args.full_history:
         start_date = DEFAULT_HISTORY_START
     else:
-        start_date = market_today() - timedelta(days=LOOKBACK_DAYS)
+        start_date = catch_up.start(OUTPUT_PATH, market_today() - timedelta(days=LOOKBACK_DAYS))
     start_date = max(start_date, DEFAULT_HISTORY_START)
 
     if end_date < start_date:

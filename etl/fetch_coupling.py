@@ -32,6 +32,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import compact
 from entsoe_api import merge_resolutions
+import catch_up
 from fetch_zonal import (
     DEFAULT_HISTORY_START,
     PT15_START,
@@ -226,7 +227,7 @@ def main():
     elif args.full_history:
         start_date = DEFAULT_HISTORY_START
     else:
-        start_date = end_date - timedelta(days=LOOKBACK_DAYS)
+        start_date = catch_up.start(OUTPUT_PATH, end_date - timedelta(days=LOOKBACK_DAYS))
     start_date = max(start_date, DEFAULT_HISTORY_START)
 
     if end_date < start_date:

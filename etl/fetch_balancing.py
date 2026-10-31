@@ -111,6 +111,7 @@ from entsoe_api import (
 )
 from fetch_outages import IT_DOMAIN, ZONES
 from fetch_terna import MAIN_KEY, SECOND_KEY, THIRD_KEY, Client, quota_used_up
+import catch_up
 from fetch_zonal import REQUEST_PAUSE_SECONDS, get_token, market_time_from_period, request_chunk
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "data")
@@ -1224,7 +1225,13 @@ def main():
     args = parser.parse_args()
 
     today = market_today()
-    start_day = parse_date(args.start) if args.start else today - timedelta(days=LOOKBACK_DAYS)
+    if args.start:
+        start_day = parse_date(args.start)
+    else:
+        # Back to the last day on file of each part read, if earlier (etl/catch_up.py).
+        dirs = {"public": [BALANCING_DIR], "gme": [BALANCING_GME_DIR]}.get(args.part, [BALANCING_DIR, BALANCING_GME_DIR])
+        start_day = min(catch_up.start(os.path.join(folder, "IT.json"), today - timedelta(days=LOOKBACK_DAYS))
+                        for folder in dirs)
     end_day = parse_date(args.end) if args.end else today + timedelta(days=1)
     sources = set((args.sources or PART_SOURCES[args.part]).split(","))
     print(f"Balancing data {start_day} -> {end_day} ({', '.join(sorted(sources))}; part {args.part})")

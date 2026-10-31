@@ -35,6 +35,7 @@ from datetime import datetime, timedelta
 import requests
 
 import compact
+import catch_up
 from entsoe_api import (
     day_chunks,
     local_midnight_utc,
@@ -303,7 +304,7 @@ def main():
     elif args.full_history:
         start_day = HISTORY_START
     else:
-        start_day = today - timedelta(days=LOOKBACK_DAYS)
+        start_day = catch_up.start(OUTPUT_PATH, today - timedelta(days=LOOKBACK_DAYS))
     start_day = max(start_day, HISTORY_START)
     if end_day < start_day:
         raise ValueError("End date must not be before start date.")
