@@ -40,6 +40,7 @@ from entsoe_api import (
     request_entsoe,
     to_api_datetime,
 )
+import catch_up
 from fetch_crossborder import BORDERS
 
 # ============================================================================
@@ -202,7 +203,7 @@ def main():
     elif args.full_history:
         start_date = DEFAULT_HISTORY_START
     else:
-        start_date = market_today() - timedelta(days=LOOKBACK_DAYS)
+        start_date = catch_up.start(OUTPUT_PATH, market_today() - timedelta(days=LOOKBACK_DAYS))
 
     start_date = max(start_date, DEFAULT_HISTORY_START)
 

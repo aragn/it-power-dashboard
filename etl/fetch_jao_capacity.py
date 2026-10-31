@@ -44,6 +44,7 @@ import requests
 
 import compact
 from entsoe_api import label_minutes, market_today, merge_resolutions, parse_date
+import catch_up
 from fetch_jao_spreads import (
     HISTORY_START,
     PAUSE_SECONDS,
@@ -375,7 +376,7 @@ def main():
     elif args.full_history:
         start_day = HISTORY_START
     else:
-        start_day = today - timedelta(days=LOOKBACK_DAYS)
+        start_day = catch_up.start(OUTPUT_PATH, today - timedelta(days=LOOKBACK_DAYS))
     start_day = max(start_day, HISTORY_START)
     if end_day < start_day:
         raise ValueError("End date must not be before start date.")
