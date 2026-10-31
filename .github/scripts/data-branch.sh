@@ -21,11 +21,49 @@
 # The full dashboard locally: restore both,
 #   bash .github/scripts/data-branch.sh restore
 #   DATA_REMOTE=private bash .github/scripts/data-branch.sh restore
+#
+# DATA_LOCAL (a folder) replaces the data branches with a folder on this
+# machine holding app/data/ (both repositories' files): the self-hosted
+# runner's mode, where the data stays on the owner's laptop (D:/Power/
+# it-power-dashboard, the local clone, so the local dashboard shows each
+# update).  "restore" makes app/data/ match the folder's copy, "publish"
+# copies the FILEs into it, with the same rules as for the branch.
 
 set -euo pipefail
 
 BRANCH=data
 REMOTE="${DATA_REMOTE:-origin}"
+LOCAL="${DATA_LOCAL:-}"
+
+# "path<TAB>time<TAB>size" for each file under the PATHs in ROOT (not the
+# temporary copies of a publish under way).
+listing() {
+  local root=$1
+  shift
+  (cd "$root" 2>/dev/null && find "$@" -type f ! -name '*.tmp-[0-9]*' -printf '%p\t%T@\t%s\n' 2>/dev/null) || true
+}
+
+# sync FROM TO PATH...: make the PATHs under TO match those under FROM.
+# A file whose time or size differs is copied with its time (so it matches
+# next time) under a temporary name and renamed into place, so the
+# dashboard never reads half a file; a file only under TO is removed.
+sync_paths() {
+  local from=$1 to=$2 op file
+  shift 2
+  awk -F'\t' 'FILENAME == ARGV[1] { have[$1] = $2 FS $3; next }
+    { if (have[$1] != $2 FS $3) print "copy\t" $1; delete have[$1] }
+    END { for (f in have) print "remove\t" f }' \
+    <(listing "$to" "$@") <(listing "$from" "$@") |
+    while IFS=$'\t' read -r op file; do
+      if [ "$op" = copy ]; then
+        [ -d "$to/${file%/*}" ] || mkdir -p "$to/${file%/*}"
+        cp -p "$from/$file" "$to/$file.tmp-$$"
+        mv -f "$to/$file.tmp-$$" "$to/$file"
+      else
+        rm -f "$to/$file"
+      fi
+    done
+}
 
 fetch_branch() {
   # The branch is a single parentless commit, so no --depth is needed.
@@ -34,6 +72,12 @@ fetch_branch() {
 }
 
 restore() {
+  if [ -n "$LOCAL" ]; then
+    sync_paths "$LOCAL" . "${@:-app/data}"
+    echo "Restored ${*:-app/data} from $LOCAL."
+    return 0
+  fi
+
   local head
   head=$(fetch_branch)
   # Only the files on the branch, so the other repository's files restored
@@ -55,6 +99,12 @@ publish() {
     fi
   done
   set -- "${expanded[@]}"
+
+  if [ -n "$LOCAL" ]; then
+    sync_paths . "$LOCAL" "$@"
+    echo "Published $* to $LOCAL."
+    return 0
+  fi
 
   git config user.name "github-actions[bot]"
   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

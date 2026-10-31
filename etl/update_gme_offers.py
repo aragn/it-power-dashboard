@@ -97,6 +97,8 @@ def main():
                         help="first day of the merit order")
     parser.add_argument("--stack-keep", type=int, default=0,
                         help="the stack model's offers of the last N days (0: none); older day files are deleted")
+    parser.add_argument("--stack-no-prune", action="store_true",
+                        help="keep the stack offers older than --stack-keep days (the laptop's backfill)")
     args = parser.parse_args()
     today = date.today()
 
@@ -113,7 +115,7 @@ def main():
     print(f"{len(days)} day(s) to read ({len(merit_days)} for the merit order, {len(unit_days)} for the unit "
           f"database, {len(stack_days)} for the stack model), at most {args.max_days} this run")
     done = read_days(days, merit_days, unit_days, state, merit_etl.OUT_DIR, args.max_days, stack_days) if days else []
-    if args.stack_keep:
+    if args.stack_keep and not args.stack_no_prune:
         gone = stack_etl.prune(today, args.stack_keep)
         if gone:
             print(f"  stack offers: {len(gone)} day file(s) older than {args.stack_keep} days deleted")
