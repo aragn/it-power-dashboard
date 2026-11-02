@@ -249,7 +249,18 @@ def request_points(session, locations, variable, start_date, end_date):
             wait *= 2
             continue
         response.raise_for_status()
-        payload = response.json()
+        try:
+            payload = response.json()
+        except ValueError:
+            # A 200 with an empty or non-JSON body (2 November 2026): passing,
+            # so tried again like a 5xx.
+            attempt += 1
+            if attempt > MAX_RETRIES:
+                raise
+            print(f"    HTTP 200 without JSON: {response.text[:120]!r}. Waiting {wait}s...", flush=True)
+            time.sleep(wait)
+            wait *= 2
+            continue
         payload = payload if isinstance(payload, list) else [payload]
         out = []
         for location in payload:
