@@ -18,10 +18,12 @@ GME's gas data):
           in its area (all its units there together).  The match:
           etl/capacity_market_units.json (private research).
   daily   date -> code -> [premium EUR, variable payment EUR at the MGP
-          price, more for the balancing markets EUR, [[period, MGP EUR,
-          balancing EUR], ...] of the quarter-hours with a payment]: each
-          day of the storage files (etl/build_storage.py) from the unit's
-          first day on file to its last.
+          price, more for what was accepted in MSD and MB EUR, [[period, MGP
+          EUR, accepted EUR, offered EUR, not offered EUR], ...] of the
+          quarter-hours with a payment, more for what was offered above the
+          strike and not accepted EUR, more for what was not offered EUR]:
+          each day of the storage files (etl/build_storage.py) from the
+          unit's first day on file to its last.
   strike  {"start", "values": [[before 06:00, from 06:00], ...]}: EUR/MWh
           per calendar day; the gas price is the gas day's (06:00 to 06:00),
           so the hours before 06:00 take the day before's.
@@ -29,20 +31,41 @@ GME's gas data):
           (EUR/t, the day before's) of each day.
 
 The premium: CDP x premium / the days of the year.  The variable payment
-(corrispettivo variabile, Disciplina article 51, Terna's DTF n. 1 table 1),
-estimated per quarter-hour on the CDP of the day's contracts: the part
-accepted upward in MSD and MB (net, up to the CDP) at the larger of the
-zonal MGP price and its average accepted price, the rest at the MGP price,
-each MWh paying what that price passes the strike by:
+(corrispettivo variabile, Disciplina article 51, Terna's DTF n. 1 table 1
+and figure 1), estimated per quarter-hour on the CDP of the day's contracts,
+each MWh paying what its reference price passes the strike by, the CDP taken
+in Terna's order (within a step, the dearest offers first):
 
-  CDP x max(MGP - strike, 0) / 4
-  + upward balancing MW x (max(MGP, its price) - strike, 0 - max(MGP - strike, 0)) / 4
+  1. what the MGP and MI left the unit selling (its programme): the MGP price
+  2. accepted upward in MSD and MB: the MGP price, or above the strike the
+     larger of the MGP price and the offer's
+  3. offered upward and not accepted: the MGP price, or above the strike the
+     larger of the MGP price and the smaller of the offer's and the top ISP
+     price
+  4. the rest, not offered: the larger of the MGP price and the top ISP price
 
-Left out: Terna's monthly nominations (a holder spreads its CDP over its
-units, and can lower it where nothing was accepted), the offers made but
-not accepted above the strike, the energy limit of storage (a quarter of
-the day's largest energy counted as offered in the ISP), the mFRR
-platform's marginal price, exemptions and penalties.
+The top ISP price (Disciplina 51.8, DTF n. 1 chapter 3): the 90th percentile
+of the upward offers accepted in the quarter-hour and macrozone.  Every step
+pays at least the MGP price, so the file keeps CDP x max(MGP - strike, 0) as
+its first payment and each step's excess over it in its own column.
+
+Steps 3 and 4 are a ceiling, not an estimate: they take the whole CDP as
+nominated on the unit, while a holder can lower its nomination afterwards
+where nothing was accepted (Disciplina 51.4, DTF n. 1 1.2), down to the load
+factor x its commitment in the zone.  Neither the nominations nor the load
+factor are public, so the true payment lies between steps 1-2 and all four.
+Offers are on file from 1 July 2026, the MB's more than a month after the
+market: without them the top ISP price rests on MSD alone, and before them
+only step 1's price counts.
+
+Left out: the part of the offers accepted for a unit's location or dynamic
+performance (the top ISP price excludes them; GME does not tell them apart,
+so it comes out high), the mFRR platform (accepted offers, and its marginal
+price in the top ISP price, not on file), the energy limit of storage (a
+quarter of the day's largest energy counted as offered in the ISP, which at
+these CDP does not bind), the top ISP price's weighting (here by MW), the
+scarcity price (VENF, for a system found inadequate), exemptions and
+penalties.
 
 The strike (prezzo di esercizio, ARERA 199/2024/R/eel article 3, for the
 delivery years 2025-2028; 263/2026/R/eel: 303 Smc/MWh from 2028) is the
@@ -82,6 +105,7 @@ from datetime import date, timedelta
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import compact  # noqa: E402
+from build_storage import position  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -93,6 +117,7 @@ STORAGE_PATH = os.path.join(STORAGE_DIR, "index.json")
 ZONAL_PATH = os.path.join(DATA, "zonal_prices.json")
 GAS_PATH = os.path.join(DATA, "gas_prices.json")
 EUA_PATH = os.path.join(DATA, "eua.json")
+OFFERS_DIR = os.path.join(DATA, "market_offers")
 OUTPUT_PATH = os.path.join(DATA, "capacity_market_storage.json")
 
 FIRST_DAY = date(2025, 1, 1)             # the 199/2024 rules (delivery 2025 on)
@@ -106,8 +131,11 @@ DISPOSAL = 0.006                         # EUR/MWh (0.6 euro cents)
 DISPATCH_MIN, DISPATCH_SHARE = 3.0, 0.02
 OTHER = 5.0                              # EUR/MWh, other charges and risks
 GAS_DAY_START = "06:00"
-# The storage files' record (etl/build_storage.py): MSD and MB net EUR and net MW.
-ST_MSD_EUR, ST_MB_EUR, ST_MSD_MW, ST_MB_MW = 11, 12, 16, 17
+# The storage files' record (etl/build_storage.py): MGP sold and bought, MI-A and MI-XBID net MW.
+ST_SOLD, ST_BOUGHT, ST_MI_MW, ST_XBID_MW = 1, 3, 14, 15
+OFFER_SIZE = 8                           # an offer's values (etl/fetch_market_offers.py)
+SCOPE_RS = 5                             # secondary reserve: not "Minimo o Altri Servizi" (Disciplina 51.7)
+ISP_PERCENTILE = 0.9                     # DTF n. 1 chapter 3
 
 
 def load(path):
@@ -262,24 +290,102 @@ def zonal_prices(zonal):
     return out
 
 
-def balancing_up(path):
-    """code -> period -> (MW accepted upward net in MSD and MB, their EUR) of a storage day file."""
+def programmes(path):
+    """code -> period -> MW of a storage day file: what the MGP and the MI left the unit selling, net."""
     data = load(path)
     size = data.get("fields", 14)
     out = {}
-    if size <= ST_MB_MW:
-        return out
     for quarter in data["quarters"]:
         flat = quarter["rows"]
         for index in range(0, len(flat), size):
-            mw = eur = 0.0
-            for mw_field, eur_field in ((ST_MSD_MW, ST_MSD_EUR), (ST_MB_MW, ST_MB_EUR)):
-                if (flat[index + mw_field] or 0) > 0:
-                    mw += flat[index + mw_field]
-                    eur += flat[index + eur_field] or 0
-            if mw > 0:
-                out.setdefault(data["units"][flat[index]][0], {})[quarter["period"]] = (mw, eur)
+            net = flat[index + ST_SOLD] - flat[index + ST_BOUGHT]
+            if size > ST_XBID_MW:
+                net += flat[index + ST_MI_MW] + flat[index + ST_XBID_MW]
+            out.setdefault(data["units"][flat[index]][0], {})[quarter["period"]] = net
     return out
+
+
+def macrozone(zone):
+    return "NORD" if zone == "NORD" else "SUD"
+
+
+def isp_top_price(accepted):
+    """The 90th percentile, by MW, of [(price, MW)]; None without offers."""
+    if not accepted:
+        return None
+    rows = sorted(accepted)
+    total, running = sum(mw for _, mw in rows), 0.0
+    for price, mw in rows:
+        running += mw
+        if running >= ISP_PERCENTILE * total:
+            return price
+    return rows[-1][0]
+
+
+def isp_offers(day, codes):
+    """A day's MSD and MB upward offers: period -> {"top": macrozone -> price, "accepted": code ->
+    [(price, MW)], "open": code -> [(price, MW)]}, or None without an MSD file."""
+    date_of = date.fromisoformat(day)
+    paths = [os.path.join(OFFERS_DIR, market, f"{day}.json.gz") for market in ("MSD", "MB")]
+    if not os.path.exists(paths[0]):
+        return None
+    periods, prices, remaining = {}, {}, {}
+    for path in paths:
+        if not os.path.exists(path):
+            continue
+        data = load(path)
+        names = [(unit[0], macrozone(unit[3])) for unit in data["units"]]
+        for quarter in data["quarters"]:
+            period = position(quarter, date_of) + 1
+            slot = periods.setdefault(period, {"accepted": {}, "open": {}})
+            flat = quarter["offers"]
+            for index in range(0, len(flat), OFFER_SIZE):
+                unit, direction, scope, mw, price, status, taken = flat[index:index + 7]
+                if direction != 0 or price is None:
+                    continue
+                code, area = names[unit]
+                taken = taken if status == 0 else 0
+                if taken > 0:
+                    prices.setdefault(period, {}).setdefault(area, []).append((price, taken))
+                if code not in codes or scope == SCOPE_RS:
+                    continue
+                if taken > 0:
+                    slot["accepted"].setdefault(code, []).append((price, taken))
+                # The MB's file holds what it accepted of offers left open in MSD.
+                offers = remaining.setdefault((period, code, scope), [])
+                if path == paths[0]:
+                    offers.append([price, mw - taken])
+                else:
+                    for offer in offers:
+                        used = min(offer[1], taken)
+                        offer[1] -= used
+                        taken -= used
+    for (period, code, _), offers in remaining.items():
+        rows = periods[period]["open"].setdefault(code, [])
+        rows.extend((price, mw) for price, mw in offers if mw > 0)
+    for period, slot in periods.items():
+        slot["top"] = {area: isp_top_price(rows) for area, rows in prices.get(period, {}).items()}
+    return periods
+
+
+def payment_steps(cdp, programme, accepted, offered, price, level, top):
+    """EUR/h beyond CDP x max(price - level, 0) in a quarter-hour, Terna's steps in turn: (accepted
+    in the ISP, offered and not accepted, not offered); accepted and offered as [(price, MW)]."""
+    paid = max(price - level, 0)
+    left = cdp - min(max(programme, 0), cdp)
+    top = top or 0
+    extra_accepted = extra_offered = 0.0
+    for offer, mw in sorted(accepted, reverse=True):
+        take = min(mw, left)
+        left -= take
+        if offer > level:
+            extra_accepted += take * (max(price, offer) - level - paid)
+    for offer, mw in sorted(offered, reverse=True):
+        take = min(mw, left)
+        left -= take
+        if offer > level:
+            extra_offered += take * (max(max(price, min(offer, top)) - level, 0) - paid)
+    return extra_accepted, extra_offered, left * (max(max(price, top) - level, 0) - paid)
 
 
 def active(contracts, year):
@@ -302,7 +408,8 @@ def daily_payments(units, storage, prices, strike_values):
         index = (when - first).days
         strike_day = strike_values["values"][index] if 0 <= index < len(strike_values["values"]) else None
         file = (storage.get("files") or {}).get(day)
-        balancing = balancing_up(os.path.join(STORAGE_DIR, file)) if file else {}
+        isp = isp_offers(day, set(units))
+        planned = programmes(os.path.join(STORAGE_DIR, file)) if file and isp else {}
         for code, entry in units.items():
             span = spans.get(code)
             unit = storage["units"].get(code)
@@ -313,27 +420,27 @@ def daily_payments(units, storage, prices, strike_values):
                 continue
             premium = value / (366 if isleap(when.year) else 365)
             day_prices = (prices.get(unit[2]) or {}).get(day)
-            quarters, energy_total, balancing_total = [], 0.0, 0.0
+            quarters, totals = [], [0.0, 0.0, 0.0, 0.0]
             if day_prices and strike_day:
                 # The periods before 06:00 (the gas day before's price): 24 on a 96-quarter day.
                 early = 24 + len(day_prices) - 96
-                up = balancing.get(code, {})
+                area = macrozone(unit[2])
                 for period, price in enumerate(day_prices, start=1):
                     if price is None:
                         continue
                     level = strike_day[0] if period <= early else strike_day[1]
-                    energy = cdp * max(price - level, 0) / 4
-                    extra = 0.0
-                    if period in up:
-                        mw, eur = up[period]
-                        accepted = min(mw, cdp)
-                        offered = eur / (mw / 4)
-                        extra = accepted * (max(max(price, offered) - level, 0) - max(price - level, 0)) / 4
-                    if energy > 0.005 or extra > 0.005:
-                        quarters.append([period, round(energy, 2), round(extra, 2)])
-                        energy_total += energy
-                        balancing_total += extra
-            out.setdefault(day, {})[code] = [round(premium, 1), round(energy_total, 1), round(balancing_total, 1), quarters]
+                    payments = [cdp * max(price - level, 0) / 4, 0.0, 0.0, 0.0]
+                    if isp:
+                        slot = isp.get(period, {})
+                        steps = payment_steps(cdp, planned.get(code, {}).get(period, 0),
+                                              slot.get("accepted", {}).get(code, []), slot.get("open", {}).get(code, []),
+                                              price, level, slot.get("top", {}).get(area))
+                        payments[1:] = [step / 4 for step in steps]
+                    if any(payment > 0.005 for payment in payments):
+                        quarters.append([period, *(round(payment, 2) for payment in payments)])
+                        totals = [total + payment for total, payment in zip(totals, payments)]
+            out.setdefault(day, {})[code] = [round(premium, 1), round(totals[0], 1), round(totals[1], 1), quarters,
+                                             round(totals[2], 1), round(totals[3], 1)]
     return out
 
 
@@ -364,6 +471,8 @@ def build():
         "listed_due": len(due), "listed_due_mw": sum(row["mw"] for row in due),
         "listed_matched": sum((row["year"], row["participant"], row["plant"]) in matched for row in due),
         "listed_matched_mw": sum(row["mw"] for row in due if (row["year"], row["participant"], row["plant"]) in matched),
+        "offers_from": min((name[:10] for name in os.listdir(os.path.join(OFFERS_DIR, "MSD"))), default=None)
+        if os.path.isdir(os.path.join(OFFERS_DIR, "MSD")) else None,
     }
     return {
         "generated": date.today().isoformat(),
@@ -387,15 +496,16 @@ def main():
         json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
     days = [value for value in payload["strike"]["values"] if value]
     summary = payload["summary"]
-    totals = [0.0, 0.0, 0.0]
+    totals = [0.0] * 6
     for units in payload["daily"].values():
         for values in units.values():
-            for column in range(3):
+            for column in (0, 1, 2, 4, 5):
                 totals[column] += values[column]
     print(f"{OUTPUT_PATH}: {len(payload['units'])} units, strike {len(days)} days "
           f"(last {days[-1][1]:.1f} EUR/MWh); Terna's batteries due: {summary['listed_matched']} of {summary['listed_due']} "
           f"matched ({summary['listed_matched_mw']:.0f} of {summary['listed_due_mw']:.0f} MW CDP); over the storage days: "
-          f"premiums {totals[0] / 1e6:.1f}M EUR, variable payments {totals[1] / 1e6:.2f}M (MGP) + {totals[2] / 1e6:.2f}M (balancing)")
+          f"premiums {totals[0] / 1e6:.1f}M EUR, variable payments {totals[1] / 1e6:.2f}M (MGP) + {totals[2] / 1e6:.2f}M (accepted), "
+          f"at most {totals[4] / 1e6:.2f}M (offers above the strike) + {totals[5] / 1e6:.2f}M (not offered) more")
 
 
 if __name__ == "__main__":
