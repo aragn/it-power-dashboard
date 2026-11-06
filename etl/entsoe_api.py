@@ -140,7 +140,7 @@ def request_entsoe(token, params):
     for attempt in range(MAX_RETRIES + 1):
         try:
             response = requests.get(API_URL, params=query, timeout=120)
-        except (requests.ConnectionError, requests.Timeout) as error:
+        except (requests.ConnectionError, requests.exceptions.ChunkedEncodingError, requests.Timeout) as error:
             server_failures += 1
             if server_failures > SERVER_RETRIES or attempt >= MAX_RETRIES:
                 raise

@@ -233,7 +233,7 @@ def request_points(session, locations, variable, start_date, end_date):
     while attempt <= MAX_RETRIES:
         try:
             response = session.get(url, params=params, timeout=(CONNECT_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS))
-        except (requests.ConnectionError, requests.Timeout) as error:
+        except (requests.ConnectionError, requests.exceptions.ChunkedEncodingError, requests.Timeout) as error:
             stalls += 1
             if stalls > STALL_RETRIES:
                 raise
