@@ -137,7 +137,8 @@ def jao_get(session, endpoint, first, last, extra=None):
                 continue
             response.raise_for_status()
             return response.json().get("data") or []
-        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as error:
+        except (requests.ConnectionError, requests.exceptions.ChunkedEncodingError, requests.Timeout,
+                requests.HTTPError) as error:
             status = getattr(getattr(error, "response", None), "status_code", None)
             if failures == MAX_RETRIES or (status is not None and status < 500):
                 raise

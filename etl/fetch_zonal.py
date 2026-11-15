@@ -166,7 +166,8 @@ def request_chunk(token, start_date, end_date, granularity=None, segment="MGP",
             )
             if response.status_code >= 500:
                 response.raise_for_status()
-        except (requests.ConnectionError, requests.Timeout, requests.HTTPError) as error:
+        except (requests.ConnectionError, requests.exceptions.ChunkedEncodingError, requests.Timeout,
+                requests.HTTPError) as error:
             server_failures += 1
             if server_failures > MAX_SERVER_RETRIES:
                 raise
