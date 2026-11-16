@@ -25605,12 +25605,16 @@ move the slider above to another one`,
    */
   const policyMount = document.getElementById("policy-mount");
   const POLICY_ICONS = {
-    pillars: '<path d="M3 21h18"/><path d="M5.5 18V11M10 18V11M14 18V11M18.5 18V11"/><path d="M4 18h16"/><path d="M3 11h18L12 4z"/>'
+    pillars: '<path d="M3 21h18"/><path d="M5.5 18V11M10 18V11M14 18V11M18.5 18V11"/><path d="M4 18h16"/><path d="M3 11h18L12 4z"/>',
+    flame: '<path d="M12 3c1.2 3.2 4.5 4.8 4.5 9a4.5 4.5 0 0 1-9 0c0-1.6.6-2.8 1.6-3.8.2 1.4.9 2.2 1.7 2.7C11.4 8.4 10.8 5.7 12 3z"/><path d="M5 21h14"/>'
   };
   const POLICY_CARDS = [
     { id: "capacity", icon: "pillars", tag: "Adequacy · Terna auctions",
       title: "Capacity market",
-      text: "Terna's main auctions for the delivery years 2022 to 2027: every new unit awarded, with its operator, area, technology, MW and premium, and the totals by operator, area and technology, the prices and what each auction cost." }
+      text: "Terna's main auctions for the delivery years 2022 to 2027: every new unit awarded, with its operator, area, technology, MW and premium, and the totals by operator, area and technology, the prices and what each auction cost." },
+    { id: "gascap", icon: "flame", tag: "Prices · decreto bollette bis", fullOnly: true,
+      title: "Gas cap for power plants, 2027",
+      text: "The reimbursement to gas plants above 58.9 €/MWh of gas, from January 2027, run through the PyPSA-Eur Italy model: how far the PUN falls on four gas price paths, what the levy takes back, who gains and who pays, with and without ARERA's cross-border limit." }
   ];
   let policyView = "home";
   let policyTab = "units";
@@ -25723,16 +25727,22 @@ move the slider above to another one`,
     if (currentSection !== "policy") return;
     policyCharts.forEach(chart => chart.dispose());
     policyCharts = [];
-    if (!POLICY_CARDS.some(card => card.id === policyView)) policyView = "home";
+    // Cards built on GME-calibrated results (fullOnly) are left out of the public version.
+    const policyCards = POLICY_CARDS.filter(card => !(card.fullOnly && PUBLIC_MODE));
+    if (!policyCards.some(card => card.id === policyView)) policyView = "home";
     if (policyView === "home") {
       const icon = name => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${POLICY_ICONS[name]}</svg>`;
       policyMount.innerHTML = `<p class="analysis-lede">The rules and schemes that shape what gets built and run, a topic per card, from Terna's and the regulators' own documents. Choose one to open it.</p>` +
-        `<div class="analysis-cards">${POLICY_CARDS.map(item =>
+        `<div class="analysis-cards">${policyCards.map(item =>
           `<button type="button" class="analysis-card live" data-policy="${item.id}">` +
           `<span class="analysis-card-top"><span class="analysis-card-icon">${icon(item.icon)}</span><span class="analysis-badge live">Ready</span></span>` +
           `<span class="analysis-card-tag">${item.tag}</span><span class="analysis-card-title">${item.title}</span>` +
           `<span class="analysis-card-text">${item.text}</span>` +
           `<span class="analysis-card-foot">Open <span aria-hidden="true">→</span></span></button>`).join("")}</div>`;
+      return;
+    }
+    if (policyView === "gascap") {
+      renderGasCap(policyMount);
       return;
     }
     policyMount.innerHTML =
@@ -25755,6 +25765,448 @@ move the slider above to another one`,
     }
     if (policyTab === "units") renderCapacityUnits(body);
     else renderCapacityTotals(body);
+  }
+
+  /* ---------- Gas cap for power plants, 2027 ---------- */
+  /*
+   * The scenario study of the "decreto bollette bis" (Council of Ministers, 9 November
+   * 2026) on the PyPSA-Eur Italy model (D:\Power\pypsa-italy: italy/gas_cap_2027.py runs
+   * the matrix, italy/gas_cap_metrics.py writes data/policy/gas_cap_2027.json). The model
+   * is calibrated on GME data (zone limits, the gas curve, the backtest), so the file stays
+   * local like forecast/long_term.json, and the card is left out of the public version.
+   */
+  const gcState = { data: null, error: null, loading: false, gas: "FWD", policy: "P3", alpha: "0.6", weather: "norm" };
+  const GC_PATH_COLOR = { LOW: "--border-3", CEN: "--border-1", FWD: "--border-4", HIGH: "--border-2", P10: "--border-7", P50: "--border-5", P90: "--zone-7" };
+  const GC_NARRATIVES = ["LOW", "CEN", "FWD", "HIGH"];
+  const GC_STOCHASTIC = { P10: "Simulated path, 10th percentile", P50: "Simulated path, median", P90: "Simulated path, 90th percentile" };
+  const GC_POLICY_ORDER = ["P3", "P2", "P1", "P3c", "P2h", "P4a", "P4b", "P3f", "P2f"];
+  const GC_WEATHER = { norm: "2025 weather year", dry: "Dry year (hydro −35%)", cold: "Cold, still winter" };
+  const GC_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const gcEuro = (value, digits = 1) => (Number.isFinite(value) ? `€${formatNumber(value, digits)}` : "—");
+  const gcBn = (value, digits = 2) => (Number.isFinite(value) ? `€${formatNumber(value / 1e9, digits)} bn` : "—");
+  const gcSigned = (value, digits = 1) => (Number.isFinite(value) ? `${value < 0 ? "−" : value > 0 ? "+" : ""}${formatNumber(Math.abs(value), digits)}` : "—");
+  const gcRunId = (gas, weather, policy) => `${gas}_${weather}_${policy}`;
+  function gcPathName(key) {
+    const meta = gcState.data.gas_paths[key];
+    return meta ? meta.label : GC_STOCHASTIC[key] || key;
+  }
+  function gcPathLabel(key) {
+    const run = gcState.data.runs[gcRunId(key, "norm", "P0")];
+    return run ? `${gcPathName(key)} (TTF ${formatNumber(run.ttf_mean, 0)})` : gcPathName(key);
+  }
+  const gcPolicyLabel = key => gcState.data.policies[key] || key;
+
+  function loadGasCap() {
+    if (gcState.loading || gcState.data || gcState.error) return;
+    gcState.loading = true;
+    fetch("./data/policy/gas_cap_2027.json", { cache: "no-cache" })
+      .then(response => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json();
+      })
+      .then(data => { gcState.data = data; })
+      .catch(error => { gcState.error = error; })
+      .finally(() => {
+        gcState.loading = false;
+        renderPolicy();
+      });
+  }
+
+  function renderGasCap(host) {
+    const data = gcState.data;
+    host.innerHTML =
+      `<div class="analysis-view-head"><button type="button" class="analysis-back"><span aria-hidden="true">←</span> All topics</button>` +
+      `<h2>Gas cap for power plants, 2027</h2><p class="analysis-lede">The decree approved on 9 November 2026 reimburses gas-fired plants, from ` +
+      `1 January 2027 and for up to 18 months, part of the gas they burn: each day at most the previous day's TTF price above 58.9 €/MWh, ` +
+      `an amount ARERA sets so that trade with France, Austria and Slovenia is not distorted, on top of the gas transport tariff ` +
+      `components (about 7.5 €/MWh of gas in 2027). Plants must pass it into their day-ahead bids; the cost is charged back to the ` +
+      `customers on contracts indexed to the spot price. Here the mechanism runs through the PyPSA-Eur Italy model (the whole of ` +
+      `Europe, Italy's seven zones, GME's zone limits, calibrated on 2025) for 2027 on four gas price paths and on simulated paths ` +
+      `around the forward curve${data ? ` of ${formatQueueDate(data.pricing_date)}` : ""}. Every result is the difference between a ` +
+      `policy run and its counterfactual on the same inputs; price levels carry the 2025 backtest's error.</p></div><div id="gascap-body"></div>`;
+    const body = host.querySelector("#gascap-body");
+    if (!data) {
+      body.innerHTML = `<div class="panel queue-empty">${gcState.error
+        ? "The study's file is not on this machine (data/policy/gas_cap_2027.json, local only): run italy/gas_cap_2027.py metrics in the PyPSA workspace."
+        : "Loading the gas cap study…"}</div>`;
+      loadGasCap();
+      return;
+    }
+    renderGasCapBody(body);
+  }
+
+  function renderGasCapBody(body) {
+    const data = gcState.data;
+    const pairs = data.pairs;
+    const gasOptions = [...GC_NARRATIVES, ...Object.keys(GC_STOCHASTIC)].filter(key => data.runs[gcRunId(key, "norm", "P0")]);
+    if (!gasOptions.includes(gcState.gas)) gcState.gas = gasOptions.includes("FWD") ? "FWD" : gasOptions[0];
+    const weatherOptions = Object.keys(GC_WEATHER).filter(key => data.runs[gcRunId(gcState.gas, key, "P0")]);
+    if (!weatherOptions.includes(gcState.weather)) gcState.weather = "norm";
+    const policyOptions = GC_POLICY_ORDER.filter(key => pairs[gcRunId(gcState.gas, gcState.weather, key)]);
+    if (!policyOptions.includes(gcState.policy)) gcState.policy = policyOptions.includes("P3") ? "P3" : policyOptions[0];
+    const id = gcRunId(gcState.gas, gcState.weather, gcState.policy);
+    const pair = pairs[id];
+    const run = data.runs[id];
+    const base = data.runs[gcRunId(gcState.gas, gcState.weather, "P0")];
+    const alpha = gcState.alpha;
+    const select = (name, label, options, value) => `<label>${label} <select class="queue-select" id="gc-${name}" aria-label="${label}">` +
+      options.map(([key, text]) => `<option value="${key}"${key === value ? " selected" : ""}>${escapeHtml(text)}</option>`).join("") + `</select></label>`;
+    body.innerHTML = `<div class="policy-toolbar">` +
+      select("gas", "Gas price path", gasOptions.map(key => [key, gcPathLabel(key)]), gcState.gas) +
+      select("policy", "Policy", policyOptions.map(key => [key, gcPolicyLabel(key)]), gcState.policy) +
+      select("alpha", "Levy charged to", data.alpha.map(a => [String(a), `${formatNumber(a * 100)}% of consumption`]), alpha) +
+      (weatherOptions.length > 1 ? select("weather", "Weather", weatherOptions.map(key => [key, GC_WEATHER[key]]), gcState.weather) : "") +
+      `<div id="gc-kpis" class="gas-kpis"></div></div><div class="policy-grid" id="gc-grid"></div>`;
+    ["gas", "policy", "alpha", "weather"].forEach(name => {
+      const element = body.querySelector(`#gc-${name}`);
+      if (element) element.addEventListener("change", event => { gcState[name] = event.target.value; renderPolicy(); });
+    });
+
+    const across = GC_NARRATIVES.map(key => pairs[gcRunId(key, "norm", gcState.policy)]).filter(Boolean);
+    const range = (values, digits = 0) => values.length ? `${gcSigned(Math.min(...values), digits)} to ${gcSigned(Math.max(...values), digits)}` : "—";
+    const full = GC_NARRATIVES.map(key => pairs[gcRunId(key, "norm", "P2")]).filter(Boolean);
+    const household = pair.archetypes.household;
+    document.getElementById("gc-kpis").innerHTML = [
+      anaTile("PUN 2027, no measure", `${gcEuro(base.pun, 0)}<small>/MWh</small>`,
+        `${escapeHtml(gcPathName(gcState.gas))}: TTF ${formatNumber(base.ttf_mean, 0)}, PSV ${formatNumber(base.psv_mean, 0)} €/MWh · gas sets the North's price ${anaPct(base.gas_marginal_share_nord)} of hours`),
+      anaTile("PUN change", `${gcSigned(pair.dpun, 1)}<small>€/MWh</small>`,
+        `${escapeHtml(gcPolicyLabel(gcState.policy))} · Q1 ${gcSigned(pair.dpun_q[0], 0)} · across the four gas paths ${range(across.map(item => item.dpun))}` +
+        (full.length && gcState.policy !== "P2" ? ` (full ceiling ${range(full.map(item => item.dpun))})` : "")),
+      anaTile("Net for an indexed customer", `${gcSigned(pair.net_mwh[alpha], 1)}<small>€/MWh</small>`,
+        `after a levy of €${formatNumber(pair.levy[alpha], 1)}/MWh on ${formatNumber(+alpha * 100)}% of consumption · fixed-price contracts: nothing in 2027`),
+      anaTile("Cost of the measure", gcBn(pair.cost),
+        `cap ${gcBn(pair.subsidy)} after the anti-rent clause (${gcBn(pair.subsidy_gross)} before) + transport components ${gcBn(pair.transport_cost)} · reimbursement granted ${formatNumber(run.R_mean, 1)} €/MWh gas on average`),
+      anaTile("Household on an indexed offer", `${gcSigned(household[`net_${alpha}`], 0)}<small>€/yr</small>`,
+        `2 MWh a year, with losses and VAT: ${gcSigned(household.gross, 0)} gross, ${gcSigned(household[`net_${alpha}`], 0)} net · small firm (40 MWh) ${gcSigned(pair.archetypes.artisan[`net_${alpha}`], 0)} €/yr`),
+      anaTile("Gas, imports, CO₂", `${gcSigned(pair.dbcm, 2)}<small>bcm</small>`,
+        `gas-fired output ${gcSigned(pair.dgas_twh, 1)} TWh, net imports ${gcSigned(pair.dimports_total, 1)} TWh, Italian CO₂ ${gcSigned(pair.dco2_it_mt, 1)} Mt, Europe ${gcSigned(pair.dco2_model_eu_mt, 1)} Mt`)
+    ].join("");
+
+    const grid = body.querySelector("#gc-grid");
+    grid.insertAdjacentHTML("beforeend", `<div class="queue-heading"><h2>The gas price, and what the cap can pay</h2>` +
+      `<p>The cap only pays when the previous day's TTF is above 58.9 €/MWh, so everything depends on the gas path. The forward curve of ` +
+      `${formatQueueDate(data.pricing_date)} sits above the strike all year; analysts expect less; a disrupted winter gives more. ` +
+      `ARERA's rule (consultation 222/2026) then limits the monthly reimbursement to 0.56 × the historical price differential with ` +
+      `France, Austria and Slovenia, so that the Italian price stays above theirs.</p></div>`);
+    gcPathsChart(grid);
+    gcCeilingChart(grid);
+    grid.insertAdjacentHTML("beforeend", `<div class="queue-heading"><h2>The effect on the day-ahead price</h2>` +
+      `<p>The PUN proxy is the model's zonal prices weighted by each zone's load. Bars by month for the four narratives under the chosen ` +
+      `policy; every path run against its average TTF; the hours of a winter and a summer day; the price duration curve.</p></div>`);
+    gcMonthlyChart(grid);
+    gcAcrossChart(grid);
+    gcProfileChart(grid, pair);
+    gcDurationChart(grid, pair);
+    grid.insertAdjacentHTML("beforeend", `<div class="queue-heading"><h2>Who gains and who pays</h2>` +
+      `<p>What consumers save at the wholesale price, what the levy takes back, and where the rest goes: in a pay-as-clear market every ` +
+      `producer paid at the marginal price loses the same €/MWh as consumers gain, so the saving exceeds the subsidy.</p></div>`);
+    gcWaterfallChart(grid, pair, base);
+    gcWelfareChart(grid, pair);
+    gcArchetypeTable(grid, pair);
+    gcEstimatesTable(grid);
+    grid.insertAdjacentHTML("beforeend", `<div class="queue-heading"><h2>Every run</h2>` +
+      `<p>The whole matrix: four narratives and three simulated paths, the policy variants, two weather sensitivities. Differences are ` +
+      `against the counterfactual of the same path and weather; the net €/MWh uses the levy base chosen above.</p></div>`);
+    gcRunTable(grid);
+    gcNotes(grid);
+  }
+
+  function gcPathsChart(grid) {
+    const data = gcState.data;
+    const body = policyPanel(grid, "Gas price paths for 2027", `TTF, €/MWh by day · the forward curve of ${formatQueueDate(data.pricing_date)}, ` +
+      `analysts' narratives, and 1,000 simulated paths around the forward (10–90% and 25–75% bands)`, true);
+    const chart = policyChart(body, 320, "Narratives: monthly levels smoothed to days (LOW: Gulf LNG back early 2027; CEN: ING and Goldman " +
+      "Sachs' 2027 averages of 48–51; FWD: ICE Endex monthly futures; HIGH: a slow LNG recovery and a cold winter). Simulated paths: a slow " +
+      "level factor (half-life six months, ±45% at six months) and daily noise as realised at the PSV in 2026, mean equal to the forward. " +
+      "Three simulated paths were run in the model, chosen by their average payout: the 10th, 50th and 90th percentiles.");
+    const days = data.paths.days;
+    const band = data.band;
+    const bandSeries = (lo, hi, name, opacity) => [
+      { name: `${name} base`, type: "line", stack: name, data: band[lo], symbol: "none", lineStyle: { opacity: 0 }, silent: true, tooltip: { show: false } },
+      { name, type: "line", stack: name, data: band[hi].map((value, index) => +(value - band[lo][index]).toFixed(2)), symbol: "none",
+        lineStyle: { opacity: 0 }, areaStyle: { color: cssVar("--border-4"), opacity }, silent: true, tooltip: { show: false } }
+    ];
+    const names = GC_NARRATIVES.map(gcPathLabel);
+    const series = [...bandSeries("0.1", "0.9", "10–90%", 0.12), ...bandSeries("0.25", "0.75", "25–75%", 0.2),
+      ...GC_NARRATIVES.map((key, index) => ({ name: names[index], type: "line", data: data.paths[key], symbol: "none",
+        lineStyle: { color: cssVar(GC_PATH_COLOR[key]), width: key === "FWD" ? 2.2 : 1.6 }, itemStyle: { color: cssVar(GC_PATH_COLOR[key]) },
+        ...(key === "FWD" ? { markLine: { silent: true, symbol: "none", data: [{ yAxis: data.strike, label: { formatter: `strike ${data.strike}`, position: "insideEndTop",
+          color: cssVar("--chart-legend"), fontSize: 11 }, lineStyle: { type: "dashed", color: cssVar("--chart-legend"), width: 1 } }] } } : {}) }))];
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(names),
+      tooltip: { ...queueTooltip(params => {
+        const index = params[0].dataIndex;
+        return cmTipHead(formatQueueDate(days[index])) + params.filter(item => Number.isFinite(item.value) && !item.seriesName.includes("%"))
+          .map(item => tooltipRow(item.color, item.seriesName, `€${formatNumber(item.value, 1)}`, "line")).join("") +
+          `<div style="color:${cssVar("--chart-tooltip-muted")}">simulated 10–90%: €${formatNumber(band["0.1"][index], 0)}–${formatNumber(band["0.9"][index], 0)}</div>`;
+      }), axisPointer: { type: "line", lineStyle: { color: cssVar("--chart-pointer"), width: 1 } } },
+      grid: { left: 46, right: 16, top: 34, bottom: 28 },
+      xAxis: { type: "category", data: days, boundaryGap: false, axisTick: { show: false }, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } },
+        axisLabel: { ...queueAxisLabel(), interval: (index, value) => value.endsWith("-01"), formatter: value => GC_MONTHS[+value.slice(5, 7) - 1] } },
+      yAxis: timelineYAxis("€/MWh", { nameGap: 34, min: 0 }),
+      series
+    }, true);
+  }
+
+  function gcCeilingChart(grid) {
+    const data = gcState.data;
+    const body = policyPanel(grid, "What the cap can pay", "€/MWh of gas by month · the daily ceiling, max(0, TTF − 58.9), on each path, and ARERA's cross-border limit");
+    const chart = policyChart(body, 320, "The limit: 0.56 × the mean of max(0, NORD − max(FR, AT, SI)) in the same month of 2025 " +
+      `(${data.differential_hist.map(value => formatNumber(value, 0)).join(", ")} €/MWh from January to December), as ARERA's consultation ` +
+      "222/2026 sets it with the CCGT's conventional efficiency; 2024 is not on file here. The reimbursement granted in the 'ARERA rule' runs " +
+      "is the lower of the two each day. Winter, when the cap would pay most, is when the Italian price differential has been smallest.");
+    const names = GC_NARRATIVES.map(gcPathLabel);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend([...names, "ARERA limit"]),
+      tooltip: queueTooltip(params => cmTipHead(GC_MONTHS[params[0].dataIndex]) + params.filter(item => Number.isFinite(item.value))
+        .map(item => tooltipRow(item.color, item.seriesName, `€${formatNumber(item.value, 1)}`, item.seriesType === "bar" ? "area" : "dashed")).join("")),
+      grid: { left: 46, right: 16, top: 34, bottom: 28 },
+      xAxis: cmCategoryAxis(GC_MONTHS),
+      yAxis: timelineYAxis("€/MWh gas", { nameGap: 34, min: 0 }),
+      series: [
+        { name: "ARERA limit", type: "bar", data: data.r_limit, barMaxWidth: 26, itemStyle: { color: cssVar("--chart-legend"), opacity: 0.45 } },
+        ...GC_NARRATIVES.map((key, index) => ({ name: names[index], type: "line", data: data.monthly_ceiling[key], symbol: "circle", symbolSize: 6,
+          lineStyle: { color: cssVar(GC_PATH_COLOR[key]), width: 1.8, type: "dashed" }, itemStyle: { color: cssVar(GC_PATH_COLOR[key]) } }))
+      ]
+    }, true);
+  }
+
+  function gcMonthlyChart(grid) {
+    const data = gcState.data;
+    const policy = gcState.policy;
+    const keys = GC_NARRATIVES.filter(key => data.pairs[gcRunId(key, "norm", policy)]);
+    const body = policyPanel(grid, "PUN change by month", `${gcPolicyLabel(policy)} against no measure · €/MWh, by gas price path`);
+    const chart = policyChart(body, 320, "The whole package where the policy includes the transport components (about −12 €/MWh on their own " +
+      "on the forward path). Hover for the reimbursement granted that month.");
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(keys.map(gcPathLabel)),
+      tooltip: queueTooltip(params => cmTipHead(GC_MONTHS[params[0].dataIndex]) + params.map(item => {
+        const run = data.runs[gcRunId(keys[item.seriesIndex], "norm", policy)];
+        return tooltipRow(item.color, item.seriesName, `${gcSigned(item.value, 1)} €/MWh · R ${formatNumber(run.R_m[item.dataIndex], 1)} €/MWh gas`);
+      }).join("")),
+      grid: { left: 46, right: 16, top: 34, bottom: 28 },
+      xAxis: cmCategoryAxis(GC_MONTHS),
+      yAxis: timelineYAxis("€/MWh", { nameGap: 34 }),
+      series: keys.map(key => ({ name: gcPathLabel(key), type: "bar", data: data.pairs[gcRunId(key, "norm", policy)].dpun_m.map(value => +value.toFixed(2)),
+        barMaxWidth: 14, itemStyle: { color: cssVar(GC_PATH_COLOR[key]) } }))
+    }, true);
+  }
+
+  function gcAcrossChart(grid) {
+    const data = gcState.data;
+    const body = policyPanel(grid, "The measure across gas prices", "PUN change for the year against the path's average TTF · every path run");
+    const chart = policyChart(body, 320, "Filled: ARERA's cross-border rule; hollow: the full daily ceiling; small: the transport components " +
+      "alone. The rule flattens the payout: above the forward curve almost all of the extra gap goes unpaid. Click a label to hide a series.");
+    const policies = [["P3", "ARERA rule", 11, false], ["P2", "Full ceiling", 11, true], ["P1", "Transport only", 7, false]];
+    const points = (policy) => Object.values(data.pairs).filter(pair => pair.run.endsWith(`_norm_${policy}`))
+      .map(pair => { const run = data.runs[pair.run]; return { value: [+run.ttf_mean.toFixed(1), +pair.dpun.toFixed(1)], name: gcPathName(run.gas), key: run.gas,
+        label: { position: run.gas === "HIGH" ? "left" : "right" } }; });
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(policies.map(item => item[1])),
+      tooltip: queueTooltip(params => cmTipHead(`${params.data.name} · ${params.seriesName}`) +
+        tooltipRow(params.color, "TTF", `€${formatNumber(params.value[0], 0)}/MWh`, "line") + tooltipRow(params.color, "PUN change", `${gcSigned(params.value[1], 1)} €/MWh`, "line"), "item"),
+      grid: { left: 46, right: 56, top: 34, bottom: 34 },
+      xAxis: { type: "value", name: "TTF €/MWh", nameLocation: "middle", nameGap: 22, nameTextStyle: queueAxisLabel(), axisLabel: queueAxisLabel(),
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      yAxis: timelineYAxis("€/MWh", { nameGap: 34 }),
+      series: policies.map(([policy, name, size, hollow]) => ({ name, type: "scatter", data: points(policy), symbolSize: size,
+        itemStyle: hollow ? { color: "transparent", borderColor: cssVar("--border-4"), borderWidth: 2 } : { color: cssVar(policy === "P1" ? "--chart-legend" : "--border-4") },
+        label: { show: policy === "P3", position: "right", formatter: params => (GC_NARRATIVES.includes(params.data.key) ? gcPathName(params.data.key) : ""),
+          color: cssVar("--chart-legend"), fontSize: 10 } }))
+    }, true);
+  }
+
+  function gcProfileChart(grid, pair) {
+    const body = policyPanel(grid, "Hours of the day", `${gcPathName(gcState.gas)} · €/MWh by Italian hour, December to March and April to November`);
+    const chart = policyChart(body, 300, "No measure against the chosen policy. The cap moves the whole gas-set part of the day; the solar " +
+      "hours move less where imports, hydro or storage set the price.");
+    const names = ["Winter, no measure", "Winter, policy", "Summer, no measure", "Summer, policy"];
+    const series = [[pair.profile_winter.p0, "--chart-legend", "solid"], [pair.profile_winter.p1, "--border-2", "solid"],
+      [pair.profile_summer.p0, "--chart-legend", "dashed"], [pair.profile_summer.p1, "--border-4", "dashed"]];
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(names),
+      tooltip: { ...queueTooltip(params => cmTipHead(`${String(params[0].dataIndex).padStart(2, "0")}:00`) + params.filter(item => Number.isFinite(item.value))
+        .map(item => tooltipRow(item.color, item.seriesName, `€${formatNumber(item.value, 1)}`, "line")).join("")),
+        axisPointer: { type: "line", lineStyle: { color: cssVar("--chart-pointer"), width: 1 } } },
+      grid: { left: 46, right: 16, top: 34, bottom: 28 },
+      xAxis: cmCategoryAxis(Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, "0"))),
+      yAxis: timelineYAxis("€/MWh", { nameGap: 34, scale: true }),
+      series: series.map(([values, color, type], index) => ({ name: names[index], type: "line", data: values, symbol: "none",
+        lineStyle: { color: cssVar(color), width: 1.8, type }, itemStyle: { color: cssVar(color) } }))
+    }, true);
+  }
+
+  function gcDurationChart(grid, pair) {
+    const body = policyPanel(grid, "Price duration curve", `${gcPathName(gcState.gas)} · the PUN proxy's hours of 2027 from the highest to the lowest`);
+    const chart = policyChart(body, 300, "An LP dispatch with marginal-cost bids understates the peaks and has no scarcity pricing: the 2025 " +
+      "backtest's RMSE is 18.5 €/MWh in the North. Only the gap between the two curves is used here.");
+    const share = Array.from({ length: 41 }, (_, index) => `${formatNumber(index * 2.5, 1)}%`);
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      legend: queueLegend(["No measure", gcPolicyLabel(gcState.policy)]),
+      tooltip: { ...queueTooltip(params => cmTipHead(`${share[params[0].dataIndex]} of hours above`) + params.map(item =>
+        tooltipRow(item.color, item.seriesName, `€${formatNumber(item.value, 1)}`, "line")).join("")),
+        axisPointer: { type: "line", lineStyle: { color: cssVar("--chart-pointer"), width: 1 } } },
+      grid: { left: 46, right: 16, top: 34, bottom: 28 },
+      xAxis: cmCategoryAxis(share),
+      yAxis: timelineYAxis("€/MWh", { nameGap: 34, min: 0 }),
+      series: [["No measure", pair.duration.p0, "--chart-legend"], [gcPolicyLabel(gcState.policy), pair.duration.p1, "--border-2"]].map(([name, values, color]) =>
+        ({ name, type: "line", data: values, symbol: "none", lineStyle: { color: cssVar(color), width: 1.8 }, itemStyle: { color: cssVar(color) } }))
+    }, true);
+  }
+
+  function gcWaterfallChart(grid, pair, base) {
+    const alpha = +gcState.alpha;
+    const load = base.load_twh * 1e6 * alpha;
+    const gross = -pair.dpun;
+    const levyT = pair.transport_cost / load;
+    const levyC = pair.subsidy / load;
+    const net = gross - levyT - levyC;
+    const body = policyPanel(grid, "From the price fall to the net saving", `€/MWh for a customer on an indexed contract · levy charged to ${formatNumber(alpha * 100)}% of consumption`);
+    const chart = policyChart(body, 300, "The wholesale price fall, then the two charges that fund the measure spread over the consumption that " +
+      "can be charged (the decree: indexed contracts only, so the base is uncertain: 40%, 60% or 100% above). The cap's cost is after the " +
+      "anti-rent clause (hours when a non-gas unit sets the price).");
+    const categories = ["PUN fall", "Levy: transport", "Levy: cap", "Net saving"];
+    const bases = [0, gross - levyT, gross - levyT - levyC, 0];
+    const values = [gross, levyT, levyC, net];
+    const colors = ["--border-3", "--border-2", "--border-2", net >= 0 ? "--border-1" : "--border-5"];
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: queueTooltip(params => { const item = params.find(entry => entry.seriesName === "value"); return cmTipHead(categories[item.dataIndex]) +
+        tooltipRow(item.color, categories[item.dataIndex], `${formatNumber(values[item.dataIndex], 1)} €/MWh`); }),
+      grid: { left: 46, right: 16, top: 24, bottom: 28 },
+      xAxis: cmCategoryAxis(categories),
+      yAxis: timelineYAxis("€/MWh", { nameGap: 34, min: 0 }),
+      series: [
+        { name: "base", type: "bar", stack: "w", data: bases.map(value => +value.toFixed(2)), itemStyle: { color: "transparent" }, silent: true, barMaxWidth: 44, tooltip: { show: false } },
+        { name: "value", type: "bar", stack: "w", data: values.map((value, index) => ({ value: +Math.abs(value).toFixed(2), itemStyle: { color: cssVar(colors[index]) } })),
+          barMaxWidth: 44, label: { show: true, position: "top", color: cssVar("--chart-legend"), fontSize: 11, formatter: params => formatNumber(values[params.dataIndex], 1) } }
+      ]
+    }, true);
+  }
+
+  function gcWelfareChart(grid, pair) {
+    const body = policyPanel(grid, "Winners and losers", `${gcPathName(gcState.gas)} · ${gcPolicyLabel(gcState.policy)} · € billion over 2027`);
+    const chart = policyChart(body, 300, "Consumers' saving at the wholesale price on the model's Italian load; the levy that funds the measure; " +
+      "gas plants' margin after fuel, CO₂ and the reimbursement; the revenue of every other producer paid at the market price (hydro, solar, " +
+      "wind, must-run, coal); storage; Italy's half of the border congestion rents. Foreign consumers gain where exports rise; not shown.");
+    const items = [["Consumers (gross)", pair.welfare.consumers_gross, "--border-3"], ["Levy", pair.welfare.levy, "--border-2"],
+      ["Gas plants", pair.welfare.gas_producers, "--mix-gas"], ["Other producers", pair.welfare.other_producers, "--border-1"],
+      ["Storage", pair.welfare.storage, "--mix-battery"], ["Congestion rents (Italy)", pair.welfare.congestion_rents_it, "--border-7"]];
+    chart.setOption({
+      animation: false, backgroundColor: "transparent",
+      tooltip: queueTooltip(params => cmTipHead(params[0].name) + tooltipRow(params[0].color, params[0].name, gcBn(params[0].value * 1e9))),
+      grid: { left: 150, right: 24, top: 12, bottom: 28 },
+      xAxis: { type: "value", axisLabel: { ...queueAxisLabel(), formatter: value => `${value}` }, name: "€ bn", nameTextStyle: queueAxisLabel(),
+        axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, splitLine: { lineStyle: { color: cssVar("--chart-grid") } } },
+      yAxis: { type: "category", data: items.map(item => item[0]).reverse(), axisTick: { show: false }, axisLine: { lineStyle: { color: cssVar("--chart-axis-line") } }, axisLabel: queueAxisLabel() },
+      series: [{ type: "bar", barMaxWidth: 22, data: items.map(item => ({ value: +(item[1] / 1e9).toFixed(2), itemStyle: { color: cssVar(item[2]) } })).reverse(),
+        label: { show: true, position: "right", color: cssVar("--chart-legend"), fontSize: 11, formatter: params => gcSigned(params.value, 2) } }]
+    }, true);
+  }
+
+  function gcArchetypeTable(grid, pair) {
+    const data = gcState.data;
+    const alpha = gcState.alpha;
+    const body = policyPanel(grid, "Per customer", `${gcPathName(gcState.gas)} · ${gcPolicyLabel(gcState.policy)} · € a year, indexed contract, levy on ${formatNumber(+alpha * 100)}% of consumption`);
+    body.innerHTML = `<table class="gas-table"><thead><tr><th>Customer</th><th class="num">MWh/yr</th><th class="num">Price on its profile</th>` +
+      `<th class="num">Gross</th><th class="num">Levy</th><th class="num">Net</th><th class="num">Fixed price</th></tr></thead><tbody>` +
+      Object.entries(pair.archetypes).map(([key, row]) => {
+        const meta = data.archetypes[key];
+        const levy = pair.levy[alpha] * meta.loss * meta.vat * meta.mwh;
+        return `<tr><td>${escapeHtml(meta.label)}</td><td class="num">${formatNumber(meta.mwh, meta.mwh < 10 ? 1 : 0)}</td>` +
+          `<td class="num">${gcSigned(row.dprice, 1)} €/MWh</td><td class="num">${gcSigned(row.gross, 0)}</td><td class="num">+${formatNumber(levy, 0)}</td>` +
+          `<td class="num"><b>${gcSigned(row[`net_${alpha}`], 0)}</b></td><td class="num">0</td></tr>`;
+      }).join("") + `</tbody></table><div class="queue-note">Profiles: households evening-weighted; the small firm on F1 hours (weekdays 8–19); ` +
+      `the SME 70% F1; the industrial plant on two shifts (weekdays 6–22); the energy-intensive plant flat. Grid losses 10% at low voltage, 4% at ` +
+      `medium, 2% at high; VAT 10% for households. A fixed-price contract neither gains nor pays in 2027; it gains at renewal through lower forwards.</div>`;
+  }
+
+  function gcEstimatesTable(grid) {
+    const data = gcState.data;
+    const body = policyPanel(grid, "Compared with published estimates", "The average PUN change and the net for consumers, €/MWh · what each figure covers", true);
+    const what = { cap: "cap alone", package: "cap + transport", transport: "transport alone", ets: "ETS refund" };
+    const row = (source, kind, dpun, net, note, bold = false) => `<tr><td>${bold ? `<b>${source}</b>` : escapeHtml(source)}</td><td>${what[kind] || kind}</td>` +
+      `<td class="num">${dpun === null || dpun === undefined ? "—" : dpun}</td><td class="num">${net === null || net === undefined ? "—" : net}</td><td>${note}</td></tr>`;
+    const ours = [];
+    GC_NARRATIVES.forEach(gas => {
+      const p1 = data.pairs[gcRunId(gas, "norm", "P1")], p3 = data.pairs[gcRunId(gas, "norm", "P3")], p2 = data.pairs[gcRunId(gas, "norm", "P2")];
+      const c3 = data.cap_only[gcRunId(gas, "norm", "P3")], c2 = data.cap_only[gcRunId(gas, "norm", "P2")];
+      const name = `This model, ${gcPathName(gas).toLowerCase()} (TTF ${formatNumber(data.runs[gcRunId(gas, "norm", "P0")].ttf_mean, 0)})`;
+      if (c3) ours.push(row(name, "cap", gcSigned(c3.dpun, 1), gcSigned(c3.net_mwh["0.6"], 1), `ARERA's rule: ${formatNumber(data.runs[p3.run].R_mean, 1)} €/MWh of gas granted on average; full ceiling ${c2 ? gcSigned(c2.dpun, 1) : "—"}`, true));
+      if (p1) ours.push(row(name, "transport", gcSigned(p1.dpun, 1), gcSigned(p1.net_mwh["0.6"], 1), `cost ${gcBn(p1.cost)}, gross saving ${gcBn(p1.gross_saving)}`, true));
+      if (p3) ours.push(row(name, "package", gcSigned(p3.dpun, 1), gcSigned(p3.net_mwh["0.6"], 1), `cost ${gcBn(p3.cost)}; full ceiling ${p2 ? gcSigned(p2.dpun, 1) : "—"} at ${p2 ? gcBn(p2.cost) : "—"}`, true));
+      const p5 = data.pairs[gcRunId(gas, "norm", "P5")];
+      if (p5) ours.push(row(name, "ets", `${gcSigned(p5.dpun, 1)} (${anaPct(p5.dpun / data.runs[p5.vs].pun, 0)})`, gcSigned(p5.net_mwh["0.6"], 1),
+        `the abandoned design, with transport: cost ${gcBn(p5.cost)}; solar capture ${gcSigned(p5.dcapture.solar, 0)} €/MWh (${anaPct(p5.dcapture.solar / data.runs[p5.vs].capture.solar, 0)})`, true));
+    });
+    body.innerHTML = `<div class="bess-table-wrap"><table class="gas-table"><thead><tr><th>Source</th><th>Covers</th><th class="num">PUN</th><th class="num">Net</th><th>Assumptions</th></tr></thead><tbody>` +
+      data.estimates.map(item => row(item.source, item.what, item.dpun === null ? null : (item.dpun_low !== undefined ? `${gcSigned(item.dpun_low, 0)} to ${gcSigned(item.dpun, 0)}` : gcSigned(item.dpun, 0)),
+        item.net === null ? null : gcSigned(item.net, 0), escapeHtml(item.note))).join("") + ours.join("") +
+      `</tbody></table></div><div class="queue-note">Net: at 60% of consumption charged in this model; the sources' own definition elsewhere. The cap alone is the ` +
+      `run with cap and transport against the run with transport only. The government's technical report counts the two parts separately; Aurora's 1 to 11 ` +
+      `is the cap over a range of gas prices, as this model's cap-alone rows across the paths; Timera's −20 is the full ceiling on a curve with a 48 €/MWh ` +
+      `gap in January; ECCO's −13 applies ARERA's method to the futures. Aurora's February study priced the earlier ETS-refund design over several years.</div>`;
+  }
+
+  function gcRunTable(grid) {
+    const data = gcState.data;
+    const alpha = gcState.alpha;
+    const body = policyPanel(grid, "All scenarios", `${Object.keys(data.pairs).length} policy runs against their counterfactuals · built ${formatQueueDate(data.generated)}`, true);
+    const order = [...GC_NARRATIVES, "P10", "P50", "P90"];
+    const rows = Object.values(data.pairs).map(pair => ({ pair, run: data.runs[pair.run], base: data.runs[pair.vs] }))
+      .sort((a, b) => order.indexOf(a.run.gas) - order.indexOf(b.run.gas) || a.run.weather.localeCompare(b.run.weather) ||
+        GC_POLICY_ORDER.indexOf(a.run.policy) - GC_POLICY_ORDER.indexOf(b.run.policy));
+    body.innerHTML = `<div class="bess-table-wrap"><table class="gas-table"><thead><tr><th>Gas path</th><th>Weather</th><th>Policy</th>` +
+      `<th class="num">TTF</th><th class="num">R granted</th><th class="num">PUN, none</th><th class="num">PUN</th><th class="num">Change</th><th class="num">Q1</th>` +
+      `<th class="num">Gross saving</th><th class="num">Cost</th><th class="num">Net €/MWh</th><th class="num">Imports</th><th class="num">Gas</th>` +
+      `<th class="num">CO₂ Italy</th><th class="num">Solar capture</th></tr></thead><tbody>` +
+      rows.map(({ pair, run, base }) => `<tr${pair.run === gcRunId(gcState.gas, gcState.weather, gcState.policy) ? ' class="row-open"' : ""}>` +
+        `<td>${escapeHtml(gcPathName(run.gas))}</td><td>${escapeHtml(GC_WEATHER[run.weather] || run.weather)}</td><td>${escapeHtml(gcPolicyLabel(run.policy))}</td>` +
+        `<td class="num">${formatNumber(run.ttf_mean, 0)}</td><td class="num">${formatNumber(run.R_mean, 1)}</td><td class="num">${formatNumber(base.pun, 0)}</td>` +
+        `<td class="num">${formatNumber(run.pun, 0)}</td><td class="num"><b>${gcSigned(pair.dpun, 1)}</b></td><td class="num">${gcSigned(pair.dpun_q[0], 0)}</td>` +
+        `<td class="num">${gcBn(pair.gross_saving, 1)}</td><td class="num">${gcBn(pair.cost, 2)}</td><td class="num">${gcSigned(pair.net_mwh[alpha], 1)}</td>` +
+        `<td class="num">${gcSigned(pair.dimports_total, 1)} TWh</td><td class="num">${gcSigned(pair.dbcm, 2)} bcm</td><td class="num">${gcSigned(pair.dco2_it_mt, 1)} Mt</td>` +
+        `<td class="num">${gcSigned(pair.dcapture.solar, 0)}</td></tr>`).join("") + `</tbody></table></div>` +
+      `<div class="queue-note">R granted: the reimbursement per MWh of gas, averaged over the year. PUN: the load-weighted zonal price of the model. ` +
+      `Gross saving: on the model's Italian load (${formatNumber(data.runs[gcRunId("FWD", "norm", "P0")].load_twh, 0)} TWh, ENTSO-E's perimeter, below Terna's ` +
+      `${formatNumber(data.fleet.demand_twh, 0)}). Cost: the cap after the anti-rent clause plus the transport components. Solar capture: €/MWh change in the solar fleet's average price.</div>`;
+  }
+
+  function gcNotes(grid) {
+    const data = gcState.data;
+    const body = policyPanel(grid, "How the figures are made", `PyPSA-Eur v2026.09.0, Gurobi, hourly, the whole of Europe · built ${formatQueueDate(data.generated)}`, true);
+    const bt = data.backtest || {};
+    body.innerHTML = `<ul class="gas-notes">` +
+      `<li><b>The model</b>: PyPSA-Eur's European network clustered to bidding zones, Italy's seven zones with GME's hourly zone limits of 2025 ` +
+      `and ENTSO-E's border capacities, Terna's renewable and storage capacity by zone, ENTSO-E's load, hydro and must-run output, and the Italian ` +
+      `gas fleet as five tranches of an effective cost curve read from 2025 (efficiency implied by GME's price and the PSV at each level of gas output). ` +
+      `2025 backtest against GME, hourly: bias ${Object.entries(bt).map(([zone, row]) => `${zone} ${gcSigned(row.bias, 1)}`).join(", ")} €/MWh; ` +
+      `MAE ${bt.NORD ? bt.NORD.mae : "—"} and RMSE ${bt.NORD ? bt.NORD.rmse : "—"} in the North (correlation ${bt.NORD ? bt.NORD.corr : "—"}). ` +
+      `The model imports too much (67 TWh against 50 in 2025) and understates the peaks.</li>` +
+      `<li><b>2027</b>: 2025's weather, calendar, hydro, must-run and limits; Italian demand scaled to ${formatNumber(data.fleet.demand_twh, 0)} TWh ` +
+      `(Terna's perimeter, +3.5% on 2025); solar ${formatNumber(data.fleet.solar_gw, 1)} GW, wind ${formatNumber(data.fleet.wind_gw, 1)} GW, ` +
+      `utility batteries ${formatNumber(data.fleet.battery_gw, 1)} GW at ${data.fleet.battery_hours} hours; neighbours' demand grown by TYNDP's National Trends+; ` +
+      `EUA ${data.eua} €/t; coal ${data.coal} €/MWh; PSV = TTF + 2.3. Gas plants everywhere pay the path's gas price.</li>` +
+      `<li><b>The cap</b>: each day R = max(0, TTF of the previous day − ${data.strike}) per MWh of gas, times nothing (full ceiling) or capped at ` +
+      `ARERA's cross-border limit (0.56 × the month's 2025 differential NORD − max(FR, AT, SI), consultation 222/2026, 3.14–3.19). Italian gas tranches ` +
+      `bid lower by R ÷ ${data.eta_pass} (ARERA's conventional CCGT efficiency, the one its conformity regime presumes). The transport components: ` +
+      `${data.transport} €/MWh of gas (the decree's technical report), the same way. Essential plants and the exclusions of the decree are not modelled.</li>` +
+      `<li><b>Costs</b>: gas burned = output ÷ ${data.eta_burn} (GCV); the subsidy = R × gas burned, reduced by the anti-rent clause in hours when the ` +
+      `zone price is above the last gas tranche dispatched; the transport reimbursement = ${data.transport} × gas burned. The levy spreads both over ` +
+      `the share of consumption chosen above. The reimbursement is a transfer: system cost excludes it.</li>` +
+      `<li><b>Not modelled</b>: strategic bidding, start-up costs, block bids and the scarcity pricing of real peaks (an LP dispatch with marginal-cost ` +
+      `bids); intraday and balancing markets; the gas price's own response to more Italian burn (Timera: +0.5 €/MWh on the PSV); the phase-out ` +
+      `in 2028; Switzerland is in the model but outside the coupling; the exact text of the decree and ARERA's resolution were not published when ` +
+      `this was built. The gas paths are scenarios, not forecasts: results scale with the winter gas price.</li>` +
+      `<li><b>Sources</b>: the decree's technical report (9 Nov 2026); ARERA DCO 222/2026/R/eel and 221/2026/R/com; ICE Endex TTF futures of ` +
+      `${formatQueueDate(data.pricing_date)}; EEX EUA auctions; Terna's capacity and demand reports; ING, Goldman Sachs, Rabobank and Citi's 2027 gas views; ` +
+      `Timera Energy, ECCO and L. Lo Schiavo's estimates. Research plan: decreto_bollette_gas_cap_2027_research_plan.md.</li></ul>`;
   }
 
   policyMount.addEventListener("click", event => {
