@@ -24569,8 +24569,8 @@ move the slider above to another one`,
         `All years use 2025's weather. These are scenarios, not forecasts.</li>` +
         `<li><b>What works.</b> The 2025 backtest follows GME's zonal prices, and solar, curtailment and the fall in gas follow DDS.</li>` +
         `<li><b>What is still wrong.</b> Italy exports far less than in DDS, because the North is dearer than its neighbours ` +
-        `in most hours. Too much power reaches the North. Corsica builds solar freely and sends it into Italy, ` +
-        `which should not happen: it is shown apart in the generation chart.</li>` +
+        `in most hours. In 2030 too much power reaches the North; from 2035 the flow is close to DDS's. Corsica, French in PyPSA-Eur, keeps its present fleet: ` +
+        `left free to build, it had sent its own solar into Italy.</li>` +
         `<li><b>Reading the levels.</b> Demand, gas and hydro sit on ENTSO-E's perimeter, without self-producers, so they are lower than DDS's. ` +
         `The gas curve is fitted to GME's 2025 prices, and it carries the most weight at 2040's CO₂ prices.</li></ul>`, "", true) +
       forecastSection("lt-table", "Scenarios at a Glance", `<div id="forecast-lt-table" class="gas-table-wrap forecast-table-wrap"></div>`,
@@ -24580,7 +24580,7 @@ move the slider above to another one`,
         "€/MWh, zones from north to south. Colour: the year. Dashed with triangles: Energy Integration. Solid: Power Development or Best Estimate.") +
       forecastSection("lt-mix", "Italy's Supply", chart("lt-mix"),
         "TWh a year. Storage is left out: it moves energy but adds none. Other: biomass, waste, geothermal, oil, " +
-        "industrial and CHP output run at 2025's hourly level. Corsica's share is an artefact of the model, to be removed.") +
+        "industrial and CHP output run at 2025's hourly level. Via Corsica: the net flow on the SA.CO.I. links.") +
       forecastSection("lt-shape", "The Average Day", chart("lt-shape"),
         "€/MWh by hour, Italian time, the year's mean.", false, zoneFilter) +
       forecastSection("lt-duration", "Price Duration", chart("lt-duration"),
@@ -24650,7 +24650,7 @@ move the slider above to another one`,
       ["Hydro", "--mix-hydro", run => run.balance.hydro], ["Other", "--mix-other", run => run.balance.other],
       ["Coal", "--mix-coal", run => run.balance.coal], ["Fossil gas", "--mix-gas", run => run.balance.gas],
       ["Wind", "--mix-wind", wind], ["Solar", "--mix-solar", run => run.balance.solar],
-      ["Net imports", "--mix-net-imports", run => run.balance.imports], ["Corsica (artefact)", "--mix-battery", run => run.balance.corsica]];
+      ["Net imports", "--mix-net-imports", run => run.balance.imports], ["Via Corsica", "--mix-battery", run => run.balance.corsica]];
     longTermState.charts.mix.setOption({
       animation: false, backgroundColor: "transparent",
       tooltip: bessTooltip(items => bessTipHead(longTermState.data.runs[longTermState.data.order[items[0].dataIndex]].label) + items.slice().reverse()
