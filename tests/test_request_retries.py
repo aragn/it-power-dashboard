@@ -10,6 +10,7 @@ import requests
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "etl"))
 
 import entsoe_api  # noqa: E402
+import fetch_gas  # noqa: E402
 import fetch_jao_spreads  # noqa: E402
 import fetch_weather  # noqa: E402
 import fetch_zonal  # noqa: E402
@@ -63,3 +64,17 @@ def test_jao():
 def test_open_meteo():
     with pytest.raises(SecondCall):
         fetch_weather.request_points(Flaky(), [{"lat": 45, "lon": 9}], "wind_speed_100m", DAY, DAY)
+
+
+def test_gie_timeout(monkeypatch):
+    calls = []
+
+    def timeout_then_stop(*args, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            raise requests.ReadTimeout("Read timed out")
+        raise SecondCall
+
+    monkeypatch.setattr(fetch_gas.requests, "get", timeout_then_stop)
+    with pytest.raises(SecondCall):
+        fetch_gas.Gie("key").get("storage", country="IT")

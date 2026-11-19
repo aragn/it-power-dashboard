@@ -106,10 +106,19 @@ class Gie:
         for attempt in range(5):
             time.sleep(PAUSE_SECONDS)
             self.calls += 1
-            response = requests.get(HOSTS[host] + path, params=params, headers={"x-key": self.key}, timeout=120)
-            if response.status_code == 429 and attempt < 4:
-                print("    too many requests, waiting 61 s")
-                time.sleep(61)
+            try:
+                response = requests.get(HOSTS[host] + path, params=params, headers={"x-key": self.key}, timeout=120)
+            except (requests.ConnectionError, requests.exceptions.ChunkedEncodingError, requests.Timeout) as error:
+                # A slow or dropped reply (AGSI timed out on 18 November 2026).
+                if attempt == 4:
+                    raise
+                print(f"    {type(error).__name__}, trying again in 30 s")
+                time.sleep(30)
+                continue
+            if (response.status_code == 429 or response.status_code >= 500) and attempt < 4:
+                wait = 61 if response.status_code == 429 else 30
+                print(f"    HTTP {response.status_code}, waiting {wait} s")
+                time.sleep(wait)
                 continue
             response.raise_for_status()
             return response.json()
