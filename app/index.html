@@ -22930,12 +22930,19 @@ move the slider above to another one`,
    * balancing market, month by month).  Auction facts as published (Terna,
    * ARERA); the strike's parameters and the battery's derating are inputs.
    */
-  const MACSE_FIRST_AUCTION = { CSUD: 14566, SUD: 12146, CALA: 12146, SICI: 15846, SARD: 15029, average: 12959 };
+  // Terna's MACSE auctions, weighted premium by area (EUR/MWh of capacity a year),
+  // keyed by delivery year. Second auction: Terna press release, 24 November 2026.
+  const MACSE_AUCTIONS = {
+    "2028": { name: "First auction", date: "30 September 2025", gwh: 10, reserve: 37000,
+      prices: { CSUD: 14566, SUD: 12146, CALA: 12146, SICI: 15846, SARD: 15029 }, average: 12959 },
+    "2029": { name: "Second auction", date: "24 November 2026", gwh: 16, reserve: 27000,
+      prices: { CSUD: 10716, SUD: 11575, CALA: 11575, SICI: 11467, SARD: 10925 }, average: 11382 }
+  };
   const CM_DERATING_2028 = {   // 4 h and 8 h batteries, new capacity, by zone
     NORD: [0.51, 0.69], CNOR: [0.51, 0.69], CSUD: [0.54, 0.73], SUD: [0.40, 0.52], CALA: [0.40, 0.52], SICI: [0.31, 0.47], SARD: [0.31, 0.47]
   };
   const macseState = { zone: "", power: 50, energy: 200, period: "last12", from: "", to: "", bucket: "month",
-    cmPremium: 47000, derating: "", strikeEfficiency: 38, strikeOther: 5, macsePremium: "", keep: 20 };
+    cmPremium: 47000, derating: "", strikeEfficiency: 38, strikeOther: 5, macseAuction: "2029", macsePremium: "", keep: 20 };
   const macseZone = () => macseState.zone || zoneCode() || "NORD";
   const macseDerating = zone => {
     const hours = bessNum(macseState.energy, 200) / Math.max(0.1, bessNum(macseState.power, 50));
@@ -22944,11 +22951,12 @@ move the slider above to another one`,
     if (hours >= 4) return four + (eight - four) * (hours - 4) / 4;
     return four * hours / 4;
   };
-  const macsePremiumDefault = zone => MACSE_FIRST_AUCTION[zone] || MACSE_FIRST_AUCTION.average;
+  const macseAuction = () => MACSE_AUCTIONS[macseState.macseAuction] || MACSE_AUCTIONS["2029"];
+  const macsePremiumDefault = zone => macseAuction().prices[zone] || macseAuction().average;
 
   const macseView = anaView("macse", {
     title: "MACSE and the capacity market",
-    lede: "The same battery three ways: merchant, trading the markets on its own (the battery calculator's optimisation); merchant with a capacity-market contract, a premium on its derated capacity against paying back the price above the strike; and MACSE, Terna's 15-year fixed premium per MWh of capacity, giving its time-shifting to third parties and 80% of its balancing margin to Terna. Over the same days, what each would have earned and what each gives up. MACSE contracts start in 2028 (the first auction's delivery year) and the capacity market's 2028 rules are applied too: both are shown as if they were already active over the days on file, a what-if on past prices.",
+    lede: "The same battery three ways: merchant, trading the markets on its own (the battery calculator's optimisation); merchant with a capacity-market contract, a premium on its derated capacity against paying back the price above the strike; and MACSE, Terna's 15-year fixed premium per MWh of capacity, giving its time-shifting to third parties and 80% of its balancing margin to Terna. Over the same days, what each would have earned and what each gives up. MACSE contracts start in 2028 (the first auction's delivery year; 2029 for the second) and the capacity market's 2028 rules are applied too: both are shown as if they were already active over the days on file, a what-if on past prices.",
     form: () => {
       const s = macseState;
       return bessGroup("The battery",
@@ -22958,15 +22966,19 @@ move the slider above to another one`,
           help: bessHelp("The rest of the battery", "<p>Efficiency, cycles, availability, MSD and MB shares and costs: as set in the merchant revenues battery calculator (its defaults if untouched). MACSE's first auction bought batteries of 6 to 8.5 hours.</p>") })) +
         bessGroup("Capacity market",
           anaNumber(s, "cmPremium", "Premium (€/MW of derated capacity a year)", { placeholder: "e.g. 47000", min: 0, step: 1000,
-            help: bessHelp("Where it comes from", "<p>Terna's main auction for 2027 (February 2025) cleared at €47,000/MW a year for existing and new capacity alike; the 2028 auction is expected after MACSE's second, at the end of 2026.</p>") }) +
+            help: bessHelp("Where it comes from", "<p>Terna's main auction for 2027 (February 2025) cleared at €47,000/MW a year for existing and new capacity alike; the 2028 auction follows MACSE's second (24 November 2026) and has not been held yet.</p>") }) +
           anaNumber(s, "derating", "Derating (% of power)", { placeholder: "2028 table", min: 0, max: 100, step: 1, hint: "derating",
             help: bessHelp("The 2028 rules", "<p>For new capacity in the 2028 auction Terna rates a battery by zone and duration: 4 hours 51% in the North and Centre-North, 54% in the Centre-South, 40% in the South and Calabria, 31% in Sicily and Sardinia; 8 hours 69%, 73%, 52%, 47% (2027: 67% and 90% nationally). Left blank: that table, in proportion between 4 and 8 hours and below 4 (an assumption: shorter batteries were not published).</p>") }) +
           anaNumber(s, "strikeEfficiency", "Strike: OCGT efficiency (%)", { placeholder: "e.g. 38", min: 20, max: 60, step: 1,
             help: bessHelp("The strike", "<p>The capacity contract is a reliability option: whenever the MGP price passes the strike price, the holder pays Terna the difference on its derated MW, whether it produced or not. The strike is the daily variable cost of a peaking open-cycle gas turbine (ARERA 583/2023), here: GME's IG Index over this efficiency, its carbon (EU ETS × 0.202 t/MWh of gas over the efficiency) and the other costs below. ARERA's exact parameters are not reproduced.</p>") }) +
           anaNumber(s, "strikeOther", "Strike: other variable costs (€/MWh)", { placeholder: "e.g. 5", min: 0, step: 1 })) +
         bessGroup("MACSE",
-          anaNumber(s, "macsePremium", "Premium (€/MWh of capacity a year)", { placeholder: "first auction", min: 0, step: 500, hint: "macse",
-            help: bessHelp("The first auction", "<p>Terna's first MACSE auction (30 September 2025, delivery 2028, 15-year contracts) awarded all 10 GWh at a weighted €12,959/MWh a year: Centre-South 14,566, South and Calabria 12,146, Sicily 15,846, Sardinia 15,029 (the reserve was 37,000). Left blank: the zone's price, else the average. The second auction is on 24 November 2026.</p>") }) +
+          anaSelect(s, "macseAuction", "Auction", [["2029", "Second (24 Nov 2026, delivery 2029)"], ["2028", "First (30 Sep 2025, delivery 2028)"]],
+            { help: bessHelp("The two auctions", "<p>Terna's MACSE auctions buy 15-year contracts for new lithium-ion batteries in the South and the islands, area by area. " +
+              "<b>First</b> (30 September 2025, delivery 2028): all 10 GWh at a weighted €12,959/MWh a year: Centre-South 14,566, South and Calabria 12,146, Sicily 15,846, Sardinia 15,029 (reserve 37,000). " +
+              "<b>Second</b> (24 November 2026, delivery 2029): all 16 GWh at a weighted €11,382/MWh a year, 12% below the first: Centre-South 10,716 (2.8 GWh), South and Calabria 11,575 (9.6 GWh), Sicily 11,467 (3.0 GWh), Sardinia 10,925 (about 0.5 GWh); reserve 27,000; about 67 GWh qualified, 43 GWh offered.</p>") }) +
+          anaNumber(s, "macsePremium", "Premium (€/MWh of capacity a year)", { placeholder: "auction's price", min: 0, step: 500, hint: "macse",
+            help: bessHelp("Left blank", "<p>The chosen auction's price in the zone; outside its four areas (North, Centre-North), its weighted average.</p>") }) +
           anaNumber(s, "keep", "Share of the balancing margin kept (%)", { placeholder: "e.g. 20", min: 0, max: 100, step: 5,
             help: bessHelp("Why 20%", "<p>A MACSE battery offers the capacity not used by the time-shifting products in the balancing market and returns 80% of its positive contribution margin there, month by month. Here: its MSD and MB margin from the merchant optimisation, an approximation.</p>") })) +
         bessGroup("Period", anaPeriodFields(s));
@@ -22996,8 +23008,9 @@ move the slider above to another one`,
       self.hint("period", `${bessDateText(from)} – ${bessDateText(to)} · on file to ${bessDateText(lastDay)}.`);
       const derating = macseState.derating === "" ? macseDerating(zone) : Math.max(0, bessNum(macseState.derating, 50)) / 100;
       self.hint("derating", `${macseState.derating === "" ? "2028 table" : "Entered"}: ${formatNumber(derating * 100, 0)}% for ${formatNumber(energy / power, 1)} h in ${ZONE_NAMES[zone]} → ${formatNumber(power * derating, 1)} MW rated.`);
-      const premium = macseState.macsePremium === "" ? macsePremiumDefault(zone) : Math.max(0, bessNum(macseState.macsePremium, 12959));
-      self.hint("macse", `${macseState.macsePremium === "" ? (MACSE_FIRST_AUCTION[zone] ? `First auction, ${ZONE_NAMES[zone]}` : "First auction's average (no MACSE capacity was bought in this zone)") : "Entered"}: €${formatNumber(premium, 0)}/MWh a year.`);
+      const auction = macseAuction(), delivery = macseState.macseAuction in MACSE_AUCTIONS ? macseState.macseAuction : "2029";
+      const premium = macseState.macsePremium === "" ? macsePremiumDefault(zone) : Math.max(0, bessNum(macseState.macsePremium, auction.average));
+      self.hint("macse", `${macseState.macsePremium === "" ? (auction.prices[zone] ? `${auction.name}, ${ZONE_NAMES[zone]}` : `${auction.name}'s average (no MACSE capacity was bought in this zone)`) : "Entered"}: €${formatNumber(premium, 0)}/MWh a year.`);
       const days = [];
       for (let date = from; date <= to; date = bessAddDays(date, 1)) {
         const day = bessDayInput(files, zoneFile, zone, date);
@@ -23036,7 +23049,7 @@ move the slider above to another one`,
         record.macseBalancing = month > 0 ? keep * month * share : 0;
         record.routes = { merchant: record.merchant, capacity: record.merchant + record.cmPremium - record.payback, macse: record.macsePremium + record.macseBalancing - record.fixed };
       });
-      return { zone, from, to, power, energy, derating, rated, premium, cmPremium, keep, strikeEta, strikeOther, records, merchant };
+      return { zone, from, to, power, energy, derating, rated, premium, delivery, cmPremium, keep, strikeEta, strikeOther, records, merchant };
     },
     render: self => macseRender(self)
   });
@@ -23074,7 +23087,7 @@ move the slider above to another one`,
     reading.innerHTML = `<b>Reading:</b> over these days ${ranked[0][1].toLowerCase()} would have earned most, ${bessMoney(perMwYear(totals[ranked[0][0]]))} per MW a year, ` +
       `against ${ranked.slice(1).map(([key, label]) => `${bessMoney(perMwYear(totals[key]))} ${label === "MACSE" ? "with MACSE" : label === "Merchant" ? "merchant" : "merchant with the capacity market"}`).join(" and ")}. ` +
       `The capacity contract's premium (${bessMoney(perMwYear(premiumCm))}/MW a year on ${formatNumber(results.rated, 1)} rated MW) ${premiumCm > payback ? "more than covered" : "did not cover"} its payback (${bessMoney(perMwYear(payback))}). ` +
-      `MACSE matches merchant at €${formatNumber(breakeven, 0)}/MWh a year of capacity, against the €${formatNumber(results.premium, 0)} assumed. Past prices, not a forecast: MACSE starts delivering in 2028 and is applied here as if active today; MACSE fixes the revenue for 15 years, the capacity contract for its delivery year.`;
+      `MACSE matches merchant at €${formatNumber(breakeven, 0)}/MWh a year of capacity, against the €${formatNumber(results.premium, 0)} assumed. Past prices, not a forecast: this MACSE auction's contracts start in ${results.delivery || 2029} and are applied here as if active today; MACSE fixes the revenue for 15 years, the capacity contract for its delivery year.`;
     // Routes by bucket.
     const map = new Map();
     records.forEach(record => { const key = anaBucketOf(macseState.bucket, record.date); if (!map.has(key)) map.set(key, []); map.get(key).push(record); });
@@ -26533,7 +26546,7 @@ move the slider above to another one`,
     cmOperatorTable(grid, auction);
 
     grid.insertAdjacentHTML("beforeend", `<div class="queue-heading"><h2>All auctions</h2>` +
-      `<p>The six main auctions held so far, by delivery year. The next, for 2028, follows MACSE's second auction (24 November 2026).</p></div>`);
+      `<p>The six main auctions held so far, by delivery year. The next, for 2028, follows MACSE's second auction, held on 24 November 2026 (16 GWh for 2029 at €11,382/MWh a year).</p></div>`);
     cmCapacityChart(grid);
     cmPremiumChart(grid);
     cmCostChart(grid);

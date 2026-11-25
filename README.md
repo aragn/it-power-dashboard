@@ -84,7 +84,7 @@ Three more analyses are worked out on the page from files it already reads (no s
 - **MACSE and the capacity market:** the same battery three ways over the days on file:
   - merchant, the battery calculator's optimisation;
   - merchant with a capacity contract: Terna's premium on the derated capacity (2028 derating by zone and duration), less the reliability option's payback above a daily strike (an open-cycle turbine's cost on GME's gas price and the EU ETS price);
-  - MACSE: the first auction's premium by area, plus 20% of the balancing margin.
+  - MACSE: the premium by area of the second auction (24 November 2026, 16 GWh for 2029, €11,382/MWh a year on average) or the first (30 September 2025, 10 GWh for 2028, €12,959), plus 20% of the balancing margin.
 
   Shown: each route by month, what each earns and gives up, the MACSE premium that would match merchant, and the strike against the day's highest price.
 - **Imbalance price spikes, day by day** (after Volue's account of Austria's 2,900 €/MWh spike of 24 September 2026): for a zone and day (by default the period's highest imbalance price):
