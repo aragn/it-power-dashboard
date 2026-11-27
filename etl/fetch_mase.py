@@ -550,8 +550,17 @@ def main():
     refresh = [project_id for project_id in refresh if typology_of.get(project_id) in TYPOLOGIES]
     print(f"Reading {len(refresh)} project pages ({len(new_ids)} new)")
 
+    failed = []
+
     def read(project_id):
-        return project_id, fetch_project(portal, project_id, typology_of[project_id])
+        # A project page the portal keeps failing on (e.g. a lasting HTTP 500) must not sink the run:
+        # the saved record stays, and its old "checked" date puts it first in line next time.
+        try:
+            return project_id, fetch_project(portal, project_id, typology_of[project_id])
+        except RuntimeError as error:
+            print(f"  skipped {project_id}: {error}")
+            failed.append(project_id)
+            return project_id, None
 
     with ThreadPoolExecutor(PARALLEL_REQUESTS) as pool:
         for count, (project_id, project) in enumerate(pool.map(read, refresh), 1):
@@ -559,6 +568,10 @@ def main():
                 projects[project_id] = project
             if count % 250 == 0:
                 print(f"  {count}/{len(refresh)} project pages read")
+    if failed:
+        print(f"  {len(failed)} project pages skipped after {RETRIES} failures: {', '.join(map(str, failed))}")
+        if len(failed) > max(10, len(refresh) // 10):
+            raise SystemExit("MASE portal: too many project pages failing, the portal looks down")
 
     # Re-derive every saved project too, so parser changes reach them all.
     for project in projects.values():
